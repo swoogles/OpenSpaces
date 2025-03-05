@@ -52,9 +52,8 @@ private def TopicSubmission(submitEffect: Observer[Discussion], name: StrictSign
   val textVar = Var("")
   div( cls := "Flex",
     span(
-      "Topic: ",
-      input(
-        onClick.mapTo(1) --> intBus,
+      textArea(
+        placeholder := "Create a topic...", onClick.mapTo(1) --> intBus,
         value <-- textVar,
         onInput.mapToValue --> textVar,
         onMouseOver --> { ev => println(ev) },
@@ -79,13 +78,24 @@ private def DiscussionsToReview(topics: Signal[List[Discussion]]) =
           topic =>
             div( cls := "TopicCard",
               div( cls := "TopicBody", h3(topic.topic), span(cls := "VoteContainer",p(topic.facilitator), p("Votes ", topic.votes, " "),
-              button(
-                cls := "AddButton", onClick --> Observer {
-                  _ =>
-                    topicUpdates.sendOne(topic.toJson)
-                },
-                img(src := "./plus-icon.svg", role := "img")
-              )))
+                button(
+                  cls:="delete-topic",
+                  color := "red",
+                  onClick --> Observer {
+                    _ =>
+                      println("should delete: " + topic)
+                      topicUpdates.sendOne(topic.toJson)
+                  },
+                  "x"
+                ),
+                button(
+                  cls := "AddButton", onClick --> Observer {
+                    _ =>
+                      topicUpdates.sendOne(topic.toJson)
+                  },
+                  img(src := "./plus-icon.svg", role := "img")
+                ),
+              ))
             )
         }
     }
