@@ -9,7 +9,7 @@ import org.scalajs.dom.window
 
 val localStorage = window.localStorage
 
-private def NameBadge() =
+private def getOrCreatePersistedName(): Var[String] =
   val name =
     try {
       val retrieved =
@@ -24,7 +24,14 @@ private def NameBadge() =
         println("Error retrieving existing name: " + e)
         None
     }
-  val textVar: Var[String] = Var(name.getOrElse(""))
+  Var(name.getOrElse(""))
+
+private def BannerLogo() =
+  div( width := "100%",
+    img(cls := "LogoImg", src := "./wtf-web-nodate.jpg", role := "img")
+  )
+
+private def NameBadge(textVar: Var[String]) =
   div(
       div(
         input(
@@ -39,7 +46,7 @@ private def NameBadge() =
       )
   )
 
-private def TopicSubmission(submitEffect: Observer[Discussion]) =
+private def TopicSubmission(submitEffect: Observer[Discussion], name: Signal[String]) =
 
   val intBus = new EventBus[Int]
   val textVar = Var("")
@@ -77,7 +84,7 @@ private def DiscussionsToReview(topics: Signal[List[Discussion]]) =
                   _ =>
                     topicUpdates.sendOne(topic.toJson)
                 },
-                img(cls := "InnerAddButton" src := "./plus-icon.svg", role := "img")
+                img(src := "./plus-icon.svg", role := "img")
               )))
             )
         }
@@ -126,6 +133,7 @@ object FrontEnd extends App:
     }
 
     val app = {
+      val name = getOrCreatePersistedName()
       div(
         cls := "PageContainer",
         topicUpdates.connect,
@@ -150,8 +158,9 @@ object FrontEnd extends App:
                     value :: existing
             )
         },
-        NameBadge(),
-        TopicSubmission(submitNewTopic),
+        BannerLogo(),
+        NameBadge(name),
+        TopicSubmission(submitNewTopic, name.signal),
         DiscussionsToReview(topicsToReview.signal),
       )
     }
