@@ -1,6 +1,8 @@
+package co.wtf.openspaces
+
+import co.wtf.openspaces.{Discussion, Room, ScheduleSlot}
 import com.raquo.laminar.api.L.{*, given}
 import org.scalajs.dom
-import zio.json.JsonCodec
 import zio.json.*
 
 private def TopicSubmission(submitEffect: Observer[Discussion]) =
@@ -67,7 +69,7 @@ def DaySchedule(slots: Var[List[ScheduleSlot]]) =
 
 object FrontEnd extends App:
     lazy val container = dom.document.getElementById("app")
-    import io.laminext.websocket._
+    import io.laminext.websocket.*
 
 
     val ws = WebSocket.url("wss://echo.websocket.org").string.build()

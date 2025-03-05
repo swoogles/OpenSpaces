@@ -1,9 +1,8 @@
+package co.wtf.openspaces
+
 import zio.*
 import zio.Console.printLine
-
-import zio._
-
-import zio.http._
+import zio.http.*
 
 object Backend extends ZIOAppDefault {
 

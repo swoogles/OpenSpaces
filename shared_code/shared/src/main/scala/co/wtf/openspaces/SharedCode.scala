@@ -1,4 +1,5 @@
-import zio.json.JsonCodec
+package co.wtf.openspaces
+
 import zio.json.*
 
 case class Discussion(topic: String) derives JsonCodec
