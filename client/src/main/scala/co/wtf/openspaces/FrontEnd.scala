@@ -78,15 +78,34 @@ private def DiscussionsToReview(topics: Signal[List[Discussion]], name: StrictSi
         topics.sortBy(_.votes).sortWith(_.votes > _.votes).map {
           topic =>
             div( cls := "TopicCard",
-              div( cls := "TopicBody", div(display := "flex", justifyContent := "space-between", h3(topic.topic), button(
-                cls:="delete-topic",
-                color := "red",
-                border := "none", backgroundColor := "transparent", onClick --> Observer {
-                  _ =>
-                    topicUpdates.sendOne(DiscussionAction.Delete(topic.topic).asInstanceOf[DiscussionAction].toJson)
-                },
-                "x"
-              )), span(cls := "VoteContainer",p(topic.facilitator), p("Votes ", topic.votes, " "),
+              div( cls := "TopicBody",
+                div(
+                  display := "flex",
+                  justifyContent := "space-between",
+                  h3(topic.topic),
+                  if (List("bill", "emma").exists( admin =>  name.now().toLowerCase().contains(admin)))
+                  button(
+                    cls:="delete-topic",
+                    color := "red",
+                    border := "none", backgroundColor := "transparent", onClick --> Observer {
+                      _ =>
+                        topicUpdates.sendOne(DiscussionAction.Delete(topic.topic).asInstanceOf[DiscussionAction].toJson)
+                    },
+                    "x"
+                  )
+                  else span()
+                ), span(cls := "VoteContainer",p(topic.facilitator), p("Votes ", topic.votes, " "),
+
+                if topic.interestedParties.contains(name.now()) then
+                  button(
+                    cls := "RemoveButton", onClick --> Observer {
+                      _ =>
+                        topicUpdates.sendOne(DiscussionAction.RemoveVote(topic.topic, name.now()).asInstanceOf[DiscussionAction].toJson)
+                    },
+                    "-"
+//                    img(src := "./minus-icon.svg", role := "img") // TODO can we get a minus icon?
+                  )
+                else
                 button(
                   cls := "AddButton", onClick --> Observer {
                     _ =>
@@ -175,12 +194,21 @@ object FrontEnd extends App:
                         }
                       else
                         discussion :: existing
-                    case co.wtf.openspaces.DiscussionAction.Vote(voteTopic, voter) =>
+                    case DiscussionAction.Vote(voteTopic, voter) =>
                       existing.map {
                         discussion =>
                           if (discussion.topic == voteTopic)
                             println("Bumping the count")
                             discussion.copy(interestedParties = discussion.interestedParties + voter)
+                          else
+                            discussion
+                      }
+                    case DiscussionAction.RemoveVote(voteTopic, voter) =>
+                      existing.map {
+                        discussion =>
+                          if (discussion.topic == voteTopic)
+                            println("Removing the count")
+                            discussion.copy(interestedParties = discussion.interestedParties - voter)
                           else
                             discussion
                       }

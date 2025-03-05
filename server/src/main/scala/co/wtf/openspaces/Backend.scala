@@ -34,6 +34,7 @@ object Backend extends ZIOAppDefault {
                 case DiscussionAction.Delete(topic) => topic
                 case DiscussionAction.Add(discussion) => discussion.topic
                 case DiscussionAction.Vote(topic, voter) => topic
+                case DiscussionAction.RemoveVote(topic, voter) => topic
 
               updatedDiscussions <- discussions.updateAndGet(
                 currentDiscussions =>
@@ -48,6 +49,15 @@ object Backend extends ZIOAppDefault {
                           if (discussion.topic == topic)
                             println("Bumping the count")
                             discussion.copy(interestedParties = discussion.interestedParties + voter)
+                          else
+                            discussion
+                      }
+                    case DiscussionAction.RemoveVote(topic, voter) =>
+                      currentDiscussions.map {
+                        discussion =>
+                          if (discussion.topic == topic)
+                            println("Removing the count")
+                            discussion.copy(interestedParties = discussion.interestedParties - voter)
                           else
                             discussion
                       }
