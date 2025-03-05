@@ -1,0 +1,4 @@
+.PageContainer {
+    display: grid;
+    gap: 20px;
+} .Flex {display: flex; gap: 20px;}

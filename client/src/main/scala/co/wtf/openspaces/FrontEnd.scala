@@ -43,7 +43,7 @@ private def TopicSubmission(submitEffect: Observer[Discussion]) =
 
   val intBus = new EventBus[Int]
   val textVar = Var("")
-  div(
+  div( cls := "Flex",
     span(
       "Topic: ",
       input(
@@ -71,7 +71,7 @@ private def DiscussionsToReview(topics: Signal[List[Discussion]]) =
         topics.map {
           topic =>
             div(
-              topic.toString,
+              topic.topic,
               button(
                 onClick --> Observer {
                   _ =>
@@ -127,6 +127,7 @@ object FrontEnd extends App:
 
     val app = {
       div(
+        cls := "PageContainer",
         topicUpdates.connect,
         topicUpdates.received --> Observer {
           (event: String) =>
