@@ -24,6 +24,7 @@ object Backend extends ZIOAppDefault {
           // Echo the same message 10 times if it's not "foo" or "bar"
           case Read(WebSocketFrame.Text(text)) =>
             (for
+              _ <- ZIO.debug("raw Json: " + text)
               discussion <- ZIO.fromEither(text.fromJson[DiscussionAction])
                 .mapError(deserError => new Exception(s"Failed to deserialize: $deserError"))
               _ <- discussion match
@@ -40,13 +41,6 @@ object Backend extends ZIOAppDefault {
                       channel.send(Read(WebSocketFrame.text(discussion.toJson))).ignore
                     )
                 yield ()
-              _ <-
-                channel
-                  .send(Read(WebSocketFrame.text(s"echo $text")))
-                  .repeatN(10)
-                  .catchSomeCause { case cause =>
-                    ZIO.logErrorCause(s"failed sending", cause)
-                  }
             yield ())
               .catchAll(ex => ZIO.debug("Failed to echo: " + ex))
 
@@ -85,19 +79,20 @@ object Backend extends ZIOAppDefault {
           // Echo the same message 10 times if it's not "foo" or "bar"
           case Read(WebSocketFrame.Text(text)) =>
             (for
-              submittedDiscussion <- ZIO.fromEither(text.fromJson[Discussion])
+              submittedDiscussionAction <- ZIO.fromEither(text.fromJson[DiscussionAction])
                 .mapError(deserError => new Exception(s"Failed to deserialize: $deserError"))
+              topic = submittedDiscussionAction.asInstanceOf[DiscussionAction.Add].discussion.topic
               updatedDiscussions <- discussions.updateAndGet(
                 currentDiscussions =>
                       currentDiscussions.map {
                         discussion =>
-                          if (discussion.topic == submittedDiscussion.topic)
+                          if (discussion.topic == topic)
                             discussion.copy(votes = discussion.votes + 1)
                           else
                             discussion
                       }
               )
-              updatedDiscussion = updatedDiscussions.find(_.topic == submittedDiscussion.topic).get
+              updatedDiscussion = updatedDiscussions.find(_.topic == topic).get
               _ <-
                 for
                   channels <- connectedUsers.get
@@ -115,7 +110,7 @@ object Backend extends ZIOAppDefault {
                     ZIO.logErrorCause(s"failed sending", cause)
                   }
             yield ())
-              .catchAll(ex => ZIO.debug("Failed to echo: " + ex))
+              .catchAll(ex => ZIO.debug("Failed to parse vote: " + ex))
 
 
           // Print the exception if it's not a normal close

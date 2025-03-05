@@ -78,10 +78,10 @@ private def DiscussionsToReview(topics: Signal[List[Discussion]]) =
         topics.sortBy(_.votes).sortWith(_.votes > _.votes).map {
           topic =>
             div( cls := "TopicCard",
-              div( cls := "TopicBody", div(h3(topic.topic), button(
+              div( cls := "TopicBody", div(display := "flex", justifyContent := "space-between", h3(topic.topic), button(
                 cls:="delete-topic",
                 color := "red",
-                onClick --> Observer {
+                border := "none", backgroundColor := "transparent", onClick --> Observer {
                   _ =>
                     println("should delete: " + topic)
                     topicUpdates.sendOne(DiscussionAction.Delete(topic.topic).asInstanceOf[DiscussionAction].toJson)
@@ -158,15 +158,17 @@ object FrontEnd extends App:
                 case Right(value) =>
                   value match
                     case DiscussionAction.Delete(topic) =>
+                      println("Should delete: " + topic)
                       existing.filterNot(_.topic == topic)
                     case DiscussionAction.Add(discussion) =>
+                      println("Should add: " + discussion)
                       if (existing.exists(_.topic == discussion.topic))
                         existing.map {
-                          discussion =>
-                            if discussion.topic == discussion.topic then
+                          existingDiscussion =>
+                            if existingDiscussion.topic == discussion.topic then
                               discussion
                             else
-                              discussion
+                              existingDiscussion
                         }
                       else
                         discussion :: existing
