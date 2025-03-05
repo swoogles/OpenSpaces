@@ -5,8 +5,42 @@ import com.raquo.laminar.api.L.{*, given}
 import io.laminext.websocket.WebSocket
 import org.scalajs.dom
 import zio.json.*
+import org.scalajs.dom.window
+
+val localStorage = window.localStorage
+
+private def NameBadge() =
+  val name =
+    try {
+      val retrieved =
+        localStorage
+          .getItem("name")
+      Option.when(retrieved != null && !retrieved.isBlank)(
+        retrieved
+      )
+    }
+    catch {
+      case e: Exception =>
+        println("Error retrieving existing name: " + e)
+        None
+    }
+  val textVar: Var[String] = Var(name.getOrElse(""))
+  div(
+      div(
+        input(
+          value <-- textVar,
+          onInput.mapToValue --> textVar,
+          textVar --> Observer {
+            (value: String) =>
+              localStorage.setItem("name", value)
+              println("Name: " + value)
+          }
+        ),
+      )
+  )
 
 private def TopicSubmission(submitEffect: Observer[Discussion]) =
+
   val intBus = new EventBus[Int]
   val textVar = Var("")
   div(
@@ -115,6 +149,7 @@ object FrontEnd extends App:
                     value :: existing
             )
         },
+        NameBadge(),
         TopicSubmission(submitNewTopic),
         DiscussionsToReview(topicsToReview.signal),
       )
