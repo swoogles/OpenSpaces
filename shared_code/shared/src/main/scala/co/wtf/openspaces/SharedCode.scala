@@ -15,7 +15,9 @@ object DiscussionAction:
   implicit val codec: JsonCodec[DiscussionAction] = JsonCodec.derived[DiscussionAction]
 
 
-case class Discussion(topic: String, votes: Int, facilitator: String) derives JsonCodec
+case class Discussion(topic: String, facilitator: String, interestedParties: Set[String]) derives JsonCodec:
+  val votes = interestedParties.size
+
 
 enum AppView:
   case Home

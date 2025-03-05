@@ -63,7 +63,7 @@ private def TopicSubmission(submitEffect: Observer[Discussion], name: StrictSign
       )
     ),
     button(
-      onClick.mapTo(textVar.now()).map(topicTitle => Discussion.apply(topicTitle, 0, name.now())) --> submitEffect,
+      onClick.mapTo(textVar.now()).map(topicTitle => Discussion.apply(topicTitle, name.now(), Set(name.now()))) --> submitEffect,
       "Submit"
     )
   )
@@ -180,7 +180,7 @@ object FrontEnd extends App:
                         discussion =>
                           if (discussion.topic == voteTopic)
                             println("Bumping the count")
-                            discussion.copy(votes = discussion.votes + 1)
+                            discussion.copy(interestedParties = discussion.interestedParties + voter)
                           else
                             discussion
                       }

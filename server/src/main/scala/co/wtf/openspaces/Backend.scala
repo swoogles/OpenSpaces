@@ -47,7 +47,7 @@ object Backend extends ZIOAppDefault {
                         discussion =>
                           if (discussion.topic == topic)
                             println("Bumping the count")
-                            discussion.copy(votes = discussion.votes + 1)
+                            discussion.copy(interestedParties = discussion.interestedParties + voter)
                           else
                             discussion
                       }
@@ -102,7 +102,7 @@ object Backend extends ZIOAppDefault {
       ZLayer.fromZIO:
         for {
           state <- Ref.make(List.empty[WebSocketChannel])
-          topics <- Ref.make(List(Discussion("Default 1", 4, "system-hardcoded"), Discussion("Default 2", 0, "system-hardcoded")))
+          topics <- Ref.make(List(Discussion("Default 1", "system-hardcoded", Set("Bill")), Discussion("Default 2", "system-hardcoded", Set.empty)))
         } yield ApplicationState(state, topics)
 
 
