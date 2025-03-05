@@ -3,6 +3,12 @@ package co.wtf.openspaces
 import zio.*
 import zio.Console.printLine
 import zio.http.*
+import zio.json.*
+
+val randomDiscussion =
+  for 
+    id <- Random.nextIntBounded(10)
+  yield Discussion("Blah_" + id)
 
 object Backend extends ZIOAppDefault {
 
@@ -38,7 +44,12 @@ object Backend extends ZIOAppDefault {
 
         // Send a "greeting" message to the client once the connection is established
         case UserEventTriggered(UserEvent.HandshakeComplete) =>
-          channel.send(Read(WebSocketFrame.text("Greetings!")))
+          println("Should send greetings")
+          (for {
+            discussion <- randomDiscussion
+            _ <- channel.send(Read(WebSocketFrame.text(discussion.toJson)))
+          } yield ()).repeat(Schedule.spaced(5.seconds) && Schedule.forever)
+          
 
         // Log when the channel is getting closed
         case Read(WebSocketFrame.Close(status, reason)) =>

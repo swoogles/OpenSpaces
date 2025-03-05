@@ -74,6 +74,8 @@ object FrontEnd extends App:
 
     val ws = WebSocket.url("wss://echo.websocket.org").string.build()
 
+    val myWs = WebSocket.url("/discussions").string.build()
+
     val topicsToReview: Var[List[Discussion]] =
       Var(List(Discussion("Scala 3")))
 
@@ -85,6 +87,18 @@ object FrontEnd extends App:
     val app = {
       div(
         ws.connect,
+        myWs.connect,
+        myWs.received --> Observer {
+          (event: String) =>
+            println("From MY WS: " + event)
+            topicsToReview.update(existing =>
+              event.fromJson[Discussion] match
+                case Left(value) =>
+                  println("Uh oh, bad discussion sent from server: " + value)
+                  existing
+                case Right(value) => existing :+ value
+            )
+        },
         ws.received --> Observer {
           (event: String) =>
             println("From WS: " + event)

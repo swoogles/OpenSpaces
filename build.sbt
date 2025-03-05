@@ -3,17 +3,6 @@ ThisBuild / version          := "0.1.0-SNAPSHOT"
 ThisBuild / organization     := "com.example"
 ThisBuild / organizationName := "example"
 
-lazy val server = (project in file("server"))
-  .settings(
-    name := "server",
-    libraryDependencies ++= Seq(
-      "dev.zio" %% "zio" % "2.1.16",
-      "dev.zio" %% "zio-test" % "2.1.16" % Test,
-      "dev.zio" %% "zio-http" % "3.0.1",
-    ),
-    testFrameworks += new TestFramework("zio.test.sbt.ZTestFramework")
-  )
-
 import org.scalajs.linker.interface.ModuleSplitStyle
 
 lazy val sharedCode =
@@ -31,6 +20,18 @@ lazy val sharedCode =
       .withModuleSplitStyle(
         ModuleSplitStyle.SmallModulesFor(List("livechart")))
   })
+
+lazy val server = (project in file("server"))
+  .dependsOn(sharedCode.jvm)
+  .settings(
+    name := "server",
+    libraryDependencies ++= Seq(
+      "dev.zio" %% "zio" % "2.1.16",
+      "dev.zio" %% "zio-test" % "2.1.16" % Test,
+      "dev.zio" %% "zio-http" % "3.0.1",
+    ),
+    testFrameworks += new TestFramework("zio.test.sbt.ZTestFramework")
+  )
 
 
 lazy val client = (project in file("client"))
