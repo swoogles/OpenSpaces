@@ -58,8 +58,8 @@ object Backend extends ZIOAppDefault {
           case ExceptionCaught(cause) =>
             Console.printLine(s"Channel error!: ${cause.getMessage}")
 
-          case _ =>
-            ZIO.unit
+          case other =>
+            ZIO.debug("Other channel event: " + other)
         }
       }
 
