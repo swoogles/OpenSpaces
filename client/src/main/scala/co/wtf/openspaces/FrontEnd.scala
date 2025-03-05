@@ -46,7 +46,7 @@ private def NameBadge(textVar: Var[String]) =
       )
   )
 
-private def TopicSubmission(submitEffect: Observer[Discussion], name: Signal[String]) =
+private def TopicSubmission(submitEffect: Observer[Discussion], name: StrictSignal[String]) =
 
   val intBus = new EventBus[Int]
   val textVar = Var("")
@@ -63,7 +63,7 @@ private def TopicSubmission(submitEffect: Observer[Discussion], name: Signal[Str
       )
     ),
     button(
-      onClick.mapTo(textVar.now()).map(topicTitle => Discussion.apply(topicTitle, 0)) --> submitEffect,
+      onClick.mapTo(textVar.now()).map(topicTitle => Discussion.apply(topicTitle, 0, name.now())) --> submitEffect,
       "Submit topic"
     )
   )
@@ -78,7 +78,7 @@ private def DiscussionsToReview(topics: Signal[List[Discussion]]) =
         topics.sortBy(_.votes).sortWith(_.votes > _.votes).map {
           topic =>
             div( cls := "TopicCard",
-              div( cls := "TopicBody", h3(topic.topic), span(cls := "VoteContainer", p("Votes ", topic.votes, " "),
+              div( cls := "TopicBody", h3(topic.topic), span(cls := "VoteContainer",p(topic.facilitator), p("Votes ", topic.votes, " "),
               button(
                 cls := "AddButton", onClick --> Observer {
                   _ =>

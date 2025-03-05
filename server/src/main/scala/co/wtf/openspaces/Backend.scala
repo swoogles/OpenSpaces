@@ -5,11 +5,6 @@ import zio.Console.printLine
 import zio.http.*
 import zio.json.*
 
-val randomDiscussion =
-  for
-    id <- Random.nextIntBounded(10)
-  yield Discussion("Blah_" + id, 0)
-
 object Backend extends ZIOAppDefault {
 
 
@@ -140,16 +135,7 @@ object Backend extends ZIOAppDefault {
       ZLayer.fromZIO:
         for {
           state <- Ref.make(List.empty[WebSocketChannel])
-          topics <- Ref.make(List(Discussion("Default 1", 4), Discussion("Default 2", 0)))
-//          _ <-
-//            (for {
-//              discussion <- randomDiscussion
-//              channels <- state.get
-//              _ <-
-//                ZIO.foreachDiscard(channels)( channel =>
-//                  channel.send(Read(WebSocketFrame.text(discussion.toJson)))
-//                )
-//            } yield ()).repeat(Schedule.spaced(5.seconds) && Schedule.forever).forkDaemon
+          topics <- Ref.make(List(Discussion("Default 1", 4, "system-hardcoded"), Discussion("Default 2", 0, "system-hardcoded")))
         } yield ApplicationState(state, topics)
 
 
