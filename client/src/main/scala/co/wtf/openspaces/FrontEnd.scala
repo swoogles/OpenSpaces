@@ -32,9 +32,10 @@ private def BannerLogo() =
   )
 
 private def NameBadge(textVar: Var[String]) =
-  div(
-      div(
+  div(cls := "Banner",
+    img(cls := "LogoImg", src := "./wtf-web-nodate.jpg", role := "img"), div(
         input(
+          placeholder := "Enter your name",
           value <-- textVar,
           onInput.mapToValue --> textVar,
           textVar --> Observer {
@@ -77,21 +78,20 @@ private def DiscussionsToReview(topics: Signal[List[Discussion]]) =
         topics.sortBy(_.votes).sortWith(_.votes > _.votes).map {
           topic =>
             div( cls := "TopicCard",
-              div( cls := "TopicBody", h3(topic.topic), span(cls := "VoteContainer",p(topic.facilitator), p("Votes ", topic.votes, " "),
-                button(
-                  cls:="delete-topic",
-                  color := "red",
-                  onClick --> Observer {
-                    _ =>
-                      println("should delete: " + topic)
-                      topicUpdates.sendOne(topic.toJson)
-                  },
-                  "x"
-                ),
+              div( cls := "TopicBody", div(h3(topic.topic), button(
+                cls:="delete-topic",
+                color := "red",
+                onClick --> Observer {
+                  _ =>
+                    println("should delete: " + topic)
+                    topicUpdates.sendOne(DiscussionAction.Delete(topic.topic).asInstanceOf[DiscussionAction].toJson)
+                },
+                "x"
+              )), span(cls := "VoteContainer",p(topic.facilitator), p("Votes ", topic.votes, " "),
                 button(
                   cls := "AddButton", onClick --> Observer {
                     _ =>
-                      topicUpdates.sendOne(topic.toJson)
+                      topicUpdates.sendOne(DiscussionAction.Add(topic).asInstanceOf[DiscussionAction].toJson)
                   },
                   img(src := "./plus-icon.svg", role := "img")
                 ),
@@ -139,7 +139,7 @@ object FrontEnd extends App:
 
     val submitNewTopic: Observer[Discussion] = Observer {
       discussion =>
-        topicUpdates.sendOne(discussion.toJson) // TODO Json
+        topicUpdates.sendOne(DiscussionAction.Add(discussion).asInstanceOf[DiscussionAction].toJson) // TODO Json
     }
 
     val app = {
@@ -151,24 +151,27 @@ object FrontEnd extends App:
           (event: String) =>
             println("From MY WS: " + event)
             topicsToReview.update(existing =>
-              event.fromJson[Discussion] match
+              event.fromJson[DiscussionAction] match
                 case Left(value) =>
                   println("Uh oh, bad discussion sent from server: " + value)
                   existing
                 case Right(value) =>
-                  if (existing.exists(_.topic == value.topic))
-                    existing.map {
-                      discussion =>
-                        if discussion.topic == value.topic then
-                          value
-                        else
-                          discussion
-                    }
-                  else
-                    value :: existing
+                  value match
+                    case DiscussionAction.Delete(topic) =>
+                      existing.filterNot(_.topic == topic)
+                    case DiscussionAction.Add(discussion) =>
+                      if (existing.exists(_.topic == discussion.topic))
+                        existing.map {
+                          discussion =>
+                            if discussion.topic == discussion.topic then
+                              discussion
+                            else
+                              discussion
+                        }
+                      else
+                        discussion :: existing
             )
         },
-        BannerLogo(),
         NameBadge(name),
         TopicSubmission(submitNewTopic, name.signal),
         DiscussionsToReview(topicsToReview.signal),

@@ -12,7 +12,6 @@ object Backend extends ZIOAppDefault {
 
   import zio.http.ChannelEvent.{ExceptionCaught, Read, UserEvent, UserEventTriggered}
   import zio.http._
-  import zio.http.codec.PathCodec.string
 
   case class ApplicationState(connectedUsers: Ref[List[WebSocketChannel]], discussions: Ref[List[Discussion]]):
 
@@ -25,9 +24,13 @@ object Backend extends ZIOAppDefault {
           // Echo the same message 10 times if it's not "foo" or "bar"
           case Read(WebSocketFrame.Text(text)) =>
             (for
-              discussion <- ZIO.fromEither(text.fromJson[Discussion])
+              discussion <- ZIO.fromEither(text.fromJson[DiscussionAction])
                 .mapError(deserError => new Exception(s"Failed to deserialize: $deserError"))
-              _ <- discussions.update(_ :+ discussion)
+              _ <- discussion match
+                case DiscussionAction.Delete(topic) =>
+                  discussions.update(_.filterNot(_.topic == topic))
+                case DiscussionAction.Add(discussion) =>
+                  discussions.update(_ :+ discussion)
               _ <-
                 for
                   channels <- connectedUsers.get
@@ -54,7 +57,7 @@ object Backend extends ZIOAppDefault {
               discussions <- discussions.get
               _ <-
               ZIO.foreachDiscard(discussions)(discussion =>
-              channel.send(Read(WebSocketFrame.text(discussion.toJson)))
+              channel.send(Read(WebSocketFrame.text(DiscussionAction.Add(discussion).asInstanceOf[DiscussionAction].toJson)))
               )
               _ <- Console.printLine("Should send greetings")
             yield ()
@@ -101,7 +104,7 @@ object Backend extends ZIOAppDefault {
                   _ <-
                     ZIO.foreachDiscard(channels)(channel =>
                       ZIO.debug(s"Sending discussion: $updatedDiscussion to $channel") *>
-                        channel.send(Read(WebSocketFrame.text(updatedDiscussion.toJson))).ignore
+                        channel.send(Read(WebSocketFrame.text(DiscussionAction.Add(updatedDiscussion).asInstanceOf[DiscussionAction].toJson))).ignore
                     )
                 yield ()
               _ <-
