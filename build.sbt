@@ -32,11 +32,13 @@ lazy val sharedCode =
         ModuleSplitStyle.SmallModulesFor(List("livechart")))
   })
 
+
 lazy val client = (project in file("client"))
   .enablePlugins(ScalaJSPlugin)
   .dependsOn(sharedCode.js)
   .settings(
     name := "client",
+    Compile / fastOptJS / artifactPath := baseDirectory.value.getParentFile / "server" / "src" / "main" / "resources" / "public" / "client-fastopt.js",
     scalaJSUseMainModuleInitializer := true,
     scalaJSLinkerConfig ~= {
       _.withModuleKind(ModuleKind.ESModule)
