@@ -1,24 +1,56 @@
 import com.raquo.laminar.api.L.{*, given}
 import org.scalajs.dom
+import zio.json.JsonCodec
+import zio.json.*
 
-case class Discussion(topic: String)
+case class Discussion(topic: String) derives JsonCodec
 
 def TopicSubmission(submitEffect: Observer[Discussion]) =
   val intBus = new EventBus[Int]
   val textVar = Var("")
   div(
-    input(
-      onClick.mapTo(1) --> intBus,
-      value <-- textVar,
-      onInput.mapToValue --> textVar,
-      onMouseOver --> { ev => println(ev) },
-      onChange --> { _ => println("committed") },
-      onBlur.mapTo("blur") --> Observer {blurValue => println(blurValue)}
+    span(
+      "Topic: ",
+      input(
+        onClick.mapTo(1) --> intBus,
+        value <-- textVar,
+        onInput.mapToValue --> textVar,
+        onMouseOver --> { ev => println(ev) },
+        onChange --> { _ => println("committed") },
+        onBlur.mapTo("blur") --> Observer {blurValue => println(blurValue)}
+      )
     ),
     button(
       onClick.mapTo(textVar.now()).map(Discussion.apply) --> submitEffect,
-      "Submit"
+      "Submit topic"
     )
+  )
+
+
+enum AppView:
+  case Home
+  case ScheduleView
+  case SubmitTopic
+
+enum Room:
+  case King
+  case ArtGallery
+  case Hawk
+  case DanceHall
+
+case class ScheduleSlot(room: Room)
+
+def DaySchedule(slots: Var[List[ScheduleSlot]]) =
+  div(
+    children <-- slots.signal.map {
+      slots =>
+        slots.map {
+          slot =>
+            div(
+              slot.toString
+            )
+        }
+    }
   )
 
 object Main extends App:
@@ -33,11 +65,10 @@ object Main extends App:
 
     val submitNewTopic: Observer[Discussion] = Observer {
       discussion =>
-        ws.sendOne(discussion.toString) // TODO Json
+        ws.sendOne(discussion.toJson) // TODO Json
     }
 
     val app = {
-      println("should have a ws?")
       div(
         ws.connect,
         ws.received --> Observer {
@@ -51,5 +82,4 @@ object Main extends App:
         ),
       )
     }
-    println("Doing app now???")
     render(container, app)
