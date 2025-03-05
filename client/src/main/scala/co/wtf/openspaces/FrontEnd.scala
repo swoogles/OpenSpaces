@@ -227,6 +227,7 @@ object FrontEnd extends App:
           case Some(value) =>
             div(
               cls := "Error",
+              color := "red",
               value
             )
           case None =>
