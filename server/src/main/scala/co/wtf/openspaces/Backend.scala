@@ -19,7 +19,7 @@ object Backend extends ZIOAppDefault {
   import zio.http._
   import zio.http.codec.PathCodec.string
 
-  case class ApplicationState(channels: Ref[List[WebSocketChannel]]):
+  case class ApplicationState(connectedUsers: Ref[List[WebSocketChannel]], discussions: Ref[List[Discussion]]):
 
     val socketApp: WebSocketApp[Any] =
       Handler.webSocket { channel =>
@@ -27,27 +27,42 @@ object Backend extends ZIOAppDefault {
           case Read(WebSocketFrame.Text("end")) =>
             channel.shutdown
 
-          // Send a "bar" if the client sends a "foo"
-          case Read(WebSocketFrame.Text("foo")) =>
-            channel.send(Read(WebSocketFrame.text("bar")))
-
-          // Send a "foo" if the client sends a "bar"
-          case Read(WebSocketFrame.Text("bar")) =>
-            channel.send(Read(WebSocketFrame.text("foo")))
-
           // Echo the same message 10 times if it's not "foo" or "bar"
           case Read(WebSocketFrame.Text(text)) =>
-            channel
-              .send(Read(WebSocketFrame.text(s"echo $text")))
-              .repeatN(10)
-              .catchSomeCause { case cause =>
-                ZIO.logErrorCause(s"failed sending", cause)
-              }
+            (for
+              discussion <- ZIO.fromEither(text.fromJson[Discussion])
+                .mapError(deserError => new Exception(s"Failed to deserialize: $deserError"))
+              _ <- discussions.update(_ :+ discussion)
+              _ <-
+                for
+                  channels <- connectedUsers.get
+                  _ <-
+                    ZIO.foreachDiscard(channels)( channel =>
+                      ZIO.debug(s"Sending discussion: $discussion to $channel") *>
+                      channel.send(Read(WebSocketFrame.text(discussion.toJson))).ignore
+                    )
+                yield ()
+              _ <-
+                channel
+                  .send(Read(WebSocketFrame.text(s"echo $text")))
+                  .repeatN(10)
+                  .catchSomeCause { case cause =>
+                    ZIO.logErrorCause(s"failed sending", cause)
+                  }
+            yield ())
+              .catchAll(ex => ZIO.debug("Failed to echo: " + ex))
 
           // Send a "greeting" message to the client once the connection is established
           case UserEventTriggered(UserEvent.HandshakeComplete) =>
-            channels.update(_ :+ channel) *>
-            Console.printLine("Should send greetings")
+            for
+              _ <- connectedUsers.update(_ :+ channel)
+              discussions <- discussions.get
+              _ <-
+              ZIO.foreachDiscard(discussions)(discussion =>
+              channel.send(Read(WebSocketFrame.text(discussion.toJson)))
+              )
+              _ <- Console.printLine("Should send greetings")
+            yield ()
 
 
           // Log when the channel is getting closed
@@ -73,16 +88,17 @@ object Backend extends ZIOAppDefault {
       ZLayer.fromZIO:
         for {
           state <- Ref.make(List.empty[WebSocketChannel])
-          _ <-
-            (for {
-              discussion <- randomDiscussion
-              channels <- state.get
-              _ <-
-                ZIO.foreachDiscard(channels)( channel =>
-                  channel.send(Read(WebSocketFrame.text(discussion.toJson)))
-                )
-            } yield ()).repeat(Schedule.spaced(5.seconds) && Schedule.forever).forkDaemon
-        } yield ApplicationState(state)
+          topics <- Ref.make(List(Discussion("Default 1"), Discussion("Default 2")))
+//          _ <-
+//            (for {
+//              discussion <- randomDiscussion
+//              channels <- state.get
+//              _ <-
+//                ZIO.foreachDiscard(channels)( channel =>
+//                  channel.send(Read(WebSocketFrame.text(discussion.toJson)))
+//                )
+//            } yield ()).repeat(Schedule.spaced(5.seconds) && Schedule.forever).forkDaemon
+        } yield ApplicationState(state, topics)
 
 
   /**

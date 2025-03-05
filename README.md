@@ -41,29 +41,26 @@ https://github.com/zio/zio-http/tree/main/zio-http-example/src/main/scala/exampl
 
 ---
 
+## Who are you?
+- Name
+  - Totally insecure, but should be saved to browser
+
+
 ## Submit a topic
 - Form
   - Topic
-
----
 
 ## Schedule a topic
 - Topic title needs to be visible
 - Can we show rooms and time slots simultaneously, while remaining phone-friendly?
 
----
-
 ## Schedule a slot?
 - Worth having this perspective, or can we use topic-based scheduling only?
-
----
 
 ## View Topics
 - Highlight/filter based on whether or not you have expressed (dis)interest
 - Live updates
   - This is an "optimization" that I consider critical to this being useful
-
----
 
 ## View Schedule
 - Quick view of the days topics by default
@@ -76,7 +73,3 @@ https://github.com/zio/zio-http/tree/main/zio-http-example/src/main/scala/exampl
   ### Edit Schedule
   - Not sure if this is a distinct area, or a version of the View Schedule
   - 
-
-## Who are you?
-- Name
-  - Can we do this in a way where their password is automatically generated and saved in browser?

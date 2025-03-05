@@ -71,24 +71,20 @@ object FrontEnd extends App:
     lazy val container = dom.document.getElementById("app")
     import io.laminext.websocket.*
 
-
-    val ws = WebSocket.url("wss://echo.websocket.org").string.build()
-
-    val myWs = WebSocket.url("/discussions").string.build()
+    val topicUpdates = WebSocket.url("/discussions").string.build()
 
     val topicsToReview: Var[List[Discussion]] =
-      Var(List(Discussion("Scala 3")))
+      Var(List.empty)
 
     val submitNewTopic: Observer[Discussion] = Observer {
       discussion =>
-        ws.sendOne(discussion.toJson) // TODO Json
+        topicUpdates.sendOne(discussion.toJson) // TODO Json
     }
 
     val app = {
       div(
-        ws.connect,
-        myWs.connect,
-        myWs.received --> Observer {
+        topicUpdates.connect,
+        topicUpdates.received --> Observer {
           (event: String) =>
             println("From MY WS: " + event)
             topicsToReview.update(existing =>
@@ -99,23 +95,8 @@ object FrontEnd extends App:
                 case Right(value) => existing :+ value
             )
         },
-        ws.received --> Observer {
-          (event: String) =>
-            println("From WS: " + event)
-            topicsToReview.update(existing =>
-              event.fromJson[Discussion] match
-                case Left(value) =>
-                  println("Uh oh, bad discussion sent from server: " + value)
-                  existing
-                case Right(value) => existing :+ value
-            )
-        } ,
         TopicSubmission(submitNewTopic),
         DiscussionsToReview(topicsToReview.signal),
-        button(
-          onClick.mapTo("boop_" + scala.util.Random.nextInt()) --> ws.send,
-          "Click me better"
-        ),
       )
     }
     render(container, app)
