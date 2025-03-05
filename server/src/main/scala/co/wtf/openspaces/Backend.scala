@@ -51,13 +51,13 @@ object Backend extends ZIOAppDefault {
                             discussion
                       }
               )
-              updatedDiscussion = updatedDiscussions.find(_.topic == discussionTopic).get
+              // updatedDiscussion = updatedDiscussions.find(_.topic == discussionTopic).get // Needed?
               _ <-
                 for
                   channels <- connectedUsers.get
                   _ <-
                     ZIO.foreachDiscard(channels)( channel =>
-                      val fullJson = DiscussionAction.Add(updatedDiscussion).asInstanceOf[DiscussionAction].toJson
+                      val fullJson = discussionAction.toJson
                       ZIO.debug(s"Sending discussion: $fullJson to $channel") *>
                       channel.send(Read(WebSocketFrame.text(fullJson))).ignore
                     )

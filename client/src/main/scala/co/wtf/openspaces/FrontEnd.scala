@@ -83,7 +83,6 @@ private def DiscussionsToReview(topics: Signal[List[Discussion]]) =
                 color := "red",
                 border := "none", backgroundColor := "transparent", onClick --> Observer {
                   _ =>
-                    println("should delete: " + topic)
                     topicUpdates.sendOne(DiscussionAction.Delete(topic.topic).asInstanceOf[DiscussionAction].toJson)
                 },
                 "x"
@@ -159,7 +158,11 @@ object FrontEnd extends App:
                   value match
                     case DiscussionAction.Delete(topic) =>
                       println("Should delete: " + topic)
-                      existing.filterNot(_.topic == topic)
+                      val initialSize =  existing.length
+                      println("initial size: " + initialSize)
+                      val res = existing.filterNot(_.topic == topic)
+                      println("new size: " + res.length)
+                      res
                     case DiscussionAction.Add(discussion) =>
                       println("Should add: " + discussion)
                       if (existing.exists(_.topic == discussion.topic))
