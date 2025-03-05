@@ -1,4 +1,4 @@
 .PageContainer {
     display: grid;
-    gap: 20px;
-} .Flex {display: flex; gap: 20px;}
+    background-color: #f4f8fc; gap: 20px; justify-items: center;
+} .Flex {display: flex; gap: 20px;}.TopicsContainer {display: grid; gap: 10px;}.TopicCard{background-color: rgb(198, 218, 215); border-radius: 4px; width: 250px;}.TopicBody {padding: 4px;}.AddButton {background-color: transparent; border: none; width: 20px;}.InnerAddButton{width: 20px; height: 20px;}.VoteContainer {display: flex; gap: 10px; justify-content: flex-end;}

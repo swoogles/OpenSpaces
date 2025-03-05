@@ -65,20 +65,20 @@ private def TopicSubmission(submitEffect: Observer[Discussion]) =
 private def DiscussionsToReview(topics: Signal[List[Discussion]]) =
   val topicUpdates = WebSocket.url("/votes").string.build()
   div(
-    topicUpdates.connect,
+    cls := "TopicsContainer", topicUpdates.connect,
     children <-- topics.map {
       topics =>
-        topics.map {
+        topics.sortBy(_.votes).sortWith(_.votes > _.votes).map {
           topic =>
-            div(
-              topic.topic,
+            div( cls := "TopicCard",
+              div( cls := "TopicBody", h3(topic.topic), span(cls := "VoteContainer", p("Votes ", topic.votes, " "),
               button(
-                onClick --> Observer {
+                cls := "AddButton", onClick --> Observer {
                   _ =>
                     topicUpdates.sendOne(topic.toJson)
                 },
-                "+1"
-              )
+                img(cls := "InnerAddButton" src := "./plus-icon.svg", role := "img")
+              )))
             )
         }
     }
