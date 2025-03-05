@@ -69,7 +69,7 @@ private def TopicSubmission(submitEffect: Observer[Discussion], name: StrictSign
   )
 
 
-private def DiscussionsToReview(topics: Signal[List[Discussion]]) =
+private def DiscussionsToReview(topics: Signal[List[Discussion]], name: StrictSignal[String]) =
   val topicUpdates = WebSocket.url("/discussions").string.build()
   div(
     cls := "TopicsContainer", topicUpdates.connect,
@@ -90,7 +90,7 @@ private def DiscussionsToReview(topics: Signal[List[Discussion]]) =
                 button(
                   cls := "AddButton", onClick --> Observer {
                     _ =>
-                      topicUpdates.sendOne(DiscussionAction.Vote(topic.topic).asInstanceOf[DiscussionAction].toJson)
+                      topicUpdates.sendOne(DiscussionAction.Vote(topic.topic, name.now()).asInstanceOf[DiscussionAction].toJson)
                   },
                   img(src := "./plus-icon.svg", role := "img")
                 ),
@@ -175,7 +175,7 @@ object FrontEnd extends App:
                         }
                       else
                         discussion :: existing
-                    case co.wtf.openspaces.DiscussionAction.Vote(voteTopic) =>
+                    case co.wtf.openspaces.DiscussionAction.Vote(voteTopic, voter) =>
                       existing.map {
                         discussion =>
                           if (discussion.topic == voteTopic)
@@ -188,7 +188,7 @@ object FrontEnd extends App:
         },
         NameBadge(name),
         TopicSubmission(submitNewTopic, name.signal),
-        DiscussionsToReview(topicsToReview.signal),
+        DiscussionsToReview(topicsToReview.signal, name.signal),
       )
     }
     render(container, app)

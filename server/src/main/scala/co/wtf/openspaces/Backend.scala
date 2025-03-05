@@ -12,6 +12,7 @@ object Backend extends ZIOAppDefault {
 
   import zio.http.ChannelEvent.{ExceptionCaught, Read, UserEvent, UserEventTriggered}
   import zio.http._
+  
 
   case class ApplicationState(connectedUsers: Ref[List[WebSocketChannel]], discussions: Ref[List[Discussion]]):
 
@@ -32,7 +33,7 @@ object Backend extends ZIOAppDefault {
               discussionTopic = discussionAction match
                 case DiscussionAction.Delete(topic) => topic
                 case DiscussionAction.Add(discussion) => discussion.topic
-                case DiscussionAction.Vote(topic) => topic
+                case DiscussionAction.Vote(topic, voter) => topic
 
               updatedDiscussions <- discussions.updateAndGet(
                 currentDiscussions =>
@@ -41,7 +42,7 @@ object Backend extends ZIOAppDefault {
                       currentDiscussions.filterNot(_.topic == topic)
                     case DiscussionAction.Add(discussion) =>
                       currentDiscussions :+ discussion
-                    case DiscussionAction.Vote(topic) =>
+                    case DiscussionAction.Vote(topic, voter) =>
                       currentDiscussions.map {
                         discussion =>
                           if (discussion.topic == topic)
