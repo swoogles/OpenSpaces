@@ -155,9 +155,18 @@ object FrontEnd extends App:
     val topicsToReview: Var[List[Discussion]] =
       Var(List.empty)
 
+    val error: Var[Option[String]] =
+      Var(None)
+
     val submitNewTopic: Observer[Discussion] = Observer {
       discussion =>
-        topicUpdates.sendOne(DiscussionAction.Add(discussion).asInstanceOf[DiscussionAction].toJson) // TODO Json
+        if (discussion.facilitator.trim.length < 2)
+          error.set(Some("User name too short. Tell us who you are!"))
+        else if (discussion.topic.trim.length < 10)
+          error.set(Some("Topic too short. More details please."))
+        else
+          error.set(None)
+          topicUpdates.sendOne(DiscussionAction.Add(discussion).asInstanceOf[DiscussionAction].toJson) // TODO Json
     }
 
     val app = {
@@ -213,6 +222,15 @@ object FrontEnd extends App:
                             discussion
                       }
             )
+        },
+        child <-- error.signal.map {
+          case Some(value) =>
+            div(
+              cls := "Error",
+              value
+            )
+          case None =>
+            div()
         },
         NameBadge(name),
         TopicSubmission(submitNewTopic, name.signal),
