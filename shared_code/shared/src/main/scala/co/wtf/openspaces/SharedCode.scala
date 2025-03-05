@@ -2,7 +2,7 @@ package co.wtf.openspaces
 
 import zio.json.*
 
-case class Discussion(topic: String) derives JsonCodec
+case class Discussion(topic: String, votes: Int) derives JsonCodec
 
 enum AppView:
   case Home

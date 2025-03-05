@@ -2,6 +2,7 @@ package co.wtf.openspaces
 
 import co.wtf.openspaces.{Discussion, Room, ScheduleSlot}
 import com.raquo.laminar.api.L.{*, given}
+import io.laminext.websocket.WebSocket
 import org.scalajs.dom
 import zio.json.*
 
@@ -21,20 +22,29 @@ private def TopicSubmission(submitEffect: Observer[Discussion]) =
       )
     ),
     button(
-      onClick.mapTo(textVar.now()).map(Discussion.apply) --> submitEffect,
+      onClick.mapTo(textVar.now()).map(topicTitle => Discussion.apply(topicTitle, 0)) --> submitEffect,
       "Submit topic"
     )
   )
 
 
 private def DiscussionsToReview(topics: Signal[List[Discussion]]) =
+  val topicUpdates = WebSocket.url("/votes").string.build()
   div(
+    topicUpdates.connect,
     children <-- topics.map {
       topics =>
         topics.map {
           topic =>
             div(
-              topic.toString
+              topic.toString,
+              button(
+                onClick --> Observer {
+                  _ =>
+                    topicUpdates.sendOne(topic.toJson)
+                },
+                "+1"
+              )
             )
         }
     }
@@ -92,7 +102,17 @@ object FrontEnd extends App:
                 case Left(value) =>
                   println("Uh oh, bad discussion sent from server: " + value)
                   existing
-                case Right(value) => existing :+ value
+                case Right(value) =>
+                  if (existing.exists(_.topic == value.topic))
+                    existing.map {
+                      discussion =>
+                        if discussion.topic == value.topic then
+                          value
+                        else
+                          discussion
+                    }
+                  else
+                    value :: existing
             )
         },
         TopicSubmission(submitNewTopic),
