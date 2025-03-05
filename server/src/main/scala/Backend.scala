@@ -5,7 +5,7 @@ import zio._
 
 import zio.http._
 
-object StaticFiles extends ZIOAppDefault {
+object Backend extends ZIOAppDefault {
 
   /**
    * Creates an HTTP app that only serves static files from resources via

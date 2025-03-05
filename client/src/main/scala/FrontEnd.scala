@@ -3,7 +3,7 @@ import org.scalajs.dom
 import zio.json.JsonCodec
 import zio.json.*
 
-def TopicSubmission(submitEffect: Observer[Discussion]) =
+private def TopicSubmission(submitEffect: Observer[Discussion]) =
   val intBus = new EventBus[Int]
   val textVar = Var("")
   div(
@@ -22,6 +22,20 @@ def TopicSubmission(submitEffect: Observer[Discussion]) =
       onClick.mapTo(textVar.now()).map(Discussion.apply) --> submitEffect,
       "Submit topic"
     )
+  )
+
+
+private def DiscussionsToReview(topics: Signal[List[Discussion]]) =
+  div(
+    children <-- topics.map {
+      topics =>
+        topics.map {
+          topic =>
+            div(
+              topic.toString
+            )
+        }
+    }
   )
 
 
@@ -51,7 +65,7 @@ def DaySchedule(slots: Var[List[ScheduleSlot]]) =
     }
   )
 
-object Main extends App:
+object FrontEnd extends App:
     lazy val container = dom.document.getElementById("app")
     import io.laminext.websocket._
 
@@ -70,10 +84,18 @@ object Main extends App:
       div(
         ws.connect,
         ws.received --> Observer {
-          event =>
-          println("From WS: " + event)
+          (event: String) =>
+            println("From WS: " + event)
+            topicsToReview.update(existing =>
+              event.fromJson[Discussion] match
+                case Left(value) =>
+                  println("Uh oh, bad discussion sent from server: " + value)
+                  existing
+                case Right(value) => existing :+ value
+            )
         } ,
         TopicSubmission(submitNewTopic),
+        DiscussionsToReview(topicsToReview.signal),
         button(
           onClick.mapTo("boop_" + scala.util.Random.nextInt()) --> ws.send,
           "Click me better"
