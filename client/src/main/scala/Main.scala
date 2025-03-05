@@ -3,8 +3,6 @@ import org.scalajs.dom
 import zio.json.JsonCodec
 import zio.json.*
 
-case class Discussion(topic: String) derives JsonCodec
-
 def TopicSubmission(submitEffect: Observer[Discussion]) =
   val intBus = new EventBus[Int]
   val textVar = Var("")
