@@ -54,7 +54,7 @@ private def TopicSubmission(submitEffect: Observer[Discussion], name: StrictSign
   div( cls := "Flex",
     span(
       textArea(
-        placeholder := "Create a topic...", onClick.mapTo(1) --> intBus,
+        fontFamily := "Roboto", placeholder := "Create a topic...", onClick.mapTo(1) --> intBus,
         value <-- textVar,
         onInput.mapToValue --> textVar,
         onMouseOver --> { ev => println(ev) },
@@ -64,13 +64,13 @@ private def TopicSubmission(submitEffect: Observer[Discussion], name: StrictSign
     ),
     button(
       onClick.mapTo(textVar.now()).map(topicTitle => Discussion.apply(topicTitle, 0, name.now())) --> submitEffect,
-      "Submit topic"
+      "Submit"
     )
   )
 
 
 private def DiscussionsToReview(topics: Signal[List[Discussion]]) =
-  val topicUpdates = WebSocket.url("/votes").string.build()
+  val topicUpdates = WebSocket.url("/discussions").string.build()
   div(
     cls := "TopicsContainer", topicUpdates.connect,
     children <-- topics.map {
@@ -91,7 +91,7 @@ private def DiscussionsToReview(topics: Signal[List[Discussion]]) =
                 button(
                   cls := "AddButton", onClick --> Observer {
                     _ =>
-                      topicUpdates.sendOne(DiscussionAction.Add(topic).asInstanceOf[DiscussionAction].toJson)
+                      topicUpdates.sendOne(DiscussionAction.Vote(topic.topic).asInstanceOf[DiscussionAction].toJson)
                   },
                   img(src := "./plus-icon.svg", role := "img")
                 ),
@@ -172,6 +172,15 @@ object FrontEnd extends App:
                         }
                       else
                         discussion :: existing
+                    case co.wtf.openspaces.DiscussionAction.Vote(voteTopic) =>
+                      existing.map {
+                        discussion =>
+                          if (discussion.topic == voteTopic)
+                            println("Bumping the count")
+                            discussion.copy(votes = discussion.votes + 1)
+                          else
+                            discussion
+                      }
             )
         },
         NameBadge(name),

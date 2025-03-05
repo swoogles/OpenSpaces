@@ -25,20 +25,41 @@ object Backend extends ZIOAppDefault {
           case Read(WebSocketFrame.Text(text)) =>
             (for
               _ <- ZIO.debug("raw Json: " + text)
-              discussion <- ZIO.fromEither(text.fromJson[DiscussionAction])
+              discussionAction <- ZIO.fromEither(text.fromJson[DiscussionAction])
                 .mapError(deserError => new Exception(s"Failed to deserialize: $deserError"))
-              _ <- discussion match
-                case DiscussionAction.Delete(topic) =>
-                  discussions.update(_.filterNot(_.topic == topic))
-                case DiscussionAction.Add(discussion) =>
-                  discussions.update(_ :+ discussion)
+
+
+              discussionTopic = discussionAction match
+                case DiscussionAction.Delete(topic) => topic
+                case DiscussionAction.Add(discussion) => discussion.topic
+                case DiscussionAction.Vote(topic) => topic
+
+              updatedDiscussions <- discussions.updateAndGet(
+                currentDiscussions =>
+                  discussionAction match
+                    case DiscussionAction.Delete(topic) =>
+                      currentDiscussions.filterNot(_.topic == topic)
+                    case DiscussionAction.Add(discussion) =>
+                      currentDiscussions :+ discussion
+                    case DiscussionAction.Vote(topic) =>
+                      currentDiscussions.map {
+                        discussion =>
+                          if (discussion.topic == topic)
+                            println("Bumping the count")
+                            discussion.copy(votes = discussion.votes + 1)
+                          else
+                            discussion
+                      }
+              )
+              updatedDiscussion = updatedDiscussions.find(_.topic == discussionTopic).get
               _ <-
                 for
                   channels <- connectedUsers.get
                   _ <-
                     ZIO.foreachDiscard(channels)( channel =>
-                      ZIO.debug(s"Sending discussion: $discussion to $channel") *>
-                      channel.send(Read(WebSocketFrame.text(discussion.toJson))).ignore
+                      val fullJson = DiscussionAction.Add(updatedDiscussion).asInstanceOf[DiscussionAction].toJson
+                      ZIO.debug(s"Sending discussion: $fullJson to $channel") *>
+                      channel.send(Read(WebSocketFrame.text(fullJson))).ignore
                     )
                 yield ()
             yield ())
@@ -70,62 +91,9 @@ object Backend extends ZIOAppDefault {
         }
       }
 
-    val voteSockets: WebSocketApp[Any] =
-      Handler.webSocket { channel =>
-        channel.receiveAll {
-          case Read(WebSocketFrame.Text("end")) =>
-            channel.shutdown
-
-          // Echo the same message 10 times if it's not "foo" or "bar"
-          case Read(WebSocketFrame.Text(text)) =>
-            (for
-              submittedDiscussionAction <- ZIO.fromEither(text.fromJson[DiscussionAction])
-                .mapError(deserError => new Exception(s"Failed to deserialize: $deserError"))
-              topic = submittedDiscussionAction.asInstanceOf[DiscussionAction.Add].discussion.topic
-              updatedDiscussions <- discussions.updateAndGet(
-                currentDiscussions =>
-                      currentDiscussions.map {
-                        discussion =>
-                          if (discussion.topic == topic)
-                            discussion.copy(votes = discussion.votes + 1)
-                          else
-                            discussion
-                      }
-              )
-              updatedDiscussion = updatedDiscussions.find(_.topic == topic).get
-              _ <-
-                for
-                  channels <- connectedUsers.get
-                  _ <-
-                    ZIO.foreachDiscard(channels)(channel =>
-                      ZIO.debug(s"Sending discussion: $updatedDiscussion to $channel") *>
-                        channel.send(Read(WebSocketFrame.text(DiscussionAction.Add(updatedDiscussion).asInstanceOf[DiscussionAction].toJson))).ignore
-                    )
-                yield ()
-              _ <-
-                channel
-                  .send(Read(WebSocketFrame.text(s"echo $text")))
-                  .repeatN(10)
-                  .catchSomeCause { case cause =>
-                    ZIO.logErrorCause(s"failed sending", cause)
-                  }
-            yield ())
-              .catchAll(ex => ZIO.debug("Failed to parse vote: " + ex))
-
-
-          // Print the exception if it's not a normal close
-          case ExceptionCaught(cause) =>
-            Console.printLine(s"Channel error!: ${cause.getMessage}")
-
-          case other =>
-            ZIO.debug("Other channel event: " + other)
-        }
-      }
-
     val socketRoutes =
       Routes(
         Method.GET / "discussions"          -> handler(socketApp.toResponse),
-        Method.GET / "votes" -> handler(voteSockets.toResponse)
       )
 
   object ApplicationState:
