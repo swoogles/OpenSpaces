@@ -44,7 +44,7 @@ lazy val client = (project in file("client"))
           ModuleSplitStyle.SmallModulesFor(List("livechart")))
     },
     libraryDependencies ++= Seq(
-      "dev.zio" %%% "zio" % "2.1.11",
+//      "dev.zio" %%% "zio" % "2.1.11",
       "dev.zio" %%% "zio-test" % "2.1.11" % Test,
       "dev.zio" %%% "zio-json" % "0.7.38",
 //      "io.github.cquiroz" %%% "scala-java-time" % "2.5.0",
