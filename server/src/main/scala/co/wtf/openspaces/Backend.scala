@@ -2,6 +2,7 @@ package co.wtf.openspaces
 
 import zio.*
 import zio.json.*
+import zio.direct.*
 
 object Backend extends ZIOAppDefault {
 
@@ -21,9 +22,9 @@ object Backend extends ZIOAppDefault {
   object DiscussionDataStore:
     val layer =
       ZLayer.fromZIO:
-        for {
-          topics <- Ref.make(List(Discussion("Continuous Deployment - A goal, or an asymptote?", "Bill", Set("Bill")), Discussion("Managing emotional energy on the job", "Emma", Set("Emma"))))
-        } yield DiscussionDataStore(topics)
+        defer:
+          val topics = Ref.make(List(Discussion("Continuous Deployment - A goal, or an asymptote?", "Bill", Set("Bill")), Discussion("Managing emotional energy on the job", "Emma", Set("Emma")))).run
+          DiscussionDataStore(topics)
 
 
   case class ApplicationState(connectedUsers: Ref[List[WebSocketChannel]], discussionDataStore: DiscussionDataStore):
@@ -31,47 +32,37 @@ object Backend extends ZIOAppDefault {
     val socketApp: WebSocketApp[Any] =
       Handler.webSocket { channel =>
         channel.receiveAll {
-
-          // Echo the same message 10 times if it's not "foo" or "bar"
           case Read(WebSocketFrame.Text(text)) =>
-            (for
-              _ <- ZIO.debug("raw Json: " + text)
-              discussionAction <- ZIO.fromEither(text.fromJson[DiscussionAction])
+            defer:
+              val discussionAction = ZIO.fromEither(text.fromJson[DiscussionAction])
                 .mapError(deserError => new Exception(s"Failed to deserialize: $deserError"))
+                .run
 
 
-              updatedDiscussions <- discussionDataStore.applyAction(discussionAction)
-              _ <-
-                for
-                  channels <- connectedUsers.get
-                  _ <-
-                    ZIO.foreachDiscard(channels)( channel =>
-                      val fullJson = discussionAction.toJson
-                      ZIO.debug(s"Sending discussion: $fullJson to $channel") *>
-                      channel.send(Read(WebSocketFrame.text(fullJson))).ignore
-                    )
-                yield ()
-            yield ())
-              .catchAll(ex => ZIO.debug("Failed to echo: " + ex))
+              val updatedDiscussions = discussionDataStore.applyAction(discussionAction).run
+              defer:
+                val channels = connectedUsers.get.run
+                ZIO.foreachDiscard(channels)( channel =>
+                  val fullJson = discussionAction.toJson
+                  ZIO.debug(s"Sending discussion: $fullJson to $channel") *>
+                    channel.send(Read(WebSocketFrame.text(fullJson))).ignore
+                ).run
+              .run
 
-          // Send a "greeting" message to the client once the connection is established
+            .catchAll(ex => ZIO.debug("Failed to echo: " + ex))
+
           case UserEventTriggered(UserEvent.HandshakeComplete) =>
-            for
-              _ <- connectedUsers.update(_ :+ channel)
-              discussions <- discussionDataStore.snapshot
-              _ <-
+            defer:
+              connectedUsers.update(_ :+ channel).run
+              val discussions = discussionDataStore.snapshot.run
               ZIO.foreachDiscard(discussions)(discussion =>
                 channel.send(Read(WebSocketFrame.text(DiscussionAction.Add(discussion).asInstanceOf[DiscussionAction].toJson)))
-              )
-              _ <- Console.printLine("Should send greetings")
-            yield ()
+              ).run
+              Console.printLine("Should send greetings").run
 
-
-          // Log when the channel is getting closed
           case Read(WebSocketFrame.Close(status, reason)) =>
             Console.printLine("Closing channel with status: " + status + " and reason: " + reason)
 
-          // Print the exception if it's not a normal close
           case ExceptionCaught(cause) =>
             Console.printLine(s"Channel error!: ${cause.getMessage}")
 
@@ -88,19 +79,17 @@ object Backend extends ZIOAppDefault {
   object ApplicationState:
     val layer =
       ZLayer.fromZIO:
-        for {
-          discussionDataStore <- ZIO.service[DiscussionDataStore]
-          state <- Ref.make(List.empty[WebSocketChannel])
-          topics <- Ref.make(List(Discussion("Continuous Deployment - A goal, or an asymptote?", "Bill", Set("Bill")), Discussion("Managing emotional energy on the job", "Emma", Set("Emma"))))
-        } yield ApplicationState(state, discussionDataStore)
+        defer:
+          val discussionDataStore = ZIO.service[DiscussionDataStore].run
+          val state = Ref.make(List.empty[WebSocketChannel]).run
+          ApplicationState(state, discussionDataStore)
 
 
 
   override def run =
-    (for {
-      statefulRoutes <- ZIO.serviceWith[ApplicationState](_.socketRoutes)
-      _ <- Server.serve(statefulRoutes @@ Middleware.serveResources(Path.empty))
-    } yield ())
+    defer:
+      val statefulRoutes = ZIO.serviceWith[ApplicationState](_.socketRoutes).run
+      Server.serve(statefulRoutes @@ Middleware.serveResources(Path.empty)).as("Just working around zio-direct limitation").run
     .provide(
       Server.default,
       ApplicationState.layer,
