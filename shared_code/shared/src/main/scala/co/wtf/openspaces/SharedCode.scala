@@ -11,16 +11,6 @@ case class Discussion(
   val votes: Int = interestedParties.size
 
 
-
-
-
-
-
-
-
-
-
-
 enum DiscussionAction derives JsonCodec:
   case Delete(topic: String)
   case Add(discussion: Discussion)
@@ -38,7 +28,6 @@ object DiscussionAction:
         currentDiscussions.map {
           discussion =>
             if (discussion.topic == topic)
-              println("Bumping the count")
               discussion.copy(interestedParties = discussion.interestedParties + voter)
             else
               discussion
@@ -47,54 +36,11 @@ object DiscussionAction:
         currentDiscussions.map {
           discussion =>
             if (discussion.topic == topic)
-              println("Removing the count")
               discussion.copy(interestedParties = discussion.interestedParties - voter)
             else
               discussion
         }
   }
-
-
-// Some day
-
-// TODO Scala 3 enum version of DiscussionAction
-enum DiscussionAction3 derives JsonCodec:
-  case Delete(topic: String)
-  case Add(discussion: Discussion)
-  case Vote(topic: String, voter: String)
-  case RemoveVote(topic: String, voter: String)
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
   
   
 enum AppView:

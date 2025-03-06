@@ -185,36 +185,7 @@ object FrontEnd extends App:
                   println("Uh oh, bad discussion sent from server: " + value)
                   existing
                 case Right(value) =>
-                  value match
-                    case DiscussionAction.Delete(topic) =>
-                      existing.filterNot(_.topic == topic)
-                    case DiscussionAction.Add(discussion) =>
-                      if (existing.exists(_.topic == discussion.topic))
-                        existing.map {
-                          existingDiscussion =>
-                            if existingDiscussion.topic == discussion.topic then
-                              discussion
-                            else
-                              existingDiscussion
-                        }
-                      else
-                        discussion :: existing
-                    case DiscussionAction.Vote(voteTopic, voter) =>
-                      existing.map {
-                        discussion =>
-                          if (discussion.topic == voteTopic)
-                            discussion.copy(interestedParties = discussion.interestedParties + voter)
-                          else
-                            discussion
-                      }
-                    case DiscussionAction.RemoveVote(voteTopic, voter) =>
-                      existing.map {
-                        discussion =>
-                          if (discussion.topic == voteTopic)
-                            discussion.copy(interestedParties = discussion.interestedParties - voter)
-                          else
-                            discussion
-                      }
+                  DiscussionAction.foo(value, existing)
             )
         },
         child <-- error.signal.map {
