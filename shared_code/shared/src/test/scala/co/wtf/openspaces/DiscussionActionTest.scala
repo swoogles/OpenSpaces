@@ -15,6 +15,7 @@ object DiscussionActionTest extends ZIOSpecDefault:
             interestedParties = Set("bill")
           )
           val res = DiscussionAction.Add(discussion).asInstanceOf[DiscussionAction].toJsonPretty
+          val res2 = DiscussionAction3.Add(discussion).asInstanceOf[DiscussionAction3].toJsonPretty
           val expected =
             """{
                |  "Add" : {
@@ -28,6 +29,7 @@ object DiscussionActionTest extends ZIOSpecDefault:
                |  }
                |}""".stripMargin
           println("res: " + res)
-          assertTrue(res == expected)
+          println("res2: " + res2)
+          assertTrue(res == expected) && assertTrue(res2 == expected)
         )
       )
