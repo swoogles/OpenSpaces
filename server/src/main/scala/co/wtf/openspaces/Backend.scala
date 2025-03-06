@@ -16,32 +16,7 @@ object Backend extends ZIOAppDefault {
       discussionDatabase.get
 
     def applyAction(discussionAction: DiscussionAction) =
-      discussionDatabase.updateAndGet(
-        currentDiscussions =>
-          discussionAction match
-            case DiscussionAction.Delete(topic) =>
-              currentDiscussions.filterNot(_.topic == topic)
-            case DiscussionAction.Add(discussion) =>
-              currentDiscussions :+ discussion // Only add if new topic title
-            case DiscussionAction.Vote(topic, voter) =>
-              currentDiscussions.map {
-                discussion =>
-                  if (discussion.topic == topic)
-                    println("Bumping the count")
-                    discussion.copy(interestedParties = discussion.interestedParties + voter)
-                  else
-                    discussion
-              }
-            case DiscussionAction.RemoveVote(topic, voter) =>
-              currentDiscussions.map {
-                discussion =>
-                  if (discussion.topic == topic)
-                    println("Removing the count")
-                    discussion.copy(interestedParties = discussion.interestedParties - voter)
-                  else
-                    discussion
-              }
-      )
+      discussionDatabase.updateAndGet(DiscussionAction.foo(discussionAction, _))
 
   object DiscussionDataStore:
     val layer =
@@ -86,7 +61,7 @@ object Backend extends ZIOAppDefault {
               discussions <- discussionDataStore.snapshot
               _ <-
               ZIO.foreachDiscard(discussions)(discussion =>
-              channel.send(Read(WebSocketFrame.text(DiscussionAction.Add(discussion).asInstanceOf[DiscussionAction].toJson)))
+                channel.send(Read(WebSocketFrame.text(DiscussionAction.Add(discussion).asInstanceOf[DiscussionAction].toJson)))
               )
               _ <- Console.printLine("Should send greetings")
             yield ()
@@ -120,12 +95,6 @@ object Backend extends ZIOAppDefault {
         } yield ApplicationState(state, discussionDataStore)
 
 
-  /**
-   * Creates an HTTP app that only serves static files from resources via
-   * "/static". For paths other than the resources directory, see
-   * [[zio.http.Middleware.serveDirectory]].
-   */
-//  val routes = socketRoutes
 
   override def run =
     (for {

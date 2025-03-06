@@ -30,6 +30,32 @@ object DiscussionAction:
   implicit val codec: JsonCodec[DiscussionAction] = JsonCodec.derived[DiscussionAction]
   implicit val schema: Schema[DiscussionAction] =  DeriveSchema.gen
 
+  def foo(discussionAction: DiscussionAction, currentDiscussions: List[Discussion]) = {
+    discussionAction match
+      case DiscussionAction.Delete(topic) =>
+        currentDiscussions.filterNot(_.topic == topic)
+      case DiscussionAction.Add(discussion) =>
+        currentDiscussions :+ discussion // Only add if new topic title
+      case DiscussionAction.Vote(topic, voter) =>
+        currentDiscussions.map {
+          discussion =>
+            if (discussion.topic == topic)
+              println("Bumping the count")
+              discussion.copy(interestedParties = discussion.interestedParties + voter)
+            else
+              discussion
+        }
+      case DiscussionAction.RemoveVote(topic, voter) =>
+        currentDiscussions.map {
+          discussion =>
+            if (discussion.topic == topic)
+              println("Removing the count")
+              discussion.copy(interestedParties = discussion.interestedParties - voter)
+            else
+              discussion
+        }
+  }
+
 
 // Some day
   
