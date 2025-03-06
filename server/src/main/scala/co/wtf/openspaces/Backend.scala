@@ -5,10 +5,6 @@ import zio.json.*
 import zio.direct.*
 
 object Backend extends ZIOAppDefault {
-
-
-  import zio._
-
   import zio.http.ChannelEvent.{ExceptionCaught, Read, UserEvent, UserEventTriggered}
   import zio.http._
 

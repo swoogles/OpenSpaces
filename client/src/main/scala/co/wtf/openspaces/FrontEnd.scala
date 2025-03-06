@@ -49,13 +49,11 @@ private def NameBadge(textVar: Var[String]) =
   )
 
 private def TopicSubmission(submitEffect: Observer[Discussion], name: StrictSignal[String]) =
-
-  val intBus = new EventBus[Int]
   val textVar = Var("")
   div( cls := "Flex",
     span(
       textArea(
-        fontFamily := "Roboto", placeholder := "Create a topic...", onClick.mapTo(1) --> intBus,
+        fontFamily := "Roboto", placeholder := "Create a topic...",
         value <-- textVar,
         onInput.mapToValue --> textVar,
       )
@@ -161,7 +159,7 @@ object FrontEnd extends App:
           error.set(Some("Topic too short. More details please."))
         else
           error.set(None)
-          topicUpdates.sendOne(DiscussionAction.Add(discussion)) // TODO Json
+          topicUpdates.sendOne(DiscussionAction.Add(discussion))
     }
 
     val app = {
