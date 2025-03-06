@@ -11,6 +11,10 @@ lazy val sharedCode =
     name := "shared",
     libraryDependencies ++= Seq(
       "dev.zio" %%% "zio-json" % "0.7.38",
+      "dev.zio" %%% "zio-schema"          % "1.6.4",
+      "dev.zio" %%% "zio-schema-json"     % "1.6.4",
+      "dev.zio" %% "zio-schema-derivation" % "1.6.4", // TODO Is this doing anything if we can't include the dep below for JS?
+//      "org.scala-lang" % "scala-reflect"  % scalaVersion.value % "provided"
     ),
     testFrameworks += new TestFramework("zio.test.sbt.ZTestFramework")
   )
@@ -29,6 +33,7 @@ lazy val server = (project in file("server"))
       "dev.zio" %% "zio" % "2.1.16",
       "dev.zio" %% "zio-test" % "2.1.16" % Test,
       "dev.zio" %% "zio-http" % "3.0.1",
+
     ),
     testFrameworks += new TestFramework("zio.test.sbt.ZTestFramework")
   )
@@ -40,6 +45,7 @@ lazy val client = (project in file("client"))
   .settings(
     name := "client",
     Compile / fastOptJS / artifactPath := baseDirectory.value.getParentFile / "server" / "src" / "main" / "resources" / "public" / "client-fastopt.js",
+    Compile / fullOptJS / artifactPath := baseDirectory.value.getParentFile / "server" / "src" / "main" / "resources" / "public" / "client-fastopt.js",
     scalaJSUseMainModuleInitializer := true,
     scalaJSLinkerConfig ~= {
       _.withModuleKind(ModuleKind.ESModule)

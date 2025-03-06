@@ -33,18 +33,20 @@ private def BannerLogo() =
 
 private def NameBadge(textVar: Var[String]) =
   div(cls := "Banner",
-    img(cls := "LogoImg", src := "./wtf-web-nodate.jpg", role := "img"), div(
-        input(
-          placeholder := "Enter your name",
-          value <-- textVar,
-          onInput.mapToValue --> textVar,
-          textVar --> Observer {
-            (value: String) =>
-              localStorage.setItem("name", value)
-              println("Name: " + value)
-          }
-        ),
-      )
+    img(cls := "LogoImg", src := "./wtf-web-nodate.jpg", role := "img"),
+    div(
+      span("Name:"),
+      input(
+        placeholder := "Enter your name",
+        value <-- textVar,
+        onInput.mapToValue --> textVar,
+        textVar --> Observer {
+          (value: String) =>
+            localStorage.setItem("name", value)
+            println("Name: " + value)
+        }
+      ),
+    )
   )
 
 private def TopicSubmission(submitEffect: Observer[Discussion], name: StrictSignal[String]) =
@@ -185,14 +187,8 @@ object FrontEnd extends App:
                 case Right(value) =>
                   value match
                     case DiscussionAction.Delete(topic) =>
-                      println("Should delete: " + topic)
-                      val initialSize =  existing.length
-                      println("initial size: " + initialSize)
-                      val res = existing.filterNot(_.topic == topic)
-                      println("new size: " + res.length)
-                      res
+                      existing.filterNot(_.topic == topic)
                     case DiscussionAction.Add(discussion) =>
-                      println("Should add: " + discussion)
                       if (existing.exists(_.topic == discussion.topic))
                         existing.map {
                           existingDiscussion =>
@@ -207,7 +203,6 @@ object FrontEnd extends App:
                       existing.map {
                         discussion =>
                           if (discussion.topic == voteTopic)
-                            println("Bumping the count")
                             discussion.copy(interestedParties = discussion.interestedParties + voter)
                           else
                             discussion
@@ -216,7 +211,6 @@ object FrontEnd extends App:
                       existing.map {
                         discussion =>
                           if (discussion.topic == voteTopic)
-                            println("Removing the count")
                             discussion.copy(interestedParties = discussion.interestedParties - voter)
                           else
                             discussion
