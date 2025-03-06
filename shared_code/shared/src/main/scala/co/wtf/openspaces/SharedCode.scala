@@ -42,12 +42,6 @@ object DiscussionAction:
         }
   }
   
-  
-enum AppView:
-  case Home
-  case ScheduleView
-  case SubmitTopic
-
 enum Room:
   case King
   case ArtGallery

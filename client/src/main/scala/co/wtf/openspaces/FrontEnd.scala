@@ -43,7 +43,6 @@ private def NameBadge(textVar: Var[String]) =
         textVar --> Observer {
           (value: String) =>
             localStorage.setItem("name", value)
-            println("Name: " + value)
         }
       ),
     )
@@ -59,9 +58,6 @@ private def TopicSubmission(submitEffect: Observer[Discussion], name: StrictSign
         fontFamily := "Roboto", placeholder := "Create a topic...", onClick.mapTo(1) --> intBus,
         value <-- textVar,
         onInput.mapToValue --> textVar,
-        onMouseOver --> { ev => println(ev) },
-        onChange --> { _ => println("committed") },
-        onBlur.mapTo("blur") --> Observer {blurValue => println(blurValue)}
       )
     ),
     button(
@@ -71,8 +67,7 @@ private def TopicSubmission(submitEffect: Observer[Discussion], name: StrictSign
   )
 
 
-private def DiscussionsToReview(topics: Signal[List[Discussion]], name: StrictSignal[String]) =
-  val topicUpdates = WebSocket.url("/discussions").string.build()
+private def DiscussionsToReview(topics: Signal[List[Discussion]], name: StrictSignal[String], topicUpdates: WebSocket[DiscussionAction, DiscussionAction]) =
   div(
     cls := "TopicsContainer", topicUpdates.connect,
     children <-- topics.map {
@@ -91,7 +86,7 @@ private def DiscussionsToReview(topics: Signal[List[Discussion]], name: StrictSi
                     color := "red",
                     border := "none", backgroundColor := "transparent", onClick --> Observer {
                       _ =>
-                        topicUpdates.sendOne(DiscussionAction.Delete(topic.topic).asInstanceOf[DiscussionAction].toJson)
+                        topicUpdates.sendOne(DiscussionAction.Delete(topic.topic))
                     },
                     "x"
                   )
@@ -102,7 +97,7 @@ private def DiscussionsToReview(topics: Signal[List[Discussion]], name: StrictSi
                   button(
                     cls := "RemoveButton", onClick --> Observer {
                       _ =>
-                        topicUpdates.sendOne(DiscussionAction.RemoveVote(topic.topic, name.now()).asInstanceOf[DiscussionAction].toJson)
+                        topicUpdates.sendOne(DiscussionAction.RemoveVote(topic.topic, name.now()))
                     },
                     "-"
 //                    img(src := "./minus-icon.svg", role := "img") // TODO can we get a minus icon?
@@ -111,7 +106,7 @@ private def DiscussionsToReview(topics: Signal[List[Discussion]], name: StrictSi
                 button(
                   cls := "AddButton", onClick --> Observer {
                     _ =>
-                      topicUpdates.sendOne(DiscussionAction.Vote(topic.topic, name.now()).asInstanceOf[DiscussionAction].toJson)
+                      topicUpdates.sendOne(DiscussionAction.Vote(topic.topic, name.now()))
                   },
                   img(src := "./plus-icon.svg", role := "img")
                 ),
@@ -126,12 +121,6 @@ enum AppView:
   case Home
   case ScheduleView
   case SubmitTopic
-
-enum Room:
-  case King
-  case ArtGallery
-  case Hawk
-  case DanceHall
 
 case class ScheduleSlot(room: Room)
 
@@ -152,10 +141,14 @@ object FrontEnd extends App:
     lazy val container = dom.document.getElementById("app")
     import io.laminext.websocket.*
 
-    val topicUpdates = WebSocket.url("/discussions").string.build()
+    val topicUpdates =
+      WebSocket.url("/discussions").text[DiscussionAction, DiscussionAction](
+        _.toJson,
+        _.fromJson[DiscussionAction].left.map(Exception(_))
+      ).build()
 
     val topicsToReview: Var[List[Discussion]] =
-      Var(List.empty)
+        Var(List.empty)
 
     val error: Var[Option[String]] =
       Var(None)
@@ -168,7 +161,7 @@ object FrontEnd extends App:
           error.set(Some("Topic too short. More details please."))
         else
           error.set(None)
-          topicUpdates.sendOne(DiscussionAction.Add(discussion).asInstanceOf[DiscussionAction].toJson) // TODO Json
+          topicUpdates.sendOne(DiscussionAction.Add(discussion)) // TODO Json
     }
 
     val app = {
@@ -177,15 +170,10 @@ object FrontEnd extends App:
         cls := "PageContainer",
         topicUpdates.connect,
         topicUpdates.received --> Observer {
-          (event: String) =>
+          (event: DiscussionAction) =>
             println("From MY WS: " + event)
             topicsToReview.update(existing =>
-              event.fromJson[DiscussionAction] match
-                case Left(value) =>
-                  println("Uh oh, bad discussion sent from server: " + value)
-                  existing
-                case Right(value) =>
-                  DiscussionAction.foo(value, existing)
+              DiscussionAction.foo(event, existing)
             )
         },
         child <-- error.signal.map {
@@ -200,7 +188,7 @@ object FrontEnd extends App:
         },
         NameBadge(name),
         TopicSubmission(submitNewTopic, name.signal),
-        DiscussionsToReview(topicsToReview.signal, name.signal),
+        DiscussionsToReview(topicsToReview.signal, name.signal, topicUpdates),
       )
     }
     render(container, app)
