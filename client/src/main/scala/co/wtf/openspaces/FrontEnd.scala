@@ -7,6 +7,8 @@ import org.scalajs.dom
 import zio.json.*
 import org.scalajs.dom.window
 
+import scala.util.Random
+
 val localStorage = window.localStorage
 
 private def getOrCreatePersistedName(): Var[String] =
@@ -89,52 +91,65 @@ private def DiscussionsToReview(
                                  name: StrictSignal[String],
                                  topicUpdates: WebSocket[DiscussionAction, DiscussionAction]
                                ) =
+  val localTopics = topics.map(_.data.values.toList)
   div(
     cls := "TopicsContainer", topicUpdates.connect,
-    children <-- topics.map {
-      topics =>
-        topics.data.values.toList.sortBy(_.votes).sortWith(_.votes > _.votes).map {
-          topic =>
+    topics --> Observer {
+      currentState =>
+        println(currentState)
+    },
+    children <--
+      localTopics
+        .split(_.topic.unwrap)(
+          (index, topic, signal) =>
             div( cls := "TopicCard",
-              div( cls := "TopicBody",
-                div(
-                  display := "flex",
-                  justifyContent := "space-between",
-                  h3(topic.topic.unwrap),
-                  if (List("bill", "emma").exists( admin =>  name.now().toLowerCase().contains(admin)))
-                  button(
-                    cls:="delete-topic",
-                    color := "red",
-                    border := "none", backgroundColor := "transparent", onClick --> Observer {
-                      _ =>
-                        topicUpdates.sendOne(DiscussionAction.Delete(topic.topic))
-                    },
-                    "x"
-                  )
-                  else span()
-                ), span(cls := "VoteContainer",p(topic.facilitator), p("Votes ", topic.votes, " "),
+                div( cls := "TopicBody",
+                  div(
+                    display := "flex",
+                    justifyContent := "space-between",
+                    h3(Random.nextInt(100).toString + topic.topic.unwrap),
+                    if (List("bill", "emma").exists( admin =>  name.now().toLowerCase().contains(admin)))
+                      button(
+                        cls:="delete-topic",
+                        color := "red",
+                        border := "none", backgroundColor := "transparent", onClick --> Observer {
+                          _ =>
+                            topicUpdates.sendOne(DiscussionAction.Delete(topic.topic))
+                        },
+                        "x"
+                      )
+                    else span()
+                  ),
+                  span(
+                    cls := "VoteContainer",
+                    p(topic.facilitator),
+                    p("Votes ", child<--signal.map(_.votes), " "),
 
-                if topic.interestedParties.contains(name.now()) then
-                  button(
-                    cls := "RemoveButton", onClick --> Observer {
-                      _ =>
-                        topicUpdates.sendOne(DiscussionAction.RemoveVote(topic.topic, name.now()))
-                    },
-                    "-"
-//                    img(src := "./minus-icon.svg", role := "img") // TODO can we get a minus icon?
+                    child <-- signal.map(
+                      topicLive =>
+                        if topicLive.interestedParties.contains(name.now()) then
+                          button(
+                            cls := "RemoveButton", onClick --> Observer {
+                              _ =>
+                                println("CLicked remove vote for: " + topicLive.topic)
+                                topicUpdates.sendOne(DiscussionAction.RemoveVote(topicLive.topic, name.now()))
+                            },
+                            "-"
+                            //                    img(src := "./minus-icon.svg", role := "img") // TODO can we get a minus icon?
+                          )
+                        else
+                          button(
+                            cls := "AddButton", onClick --> Observer {
+                              _ =>
+                                topicUpdates.sendOne(DiscussionAction.Vote(topicLive.topic, name.now()))
+                            },
+                            img(src := "./plus-icon.svg", role := "img")
+                          ),
+                    )
                   )
-                else
-                button(
-                  cls := "AddButton", onClick --> Observer {
-                    _ =>
-                      topicUpdates.sendOne(DiscussionAction.Vote(topic.topic, name.now()))
-                  },
-                  img(src := "./plus-icon.svg", role := "img")
-                ),
-              ))
+              )
             )
-        }
-    }
+        )
   )
 
 
@@ -158,56 +173,70 @@ def DaySchedule(slots: Var[List[ScheduleSlot]]) =
     }
   )
 
-object FrontEnd extends App:
-    lazy val container = dom.document.getElementById("app")
-    import io.laminext.websocket.*
-
-    val topicUpdates =
-      WebSocket.url("/discussions").text[DiscussionAction, DiscussionAction](
-        _.toJson,
-        _.fromJson[DiscussionAction].left.map(Exception(_))
-      ).build()
-
-    val topicsToReview: Var[DiscussionState] =
-        Var(DiscussionState())
-
-    val error: Var[Option[String]] =
-      Var(None)
-
-    val submitNewTopic: Observer[Discussion] = Observer {
-      discussion =>
-        if (discussion.facilitator.trim.length < 2)
-          error.set(Some("User name too short. Tell us who you are!"))
-        else
-          error.set(None)
-          topicUpdates.sendOne(DiscussionAction.Add(discussion))
-    }
-
-    val app = {
-      val name = getOrCreatePersistedName()
-      div(
-        cls := "PageContainer",
-        topicUpdates.connect,
-        topicUpdates.received --> Observer {
-          (event: DiscussionAction) =>
-            println("From MY WS: " + event)
-            topicsToReview.update(existing =>
-              existing(event)
-            )
-        },
-        child <-- error.signal.map {
+case class ErrorBanner(
+                        error: Var[Option[String]] =
+                        Var(None)
+                      ):
+  val component =
+    div(
+      child <--
+        error.signal.map {
           case Some(value) =>
             div(
               cls := "Error",
               color := "red",
-              value
+              "Error: " + value
             )
           case None =>
             div()
-        },
-        NameBadge(name),
-        TopicSubmission(submitNewTopic, name.signal, error.toObserver),
-        DiscussionsToReview(topicsToReview.signal, name.signal, topicUpdates),
-      )
-    }
-    render(container, app)
+        }
+    )
+
+object FrontEnd extends App:
+  lazy val container = dom.document.getElementById("app")
+  import io.laminext.websocket.*
+
+  val topicUpdates =
+    WebSocket.url("/discussions").text[DiscussionAction, DiscussionAction](
+      _.toJson,
+      _.fromJson[DiscussionAction].left.map(Exception(_))
+    ).build()
+
+  val topicsToReview: Var[DiscussionState] =
+      Var(DiscussionState())
+
+
+  val errorBanner =
+    ErrorBanner()
+
+  val error: Var[Option[String]] =
+    Var(None)
+
+  val submitNewTopic: Observer[Discussion] = Observer {
+    discussion =>
+      if (discussion.facilitator.trim.length < 2)
+        errorBanner.error.set(Some("User name too short. Tell us who you are!"))
+      else
+        errorBanner.error.set(None)
+        topicUpdates.sendOne(DiscussionAction.Add(discussion))
+  }
+
+  val app = {
+    val name = getOrCreatePersistedName()
+    div(
+      cls := "PageContainer",
+      topicUpdates.connect,
+      topicUpdates.received --> Observer {
+        (event: DiscussionAction) =>
+          println("From MY WS: " + event)
+          topicsToReview.update(existing =>
+            existing(event)
+          )
+      },
+      errorBanner.component,
+      NameBadge(name),
+      TopicSubmission(submitNewTopic, name.signal, errorBanner.error.toObserver),
+      DiscussionsToReview(topicsToReview.signal, name.signal, topicUpdates),
+    )
+  }
+  render(container, app)

@@ -21,10 +21,11 @@ case class DiscussionState(
         case DiscussionAction.Add(discussion) =>
           data +(discussion.topic -> discussion) // Only add if new topic title
         case DiscussionAction.Vote(topic, voter) =>
+          println(s"Should be adding vote for: $topic")
           data.map {
-            (topic, discussion) =>
+            (currentTopic, discussion) =>
               (
-                topic,
+                currentTopic,
                 if (discussion.topic == topic)
                   discussion.copy(interestedParties = discussion.interestedParties + voter)
                 else
@@ -33,8 +34,10 @@ case class DiscussionState(
           }
         case DiscussionAction.RemoveVote(topic, voter) =>
           data.map {
-            (topic, discussion) =>
-              (topic,
+            (currentTopic, discussion) =>
+              println("Remove vote for: " + topic)
+              println("Current topic: " + discussion.topic)
+              (currentTopic,
                 if (discussion.topic == topic)
                   discussion.copy(interestedParties = discussion.interestedParties - voter)
                 else
