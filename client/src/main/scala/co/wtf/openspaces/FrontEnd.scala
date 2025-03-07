@@ -94,7 +94,7 @@ private def TopicSubmission(
 private def DiscussionsToReview(
                                  topics: Signal[DiscussionState],
                                  name: StrictSignal[String],
-                                 topicUpdates: WebSocket[DiscussionAction, DiscussionAction]
+                                 topicUpdates: DiscussionAction => Unit
                                ) =
   val localTopics = topics.map(_.data.values.toList)
   div(
@@ -116,7 +116,7 @@ private def DiscussionsToReview(
                         color := "red",
                         border := "none", backgroundColor := "transparent", onClick --> Observer {
                           _ =>
-                            topicUpdates.sendOne(DiscussionAction.Delete(topic.topic))
+                            topicUpdates(DiscussionAction.Delete(topic.topic))
                         },
                         "x"
                       )
@@ -134,7 +134,7 @@ private def DiscussionsToReview(
                             cls := "RemoveButton", onClick --> Observer {
                               _ =>
                                 println("CLicked remove vote for: " + topicLive.topic)
-                                topicUpdates.sendOne(DiscussionAction.RemoveVote(topicLive.topic, name.now()))
+                                topicUpdates(DiscussionAction.RemoveVote(topicLive.topic, name.now()))
                             },
                             "-"
                             //                    img(src := "./minus-icon.svg", role := "img") // TODO can we get a minus icon?
@@ -143,7 +143,7 @@ private def DiscussionsToReview(
                           button(
                             cls := "AddButton", onClick --> Observer {
                               _ =>
-                                topicUpdates.sendOne(DiscussionAction.Vote(topicLive.topic, name.now()))
+                                topicUpdates(DiscussionAction.Vote(topicLive.topic, name.now()))
                             },
                             img(src := "./plus-icon.svg", role := "img")
                           ),
@@ -240,8 +240,7 @@ object FrontEnd extends App:
                 DiscussionAction.Rename(
                   Topic.parseOrDie("Continuous Deployment - A goal, or an asymptote?"),
                   Topic.parseOrDie("CD - Simpler title "))
-              )
-              println("hi"),
+              ),
             3000L
           )
           println()
@@ -249,7 +248,7 @@ object FrontEnd extends App:
       errorBanner.component,
       NameBadge(name),
       TopicSubmission(submitNewTopic, name.signal, errorBanner.error.toObserver),
-      DiscussionsToReview(topicsToReview.signal, name.signal, topicUpdates),
+      DiscussionsToReview(topicsToReview.signal, name.signal, topicUpdates.sendOne),
     )
   }
   render(container, app)
