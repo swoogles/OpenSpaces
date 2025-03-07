@@ -9,8 +9,8 @@ object Person:
 
 case class Discussion(
                        topic: Topic,
-                       facilitator: String, 
-                       interestedParties: Set[String],
+                       facilitator: Person, 
+                       interestedParties: Set[Person],
                        id: TopicId
                      ) derives JsonCodec:
   val votes: Int = interestedParties.size
@@ -18,16 +18,16 @@ object Discussion:
 
   val example1 = Discussion(
     Topic.parseOrDie("Continuous Deployment - A goal, or an asymptote?"),
-    "Bill",
-    Set("Bill"),
+    Person("Bill"),
+    Set(Person("Bill")),
     TopicId(1)
   )
 
   val example2 = Discussion(
     Topic.parseOrDie(
       "Managing emotional energy on the job"),
-    "Emma",
-    Set("Emma"),
+    Person("Emma"),
+    Set(Person("Emma")),
     TopicId(2)
   )
 
@@ -40,8 +40,8 @@ object Discussion:
 enum DiscussionAction derives JsonCodec:
   case Delete(topic: TopicId)
   case Add(discussion: Discussion)
-  case Vote(topic: TopicId, voter: String)
-  case RemoveVote(topic: TopicId, voter: String)
+  case Vote(topic: TopicId, voter: Person)
+  case RemoveVote(topic: TopicId, voter: Person)
   case Rename(topicId: TopicId, newTopic: Topic) // Any reason to pass original, now that I'm updating based on id?
 
 enum Room:

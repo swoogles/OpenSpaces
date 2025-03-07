@@ -12,39 +12,39 @@ import scala.util.Random
 
 val localStorage = window.localStorage
 
-private def getOrCreatePersistedName(): Var[String] =
+private def getOrCreatePersistedName(): Var[Person] =
   val name =
     try {
       val retrieved =
         localStorage
           .getItem("name")
       Option.when(retrieved != null && !retrieved.isBlank)(
-        retrieved
+        Person(retrieved)
       )
     }
     catch {
       case e: Exception =>
         None
     }
-  Var(name.getOrElse(""))
+  Var(name.getOrElse(Person("")))
 
 private def BannerLogo() =
   div( width := "100%",
     img(cls := "LogoImg", src := "./wtf-web-nodate.jpg", role := "img")
   )
 
-private def NameBadge(textVar: Var[String]) =
+private def NameBadge(textVar: Var[Person]) =
   div(cls := "Banner",
     img(cls := "LogoImg", src := "./wtf-web-nodate.jpg", role := "img"),
     div(
       span("Name:"),
       input(
         placeholder := "Enter your name",
-        value <-- textVar,
-        onInput.mapToValue --> textVar,
+        value <-- textVar.signal.map(_.unwrap),
+        onInput.mapToValue.map(Person(_)) --> textVar,
         textVar --> Observer {
-          (value: String) =>
-            localStorage.setItem("name", value)
+          (value: Person) =>
+            localStorage.setItem("name", value.unwrap)
         }
       ),
     )
@@ -52,7 +52,7 @@ private def NameBadge(textVar: Var[String]) =
 
 private def TopicSubmission(
                              submitEffect: Observer[Discussion],
-                             name: StrictSignal[String],
+                             name: StrictSignal[Person],
                              setErrorMsg: Observer[Option[String]]
                            ) =
   val textVar = Var("")
@@ -93,7 +93,7 @@ private def TopicSubmission(
 
 private def DiscussionsToReview(
                                  topics: Signal[DiscussionState],
-                                 name: StrictSignal[String],
+                                 name: StrictSignal[Person],
                                  topicUpdates: DiscussionAction => Unit
                                ) =
   val localTopics = topics.map(_.data.values.toList)
@@ -113,7 +113,7 @@ private def DiscussionsToReview(
                       p(topic.id.unwrap),
                       child <-- signal.map(s => p(s.topic.unwrap))
                     ),
-                    if (List("bill", "emma").exists( admin =>  name.now().toLowerCase().contains(admin)))
+                    if (List("bill", "emma").exists( admin =>  name.now().unwrap.toLowerCase().contains(admin)))
                       button(
                         cls:="delete-topic",
                         color := "red",
@@ -127,7 +127,7 @@ private def DiscussionsToReview(
                   ),
                   span(
                     cls := "VoteContainer",
-                    p(topic.facilitator),
+                    p(topic.facilitator.unwrap),
                     p("Votes ", child<--signal.map(_.votes), " "),
 
                     child <-- signal.map(
@@ -215,7 +215,7 @@ object FrontEnd extends App:
 
   val submitNewTopic: Observer[Discussion] = Observer {
     discussion =>
-      if (discussion.facilitator.trim.length < 2)
+      if (discussion.facilitator.unwrap.trim.length < 2)
         errorBanner.error.set(Some("User name too short. Tell us who you are!"))
       else
         errorBanner.error.set(None)

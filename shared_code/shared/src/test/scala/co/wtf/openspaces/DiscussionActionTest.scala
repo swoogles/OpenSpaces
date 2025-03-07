@@ -11,8 +11,8 @@ object DiscussionActionTest extends ZIOSpecDefault:
         test("add"):
           val discussion = Discussion(
             Topic.parseOrDie("test_topic"),
-            facilitator = "bill",
-            interestedParties = Set("bill"),
+            facilitator = Person("bill"),
+            interestedParties = Set(Person("bill")),
             TopicId(0L)
           )
           val res = DiscussionAction.Add(discussion).asInstanceOf[DiscussionAction].toJsonPretty

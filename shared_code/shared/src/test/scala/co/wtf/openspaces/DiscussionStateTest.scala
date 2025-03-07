@@ -5,8 +5,8 @@ import zio.json.*
 import zio.test.*
 
 object DiscussionStateTest extends ZIOSpecDefault:
-  val testUser1 = "testy-tester-1"
-  val testUser2 = "testy-tester-2"
+  val testUser1 = Person("testy-tester-1")
+  val testUser2 = Person("testy-tester-2")
   val discussion =
     Discussion(
       Topic.parseOrDie("Continuous Deployment - A goal, or an asymptote?"),
