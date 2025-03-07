@@ -10,12 +10,12 @@ object DiscussionActionTest extends ZIOSpecDefault:
       suite("json")(
         test("add"):
           val discussion = Discussion(
-            "test_topic",
+            Topic.parseOrDie("test_topic"),
             facilitator = "bill",
-            interestedParties = Set("bill")
+            interestedParties = Set("bill"),
+            TopicId(0L)
           )
           val res = DiscussionAction.Add(discussion).asInstanceOf[DiscussionAction].toJsonPretty
-          val res2 = DiscussionAction3.Add(discussion).asInstanceOf[DiscussionAction3].toJsonPretty
           val expected =
             """{
                |  "Add" : {
@@ -24,12 +24,11 @@ object DiscussionActionTest extends ZIOSpecDefault:
                |      "facilitator" : "bill",
                |      "interestedParties" : [
                |        "bill"
-               |      ]
+               |      ],
+               |      "id" : 0
                |    }
                |  }
                |}""".stripMargin
-          println("res: " + res)
-          println("res2: " + res2)
-          assertTrue(res == expected) && assertTrue(res2 == expected)
+          assertTrue(res == expected)
         )
       )

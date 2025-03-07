@@ -17,6 +17,7 @@ lazy val sharedCode =
       "io.github.kitlangton" %%% "neotype" % "0.3.15",
       "io.github.kitlangton" %%% "neotype-zio-json" % "0.3.15",
       "dev.zio" %% "zio-test" % "2.1.16" % Test,
+      "dev.zio" %% "zio-test-sbt" % "2.1.16" % Test,
 //      "org.scala-lang" % "scala-reflect"  % scalaVersion.value % "provided"
     ),
     testFrameworks += new TestFramework("zio.test.sbt.ZTestFramework")
