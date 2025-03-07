@@ -5,11 +5,9 @@ import zio.schema.{DeriveSchema, Schema}
 import neotype.*
 import neotype.interop.ziojson.given
 
-type Topic = Topic.type
-object Topic extends Newtype[String]
 
 case class Discussion(
-                       topic: String, 
+                       topic: String,
                        facilitator: String, 
                        interestedParties: Set[String]
                      ) derives JsonCodec:
