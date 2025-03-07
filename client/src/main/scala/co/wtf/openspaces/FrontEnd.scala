@@ -6,6 +6,7 @@ import io.laminext.websocket.WebSocket
 import org.scalajs.dom
 import zio.json.*
 import org.scalajs.dom.window
+import animus.*
 
 import scala.util.Random
 
@@ -100,9 +101,10 @@ private def DiscussionsToReview(
     },
     children <--
       localTopics
-        .split(_.topic.unwrap)(
-          (index, topic, signal) =>
+        .splitTransition(_.topic.unwrap)(
+          (index, topic, signal, transition) =>
             div( cls := "TopicCard",
+              transition.height,
                 div( cls := "TopicBody",
                   div(
                     display := "flex",

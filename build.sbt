@@ -62,7 +62,7 @@ lazy val client = (project in file("client"))
 //      "io.github.cquiroz" %%% "scala-java-time" % "2.5.0",
       "org.scala-js" %%% "scalajs-dom" % "2.8.0",
       // build.sbt
-      "io.github.kitlangton" %%% "animus" % "0.5.1",
+      "io.github.kitlangton" %%% "animus" % "0.6.5",
       "com.raquo" %%% "laminar" % "17.2.0",
       "dev.laminext" %%% "websocket" % "0.17.1"
     ),
