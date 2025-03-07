@@ -24,7 +24,6 @@ private def getOrCreatePersistedName(): Var[String] =
     }
     catch {
       case e: Exception =>
-        println("Error retrieving existing name: " + e)
         None
     }
   Var(name.getOrElse(""))
@@ -137,7 +136,6 @@ private def DiscussionsToReview(
                           button(
                             cls := "RemoveButton", onClick --> Observer {
                               _ =>
-                                println("CLicked remove vote for: " + topicLive.topic)
                                 topicUpdates(DiscussionAction.RemoveVote(topicLive.id, name.now()))
                             },
                             "-"
@@ -231,7 +229,7 @@ object FrontEnd extends App:
       topicUpdates.connect,
       topicUpdates.received --> Observer {
         (event: DiscussionAction) =>
-          println("From MY WS: " + event)
+          println("Websocket Event: " + event)
           topicsToReview.update(existing =>
             existing(event)
           )
@@ -240,7 +238,6 @@ object FrontEnd extends App:
         _ =>
           dom.window.setTimeout(
             () =>
-              println("delayed rename!")
               topicUpdates.sendOne(
                 DiscussionAction.Rename(
                   Discussion.example1.id,
