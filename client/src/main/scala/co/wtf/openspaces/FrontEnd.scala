@@ -85,15 +85,15 @@ private def TopicSubmission(submitEffect: Observer[Discussion], name: StrictSign
 
 
 private def DiscussionsToReview(
-                                 topics: Signal[List[Discussion]], 
-                                 name: StrictSignal[String], 
+                                 topics: Signal[DiscussionState],
+                                 name: StrictSignal[String],
                                  topicUpdates: WebSocket[DiscussionAction, DiscussionAction]
                                ) =
   div(
     cls := "TopicsContainer", topicUpdates.connect,
     children <-- topics.map {
       topics =>
-        topics.sortBy(_.votes).sortWith(_.votes > _.votes).map {
+        topics.data.values.toList.sortBy(_.votes).sortWith(_.votes > _.votes).map {
           topic =>
             div( cls := "TopicCard",
               div( cls := "TopicBody",
@@ -168,8 +168,8 @@ object FrontEnd extends App:
         _.fromJson[DiscussionAction].left.map(Exception(_))
       ).build()
 
-    val topicsToReview: Var[List[Discussion]] =
-        Var(List.empty)
+    val topicsToReview: Var[DiscussionState] =
+        Var(DiscussionState())
 
     val error: Var[Option[String]] =
       Var(None)
@@ -192,7 +192,7 @@ object FrontEnd extends App:
           (event: DiscussionAction) =>
             println("From MY WS: " + event)
             topicsToReview.update(existing =>
-              DiscussionAction.foo(event, existing)
+              existing(event)
             )
         },
         child <-- error.signal.map {

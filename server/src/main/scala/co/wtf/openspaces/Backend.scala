@@ -53,7 +53,7 @@ object Backend extends ZIOAppDefault {
               defer:
                 val channels = connectedUsers.get.run
                 ZIO.foreachDiscard(channels)( channel =>
-                  val fullJson = discussionAction.toJson
+                  val fullJson = discussionAction.toJsonPretty
                   ZIO.debug(s"Sending discussion: $fullJson to $channel") *>
                     channel.send(Read(WebSocketFrame.text(fullJson))).ignore
                 ).run
