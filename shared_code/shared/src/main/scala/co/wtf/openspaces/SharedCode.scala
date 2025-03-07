@@ -5,9 +5,21 @@ import zio.schema.{DeriveSchema, Schema}
 import neotype.*
 import neotype.interop.ziojson.given
 
+case class Topic(unwrap: String)
+object Topic:
+  def parse(raw: String) =
+    Either.cond(
+      raw.trim.length >= 10,
+      Topic(raw),
+      "Topic must be at least 10 characters long"
+    )
+  def parseOrDie(raw: String) =
+    parse(raw).getOrElse(throw new Exception("Failed to parse topic: " + raw))
+    
+  given codec: JsonCodec[Topic] = JsonCodec.string.transformOrFail[Topic](s => Topic.parse(s), _.unwrap)
 
 case class Discussion(
-                       topic: String,
+                       topic: Topic,
                        facilitator: String, 
                        interestedParties: Set[String]
                      ) derives JsonCodec:
@@ -15,10 +27,10 @@ case class Discussion(
 
 
 enum DiscussionAction derives JsonCodec:
-  case Delete(topic: String)
+  case Delete(topic: Topic)
   case Add(discussion: Discussion)
-  case Vote(topic: String, voter: String)
-  case RemoveVote(topic: String, voter: String)
+  case Vote(topic: Topic, voter: String)
+  case RemoveVote(topic: Topic, voter: String)
 
 object DiscussionAction:
   def foo(discussionAction: DiscussionAction, currentDiscussions: List[Discussion]) = {

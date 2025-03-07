@@ -48,7 +48,7 @@ private def NameBadge(textVar: Var[String]) =
     )
   )
 
-private def TopicSubmission(submitEffect: Observer[Discussion], name: StrictSignal[String]) =
+private def TopicSubmission(submitEffect: Observer[Discussion], name: StrictSignal[String], setErrorMsg: Observer[Option[String]]) =
   val textVar = Var("")
   div( cls := "Flex",
     span(
@@ -59,7 +59,26 @@ private def TopicSubmission(submitEffect: Observer[Discussion], name: StrictSign
       )
     ),
     button(
-      onClick.mapTo(textVar.now()).map(topicTitle => Discussion.apply(topicTitle, name.now(), Set(name.now()))) --> submitEffect,
+      onClick.mapTo(textVar.now())
+        .map( s =>
+          val res  = Topic.parse(s)
+          res match
+            case Left(value) =>
+              setErrorMsg.onNext(Some(value))
+              None
+            case Right(value) =>
+              Some(value)
+        )
+        .filter(_.isDefined)
+        .map(_.get)
+        .map(
+          topicTitle => 
+            Discussion.apply(
+              topicTitle, 
+              name.now(), 
+              Set(name.now())
+            )
+        ) --> submitEffect,
       "Submit"
     )
   )
@@ -77,7 +96,7 @@ private def DiscussionsToReview(topics: Signal[List[Discussion]], name: StrictSi
                 div(
                   display := "flex",
                   justifyContent := "space-between",
-                  h3(topic.topic),
+                  h3(topic.topic.unwrap),
                   if (List("bill", "emma").exists( admin =>  name.now().toLowerCase().contains(admin)))
                   button(
                     cls:="delete-topic",
@@ -155,8 +174,6 @@ object FrontEnd extends App:
       discussion =>
         if (discussion.facilitator.trim.length < 2)
           error.set(Some("User name too short. Tell us who you are!"))
-        else if (discussion.topic.trim.length < 10)
-          error.set(Some("Topic too short. More details please."))
         else
           error.set(None)
           topicUpdates.sendOne(DiscussionAction.Add(discussion))
@@ -185,7 +202,7 @@ object FrontEnd extends App:
             div()
         },
         NameBadge(name),
-        TopicSubmission(submitNewTopic, name.signal),
+        TopicSubmission(submitNewTopic, name.signal, error.toObserver),
         DiscussionsToReview(topicsToReview.signal, name.signal, topicUpdates),
       )
     }

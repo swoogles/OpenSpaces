@@ -19,7 +19,7 @@ object Backend extends ZIOAppDefault {
     val layer =
       ZLayer.fromZIO:
         defer:
-          val topics = Ref.make(List(Discussion("Continuous Deployment - A goal, or an asymptote?", "Bill", Set("Bill")), Discussion("Managing emotional energy on the job", "Emma", Set("Emma")))).run
+          val topics = Ref.make(List(Discussion(Topic.parseOrDie("Continuous Deployment - A goal, or an asymptote?"), "Bill", Set("Bill")), Discussion(Topic.parseOrDie("Managing emotional energy on the job"), "Emma", Set("Emma")))).run
           DiscussionDataStore(topics)
 
 
