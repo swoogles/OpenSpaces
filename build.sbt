@@ -14,6 +14,8 @@ lazy val sharedCode =
       "dev.zio" %%% "zio-schema"          % "1.6.4",
       "dev.zio" %%% "zio-schema-json"     % "1.6.4",
       "dev.zio" %% "zio-schema-derivation" % "1.6.4", // TODO Is this doing anything if we can't include the dep below for JS?
+      "io.github.kitlangton" %%% "neotype" % "0.3.15",
+      "io.github.kitlangton" %%% "neotype-zio-json" % "0.3.15",
       "dev.zio" %% "zio-test" % "2.1.16" % Test,
 //      "org.scala-lang" % "scala-reflect"  % scalaVersion.value % "provided"
     ),

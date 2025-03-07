@@ -2,6 +2,11 @@ package co.wtf.openspaces
 
 import zio.json.*
 import zio.schema.{DeriveSchema, Schema}
+import neotype.*
+import neotype.interop.ziojson.given
+
+type Topic = Topic.type
+object Topic extends Newtype[String]
 
 case class Discussion(
                        topic: String, 
@@ -41,7 +46,7 @@ object DiscussionAction:
               discussion
         }
   }
-  
+
 enum Room:
   case King
   case ArtGallery
