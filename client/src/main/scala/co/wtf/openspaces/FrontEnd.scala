@@ -51,7 +51,11 @@ private def NameBadge(textVar: Var[String]) =
     )
   )
 
-private def TopicSubmission(submitEffect: Observer[Discussion], name: StrictSignal[String], setErrorMsg: Observer[Option[String]]) =
+private def TopicSubmission(
+                             submitEffect: Observer[Discussion],
+                             name: StrictSignal[String],
+                             setErrorMsg: Observer[Option[String]]
+                           ) =
   val textVar = Var("")
   div( cls := "Flex",
     span(
@@ -94,11 +98,7 @@ private def DiscussionsToReview(
                                ) =
   val localTopics = topics.map(_.data.values.toList)
   div(
-    cls := "TopicsContainer", topicUpdates.connect,
-    topics --> Observer {
-      currentState =>
-        println(currentState)
-    },
+    cls := "TopicsContainer",
     children <--
       localTopics
         .splitTransition(_.topic.unwrap)(
@@ -205,14 +205,11 @@ object FrontEnd extends App:
     ).build()
 
   val topicsToReview: Var[DiscussionState] =
-      Var(DiscussionState())
+    Var(DiscussionState())
 
 
   val errorBanner =
     ErrorBanner()
-
-  val error: Var[Option[String]] =
-    Var(None)
 
   val submitNewTopic: Observer[Discussion] = Observer {
     discussion =>
@@ -234,6 +231,20 @@ object FrontEnd extends App:
           topicsToReview.update(existing =>
             existing(event)
           )
+      },
+      EventStream.fromValue("blah") --> Observer {
+        _ =>
+          dom.window.setTimeout(
+            () =>
+              topicUpdates.sendOne(
+                DiscussionAction.Rename(
+                  Topic.parseOrDie("Continuous Deployment - A goal, or an asymptote?"),
+                  Topic.parseOrDie("CD - Simpler title "))
+              )
+              println("hi"),
+            3000L
+          )
+          println()
       },
       errorBanner.component,
       NameBadge(name),

@@ -1,5 +1,6 @@
 package co.wtf.openspaces
 
+import co.wtf.openspaces.DiscussionAction.Rename
 import zio.json.*
 
 case class Discussion(
@@ -21,28 +22,19 @@ case class DiscussionState(
         case DiscussionAction.Add(discussion) =>
           data +(discussion.topic -> discussion) // Only add if new topic title
         case DiscussionAction.Vote(topic, voter) =>
-          println(s"Should be adding vote for: $topic")
-          data.map {
-            (currentTopic, discussion) =>
-              (
-                currentTopic,
-                if (discussion.topic == topic)
-                  discussion.copy(interestedParties = discussion.interestedParties + voter)
-                else
-                  discussion
-              )
+          data.updatedWith(topic){
+            _.map(value =>
+              value.copy(interestedParties = value.interestedParties + voter))
           }
         case DiscussionAction.RemoveVote(topic, voter) =>
-          data.map {
-            (currentTopic, discussion) =>
-              println("Remove vote for: " + topic)
-              println("Current topic: " + discussion.topic)
-              (currentTopic,
-                if (discussion.topic == topic)
-                  discussion.copy(interestedParties = discussion.interestedParties - voter)
-                else
-                  discussion
-              )
+          data.updatedWith(topic){
+            _.map(value =>
+              value.copy(interestedParties = value.interestedParties - voter))
+          }
+        case Rename(originalTopic, newTopic) =>
+          data.updatedWith(originalTopic){
+            _.map(value =>
+              value.copy(topic = newTopic))
           }
     )
   }
@@ -62,31 +54,7 @@ enum DiscussionAction derives JsonCodec:
   case Add(discussion: Discussion)
   case Vote(topic: Topic, voter: String)
   case RemoveVote(topic: Topic, voter: String)
-
-object DiscussionAction:
-  def foo(discussionAction: DiscussionAction, currentDiscussions: List[Discussion]) = {
-    discussionAction match
-      case DiscussionAction.Delete(topic) =>
-        currentDiscussions.filterNot(_.topic == topic)
-      case DiscussionAction.Add(discussion) =>
-        currentDiscussions :+ discussion // Only add if new topic title
-      case DiscussionAction.Vote(topic, voter) =>
-        currentDiscussions.map {
-          discussion =>
-            if (discussion.topic == topic)
-              discussion.copy(interestedParties = discussion.interestedParties + voter)
-            else
-              discussion
-        }
-      case DiscussionAction.RemoveVote(topic, voter) =>
-        currentDiscussions.map {
-          discussion =>
-            if (discussion.topic == topic)
-              discussion.copy(interestedParties = discussion.interestedParties - voter)
-            else
-              discussion
-        }
-  }
+  case Rename(originalTopic: Topic, newTopic: Topic)
 
 enum Room:
   case King
