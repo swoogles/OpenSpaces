@@ -3,37 +3,57 @@ package co.wtf.openspaces
 import co.wtf.openspaces.DiscussionAction.Rename
 import zio.json.*
 
+import java.util.UUID
+
 case class Discussion(
                        topic: Topic,
                        facilitator: String, 
-                       interestedParties: Set[String]
+                       interestedParties: Set[String],
+                       id: TopicId
                      ) derives JsonCodec:
   val votes: Int = interestedParties.size
+object Discussion:
+
+  val example1 = Discussion(
+    Topic.parseOrDie("Continuous Deployment - A goal, or an asymptote?"),
+    "Bill",
+    Set("Bill"),
+    TopicId(1)
+  )
+
+  val example2 = Discussion(
+    Topic.parseOrDie(
+      "Managing emotional energy on the job"),
+    "Emma",
+    Set("Emma"),
+    TopicId(2)
+  )
 
 
 case class DiscussionState(
-                          data: Map[Topic, Discussion]
+                          data: Map[TopicId, Discussion]
                           ):
   def apply(discussionAction: DiscussionAction): DiscussionState = {
     copy(data =
       discussionAction match
-        case DiscussionAction.Delete(topic) =>
-          data.filterNot(_._2.topic == topic)
+        case DiscussionAction.Delete(topicId) =>
+          data.filterNot(_._2.id == topicId)
         case DiscussionAction.Add(discussion) =>
-          data +(discussion.topic -> discussion) // Only add if new topic title
-        case DiscussionAction.Vote(topic, voter) =>
-          data.updatedWith(topic){
+          data +(discussion.id -> discussion) // Only add if new topic title
+        case DiscussionAction.Vote(topicId, voter) =>
+          data.updatedWith(topicId){
             _.map(value =>
               value.copy(interestedParties = value.interestedParties + voter))
           }
-        case DiscussionAction.RemoveVote(topic, voter) =>
-          data.updatedWith(topic){
+        case DiscussionAction.RemoveVote(topicId, voter) =>
+          data.updatedWith(topicId){
             _.map(value =>
               value.copy(interestedParties = value.interestedParties - voter))
           }
-        case Rename(originalTopic, newTopic) =>
-          data.updatedWith(originalTopic){
+        case Rename(topicId, newTopic) =>
+          data.updatedWith(topicId){
             _.map(value =>
+              println("updating name")
               value.copy(topic = newTopic))
           }
     )
@@ -42,7 +62,7 @@ case class DiscussionState(
 object DiscussionState:
   def apply(input: Discussion*): DiscussionState =
     val startingState = Map(
-      input.map(d => (d.topic, d))*
+      input.map(d => (d.id, d))*
     )
     DiscussionState(
       startingState
@@ -50,11 +70,11 @@ object DiscussionState:
 
 
 enum DiscussionAction derives JsonCodec:
-  case Delete(topic: Topic)
+  case Delete(topic: TopicId)
   case Add(discussion: Discussion)
-  case Vote(topic: Topic, voter: String)
-  case RemoveVote(topic: Topic, voter: String)
-  case Rename(originalTopic: Topic, newTopic: Topic)
+  case Vote(topic: TopicId, voter: String)
+  case RemoveVote(topic: TopicId, voter: String)
+  case Rename(topicId: TopicId, newTopic: Topic) // Any reason to pass original, now that I'm updating based on id?
 
 enum Room:
   case King

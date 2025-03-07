@@ -7,6 +7,10 @@ import zio.json.*
 //  given codec: JsonCodec[Topic] =
 //    JsonCodec.string.transformOrFail[Topic](s => Topic.make(s), _.unwrap)
 
+case class TopicId(unwrap: Long)
+object TopicId:
+  given codec: JsonCodec[TopicId] = JsonCodec.long.transform[TopicId](s => TopicId(s), _.unwrap)
+
 case class Topic(unwrap: String)
 object Topic:
   def parse(raw: String) =

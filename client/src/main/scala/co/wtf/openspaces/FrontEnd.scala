@@ -83,7 +83,8 @@ private def TopicSubmission(
             Discussion.apply(
               topicTitle, 
               name.now(), 
-              Set(name.now())
+              Set(name.now()),
+              TopicId(scala.util.Random.nextLong())
             )
         ) --> submitEffect,
       "Submit"
@@ -101,7 +102,7 @@ private def DiscussionsToReview(
     cls := "TopicsContainer",
     children <--
       localTopics
-        .splitTransition(_.topic.unwrap)(
+        .splitTransition(_.id)(
           (index, topic, signal, transition) =>
             div( cls := "TopicCard",
               transition.height,
@@ -109,14 +110,17 @@ private def DiscussionsToReview(
                   div(
                     display := "flex",
                     justifyContent := "space-between",
-                    h3(Random.nextInt(100).toString + topic.topic.unwrap),
+                    span(
+                      p(topic.id.unwrap),
+                      child <-- signal.map(s => p(s.topic.unwrap))
+                    ),
                     if (List("bill", "emma").exists( admin =>  name.now().toLowerCase().contains(admin)))
                       button(
                         cls:="delete-topic",
                         color := "red",
                         border := "none", backgroundColor := "transparent", onClick --> Observer {
                           _ =>
-                            topicUpdates(DiscussionAction.Delete(topic.topic))
+                            topicUpdates(DiscussionAction.Delete(topic.id))
                         },
                         "x"
                       )
@@ -134,7 +138,7 @@ private def DiscussionsToReview(
                             cls := "RemoveButton", onClick --> Observer {
                               _ =>
                                 println("CLicked remove vote for: " + topicLive.topic)
-                                topicUpdates(DiscussionAction.RemoveVote(topicLive.topic, name.now()))
+                                topicUpdates(DiscussionAction.RemoveVote(topicLive.id, name.now()))
                             },
                             "-"
                             //                    img(src := "./minus-icon.svg", role := "img") // TODO can we get a minus icon?
@@ -143,7 +147,7 @@ private def DiscussionsToReview(
                           button(
                             cls := "AddButton", onClick --> Observer {
                               _ =>
-                                topicUpdates(DiscussionAction.Vote(topicLive.topic, name.now()))
+                                topicUpdates(DiscussionAction.Vote(topicLive.id, name.now()))
                             },
                             img(src := "./plus-icon.svg", role := "img")
                           ),
@@ -236,14 +240,14 @@ object FrontEnd extends App:
         _ =>
           dom.window.setTimeout(
             () =>
+              println("delayed rename!")
               topicUpdates.sendOne(
                 DiscussionAction.Rename(
-                  Topic.parseOrDie("Continuous Deployment - A goal, or an asymptote?"),
+                  Discussion.example1.id,
                   Topic.parseOrDie("CD - Simpler title "))
               ),
             3000L
           )
-          println()
       },
       errorBanner.component,
       NameBadge(name),

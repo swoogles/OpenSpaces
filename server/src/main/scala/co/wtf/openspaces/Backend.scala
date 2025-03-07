@@ -21,17 +21,8 @@ object Backend extends ZIOAppDefault {
         defer:
           val topics = Ref.make(
             DiscussionState(
-              Discussion(
-                Topic.parseOrDie("Continuous Deployment - A goal, or an asymptote?"),
-                "Bill",
-                Set("Bill")
-              ),
-              Discussion(
-                Topic.parseOrDie(
-                  "Managing emotional energy on the job"),
-                "Emma",
-                Set("Emma")
-              )
+              Discussion.example1,
+              Discussion.example2
             )
           ).run
           DiscussionDataStore(topics)
@@ -50,6 +41,7 @@ object Backend extends ZIOAppDefault {
 
 
               val updatedDiscussions = discussionDataStore.applyAction(discussionAction).run
+              println("updatedDiscussion: " + updatedDiscussions)
               defer:
                 val channels = connectedUsers.get.run
                 ZIO.foreachDiscard(channels)( channel =>
