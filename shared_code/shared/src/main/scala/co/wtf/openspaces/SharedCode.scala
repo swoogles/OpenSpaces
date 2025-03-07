@@ -3,7 +3,9 @@ package co.wtf.openspaces
 import co.wtf.openspaces.DiscussionAction.Rename
 import zio.json.*
 
-import java.util.UUID
+case class Person(unwrap: String)
+object Person:
+  given codec: JsonCodec[Person] = JsonCodec.string.transform[Person](s => Person(s), _.unwrap)
 
 case class Discussion(
                        topic: Topic,

@@ -79,6 +79,40 @@ object DiscussionStateTest extends ZIOSpecDefault:
               )
             )
             assertTrue(res == expected)
+        ),
+
+        suite("Add discussion")(
+          test("new discussion"):
+            val newDiscussion =
+              Discussion(
+                Topic.parseOrDie("Managing emotional energy on the job"),
+                testUser2,
+                Set(testUser2),
+                TopicId(2)
+              )
+            val res =
+              originalState(
+                DiscussionAction.Add(newDiscussion)
+              )
+            val expected = DiscussionState(
+              Map(
+                discussion.id -> discussion,
+                newDiscussion.id -> newDiscussion
+              )
+            )
+            assertTrue(res == expected)
+            ,
+          test("existing discussion"):
+            val res =
+              originalState(
+                DiscussionAction.Add(discussion)
+              )
+            val expected = DiscussionState(
+              Map(
+                discussion.id -> discussion
+              )
+            )
+            assertTrue(res == expected)
         )
       )
     )
