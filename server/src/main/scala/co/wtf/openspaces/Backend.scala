@@ -8,18 +8,32 @@ object Backend extends ZIOAppDefault {
   import zio.http.ChannelEvent.{ExceptionCaught, Read, UserEvent, UserEventTriggered}
   import zio.http._
 
-  class DiscussionDataStore(discussionDatabase: Ref[List[Discussion]]):
+  class DiscussionDataStore(discussionDatabase: Ref[DiscussionState]):
     def snapshot =
       discussionDatabase.get
 
-    def applyAction(discussionAction: DiscussionAction) =
-      discussionDatabase.updateAndGet(DiscussionAction.foo(discussionAction, _))
+    def applyAction(discussionAction: DiscussionAction): UIO[DiscussionState] =
+      discussionDatabase.updateAndGet(s => s(discussionAction))
 
   object DiscussionDataStore:
     val layer =
       ZLayer.fromZIO:
         defer:
-          val topics = Ref.make(List(Discussion(Topic.parseOrDie("Continuous Deployment - A goal, or an asymptote?"), "Bill", Set("Bill")), Discussion(Topic.parseOrDie("Managing emotional energy on the job"), "Emma", Set("Emma")))).run
+          val topics = Ref.make(
+            DiscussionState(
+              Discussion(
+                Topic.parseOrDie("Continuous Deployment - A goal, or an asymptote?"),
+                "Bill",
+                Set("Bill")
+              ),
+              Discussion(
+                Topic.parseOrDie(
+                  "Managing emotional energy on the job"),
+                "Emma",
+                Set("Emma")
+              )
+            )
+          ).run
           DiscussionDataStore(topics)
 
 
@@ -51,7 +65,7 @@ object Backend extends ZIOAppDefault {
             defer:
               connectedUsers.update(_ :+ channel).run
               val discussions = discussionDataStore.snapshot.run
-              ZIO.foreachDiscard(discussions)(discussion =>
+              ZIO.foreachDiscard(discussions.data)((topic, discussion) =>
                 channel.send(Read(WebSocketFrame.text(DiscussionAction.Add(discussion).asInstanceOf[DiscussionAction].toJson)))
               ).run
               Console.printLine("Should send greetings").run

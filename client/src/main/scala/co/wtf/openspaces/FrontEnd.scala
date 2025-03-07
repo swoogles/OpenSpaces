@@ -84,7 +84,11 @@ private def TopicSubmission(submitEffect: Observer[Discussion], name: StrictSign
   )
 
 
-private def DiscussionsToReview(topics: Signal[List[Discussion]], name: StrictSignal[String], topicUpdates: WebSocket[DiscussionAction, DiscussionAction]) =
+private def DiscussionsToReview(
+                                 topics: Signal[List[Discussion]], 
+                                 name: StrictSignal[String], 
+                                 topicUpdates: WebSocket[DiscussionAction, DiscussionAction]
+                               ) =
   div(
     cls := "TopicsContainer", topicUpdates.connect,
     children <-- topics.map {

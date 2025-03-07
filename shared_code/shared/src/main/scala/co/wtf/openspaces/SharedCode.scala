@@ -1,22 +1,6 @@
 package co.wtf.openspaces
 
 import zio.json.*
-import zio.schema.{DeriveSchema, Schema}
-import neotype.*
-import neotype.interop.ziojson.given
-
-case class Topic(unwrap: String)
-object Topic:
-  def parse(raw: String) =
-    Either.cond(
-      raw.trim.length >= 10,
-      Topic(raw),
-      "Topic must be at least 10 characters long"
-    )
-  def parseOrDie(raw: String) =
-    parse(raw).getOrElse(throw new Exception("Failed to parse topic: " + raw))
-    
-  given codec: JsonCodec[Topic] = JsonCodec.string.transformOrFail[Topic](s => Topic.parse(s), _.unwrap)
 
 case class Discussion(
                        topic: Topic,
@@ -24,6 +8,50 @@ case class Discussion(
                        interestedParties: Set[String]
                      ) derives JsonCodec:
   val votes: Int = interestedParties.size
+
+
+case class DiscussionState(
+                          data: Map[Topic, Discussion]
+                          ):
+  def apply(discussionAction: DiscussionAction): DiscussionState = {
+    copy(data =
+      discussionAction match
+        case DiscussionAction.Delete(topic) =>
+          data.filterNot(_._2.topic == topic)
+        case DiscussionAction.Add(discussion) =>
+          data +(discussion.topic -> discussion) // Only add if new topic title
+        case DiscussionAction.Vote(topic, voter) =>
+          data.map {
+            (topic, discussion) =>
+              (
+                topic,
+                if (discussion.topic == topic)
+                  discussion.copy(interestedParties = discussion.interestedParties + voter)
+                else
+                  discussion
+              )
+          }
+        case DiscussionAction.RemoveVote(topic, voter) =>
+          data.map {
+            (topic, discussion) =>
+              (topic,
+                if (discussion.topic == topic)
+                  discussion.copy(interestedParties = discussion.interestedParties - voter)
+                else
+                  discussion
+              )
+          }
+    )
+  }
+
+object DiscussionState:
+  def apply(input: Discussion*): DiscussionState =
+    val startingState = Map(
+      input.map(d => (d.topic, d))*
+    )
+    DiscussionState(
+      startingState
+    )
 
 
 enum DiscussionAction derives JsonCodec:
