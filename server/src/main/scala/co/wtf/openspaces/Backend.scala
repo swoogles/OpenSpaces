@@ -5,6 +5,7 @@ import zio.json.*
 import zio.direct.*
 import zio.http._
 
+
 object Backend extends ZIOAppDefault {
   import zio.http.ChannelEvent.{ExceptionCaught, Read, UserEvent, UserEventTriggered}
 
@@ -14,6 +15,54 @@ object Backend extends ZIOAppDefault {
 
     def applyAction(discussionAction: DiscussionAction): UIO[DiscussionState] =
       discussionDatabase.updateAndGet(s => s(discussionAction))
+
+    private def randomExistingTopicId =
+      defer:
+        val data = snapshot.run
+        val idx = Random.nextIntBounded(data.data.keys.toList.length).run
+        data.data.keys.toList(idx)
+
+
+    def randomDiscussionAction =
+      defer:
+        val actionIdx = Random.nextIntBounded(5).run
+        val noCurrentItems = snapshot.run.data.keys.toList.isEmpty
+        val addNewDiscussion =
+          val person = Person("RandomPerson - " + Random.nextIntBounded(20).run)
+          DiscussionAction.Add(
+            Discussion(
+              Topic.parseOrDie("Random Topic - " + Random.nextString(20).run),
+              person,
+              Set(person),
+              TopicId(Random.nextLongBounded(20).run)
+            )
+          )
+
+        val action =
+          if (noCurrentItems)
+            addNewDiscussion
+          else
+            actionIdx match {
+              case 0 =>
+                addNewDiscussion
+              case 1 =>
+                val id = randomExistingTopicId.run
+                DiscussionAction.Delete(id)
+              case 2 =>
+                val id = randomExistingTopicId.run
+                val person = Person("RandomPerson - " + Random.nextIntBounded(20).run)
+                DiscussionAction.Vote(id, person)
+
+              case 3 =>
+                val id = randomExistingTopicId.run
+                val person = Person("RandomPerson - " + Random.nextIntBounded(20).run)
+                DiscussionAction.RemoveVote(id, person)
+              case 4 =>
+                val id = randomExistingTopicId.run
+                val newTopic = Topic.parseOrDie("Random Topic - " + Random.nextString(20).run)
+                DiscussionAction.Rename(id, newTopic)
+            }
+        applyAction(action).as(action).run
 
   object DiscussionDataStore:
     val layer =
@@ -63,6 +112,10 @@ object Backend extends ZIOAppDefault {
               ZIO.foreachDiscard(discussions.data)((topic, discussion) =>
                 channel.send(Read(WebSocketFrame.text(DiscussionAction.Add(discussion).asInstanceOf[DiscussionAction].toJson)))
               ).run
+              defer:
+                val action = discussionDataStore.randomDiscussionAction.run
+                channel.send(Read(WebSocketFrame.text(action.toJson))).run
+              .repeat(Schedule.spaced(1.seconds) && Schedule.forever).forkDaemon.run
               Console.printLine("Should send greetings").run
 
           case Read(WebSocketFrame.Close(status, reason)) =>

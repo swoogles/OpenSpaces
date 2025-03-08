@@ -246,18 +246,18 @@ object FrontEnd extends App:
             existing(event)
           )
       },
-      EventStream.fromValue("blah") --> Observer {
-        _ =>
-          dom.window.setTimeout(
-            () =>
-              topicUpdates.sendOne(
-                DiscussionAction.Rename(
-                  Discussion.example1.id,
-                  Topic.parseOrDie("CD - Simpler title "))
-              ),
-            3000L
-          )
-      },
+//      EventStream.fromValue("blah") --> Observer {
+//        _ =>
+//          dom.window.setInterval(
+//            () =>
+//              topicUpdates.sendOne(
+//                DiscussionAction.Rename(
+//                  Discussion.example1.id,
+//                  Topic.parseOrDie("CD - " + scala.util.Random.nextString(scala.util.Random.between(10,25))))
+//              ),
+//            3000L
+//          )
+//      },
       errorBanner.component,
       NameBadge(name),
       TopicSubmission(submitNewTopic, name.signal, errorBanner.error.toObserver),

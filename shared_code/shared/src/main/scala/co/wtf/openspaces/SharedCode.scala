@@ -38,8 +38,8 @@ object Discussion:
 
 
 enum DiscussionAction derives JsonCodec:
-  case Delete(topic: TopicId)
   case Add(discussion: Discussion)
+  case Delete(topic: TopicId)
   case Vote(topic: TopicId, voter: Person)
   case RemoveVote(topic: TopicId, voter: Person)
   case Rename(topicId: TopicId, newTopic: Topic) // Any reason to pass original, now that I'm updating based on id?
