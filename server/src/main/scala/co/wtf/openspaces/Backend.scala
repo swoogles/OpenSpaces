@@ -3,10 +3,10 @@ package co.wtf.openspaces
 import zio.*
 import zio.json.*
 import zio.direct.*
+import zio.http._
 
 object Backend extends ZIOAppDefault {
   import zio.http.ChannelEvent.{ExceptionCaught, Read, UserEvent, UserEventTriggered}
-  import zio.http._
 
   class DiscussionDataStore(discussionDatabase: Ref[DiscussionState]):
     def snapshot =
@@ -19,16 +19,20 @@ object Backend extends ZIOAppDefault {
     val layer =
       ZLayer.fromZIO:
         defer:
-          val topics = Ref.make(
-            DiscussionState(
-              Discussion.example1,
-              Discussion.example2
-            )
-          ).run
-          DiscussionDataStore(topics)
+          DiscussionDataStore(
+            Ref.make(
+              DiscussionState(
+                Discussion.example1,
+                Discussion.example2
+              )
+            ).run
+          )
 
 
-  case class ApplicationState(connectedUsers: Ref[List[WebSocketChannel]], discussionDataStore: DiscussionDataStore):
+  case class ApplicationState(
+                               connectedUsers: Ref[List[WebSocketChannel]],
+                               discussionDataStore: DiscussionDataStore
+                             ):
 
     val socketApp: WebSocketApp[Any] =
       Handler.webSocket { channel =>
@@ -41,7 +45,6 @@ object Backend extends ZIOAppDefault {
 
 
               val updatedDiscussions = discussionDataStore.applyAction(discussionAction).run
-              println("updatedDiscussion: " + updatedDiscussions)
               defer:
                 val channels = connectedUsers.get.run
                 ZIO.foreachDiscard(channels)( channel =>
@@ -82,9 +85,10 @@ object Backend extends ZIOAppDefault {
     val layer =
       ZLayer.fromZIO:
         defer:
-          val discussionDataStore = ZIO.service[DiscussionDataStore].run
-          val state = Ref.make(List.empty[WebSocketChannel]).run
-          ApplicationState(state, discussionDataStore)
+          ApplicationState(
+            Ref.make(List.empty[WebSocketChannel]).run,
+            ZIO.service[DiscussionDataStore].run
+          )
 
 
 

@@ -11,6 +11,7 @@ case class DiscussionState(
         case DiscussionAction.Delete(topicId) =>
           data.filterNot(_._2.id == topicId)
         case DiscussionAction.Add(discussion) =>
+          // TODO Disallow duplicate names
           data + (discussion.id -> discussion) // Only add if new topic title
         case DiscussionAction.Vote(topicId, voter) =>
           data.updatedWith(topicId) {
@@ -25,7 +26,6 @@ case class DiscussionState(
         case Rename(topicId, newTopic) =>
           data.updatedWith(topicId) {
             _.map(value =>
-              println("updating name")
               value.copy(topic = newTopic))
           }
     )

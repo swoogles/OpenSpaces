@@ -103,6 +103,8 @@ private def DiscussionsToReview(
       localTopics
         .splitTransition(_.id)(
           (index, topic, signal, transition) =>
+            val $characters: Signal[List[(String, Int)]] =
+              signal.map(_.topic.unwrap).map(_.split("").zipWithIndex.toList)
             div( cls := "TopicCard",
               transition.height,
                 div( cls := "TopicBody",
@@ -111,7 +113,17 @@ private def DiscussionsToReview(
                     justifyContent := "space-between",
                     span(
                       p(topic.id.unwrap),
-                      child <-- signal.map(s => p(s.topic.unwrap))
+                      div(
+                        children <-- $characters.splitTransition(identity) {
+                          case (_, (character, _), _, transition) =>
+                            div(
+                              character,
+                              display.inlineFlex,
+                              transition.width,
+//                              transition.height
+                            )
+                        }
+                      ),
                     ),
                     if (List("bill", "emma").exists( admin =>  name.now().unwrap.toLowerCase().contains(admin)))
                       button(
