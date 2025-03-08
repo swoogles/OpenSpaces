@@ -1,9 +1,10 @@
 package co.wtf.openspaces
 
+import co.wtf.openspaces.VotePosition.NotInterested
 import zio.*
 import zio.json.*
 import zio.direct.*
-import zio.http._
+import zio.http.*
 
 
 object Backend extends ZIOAppDefault {
@@ -31,9 +32,9 @@ object Backend extends ZIOAppDefault {
           val person = Person("RandomPerson - " + Random.nextIntBounded(20).run)
           DiscussionAction.Add(
             Discussion(
-              Topic.parseOrDie("Random Topic - " + Random.nextString(20).run),
+              Topic.parseOrDie(DiscussionTopics.randomTopic.run),
               person,
-              Set(person),
+              Set(Feedback(person, VotePosition.Interested)),
               TopicId(Random.nextLongBounded(20).run)
             )
           )
@@ -51,15 +52,16 @@ object Backend extends ZIOAppDefault {
               case 2 =>
                 val id = randomExistingTopicId.run
                 val person = Person("RandomPerson - " + Random.nextIntBounded(20).run)
-                DiscussionAction.Vote(id, person)
+                DiscussionAction.Vote(id, Feedback(person, VotePosition.Interested))
 
               case 3 =>
                 val id = randomExistingTopicId.run
+                // TODO Ensure existing person that has voted for topic, unless it's got 0 votes
                 val person = Person("RandomPerson - " + Random.nextIntBounded(20).run)
                 DiscussionAction.RemoveVote(id, person)
               case 4 =>
                 val id = randomExistingTopicId.run
-                val newTopic = Topic.parseOrDie("Random Topic - " + Random.nextString(20).run)
+                val newTopic = Topic.parseOrDie(DiscussionTopics.randomTopic.run)
                 DiscussionAction.Rename(id, newTopic)
             }
         applyAction(action).as(action).run
@@ -112,10 +114,14 @@ object Backend extends ZIOAppDefault {
               ZIO.foreachDiscard(discussions.data)((topic, discussion) =>
                 channel.send(Read(WebSocketFrame.text(DiscussionAction.Add(discussion).asInstanceOf[DiscussionAction].toJson)))
               ).run
-              defer:
-                val action = discussionDataStore.randomDiscussionAction.run
-                channel.send(Read(WebSocketFrame.text(action.toJson))).run
-              .repeat(Schedule.spaced(1.seconds) && Schedule.forever).forkDaemon.run
+              
+              ZIO.when(false):
+                defer:
+                  val action = discussionDataStore.randomDiscussionAction.run
+                  channel.send(Read(WebSocketFrame.text(action.toJson))).run
+                .repeat(Schedule.spaced(1.seconds) && Schedule.forever)
+              .forkDaemon.run
+              
               Console.printLine("Should send greetings").run
 
           case Read(WebSocketFrame.Close(status, reason)) =>

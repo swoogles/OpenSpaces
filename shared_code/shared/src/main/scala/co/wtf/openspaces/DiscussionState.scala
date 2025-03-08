@@ -21,7 +21,7 @@ case class DiscussionState(
         case DiscussionAction.RemoveVote(topicId, voter) =>
           data.updatedWith(topicId) {
             _.map(value =>
-              value.copy(interestedParties = value.interestedParties - voter))
+              value.copy(interestedParties = value.interestedParties.filterNot(_.voter == voter)))
           }
         case Rename(topicId, newTopic) =>
           data.updatedWith(topicId) {

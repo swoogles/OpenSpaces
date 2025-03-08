@@ -82,7 +82,7 @@ private def TopicSubmission(
             Discussion.apply(
               topicTitle, 
               name.now(), 
-              Set(name.now()),
+              Set(Feedback(name.now(), VotePosition.Interested)),
               TopicId(scala.util.Random.nextLong())
             )
         ) --> submitEffect,
@@ -116,8 +116,11 @@ private def DiscussionsToReview(
                       div(
                         children <-- $characters.splitTransition(identity) {
                           case (_, (character, _), _, transition) =>
+                            val newCharacter = character match
+                              case " " => '\u00A0'
+                              case _ => character.charAt(0)
                             div(
-                              character,
+                              newCharacter,
                               display.inlineFlex,
                               transition.width,
 //                              transition.height
@@ -144,7 +147,7 @@ private def DiscussionsToReview(
 
                     child <-- signal.map(
                       topicLive =>
-                        if topicLive.interestedParties.contains(name.now()) then
+                        if topicLive.interestedParties.map(_.voter).contains(name.now()) then
                           button(
                             cls := "RemoveButton", onClick --> Observer {
                               _ =>
@@ -157,7 +160,7 @@ private def DiscussionsToReview(
                           button(
                             cls := "AddButton", onClick --> Observer {
                               _ =>
-                                topicUpdates(DiscussionAction.Vote(topicLive.id, name.now()))
+                                topicUpdates(DiscussionAction.Vote(topicLive.id, Feedback(name.now(), VotePosition.Interested)))
                             },
                             img(src := "./plus-icon.svg", role := "img")
                           ),
