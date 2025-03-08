@@ -74,7 +74,9 @@ object Backend extends ZIOAppDefault {
             Ref.make(
               DiscussionState(
                 Discussion.example1,
-                Discussion.example2
+                Discussion.example2,
+                Discussion.example3,
+                Discussion.example4,
               )
             ).run
           )
