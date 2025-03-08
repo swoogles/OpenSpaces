@@ -20,7 +20,6 @@ object DiscussionStateTest extends ZIOSpecDefault:
   )
   val spec =
     suite("DiscussionStateTest")(
-      suite("apply action")(
         suite("Vote")(
           test("New vote"):
             val res =
@@ -54,7 +53,7 @@ object DiscussionStateTest extends ZIOSpecDefault:
             assertTrue(res == expected)
         ),
         suite("RemoveVote")(
-          test("Remove vote"):
+          test("existing vote"):
             val res =
               originalState(
                 DiscussionAction.RemoveVote(discussion.id, testUser1)
@@ -67,7 +66,7 @@ object DiscussionStateTest extends ZIOSpecDefault:
             )
             assertTrue(res == expected)
           ,
-          test("Remove non-existent vote"):
+          test("non-existent vote"):
             val res =
               originalState(
                 DiscussionAction.RemoveVote(discussion.id, testUser2)
@@ -113,6 +112,29 @@ object DiscussionStateTest extends ZIOSpecDefault:
               )
             )
             assertTrue(res == expected)
-        )
+        ),
+      suite("Remove discussion")(
+        test("existing discussion"):
+          val res =
+            originalState(
+              DiscussionAction.Delete(discussion.id)
+            )
+          val expected = DiscussionState(
+            Map()
+          )
+          assertTrue(res == expected)
+          ,
+        test("non-existent discussion"):
+          val res =
+            originalState(
+              DiscussionAction.Delete(TopicId(2))
+            )
+          val expected = DiscussionState(
+            Map(
+              discussion.id -> discussion
+            )
+          )
+          assertTrue(res == expected)
+
       )
     )
