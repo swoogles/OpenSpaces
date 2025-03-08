@@ -90,81 +90,80 @@ private def TopicSubmission(
     )
   )
 
-
-private def DiscussionsToReview(
-                                 topics: Signal[DiscussionState],
-                                 name: StrictSignal[Person],
-                                 topicUpdates: DiscussionAction => Unit
-                               ) =
-  val localTopics = topics.map(_.data.values.toList)
+private def DiscussionSubview(
+  topicsOfInterest: Signal[List[Discussion]],
+  name: StrictSignal[Person],
+  topicUpdates: DiscussionAction => Unit
+) =
   div(
     cls := "TopicsContainer",
     children <--
-      localTopics
+      topicsOfInterest
+
         .splitTransition(_.id)(
           (index, topic, signal, transition) =>
             val $characters: Signal[List[(String, Int)]] =
               signal.map(_.topic.unwrap).map(_.split("").zipWithIndex.toList)
-            div( cls := "TopicCard",
+            div(cls := "TopicCard",
               transition.height,
-                div( cls := "TopicBody",
-                  div(
-                    display := "flex",
-                    justifyContent := "space-between",
-                    span(
-                      p(topic.id.unwrap),
-                      div(
-                        children <-- $characters.splitTransition(identity) {
-                          case (_, (character, _), _, transition) =>
-                            val newCharacter = character match
-                              case " " => '\u00A0'
-                              case _ => character.charAt(0)
-                            div(
-                              newCharacter,
-                              display.inlineFlex,
-                              transition.width,
-//                              transition.height
-                            )
-                        }
-                      ),
-                    ),
-                    if (List("bill", "emma").exists( admin =>  name.now().unwrap.toLowerCase().contains(admin)))
-                      button(
-                        cls:="delete-topic",
-                        color := "red",
-                        border := "none", backgroundColor := "transparent", onClick --> Observer {
-                          _ =>
-                            topicUpdates(DiscussionAction.Delete(topic.id))
-                        },
-                        "x"
-                      )
-                    else span()
-                  ),
+              div(cls := "TopicBody",
+                div(
+                  display := "flex",
+                  justifyContent := "space-between",
                   span(
-                    cls := "VoteContainer",
-                    p(topic.facilitator.unwrap),
-                    p("Votes ", child<--signal.map(_.votes), " "),
-
-                    child <-- signal.map(
-                      topicLive =>
-                        if topicLive.interestedParties.map(_.voter).contains(name.now()) then
-                          button(
-                            cls := "RemoveButton", onClick --> Observer {
-                              _ =>
-                                topicUpdates(DiscussionAction.RemoveVote(topicLive.id, name.now()))
-                            },
-                            "-"
-                            //                    img(src := "./minus-icon.svg", role := "img") // TODO can we get a minus icon?
+                    p(topic.id.unwrap),
+                    div(
+                      children <-- $characters.splitTransition(identity) {
+                        case (_, (character, _), _, transition) =>
+                          val newCharacter = character match
+                            case " " => '\u00A0'
+                            case _ => character.charAt(0)
+                          div(
+                            newCharacter,
+                            display.inlineFlex,
+                            transition.width,
+                            //                              transition.height
                           )
-                        else
-                          span(
-                            button(
-                              cls := "AddButton", onClick --> Observer {
-                                _ =>
-                                  topicUpdates(DiscussionAction.Vote(topicLive.id, Feedback(name.now(), VotePosition.NotInterested)))
-                              },
-                              img(src := "./plus-icon-red.svg",  role := "img")
-                            ),
+                      }
+                    ),
+                  ),
+                  if (List("bill", "emma").exists(admin => name.now().unwrap.toLowerCase().contains(admin)))
+                    button(
+                      cls := "delete-topic",
+                      color := "red",
+                      border := "none", backgroundColor := "transparent", onClick --> Observer {
+                        _ =>
+                          topicUpdates(DiscussionAction.Delete(topic.id))
+                      },
+                      "x"
+                    )
+                  else span()
+                ),
+                span(
+                  cls := "VoteContainer",
+                  p(topic.facilitator.unwrap),
+                  p("Votes ", child <-- signal.map(_.votes), " "),
+
+                  child <-- signal.map(
+                    topicLive =>
+                      if topicLive.interestedParties.map(_.voter).contains(name.now()) then
+                        button(
+                          cls := "RemoveButton", onClick --> Observer {
+                            _ =>
+                              topicUpdates(DiscussionAction.RemoveVote(topicLive.id, name.now()))
+                          },
+                          "-"
+                          //                    img(src := "./minus-icon.svg", role := "img") // TODO can we get a minus icon?
+                        )
+                      else
+                        span(
+                          button(
+                            cls := "AddButton", onClick --> Observer {
+                              _ =>
+                                topicUpdates(DiscussionAction.Vote(topicLive.id, Feedback(name.now(), VotePosition.NotInterested)))
+                            },
+                            img(src := "./plus-icon-red.svg", role := "img")
+                          ),
                           button(
                             cls := "AddButton", onClick --> Observer {
                               _ =>
@@ -172,13 +171,42 @@ private def DiscussionsToReview(
                             },
                             img(src := "./plus-icon-green.svg", role := "img")
                           ),
-                          )
-                    )
+                        )
                   )
+                )
               )
             )
         )
   )
+
+private def DiscussionsToReview(
+                                 topics: Signal[DiscussionState],
+                                 name: StrictSignal[Person],
+                                 topicUpdates: DiscussionAction => Unit
+                               ) =
+  val localTopics = topics.map(_.data.values.toList)
+  val topicsOfInterest: Signal[List[Discussion]] =
+    localTopics
+      .map(discussions => discussions.filter(d => d.interestedParties.contains(Feedback(name.now(), VotePosition.Interested))))
+    
+  val topicsWithoutInterest =
+    localTopics
+      .map(discussions => discussions.filter(d => d.interestedParties.contains(Feedback(name.now(), VotePosition.NotInterested))))
+    
+  val unreviewedTopics =
+    localTopics
+      .map(discussions => discussions.filterNot(d => d.interestedParties.exists(f => f.voter == name.now())))
+
+
+  div(
+    div("Unreviewed: "),
+    DiscussionSubview(unreviewedTopics, name, topicUpdates),
+    div("Interested: "),
+    DiscussionSubview(topicsOfInterest, name, topicUpdates),
+    div("Not Interested: "),
+    DiscussionSubview(topicsWithoutInterest, name, topicUpdates),
+  )
+    
 
 
 enum AppView:
