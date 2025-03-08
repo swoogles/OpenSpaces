@@ -157,13 +157,22 @@ private def DiscussionsToReview(
                             //                    img(src := "./minus-icon.svg", role := "img") // TODO can we get a minus icon?
                           )
                         else
+                          span(
+                            button(
+                              cls := "AddButton", onClick --> Observer {
+                                _ =>
+                                  topicUpdates(DiscussionAction.Vote(topicLive.id, Feedback(name.now(), VotePosition.NotInterested)))
+                              },
+                              img(src := "./plus-icon-red.svg",  role := "img")
+                            ),
                           button(
                             cls := "AddButton", onClick --> Observer {
                               _ =>
                                 topicUpdates(DiscussionAction.Vote(topicLive.id, Feedback(name.now(), VotePosition.Interested)))
                             },
-                            img(src := "./plus-icon.svg", role := "img")
+                            img(src := "./plus-icon-green.svg", role := "img")
                           ),
+                          )
                     )
                   )
               )

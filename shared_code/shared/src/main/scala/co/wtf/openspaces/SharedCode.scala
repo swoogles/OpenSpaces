@@ -1,6 +1,7 @@
 package co.wtf.openspaces
 
 import co.wtf.openspaces.DiscussionAction.Rename
+import co.wtf.openspaces.VotePosition.Interested
 import zio.json.*
 
 case class Person(unwrap: String)
@@ -21,7 +22,7 @@ case class Discussion(
                        interestedParties: Set[Feedback],
                        id: TopicId
                      ) derives JsonCodec:
-  val votes: Int = interestedParties.size
+  val votes: Int = interestedParties.count(_.position == Interested)
 object Discussion:
 
   val example1 = Discussion(
