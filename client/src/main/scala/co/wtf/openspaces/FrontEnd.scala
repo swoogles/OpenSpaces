@@ -108,7 +108,8 @@ private def DiscussionSubview(
               transition.height,
               div(cls := "TopicBody",
                 div(
-                  display := "flex",
+                  display.inlineFlex,
+                  flexWrap := "wrap",
                   justifyContent := "space-between",
                   span(
                     p(topic.id.unwrap),
@@ -188,11 +189,11 @@ private def DiscussionsToReview(
   val topicsOfInterest: Signal[List[Discussion]] =
     localTopics
       .map(discussions => discussions.filter(d => d.interestedParties.contains(Feedback(name.now(), VotePosition.Interested))))
-    
+
   val topicsWithoutInterest =
     localTopics
       .map(discussions => discussions.filter(d => d.interestedParties.contains(Feedback(name.now(), VotePosition.NotInterested))))
-    
+
   val unreviewedTopics =
     localTopics
       .map(discussions => discussions.filterNot(d => d.interestedParties.exists(f => f.voter == name.now())))
@@ -206,7 +207,7 @@ private def DiscussionsToReview(
     div("Not Interested: "),
     DiscussionSubview(topicsWithoutInterest, name, topicUpdates),
   )
-    
+
 
 
 enum AppView:

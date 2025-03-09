@@ -7,6 +7,6 @@
 .Flex {display: flex; gap: 20px;}
 .TopicsContainer {display: grid; gap: 10px;}
 .TopicCard{background-color: rgb(198, 218, 215); border-radius: 4px; width: 250px;}
-.TopicBody {padding: 4px 10px; white-space: pre; word-wrap: break-word; overflow-wrap: break-word;}
+.TopicBody {padding: 4px 10px; white-space: pre-wrap;}
 .AddButton {background-color: transparent; border: none;}
 .VoteContainer {display: flex; gap: 5px; justify-content: space-between;}
