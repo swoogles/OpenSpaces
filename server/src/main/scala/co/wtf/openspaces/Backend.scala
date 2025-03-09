@@ -77,6 +77,8 @@ object Backend extends ZIOAppDefault {
                 Discussion.example2,
                 Discussion.example3,
                 Discussion.example4,
+                Discussion.example5,
+                Discussion.example6
               )
             ).run
           )
@@ -116,14 +118,14 @@ object Backend extends ZIOAppDefault {
               ZIO.foreachDiscard(discussions.data)((topic, discussion) =>
                 channel.send(Read(WebSocketFrame.text(DiscussionAction.Add(discussion).asInstanceOf[DiscussionAction].toJson)))
               ).run
-              
+
               ZIO.when(false):
                 defer:
                   val action = discussionDataStore.randomDiscussionAction.run
                   channel.send(Read(WebSocketFrame.text(action.toJson))).run
                 .repeat(Schedule.spaced(1.seconds) && Schedule.forever)
               .forkDaemon.run
-              
+
               Console.printLine("Should send greetings").run
 
           case Read(WebSocketFrame.Close(status, reason)) =>

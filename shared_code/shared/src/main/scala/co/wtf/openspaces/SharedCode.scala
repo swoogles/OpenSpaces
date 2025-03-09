@@ -63,7 +63,22 @@ object Discussion:
       Set(Feedback(Person("Bill"), VotePosition.NotInterested)),
       TopicId(4)
     )
+    
+  val example5 =
+    Discussion(
+      Topic.parseOrDie("Fighting round the world"),
+      Person("John"),
+      Set.empty,
+      TopicId(5)
+    )
 
+  val example6 =
+    Discussion(
+      Topic.parseOrDie("Pandas - friends or foes?"),
+      Person("John"),
+      Set.empty,
+      TopicId(5)
+    )
 
 
 
