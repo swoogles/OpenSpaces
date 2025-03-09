@@ -92,9 +92,16 @@ private def TopicSubmission(
 
 private def DiscussionSubview(
   topicsOfInterest: Signal[List[Discussion]],
+  votePosition: Option[VotePosition],
   name: StrictSignal[Person],
   topicUpdates: DiscussionAction => Unit
 ) =
+  val backgroundColorByPosition =
+    votePosition match
+      case Some(position) => position match
+        case VotePosition.Interested => "#6BB187"
+        case VotePosition.NotInterested => "#FB6775"
+      case None => "#C6DAD7"
   div(
     cls := "TopicsContainer",
     children <--
@@ -105,6 +112,7 @@ private def DiscussionSubview(
             val $characters: Signal[List[(String, Int)]] =
               signal.map(_.topic.unwrap).map(_.split("").zipWithIndex.toList)
             div(cls := "TopicCard",
+              backgroundColor := backgroundColorByPosition,
               transition.height,
               div(cls := "TopicBody",
                 div(
@@ -201,11 +209,13 @@ private def DiscussionsToReview(
 
   div(
     div("Unreviewed: "),
-    DiscussionSubview(unreviewedTopics, name, topicUpdates),
+    DiscussionSubview(unreviewedTopics, None, name, topicUpdates),
+    hr(),
     div("Interested: "),
-    DiscussionSubview(topicsOfInterest, name, topicUpdates),
+    DiscussionSubview(topicsOfInterest, Some(VotePosition.Interested), name, topicUpdates),
+    hr(),
     div("Not Interested: "),
-    DiscussionSubview(topicsWithoutInterest, name, topicUpdates),
+    DiscussionSubview(topicsWithoutInterest, Some(VotePosition.NotInterested), name, topicUpdates),
   )
 
 
