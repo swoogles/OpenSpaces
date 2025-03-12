@@ -32,7 +32,7 @@ object Backend extends ZIOAppDefault {
           val person = Person("RandomPerson - " + Random.nextIntBounded(20).run)
           DiscussionAction.Add(
             Discussion(
-              Topic.parseOrDie(DiscussionTopics.randomTopic.run),
+              DiscussionTopics.randomTopic.run,
               person,
               Set(Feedback(person, VotePosition.Interested)),
               TopicId(Random.nextLongBounded(20).run)
@@ -61,7 +61,7 @@ object Backend extends ZIOAppDefault {
                 DiscussionAction.RemoveVote(id, person)
               case 4 =>
                 val id = randomExistingTopicId.run
-                val newTopic = Topic.parseOrDie(DiscussionTopics.randomTopic.run)
+                val newTopic = DiscussionTopics.randomTopic.run
                 DiscussionAction.Rename(id, newTopic)
             }
         applyAction(action).as(action).run
