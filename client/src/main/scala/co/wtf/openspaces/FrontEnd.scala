@@ -120,7 +120,6 @@ private def DiscussionSubview(
                   flexWrap := "wrap",
                   justifyContent := "space-between",
                   span(
-                    p(topic.id.unwrap),
                     div(
                       children <-- $characters.splitTransition(identity) {
                         case (_, (character, _), _, transition) =>
@@ -150,9 +149,29 @@ private def DiscussionSubview(
                 ),
                 span(
                   cls := "VoteContainer",
-                  p(topic.facilitator.unwrap),
-                  p("Votes ", child <-- signal.map(_.votes), " "),
-
+                  child <-- signal.map(
+                    topicLive =>
+                      if topicLive.interestedParties.map(_.voter).contains(name.now()) then
+                        span()
+                      else
+                        span(
+                          button(
+                            cls := "AddButton", onClick --> Observer {
+                              _ =>
+                                topicUpdates(DiscussionAction.Vote(topicLive.id, Feedback(name.now(), VotePosition.NotInterested)))
+                            },
+                            img(src := "./plus-icon-red.svg", role := "img")
+                          ),
+                        )
+                  ),
+                  (votePosition match
+                    case Some(position) =>
+                      span(
+                        p(topic.facilitator.unwrap),
+                        p("Votes ", child <-- signal.map(_.votes), " "),
+                      )
+                    case None =>
+                      span()),
                   child <-- signal.map(
                     topicLive =>
                       if topicLive.interestedParties.map(_.voter).contains(name.now()) then
@@ -166,13 +185,6 @@ private def DiscussionSubview(
                         )
                       else
                         span(
-                          button(
-                            cls := "AddButton", onClick --> Observer {
-                              _ =>
-                                topicUpdates(DiscussionAction.Vote(topicLive.id, Feedback(name.now(), VotePosition.NotInterested)))
-                            },
-                            img(src := "./plus-icon-red.svg", role := "img")
-                          ),
                           button(
                             cls := "AddButton", onClick --> Observer {
                               _ =>

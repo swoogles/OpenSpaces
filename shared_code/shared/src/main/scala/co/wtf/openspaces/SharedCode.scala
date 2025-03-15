@@ -4,6 +4,8 @@ import co.wtf.openspaces.DiscussionAction.Rename
 import co.wtf.openspaces.VotePosition.Interested
 import zio.json.*
 
+import java.time.LocalDateTime
+
 case class Person(unwrap: String)
 object Person:
   given codec: JsonCodec[Person] = JsonCodec.string.transform[Person](s => Person(s), _.unwrap)
@@ -23,6 +25,7 @@ case class Discussion(
                        id: TopicId
                      ) derives JsonCodec:
   val votes: Int = interestedParties.count(_.position == Interested)
+
 object Discussion:
   def apply(
              topic: Topic,
@@ -94,10 +97,30 @@ enum DiscussionAction derives JsonCodec:
   case RemoveVote(topic: TopicId, voter: Person)
   case Rename(topicId: TopicId, newTopic: Topic) // Any reason to pass original, now that I'm updating based on id?
 
-enum Room:
-  case King
-  case ArtGallery
-  case Hawk
-  case DanceHall
+
+case class Room(
+                 id: Int,
+                 name: String,
+                 capacity: Int
+               ) derives JsonCodec
+
+object Room:
+  val king = Room(0, "King", 30)
+  val artGallery = Room(1, "Art Gallery", 20)
+  val hawk = Room(2, "Hawk", 15)
+  val danceHall = Room(3, "Dance Hall", 10)
+
 
 case class ScheduleSlot(room: Room)
+
+case class TimeSlot(
+                     id: String,
+                     startTime: LocalDateTime,
+                     endTime: LocalDateTime
+                   )derives JsonCodec
+
+case class ScheduledDiscussion(
+                                discussion: Discussion,
+                                room: Room,
+                                timeSlot: TimeSlot
+                              ) derives JsonCodec
