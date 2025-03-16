@@ -10,3 +10,60 @@
 .TopicBody {padding: 4px 10px; white-space: pre-wrap;}
 .AddButton {background-color: transparent; border: none;}
 .VoteContainer {display: flex; gap: 5px; justify-content: space-between;}
+
+.container {  display: grid;
+    grid-template-columns: 0.9fr 1.1fr 1fr;
+    grid-template-rows: 2fr 2fr 3fr 3fr;
+    gap: 0px 0px;
+    grid-auto-flow: row;
+    grid-template-areas:
+    "Targets Targets Targets"
+    "Targets Targets Targets"
+    "Schedule Schedule Schedule"
+    "Schedule Schedule Schedule";
+}
+
+.Schedule {  display: grid;
+    grid-template-columns: 1fr 1fr 1fr 1fr 1fr;
+    grid-template-rows: 1fr auto;
+    grid-auto-rows: 1fr;
+    gap: 0px 0px;
+    grid-auto-flow: row;
+    grid-template-areas:
+    "deadspace RoomHeaders RoomHeaders RoomHeaders RoomHeaders"
+    "SlotRow SlotRow SlotRow SlotRow SlotRow";
+    grid-area: Schedule;
+}
+
+.SlotRow {  display: grid;
+    grid-template-columns: 1fr 1fr 1fr 1fr 1fr;
+    gap: 0px 0px;
+    grid-auto-flow: row;
+    grid-template-areas:
+        "TimeOfSlot Cell Cell Cell Cell";
+    grid-area: SlotRow;
+}
+
+.RoomHeaders {   display: grid;
+    grid-template-columns: 1fr 1fr 1fr 1fr;
+    grid-area: RoomHeaders;
+    grid-template-areas:
+        "Room1 Room2 Room3 Room4";
+}
+
+.Targets {  display: grid;
+    grid-template-columns: 2fr 2fr 1fr;
+    grid-template-rows: 1fr 1fr;
+    gap: 0px 0px;
+    grid-auto-flow: row;
+    grid-template-areas:
+    "ActiveDiscussion ActiveDiscussion Swap"
+    "SwapTarget SwapTarget Swap";
+    grid-area: Targets;
+}
+
+.Swap { grid-area: Swap; }
+
+.ActiveDiscussion { grid-area: ActiveDiscussion; }
+
+.SwapTarget { grid-area: SwapTarget; }

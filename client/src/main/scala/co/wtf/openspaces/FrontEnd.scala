@@ -239,17 +239,18 @@ enum AppView:
 
 case class ScheduleSlot(room: Room)
 
-def DaySchedule(slots: Var[List[ScheduleSlot]]) =
+def SlotSchedule(slots: Var[List[ScheduleSlot]]) =
   div(
-    children <-- slots.signal.map {
-      slots =>
-        slots.map {
-          slot =>
-            div(
-              slot.toString
-            )
-        }
-    }
+    cls:="SlotRow",
+    div(cls:="TimeOfSlot", "8:00-8:50"),
+    children <--
+      slots.signal.map {
+        slots =>
+          slots.map {
+            slot =>
+                div(cls:="Cell", "[+]")
+          }
+      }
   )
 
 case class ErrorBanner(
@@ -270,6 +271,59 @@ case class ErrorBanner(
             div()
         }
     )
+
+def ScheduleView() = {
+  /*
+   Plain HTML version, that I need to convert to Scala/Laminar code:
+   <div class="container">
+    <div class="Schedule">
+      <div class="Room Headers"></div>
+      <div class="TimeSlots"></div>
+    </div>
+    <div class="Targets">
+      <div class="Swap"></div>
+      <div class="Active Discussion"></div>
+      <div class="Swap Target"></div>
+    </div>
+  </div>
+   */
+
+  div(
+    cls := "container",
+    div(
+      cls := "Targets",
+      div(
+        cls := "Swap",
+        "<-- Swap ->"
+      ),
+      div(
+        cls := "ActiveDiscussion",
+        div(
+          cls := "Topic",
+          span("This is the active topic")
+        )
+      ),
+      div(
+        cls := "SwapTarget",
+        div(
+          cls := "Topic",
+          span("This is the topic to swap with")
+        )
+      )
+    ),
+    div(
+      cls := "Schedule",
+      div(
+        cls := "RoomHeaders",
+        div(cls := "Room1", "King"),
+        div(cls := "Room2", "Hawk"),
+        div(cls := "Room3", "Art Gallery"),
+        div(cls := "Room4", "Dance Hall")
+      ),
+      SlotSchedule(Var(List(ScheduleSlot(Room.king), ScheduleSlot(Room.hawk), ScheduleSlot(Room.artGallery), ScheduleSlot(Room.danceHall))))
+    ),
+  )
+}
 
 object FrontEnd extends App:
   lazy val container = dom.document.getElementById("app")
@@ -297,8 +351,8 @@ object FrontEnd extends App:
         topicUpdates.sendOne(DiscussionAction.Add(discussion))
   }
 
-  val app = {
-    val name = getOrCreatePersistedName()
+  val name = getOrCreatePersistedName()
+  val liveTopicSubmissionAndVoting =
     div(
       cls := "PageContainer",
       topicUpdates.connect,
@@ -309,22 +363,15 @@ object FrontEnd extends App:
             existing(event)
           )
       },
-//      EventStream.fromValue("blah") --> Observer {
-//        _ =>
-//          dom.window.setInterval(
-//            () =>
-//              topicUpdates.sendOne(
-//                DiscussionAction.Rename(
-//                  Discussion.example1.id,
-//                  Topic.parseOrDie("CD - " + scala.util.Random.nextString(scala.util.Random.between(10,25))))
-//              ),
-//            3000L
-//          )
-//      },
       errorBanner.component,
       NameBadge(name),
       TopicSubmission(submitNewTopic, name.signal, errorBanner.error.toObserver),
       DiscussionsToReview(topicsToReview.signal, name.signal, topicUpdates.sendOne),
     )
+
+  val app = {
+//    liveTopicSubmissionAndVoting,
+    ScheduleView()
   }
+
   render(container, app)
