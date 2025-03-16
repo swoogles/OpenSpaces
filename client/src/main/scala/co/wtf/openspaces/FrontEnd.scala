@@ -237,24 +237,31 @@ enum AppView:
   case ScheduleView
   case SubmitTopic
 
-def ScheduleSlotComponent(scheduleSlot: ScheduleSlot) =
-  span(
-    scheduleSlot.discussion match
-      case Some(value) => "[i]"
-      case None => "[+]"
-  )
+def ScheduleSlotComponent(timeSlot: TimeSlot, scheduleSlot: ScheduleSlot, setActiveDiscussion: Observer[ScheduledDiscussion]) =
 
-def SlotSchedule(timeOfSlot: String, slots: Var[List[ScheduleSlot]]) =
+    scheduleSlot.discussion match
+      case Some(value) =>
+        span(
+          onClick.mapTo(ScheduledDiscussion(value, scheduleSlot.room, timeSlot)) --> setActiveDiscussion,
+          "[i]"
+        )
+      case None =>
+        span(
+          "[+]"
+        )
+
+def SlotSchedule(timeOfSlot: String, $timeSlotsForAllRooms: Signal[TimeSlotForAllRooms], setActiveDiscussion: Observer[ScheduledDiscussion]) =
   div(
     cls:="SlotRow",
     div(cls:="TimeOfSlot", timeOfSlot),
     children <--
-      slots.signal.map {
-        slots =>
-          slots.map {
-            slot =>
-                div(cls:="Cell", ScheduleSlotComponent(slot))
-          }
+      $timeSlotsForAllRooms.map {
+        timeSlotsForAllRooms =>
+          timeSlotsForAllRooms.cells
+            .map {
+              cell =>
+                div(cls:="Cell", ScheduleSlotComponent(timeSlotsForAllRooms.time, cell, setActiveDiscussion))
+            }
       }
   )
 
@@ -278,20 +285,30 @@ case class ErrorBanner(
     )
 
 def ScheduleView() = {
-  /*
-   Plain HTML version, that I need to convert to Scala/Laminar code:
-   <div class="container">
-    <div class="Schedule">
-      <div class="Room Headers"></div>
-      <div class="TimeSlots"></div>
-    </div>
-    <div class="Targets">
-      <div class="Swap"></div>
-      <div class="Active Discussion"></div>
-      <div class="Swap Target"></div>
-    </div>
-  </div>
-   */
+  val activeDiscussion: Var[Option[ScheduledDiscussion]] =
+    Var(None)
+
+  val setActiveDiscussion: Observer[ScheduledDiscussion] = Observer {
+    discussion => activeDiscussion.set(Some(discussion))
+  }
+
+  val fullSchedule =
+    Var(
+      FullSchedule(
+        List(
+
+          TimeSlotForAllRooms(
+            TimeSlot("8:00-8:50"),
+            List(ScheduleSlot(Room.king, Some(Discussion.example1)), ScheduleSlot(Room.hawk), ScheduleSlot(Room.artGallery, Some(Discussion.example2)), ScheduleSlot(Room.danceHall))
+          ),
+          TimeSlotForAllRooms(
+            TimeSlot("9:20-10:10"),
+            List(ScheduleSlot(Room.king, Some(Discussion.example3)), ScheduleSlot(Room.hawk), ScheduleSlot(Room.artGallery), ScheduleSlot(Room.danceHall))
+          )
+        )
+
+      )
+    )
 
   div(
     cls := "container",
@@ -305,7 +322,10 @@ def ScheduleView() = {
         cls := "ActiveDiscussion",
         div(
           cls := "Topic",
-          span("The active topic")
+          child <-- activeDiscussion.signal.map {
+            case Some(discussion) => span(discussion.discussion.topic.unwrap)
+            case None => span("nothing")
+          }
         )
       ),
       div(
@@ -325,8 +345,16 @@ def ScheduleView() = {
         div(cls := "Room3", "Art"),
         div(cls := "Room4", "Dance")
       ),
-      SlotSchedule("1", Var(List(ScheduleSlot(Room.king, Some(Discussion.example1)), ScheduleSlot(Room.hawk), ScheduleSlot(Room.artGallery, Some(Discussion.example1)), ScheduleSlot(Room.danceHall)))),
-      SlotSchedule("2", Var(List(ScheduleSlot(Room.king, Some(Discussion.example3)), ScheduleSlot(Room.hawk), ScheduleSlot(Room.artGallery), ScheduleSlot(Room.danceHall)))),
+      SlotSchedule(
+        "1",
+        fullSchedule.signal.map(_.slots(0)),
+        setActiveDiscussion
+      ),
+      SlotSchedule(
+        "2",
+        fullSchedule.signal.map(_.slots(1)),
+        setActiveDiscussion
+      ),
     ),
   )
 }

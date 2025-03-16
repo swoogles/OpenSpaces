@@ -112,9 +112,10 @@ object Room:
 
 
 case class TimeSlot(
-                     id: String,
-                     startTime: LocalDateTime,
-                     endTime: LocalDateTime
+                   s: String
+//                     id: String,
+//                     startTime: LocalDateTime,
+//                     endTime: LocalDateTime
                    )derives JsonCodec
 
 case class ScheduledDiscussion(
