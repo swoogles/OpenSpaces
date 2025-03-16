@@ -1,6 +1,8 @@
 .PageContainer {
     display: grid;
-    background-color: #f4f8fc; gap: 20px; justify-items: center;
+    background-color: #f4f8fc;
+    gap: 20px;
+    justify-items: center;
 }
 .Banner {background-color: #FFFFFF; width: 100%; display: flex; justify-content: space-between; align-items: center;}
 .LogoImg {height: 70px; border-radius: 50%;}
@@ -23,25 +25,27 @@
     "Schedule Schedule Schedule";
 }
 
-.Schedule {  display: grid;
+.Schedule {
+    display: grid;
     grid-template-columns: 1fr 1fr 1fr 1fr 1fr;
-    grid-template-rows: 1fr auto;
-    grid-auto-rows: 1fr;
-    gap: 0px 0px;
-    grid-auto-flow: row;
+    grid-template-rows: auto; /* Just the header row */
+    grid-auto-rows: auto; /* Automatically create rows for additional content */
+    gap: 10px 0px; /* Added some gap between rows */
     grid-template-areas:
-    "deadspace RoomHeaders RoomHeaders RoomHeaders RoomHeaders"
-    "SlotRow SlotRow SlotRow SlotRow SlotRow";
+    "deadspace RoomHeaders RoomHeaders RoomHeaders RoomHeaders";
     grid-area: Schedule;
 }
 
-.SlotRow {  display: grid;
+/* Remove the grid-area from SlotRow */
+.SlotRow {
+    display: grid;
     grid-template-columns: 1fr 1fr 1fr 1fr 1fr;
     gap: 0px 0px;
     grid-auto-flow: row;
     grid-template-areas:
         "TimeOfSlot Cell Cell Cell Cell";
-    grid-area: SlotRow;
+    /* Remove grid-area: SlotRow; */
+    grid-column: 1 / -1; /* Make it span all columns */
 }
 
 .RoomHeaders {   display: grid;
@@ -64,6 +68,11 @@
 
 .Swap { grid-area: Swap; }
 
-.ActiveDiscussion { grid-area: ActiveDiscussion; }
+.ActiveDiscussion { grid-area: ActiveDiscussion;
+    border-radius: 4px;
+    border-color: darkcyan;
+}
 
-.SwapTarget { grid-area: SwapTarget; }
+.SwapTarget { grid-area: SwapTarget;
+    border-radius: 4px;
+}

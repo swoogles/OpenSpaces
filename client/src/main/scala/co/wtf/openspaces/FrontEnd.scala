@@ -237,18 +237,27 @@ enum AppView:
   case ScheduleView
   case SubmitTopic
 
-case class ScheduleSlot(room: Room)
+case class ScheduleSlot(room: Room,
+                        discussion: Option[Discussion] = None
+                       )
 
-def SlotSchedule(slots: Var[List[ScheduleSlot]]) =
+def ScheduleSlotComponent(scheduleSlot: ScheduleSlot) =
+  span(
+    scheduleSlot.discussion match
+      case Some(value) => "[i]"
+      case None => "[+]"
+  )
+
+def SlotSchedule(timeOfSlot: String, slots: Var[List[ScheduleSlot]]) =
   div(
     cls:="SlotRow",
-    div(cls:="TimeOfSlot", "8:00-8:50"),
+    div(cls:="TimeOfSlot", timeOfSlot),
     children <--
       slots.signal.map {
         slots =>
           slots.map {
             slot =>
-                div(cls:="Cell", "[+]")
+                div(cls:="Cell", ScheduleSlotComponent(slot))
           }
       }
   )
@@ -300,14 +309,14 @@ def ScheduleView() = {
         cls := "ActiveDiscussion",
         div(
           cls := "Topic",
-          span("This is the active topic")
+          span("The active topic")
         )
       ),
       div(
         cls := "SwapTarget",
         div(
           cls := "Topic",
-          span("This is the topic to swap with")
+          span("The topic to swap with")
         )
       )
     ),
@@ -317,10 +326,11 @@ def ScheduleView() = {
         cls := "RoomHeaders",
         div(cls := "Room1", "King"),
         div(cls := "Room2", "Hawk"),
-        div(cls := "Room3", "Art Gallery"),
-        div(cls := "Room4", "Dance Hall")
+        div(cls := "Room3", "Art"),
+        div(cls := "Room4", "Dance")
       ),
-      SlotSchedule(Var(List(ScheduleSlot(Room.king), ScheduleSlot(Room.hawk), ScheduleSlot(Room.artGallery), ScheduleSlot(Room.danceHall))))
+      SlotSchedule("1", Var(List(ScheduleSlot(Room.king, Some(Discussion.example1)), ScheduleSlot(Room.hawk), ScheduleSlot(Room.artGallery, Some(Discussion.example1)), ScheduleSlot(Room.danceHall)))),
+      SlotSchedule("2", Var(List(ScheduleSlot(Room.king, Some(Discussion.example3)), ScheduleSlot(Room.hawk), ScheduleSlot(Room.artGallery), ScheduleSlot(Room.danceHall)))),
     ),
   )
 }
