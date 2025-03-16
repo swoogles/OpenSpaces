@@ -111,8 +111,6 @@ object Room:
   val danceHall = Room(3, "Dance Hall", 10)
 
 
-case class ScheduleSlot(room: Room)
-
 case class TimeSlot(
                      id: String,
                      startTime: LocalDateTime,
@@ -124,3 +122,32 @@ case class ScheduledDiscussion(
                                 room: Room,
                                 timeSlot: TimeSlot
                               ) derives JsonCodec
+
+case class FullSchedule(
+                       slots: List[TimeSlotForAllRooms]
+                       ) derives JsonCodec:
+  def findDiscussion(searchTarget: Discussion): Option[ScheduledDiscussion] =
+    slots.flatMap(slot => slot.findDiscussion(searchTarget)).headOption
+
+case class TimeSlotForAllRooms(
+                           time: TimeSlot,
+                           cells: List[ScheduleSlot]
+                       ) derives JsonCodec:
+  def findDiscussion(searchTarget: Discussion): Option[ScheduledDiscussion] =
+    cells.flatMap(cell => cell.withDiscussion(searchTarget))
+      .headOption
+      .map(filledCell => ScheduledDiscussion(searchTarget, filledCell.room, time))
+
+case class ScheduleSlot(
+                         room: Room,
+                         discussion: Option[Discussion] = None
+                       ) derives JsonCodec:
+  def withDiscussion(searchTarget: Discussion): Option[FilledCell] =
+    discussion.filter(_ == searchTarget)
+      .map( d => FilledCell(room, d))
+
+
+case class FilledCell(
+                         room: Room,
+                         discussion: Discussion
+                       ) derives JsonCodec

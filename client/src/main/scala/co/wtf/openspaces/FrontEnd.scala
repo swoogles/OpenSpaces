@@ -237,10 +237,6 @@ enum AppView:
   case ScheduleView
   case SubmitTopic
 
-case class ScheduleSlot(room: Room,
-                        discussion: Option[Discussion] = None
-                       )
-
 def ScheduleSlotComponent(scheduleSlot: ScheduleSlot) =
   span(
     scheduleSlot.discussion match
