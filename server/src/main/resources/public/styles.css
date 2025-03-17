@@ -24,8 +24,9 @@
 .Schedule {
     display: grid;
     grid-template-columns: 1fr 4fr;
-    grid-template-rows: auto; /* Just the header row */
-    grid-auto-rows: auto; /* Automatically create rows for additional content */
+    grid-template-rows: min-content; /* Just the header row */
+    /*grid-auto-rows: auto; !* Automatically create rows for additional content *!*/
+    grid-auto-rows: min-content;
     gap: 10px 0px; /* Added some gap between rows */
     grid-template-areas:
     "deadspace RoomHeaders";
@@ -41,6 +42,8 @@
         "TimeOfSlot Cell Cell Cell Cell";
     /* Remove grid-area: SlotRow; */
     grid-column: 1 / -1; /* Make it span all columns */
+    height: 5vh;
+    align-self: start;
 }
 
 .RoomHeaders {   display: grid;
@@ -77,3 +80,4 @@
     overflow: auto;
     height: 15vh;
 }
+

@@ -237,12 +237,12 @@ enum AppView:
   case ScheduleView
   case SubmitTopic
 
-def ScheduleSlotComponent(timeSlot: TimeSlot, scheduleSlot: ScheduleSlot, setActiveDiscussion: Observer[ScheduledDiscussion]) =
+def ScheduleSlotComponent(timeSlot: TimeSlot, scheduleSlot: ScheduleSlot, updateDiscussion: Observer[ScheduledDiscussion]) =
 
     scheduleSlot.discussion match
       case Some(value) =>
         span(
-          onClick.mapTo(ScheduledDiscussion(value, scheduleSlot.room, timeSlot)) --> setActiveDiscussion,
+          onClick.mapTo(ScheduledDiscussion(value, scheduleSlot.room, timeSlot)) --> updateDiscussion, // TODO is this .now() call correct?
           "[i]"
         )
       case None =>
@@ -250,7 +250,7 @@ def ScheduleSlotComponent(timeSlot: TimeSlot, scheduleSlot: ScheduleSlot, setAct
           "[+]"
         )
 
-def SlotSchedule(timeOfSlot: String, $timeSlotsForAllRooms: Signal[TimeSlotForAllRooms], setActiveDiscussion: Observer[ScheduledDiscussion]) =
+def SlotSchedule(timeOfSlot: String, $timeSlotsForAllRooms: Signal[TimeSlotForAllRooms], updateDiscussion: Observer[ScheduledDiscussion]) =
   div(
     cls:="SlotRow",
     div(cls:="TimeOfSlot", timeOfSlot),
@@ -260,7 +260,7 @@ def SlotSchedule(timeOfSlot: String, $timeSlotsForAllRooms: Signal[TimeSlotForAl
           timeSlotsForAllRooms.cells
             .map {
               cell =>
-                div(cls:="Cell", ScheduleSlotComponent(timeSlotsForAllRooms.time, cell, setActiveDiscussion))
+                div(cls:="Cell", ScheduleSlotComponent(timeSlotsForAllRooms.time, cell, updateDiscussion))
             }
       }
   )
@@ -288,15 +288,32 @@ def ScheduleView() = {
   val activeDiscussion: Var[Option[ScheduledDiscussion]] =
     Var(None)
 
+  val targetDiscussion: Var[Option[ScheduledDiscussion]] =
+    Var(None)
+
   val setActiveDiscussion: Observer[ScheduledDiscussion] = Observer {
     discussion => activeDiscussion.set(Some(discussion))
+  }
+
+  val setTargetDiscussion: Observer[ScheduledDiscussion] = Observer {
+    discussion => targetDiscussion.set(Some(discussion))
+  }
+
+  val settingActiveDiscussion: Var[Boolean] = Var(true) // Don't love the boolean here
+
+  val updateDiscussion: Observer[ScheduledDiscussion] = Observer {
+    discussion =>
+      if (settingActiveDiscussion.now()) {
+        activeDiscussion.set(Some(discussion))
+      } else {
+        targetDiscussion.set(Some(discussion))
+      }
   }
 
   val fullSchedule =
     Var(
       FullSchedule(
         List(
-
           TimeSlotForAllRooms(
             TimeSlot("8:00-8:50"),
             List(ScheduleSlot(Room.king, Some(Discussion.example1)), ScheduleSlot(Room.hawk), ScheduleSlot(Room.artGallery, Some(Discussion.example2)), ScheduleSlot(Room.danceHall))
@@ -319,21 +336,20 @@ def ScheduleView() = {
         "<-/->"
       ),
       div(
-        cls := "ActiveDiscussion",
-        div(
-          cls := "Topic",
-          child <-- activeDiscussion.signal.map {
-            case Some(discussion) => span(discussion.discussion.topic.unwrap)
-            case None => span("nothing")
-          }
-        )
+        cls := "ActiveDiscussion Topic",
+        onClick.mapTo(true) --> settingActiveDiscussion,
+        child <-- activeDiscussion.signal.map {
+          case Some(discussion) => span(discussion.discussion.topic.unwrap)
+          case None => span("nothing")
+        }
       ),
       div(
-        cls := "SwapTarget",
-        div(
-          cls := "Topic",
-          span("The topic to swap with")
-        )
+        cls := "SwapTarget Topic",
+        onClick.mapTo(false) --> settingActiveDiscussion,
+        child <-- targetDiscussion.signal.map {
+          case Some(discussion) => span(discussion.discussion.topic.unwrap)
+          case None => span("nothing")
+        }
       )
     ),
     div(
@@ -348,12 +364,12 @@ def ScheduleView() = {
       SlotSchedule(
         "1",
         fullSchedule.signal.map(_.slots(0)),
-        setActiveDiscussion
+        updateDiscussion
       ),
       SlotSchedule(
         "2",
         fullSchedule.signal.map(_.slots(1)),
-        setActiveDiscussion
+        updateDiscussion
       ),
     ),
   )
