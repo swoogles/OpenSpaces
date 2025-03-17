@@ -243,6 +243,7 @@ def ScheduleSlotComponent(timeSlot: TimeSlot, scheduleSlot: ScheduleSlot, update
       case Some(value) =>
         span(
           onClick.mapTo(ScheduledDiscussion(value, scheduleSlot.room, timeSlot)) --> updateDiscussion, // TODO is this .now() call correct?
+          // TODO Maybe every discussion gets a randomly selected glyphicon?
           "[i]"
         )
       case None =>
@@ -310,6 +311,13 @@ def ScheduleView() = {
       }
   }
 
+  val swapDiscussions: Observer[Unit] = Observer {
+    _ =>
+      val tmp = activeDiscussion.now()
+      activeDiscussion.set(targetDiscussion.now())
+      targetDiscussion.set(tmp)
+  }
+
   val fullSchedule =
     Var(
       FullSchedule(
@@ -333,7 +341,8 @@ def ScheduleView() = {
       cls := "Targets",
       div(
         cls := "Swap",
-        "<-/->"
+        onClick.mapTo(()) --> swapDiscussions,
+        SvgIcon("glyphicons-basic-82-refresh.svg"),
       ),
       div(
         cls := "ActiveDiscussion Topic",

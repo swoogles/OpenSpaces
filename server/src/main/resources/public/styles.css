@@ -81,3 +81,9 @@
     height: 15vh;
 }
 
+.glyphicon {
+    height: 32px;
+    width: 32px;
+    /*vertical-align: middle;*/
+    /*display: table-cell;*/
+}
