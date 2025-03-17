@@ -14,25 +14,21 @@
 .VoteContainer {display: flex; gap: 5px; justify-content: space-between;}
 
 .container {  display: grid;
-    grid-template-columns: 0.9fr 1.1fr 1fr;
-    grid-template-rows: 2fr 2fr 3fr 3fr;
-    gap: 0px 0px;
-    grid-auto-flow: row;
+    grid-template-columns: 1fr;
+    grid-template-rows: 2fr 4fr;
     grid-template-areas:
-    "Targets Targets Targets"
-    "Targets Targets Targets"
-    "Schedule Schedule Schedule"
-    "Schedule Schedule Schedule";
+    "Targets"
+    "Schedule";
 }
 
 .Schedule {
     display: grid;
-    grid-template-columns: 1fr 1fr 1fr 1fr 1fr;
+    grid-template-columns: 1fr 4fr;
     grid-template-rows: auto; /* Just the header row */
     grid-auto-rows: auto; /* Automatically create rows for additional content */
     gap: 10px 0px; /* Added some gap between rows */
     grid-template-areas:
-    "deadspace RoomHeaders RoomHeaders RoomHeaders RoomHeaders";
+    "deadspace RoomHeaders";
     grid-area: Schedule;
 }
 
@@ -40,7 +36,6 @@
 .SlotRow {
     display: grid;
     grid-template-columns: 1fr 1fr 1fr 1fr 1fr;
-    gap: 0px 0px;
     grid-auto-flow: row;
     grid-template-areas:
         "TimeOfSlot Cell Cell Cell Cell";
@@ -56,7 +51,7 @@
 }
 
 .Targets {  display: grid;
-    grid-template-columns: 2fr 2fr 1fr;
+    grid-template-columns: 4fr 1fr;
     grid-template-rows: 1fr 1fr;
     gap: 0px 0px;
     grid-auto-flow: row;
@@ -71,8 +66,12 @@
 .ActiveDiscussion { grid-area: ActiveDiscussion;
     border-radius: 4px;
     border-color: darkcyan;
+    min-width: 0;
+    overflow: auto;
 }
 
 .SwapTarget { grid-area: SwapTarget;
     border-radius: 4px;
+    min-width: 0;
+    overflow: auto;
 }

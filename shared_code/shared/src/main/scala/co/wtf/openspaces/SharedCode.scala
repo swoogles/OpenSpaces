@@ -40,7 +40,7 @@ object Discussion:
     )
 
   val example1 = Discussion(
-    Topic.parseOrDie("Continuous Deployment - A goal, or an asymptote?"),
+    Topic.parseOrDie("Continuous Deployment - A goal, an asymptote, or an ass out of you and me?"),
     Person("Bill"),
     TopicId(1)
   )

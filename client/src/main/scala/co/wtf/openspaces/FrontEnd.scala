@@ -342,7 +342,7 @@ def ScheduleView() = {
         cls := "RoomHeaders",
         div(cls := "Room1", "King"),
         div(cls := "Room2", "Hawk"),
-        div(cls := "Room3", "Art"),
+        div(cls := "Room3", "Art!"),
         div(cls := "Room4", "Dance")
       ),
       SlotSchedule(
