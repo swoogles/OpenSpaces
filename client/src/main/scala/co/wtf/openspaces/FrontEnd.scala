@@ -316,7 +316,7 @@ def ScheduleView() = {
       cls := "Targets",
       div(
         cls := "Swap",
-        "<-- Swap ->"
+        "<-/->"
       ),
       div(
         cls := "ActiveDiscussion",

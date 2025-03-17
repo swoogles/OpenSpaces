@@ -68,10 +68,12 @@
     border-color: darkcyan;
     min-width: 0;
     overflow: auto;
+    height: 15vh;
 }
 
 .SwapTarget { grid-area: SwapTarget;
     border-radius: 4px;
     min-width: 0;
     overflow: auto;
+    height: 15vh;
 }
