@@ -10,7 +10,8 @@ import zio.http.*
 object Backend extends ZIOAppDefault {
   import zio.http.ChannelEvent.{ExceptionCaught, Read, UserEvent, UserEventTriggered}
 
-  class DiscussionDataStore(discussionDatabase: Ref[DiscussionState]):
+  class DiscussionDataStore(discussionDatabase: Ref[DiscussionState],
+                            glyphiconService: GlyphiconService):
     def snapshot =
       discussionDatabase.get
 
@@ -80,7 +81,8 @@ object Backend extends ZIOAppDefault {
                 Discussion.example5,
                 Discussion.example6
               )
-            ).run
+            ).run,
+            ZIO.service[GlyphiconService].run
           )
 
 
