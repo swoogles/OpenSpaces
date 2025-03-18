@@ -242,7 +242,7 @@ def ScheduleSlotComponent(timeSlot: TimeSlot, scheduleSlot: ScheduleSlot, update
       case Some(value) =>
         span(
           onClick.mapTo(ScheduledDiscussion(value, scheduleSlot.room, timeSlot)) --> updateDiscussion,
-          SvgIcon(value.glyphicon)
+          SvgIcon(value.glyphicon).amend(cls := "filledTopic") // TODO amend always makes me suspicious
         )
       case None =>
         span(

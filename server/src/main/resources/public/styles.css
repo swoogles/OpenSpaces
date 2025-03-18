@@ -13,6 +13,11 @@
 .AddButton {background-color: transparent; border: none;}
 .VoteContainer {display: flex; gap: 5px; justify-content: space-between;}
 
+.filledTopic {
+    border: solid black;
+    border-radius: 5px;
+}
+
 .container {  display: grid;
     grid-template-columns: 1fr;
     grid-template-rows: 2fr 4fr;
