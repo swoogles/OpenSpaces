@@ -347,7 +347,11 @@ def ScheduleView() = {
         cls := "ActiveDiscussion Topic",
         onClick.mapTo(true) --> settingActiveDiscussion,
         child <-- activeDiscussion.signal.map {
-          case Some(discussion) => span(discussion.discussion.topic.unwrap)
+          case Some(discussion) =>
+            div(
+              SvgIcon(discussion.discussion.glyphicon),
+              span(discussion.discussion.topic.unwrap)
+            )
           case None => span("nothing")
         }
       ),
@@ -355,7 +359,11 @@ def ScheduleView() = {
         cls := "SwapTarget Topic",
         onClick.mapTo(false) --> settingActiveDiscussion,
         child <-- targetDiscussion.signal.map {
-          case Some(discussion) => span(discussion.discussion.topic.unwrap)
+          case Some(discussion) =>
+            div(
+              SvgIcon(discussion.discussion.glyphicon),
+              span(discussion.discussion.topic.unwrap)
+            )
           case None => span("nothing")
         }
       )
