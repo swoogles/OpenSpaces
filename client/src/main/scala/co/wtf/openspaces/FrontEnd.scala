@@ -119,7 +119,6 @@ private def DiscussionSubview(
                   justifyContent := "space-between",
                   span(
                     div(
-                      SvgIcon(topic.glyphicon),
                       children <-- $characters.splitTransition(identity) {
                         case (_, (character, _), _, transition) =>
                           val newCharacter = character match
@@ -166,6 +165,7 @@ private def DiscussionSubview(
                   (votePosition match
                     case Some(position) =>
                       span(
+                        SvgIcon(topic.glyphicon),
                         p(topic.facilitator.unwrap),
                         p("Votes ", child <-- signal.map(_.votes), " "),
                       )
