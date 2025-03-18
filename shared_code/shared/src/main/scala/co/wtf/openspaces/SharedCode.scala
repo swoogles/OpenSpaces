@@ -22,7 +22,8 @@ case class Discussion(
                        topic: Topic,
                        facilitator: Person,
                        interestedParties: Set[Feedback],
-                       id: TopicId
+                       id: TopicId,
+                       glyphicon: Glyphicon
                      ) derives JsonCodec:
   val votes: Int = interestedParties.count(_.position == Interested)
 
@@ -30,33 +31,38 @@ object Discussion:
   def apply(
              topic: Topic,
              facilitator: Person,
-             id: TopicId
+             id: TopicId,
+              glyphicon: Glyphicon
            ): Discussion =
     Discussion(
       topic,
       facilitator,
       Set(Feedback(facilitator, Interested)),
-      id
+      id,
+      GlyphiconUtils.names(0)
     )
 
   val example1 = Discussion(
     Topic.parseOrDie("Continuous Deployment - A goal, an asymptote, or an ass out of you and me?"),
     Person("Bill"),
-    TopicId(1)
+    TopicId(1),
+    GlyphiconUtils.names(1)
   )
 
   val example2 = Discussion(
     Topic.parseOrDie(
       "Managing emotional energy on the job"),
     Person("Emma"),
-    TopicId(2)
+    TopicId(2),
+    GlyphiconUtils.names(2)
   )
 
   val example3 =
     Discussion(
       Topic.parseOrDie("How to make a great cup of coffee"),
       Person("John"),
-      TopicId(3)
+      TopicId(3),
+      GlyphiconUtils.names(3)
     )
 
   val example4 =
@@ -64,7 +70,8 @@ object Discussion:
       Topic.parseOrDie("How to make a great cup of tea"),
       Person("John"),
       Set(Feedback(Person("Bill"), VotePosition.NotInterested)),
-      TopicId(4)
+      TopicId(4),
+      GlyphiconUtils.names(4)
     )
     
   val example5 =
@@ -72,7 +79,8 @@ object Discussion:
       Topic.parseOrDie("Fighting round the world"),
       Person("John"),
       Set.empty,
-      TopicId(5)
+      TopicId(5),
+      GlyphiconUtils.names(5)
     )
 
   val example6 =
@@ -80,7 +88,8 @@ object Discussion:
       Topic.parseOrDie("Pandas - friends or foes?"),
       Person("John"),
       Set.empty,
-      TopicId(5)
+      TopicId(5),
+      GlyphiconUtils.names(6)
     )
 
 

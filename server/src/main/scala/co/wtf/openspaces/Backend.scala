@@ -25,7 +25,8 @@ object Backend extends ZIOAppDefault {
               topic,
               facilitator,
               Set(Feedback(facilitator, VotePosition.Interested)),
-              TopicId(randomId)
+              TopicId(randomId),
+              randomIcon
             )
             res <- discussionDatabase.updateAndGet(s => s(discussion))
           } yield DiscussionAction.AddResult(discussion)

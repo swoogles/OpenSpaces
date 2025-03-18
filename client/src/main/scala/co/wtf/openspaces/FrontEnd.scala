@@ -119,6 +119,7 @@ private def DiscussionSubview(
                   justifyContent := "space-between",
                   span(
                     div(
+                      SvgIcon(topic.glyphicon),
                       children <-- $characters.splitTransition(identity) {
                         case (_, (character, _), _, transition) =>
                           val newCharacter = character match
