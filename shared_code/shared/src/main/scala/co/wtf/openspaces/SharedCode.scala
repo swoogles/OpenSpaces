@@ -39,7 +39,7 @@ object Discussion:
       facilitator,
       Set(Feedback(facilitator, Interested)),
       id,
-      GlyphiconUtils.names(0)
+      glyphicon
     )
 
   val example1 = Discussion(

@@ -242,7 +242,7 @@ def ScheduleSlotComponent(timeSlot: TimeSlot, scheduleSlot: ScheduleSlot, update
       case Some(value) =>
         span(
           onClick.mapTo(ScheduledDiscussion(value, scheduleSlot.room, timeSlot)) --> updateDiscussion,
-          GlyphiconRandomDemo.randomGlyphicon()
+          SvgIcon(value.glyphicon)
         )
       case None =>
         span(
@@ -256,6 +256,7 @@ def SlotSchedule(timeOfSlot: String, $timeSlotsForAllRooms: Signal[TimeSlotForAl
     children <--
       $timeSlotsForAllRooms.map {
         timeSlotsForAllRooms =>
+          println("timeSlotsForAllRooms: " + timeSlotsForAllRooms)
           timeSlotsForAllRooms.cells
             .map {
               cell =>
@@ -430,8 +431,8 @@ object FrontEnd extends App:
     )
 
   val app = {
-    liveTopicSubmissionAndVoting
-//    ScheduleView()
+//    liveTopicSubmissionAndVoting
+    ScheduleView()
   }
 
   render(container, app)

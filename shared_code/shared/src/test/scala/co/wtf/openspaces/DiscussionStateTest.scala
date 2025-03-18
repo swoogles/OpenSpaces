@@ -86,8 +86,9 @@ object DiscussionStateTest extends ZIOSpecDefault:
               Discussion(
                 Topic.parseOrDie("Managing emotional energy on the job"),
                 testUser2,
-                Set(testUser2),
-                TopicId(2)
+                Set(Feedback(testUser2, VotePosition.Interested)),
+                TopicId(2),
+                GlyphiconUtils.names(2)
               )
             val res =
               originalState(
