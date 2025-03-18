@@ -341,7 +341,7 @@ def ScheduleView() = {
       div(
         cls := "Swap",
         onClick.mapTo(()) --> swapDiscussions,
-        SvgIcon("glyphicons-basic-82-refresh.svg"),
+        SvgIcon(Glyphicon("glyphicons-basic-82-refresh.svg")),
       ),
       div(
         cls := "ActiveDiscussion Topic",

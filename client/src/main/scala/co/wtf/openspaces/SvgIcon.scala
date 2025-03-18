@@ -5,12 +5,12 @@ import com.raquo.laminar.api.L.*
 object SvgIcon {
 
   def apply(
-    name: String,
+    glyphicon: Glyphicon,
     clsName: String = "",
   ) =
     img(
       cls := s"glyphicon $clsName",
-      src := s"/glyphicons/$name",
+      src := s"/glyphicons/${glyphicon.name}",
     )
 
 }

@@ -86,7 +86,8 @@ object Backend extends ZIOAppDefault {
 
   case class ApplicationState(
                                connectedUsers: Ref[List[WebSocketChannel]],
-                               discussionDataStore: DiscussionDataStore
+                               discussionDataStore: DiscussionDataStore,
+                               glyphiconService: GlyphiconService
                              ):
 
     val socketApp: WebSocketApp[Any] =
@@ -150,7 +151,8 @@ object Backend extends ZIOAppDefault {
         defer:
           ApplicationState(
             Ref.make(List.empty[WebSocketChannel]).run,
-            ZIO.service[DiscussionDataStore].run
+            ZIO.service[DiscussionDataStore].run,
+            ZIO.service[GlyphiconService].run
           )
 
 
@@ -162,6 +164,7 @@ object Backend extends ZIOAppDefault {
     .provide(
       Server.default,
       ApplicationState.layer,
-      DiscussionDataStore.layer
+      DiscussionDataStore.layer,
+      GlyphiconService.live,
     )
 }

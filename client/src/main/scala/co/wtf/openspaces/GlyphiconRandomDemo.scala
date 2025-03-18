@@ -3,7 +3,7 @@ package co.wtf.openspaces
 import scala.util.Random
 
 object GlyphiconRandomDemo:
-  val names: Array[String] =
+  private val names: List[Glyphicon] =
     GlyphiconUtils.names
 
   def randomGlyphicon() =
