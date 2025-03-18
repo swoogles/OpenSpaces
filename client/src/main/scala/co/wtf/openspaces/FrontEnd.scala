@@ -242,9 +242,8 @@ def ScheduleSlotComponent(timeSlot: TimeSlot, scheduleSlot: ScheduleSlot, update
     scheduleSlot.discussion match
       case Some(value) =>
         span(
-          onClick.mapTo(ScheduledDiscussion(value, scheduleSlot.room, timeSlot)) --> updateDiscussion, // TODO is this .now() call correct?
-          // TODO Maybe every discussion gets a randomly selected glyphicon?
-          GlyphiconUtils.randomGlyphicon()
+          onClick.mapTo(ScheduledDiscussion(value, scheduleSlot.room, timeSlot)) --> updateDiscussion,
+          GlyphiconRandomDemo.randomGlyphicon()
         )
       case None =>
         span(
