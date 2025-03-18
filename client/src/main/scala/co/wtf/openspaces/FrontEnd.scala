@@ -244,11 +244,11 @@ def ScheduleSlotComponent(timeSlot: TimeSlot, scheduleSlot: ScheduleSlot, update
         span(
           onClick.mapTo(ScheduledDiscussion(value, scheduleSlot.room, timeSlot)) --> updateDiscussion, // TODO is this .now() call correct?
           // TODO Maybe every discussion gets a randomly selected glyphicon?
-          "[i]"
+          GlyphiconUtils.randomGlyphicon()
         )
       case None =>
         span(
-          "[+]"
+          SvgIcon(GlyphiconUtils.plus)
         )
 
 def SlotSchedule(timeOfSlot: String, $timeSlotsForAllRooms: Signal[TimeSlotForAllRooms], updateDiscussion: Observer[ScheduledDiscussion]) =
