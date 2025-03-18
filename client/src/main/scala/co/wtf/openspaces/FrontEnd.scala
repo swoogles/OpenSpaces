@@ -356,6 +356,7 @@ def ScheduleView() = {
         }
       ),
       div(
+        // TODO I think I should bail on swap. Just add to schedule and remove.
         cls := "SwapTarget Topic",
         onClick.mapTo(false) --> settingActiveDiscussion,
         child <-- targetDiscussion.signal.map {
