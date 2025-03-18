@@ -15,8 +15,22 @@ object Backend extends ZIOAppDefault {
     def snapshot =
       discussionDatabase.get
 
-    def applyAction(discussionAction: DiscussionAction): UIO[DiscussionState] =
-      discussionDatabase.updateAndGet(s => s(discussionAction))
+    def applyAction(discussionAction: DiscussionAction): UIO[DiscussionAction] =
+      discussionAction match
+        case DiscussionAction.Add(topic, facilitator) =>
+          for {
+            randomIcon <- glyphiconService.getRandomIcon
+            randomId <- Random.nextLong
+            discussion = Discussion(
+              topic,
+              facilitator,
+              Set(Feedback(facilitator, VotePosition.Interested)),
+              TopicId(randomId)
+            )
+            res <- discussionDatabase.updateAndGet(s => s(discussion))
+          } yield DiscussionAction.AddResult(discussion)
+
+        case _ => discussionDatabase.updateAndGet(s => s(discussionAction)).as(discussionAction)
 
     private def randomExistingTopicId =
       defer:
@@ -32,13 +46,9 @@ object Backend extends ZIOAppDefault {
         val addNewDiscussion =
           val person = Person("RandomPerson - " + Random.nextIntBounded(20).run)
           DiscussionAction.Add(
-            Discussion(
               DiscussionTopics.randomTopic.run,
               person,
-              Set(Feedback(person, VotePosition.Interested)),
-              TopicId(Random.nextLongBounded(20).run)
             )
-          )
 
         val action =
           if (noCurrentItems)
@@ -102,11 +112,11 @@ object Backend extends ZIOAppDefault {
                 .run
 
 
-              val updatedDiscussions = discussionDataStore.applyAction(discussionAction).run
+              val actionResult = discussionDataStore.applyAction(discussionAction).run
               defer:
                 val channels = connectedUsers.get.run
                 ZIO.foreachDiscard(channels)( channel =>
-                  val fullJson = discussionAction.toJsonPretty
+                  val fullJson = actionResult.toJsonPretty
                   ZIO.debug(s"Sending discussion: $fullJson to $channel") *>
                     channel.send(Read(WebSocketFrame.text(fullJson))).ignore
                 ).run
@@ -119,7 +129,7 @@ object Backend extends ZIOAppDefault {
               connectedUsers.update(_ :+ channel).run
               val discussions = discussionDataStore.snapshot.run
               ZIO.foreachDiscard(discussions.data)((topic, discussion) =>
-                channel.send(Read(WebSocketFrame.text(DiscussionAction.Add(discussion).asInstanceOf[DiscussionAction].toJson)))
+                channel.send(Read(WebSocketFrame.text(DiscussionAction.AddResult(discussion).asInstanceOf[DiscussionAction].toJson)))
               ).run
 
               ZIO.when(false):

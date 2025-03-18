@@ -51,7 +51,7 @@ private def NameBadge(textVar: Var[Person]) =
   )
 
 private def TopicSubmission(
-                             submitEffect: Observer[Discussion],
+                             submitEffect: Observer[DiscussionAction],
                              name: StrictSignal[Person],
                              setErrorMsg: Observer[Option[String]]
                            ) =
@@ -79,11 +79,9 @@ private def TopicSubmission(
         .map(_.get)
         .map(
           topicTitle => 
-            Discussion.apply(
+            DiscussionAction.Add(
               topicTitle, 
-              name.now(), 
-              Set(Feedback(name.now(), VotePosition.Interested)),
-              TopicId(scala.util.Random.nextLong())
+              name.now()
             )
         ) --> submitEffect,
       "Submit"
@@ -400,13 +398,16 @@ object FrontEnd extends App:
   val errorBanner =
     ErrorBanner()
 
-  val submitNewTopic: Observer[Discussion] = Observer {
+  val submitNewTopic: Observer[DiscussionAction] = Observer {
     discussion =>
-      if (discussion.facilitator.unwrap.trim.length < 2)
-        errorBanner.error.set(Some("User name too short. Tell us who you are!"))
-      else
-        errorBanner.error.set(None)
-        topicUpdates.sendOne(DiscussionAction.Add(discussion))
+      discussion match
+        case add: DiscussionAction.Add =>
+          if (add.facilitator.unwrap.trim.length < 2)
+            errorBanner.error.set(Some("User name too short. Tell us who you are!"))
+          else
+            errorBanner.error.set(None)
+            topicUpdates.sendOne(discussion)
+        case _ => ()
   }
 
   val name = getOrCreatePersistedName()
@@ -428,8 +429,8 @@ object FrontEnd extends App:
     )
 
   val app = {
-//    liveTopicSubmissionAndVoting,
-    ScheduleView()
+    liveTopicSubmissionAndVoting
+//    ScheduleView()
   }
 
   render(container, app)
