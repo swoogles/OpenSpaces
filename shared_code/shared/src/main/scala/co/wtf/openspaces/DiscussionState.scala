@@ -33,8 +33,6 @@ case class DiscussionState(
             _.map(value =>
               value.copy(topic = newTopic))
           }
-
-        case DiscussionAction.AddResult(discussion) => data + (discussion.id -> discussion) // TODO Shouldn't actually be possible to submit this
     )
   }
 
@@ -44,11 +42,6 @@ case class DiscussionState(
       discussionAction match
         case DiscussionActionConfirmed.Delete(topicId) =>
           data.filterNot(_._2.id == topicId)
-        case DiscussionActionConfirmed.Add(
-        topic,
-        facilitator,
-        ) =>
-          data // TOOD erm. // TODO Disallow duplicate names
         case DiscussionActionConfirmed.Vote(topicId, voter) =>
           data.updatedWith(topicId) {
             _.map(value =>
@@ -65,7 +58,7 @@ case class DiscussionState(
               value.copy(topic = newTopic))
           }
 
-        case DiscussionActionConfirmed.AddResult(discussion) => data + (discussion.id -> discussion) // TODO Shouldn't actually be possible to submit this
+        case DiscussionActionConfirmed.AddResult(discussion) => data + (discussion.id -> discussion)
     )
   }
 

@@ -130,7 +130,8 @@ object Backend extends ZIOAppDefault {
               connectedUsers.update(_ :+ channel).run
               val discussions = discussionDataStore.snapshot.run
               ZIO.foreachDiscard(discussions.data)((topic, discussion) =>
-                channel.send(Read(WebSocketFrame.text(DiscussionAction.AddResult(discussion).asInstanceOf[DiscussionAction].toJson)))
+                // TODO Make sure these are idompotent
+                channel.send(Read(WebSocketFrame.text(DiscussionActionConfirmed.AddResult(discussion).asInstanceOf[DiscussionAction].toJson)))
               ).run
 
               ZIO.when(false):
