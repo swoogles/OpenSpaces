@@ -15,7 +15,7 @@ object Backend extends ZIOAppDefault {
     def snapshot =
       discussionDatabase.get
 
-    def applyAction(discussionAction: DiscussionAction): UIO[DiscussionAction] =
+    def applyAction(discussionAction: DiscussionAction): UIO[DiscussionActionConfirmed] =
       discussionAction match
         case DiscussionAction.Add(topic, facilitator) =>
           for {
@@ -29,9 +29,9 @@ object Backend extends ZIOAppDefault {
               randomIcon
             )
             res <- discussionDatabase.updateAndGet(s => s(discussion))
-          } yield DiscussionAction.AddResult(discussion)
+          } yield DiscussionActionConfirmed.AddResult(discussion)
 
-        case _ => discussionDatabase.updateAndGet(s => s(discussionAction)).as(discussionAction)
+        case other => discussionDatabase.updateAndGet(s => s(other)).as(DiscussionActionConfirmed.fromDiscussionAction(other))
 
     private def randomExistingTopicId =
       defer:
@@ -116,7 +116,7 @@ object Backend extends ZIOAppDefault {
               val actionResult = discussionDataStore.applyAction(discussionAction).run
               defer:
                 val channels = connectedUsers.get.run
-                ZIO.foreachDiscard(channels)( channel =>
+                ZIO.foreachParDiscard(channels)( channel =>
                   val fullJson = actionResult.toJsonPretty
                   ZIO.debug(s"Sending discussion: $fullJson to $channel") *>
                     channel.send(Read(WebSocketFrame.text(fullJson))).ignore

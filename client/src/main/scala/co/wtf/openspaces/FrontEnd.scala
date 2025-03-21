@@ -397,9 +397,9 @@ object FrontEnd extends App:
   import io.laminext.websocket.*
 
   val topicUpdates =
-    WebSocket.url("/discussions").text[DiscussionAction, DiscussionAction](
+    WebSocket.url("/discussions").text[DiscussionActionConfirmed, DiscussionAction](
       _.toJson,
-      _.fromJson[DiscussionAction].left.map(Exception(_))
+      _.fromJson[DiscussionActionConfirmed].left.map(Exception(_))
     ).build()
 
   val topicsToReview: Var[DiscussionState] =
@@ -427,7 +427,7 @@ object FrontEnd extends App:
       cls := "PageContainer",
       topicUpdates.connect,
       topicUpdates.received --> Observer {
-        (event: DiscussionAction) =>
+        (event: DiscussionActionConfirmed) =>
           println("Websocket Event: " + event)
           topicsToReview.update(existing =>
             existing(event)
@@ -440,8 +440,8 @@ object FrontEnd extends App:
     )
 
   val app = {
-//    liveTopicSubmissionAndVoting
-    ScheduleView()
+    liveTopicSubmissionAndVoting
+//    ScheduleView()
   }
 
   render(container, app)

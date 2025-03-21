@@ -99,6 +99,12 @@ object Discussion:
 
 
 
+/* TODO Split this into at least:
+    - User-submitted actions
+      - These can be considered "attempts" and can be rejected
+    - Server-side updates
+      - These are authoritative, they will always update Client-side state
+*/
 enum DiscussionAction derives JsonCodec:
   case Add(
             topic: Topic,
@@ -109,6 +115,27 @@ enum DiscussionAction derives JsonCodec:
   case RemoveVote(topic: TopicId, voter: Person)
   case Rename(topicId: TopicId, newTopic: Topic) // Any reason to pass original, now that I'm updating based on id?
   case AddResult(discussion: Discussion)
+
+  
+enum DiscussionActionConfirmed derives JsonCodec:
+  case Add(
+            topic: Topic,
+            facilitator: Person,
+          )
+  case Delete(topic: TopicId)
+  case Vote(topic: TopicId, feedback: Feedback)
+  case RemoveVote(topic: TopicId, voter: Person)
+  case Rename(topicId: TopicId, newTopic: Topic) // Any reason to pass original, now that I'm updating based on id?
+  case AddResult(discussion: Discussion)
+  
+object DiscussionActionConfirmed:
+  def fromDiscussionAction(discussionAction: DiscussionAction): DiscussionActionConfirmed =
+    discussionAction match
+      case DiscussionAction.Delete(topic) => DiscussionActionConfirmed.Delete(topic)
+      case DiscussionAction.Vote(topic, feedback) => DiscussionActionConfirmed.Vote(topic, feedback)
+      case DiscussionAction.RemoveVote(topic, voter) => DiscussionActionConfirmed.RemoveVote(topic, voter)
+      case DiscussionAction.Rename(topicId, newTopic) => DiscussionActionConfirmed.Rename(topicId, newTopic)
+      case other => throw new Exception(s"Unexpected discussion action: $other")
 
 
 case class Room(

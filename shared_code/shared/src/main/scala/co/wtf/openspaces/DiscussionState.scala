@@ -1,7 +1,5 @@
 package co.wtf.openspaces
 
-import co.wtf.openspaces.DiscussionAction.Rename
-
 case class DiscussionState(
                             data: Map[TopicId, Discussion]
                           ):
@@ -30,13 +28,44 @@ case class DiscussionState(
             _.map(value =>
               value.copy(interestedParties = value.interestedParties.filterNot(_.voter == voter)))
           }
-        case Rename(topicId, newTopic) =>
+        case DiscussionAction.Rename(topicId, newTopic) =>
           data.updatedWith(topicId) {
             _.map(value =>
               value.copy(topic = newTopic))
           }
 
         case DiscussionAction.AddResult(discussion) => data + (discussion.id -> discussion) // TODO Shouldn't actually be possible to submit this
+    )
+  }
+
+
+  def apply(discussionAction: DiscussionActionConfirmed): DiscussionState = {
+    copy(data =
+      discussionAction match
+        case DiscussionActionConfirmed.Delete(topicId) =>
+          data.filterNot(_._2.id == topicId)
+        case DiscussionActionConfirmed.Add(
+        topic,
+        facilitator,
+        ) =>
+          data // TOOD erm. // TODO Disallow duplicate names
+        case DiscussionActionConfirmed.Vote(topicId, voter) =>
+          data.updatedWith(topicId) {
+            _.map(value =>
+              value.copy(interestedParties = value.interestedParties + voter))
+          }
+        case DiscussionActionConfirmed.RemoveVote(topicId, voter) =>
+          data.updatedWith(topicId) {
+            _.map(value =>
+              value.copy(interestedParties = value.interestedParties.filterNot(_.voter == voter)))
+          }
+        case DiscussionActionConfirmed.Rename(topicId, newTopic) =>
+          data.updatedWith(topicId) {
+            _.map(value =>
+              value.copy(topic = newTopic))
+          }
+
+        case DiscussionActionConfirmed.AddResult(discussion) => data + (discussion.id -> discussion) // TODO Shouldn't actually be possible to submit this
     )
   }
 
