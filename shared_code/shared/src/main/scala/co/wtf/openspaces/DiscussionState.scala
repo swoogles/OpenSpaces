@@ -1,7 +1,8 @@
 package co.wtf.openspaces
 
 case class DiscussionState(
-                            data: Map[TopicId, Discussion]
+                            data: Map[TopicId, Discussion],
+                            fullSchedule: FullSchedule
                           ):
   def apply(discussion: Discussion): DiscussionState = {
     copy(
@@ -68,5 +69,6 @@ object DiscussionState:
       input.map(d => (d.id, d)) *
     )
     DiscussionState(
-      startingState
+      startingState,
+      FullSchedule.example // Instead of prepoulating slots here, it should be derived from the discussions, namely discussion.roomSlot
     )

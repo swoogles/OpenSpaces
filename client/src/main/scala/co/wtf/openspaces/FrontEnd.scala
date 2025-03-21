@@ -296,19 +296,7 @@ def ScheduleView() = {
 
   val fullSchedule =
     Var(
-      FullSchedule(
-        List(
-          TimeSlotForAllRooms(
-            TimeSlot("8:00-8:50"),
-            List(ScheduleSlot(Room.king, Some(Discussion.example1)), ScheduleSlot(Room.hawk), ScheduleSlot(Room.artGallery, Some(Discussion.example2)), ScheduleSlot(Room.danceHall))
-          ),
-          TimeSlotForAllRooms(
-            TimeSlot("9:20-10:10"),
-            List(ScheduleSlot(Room.king, Some(Discussion.example3)), ScheduleSlot(Room.hawk), ScheduleSlot(Room.artGallery), ScheduleSlot(Room.danceHall))
-          )
-        )
-
-      )
+      FullSchedule.example // TODO Eventually stop this.
     )
 
   div(

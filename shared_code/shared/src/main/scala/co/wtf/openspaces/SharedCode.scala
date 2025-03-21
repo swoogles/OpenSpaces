@@ -24,7 +24,7 @@ case class Discussion(
                        interestedParties: Set[Feedback],
                        id: TopicId,
                        glyphicon: Glyphicon,
-                       roomSlot: Option[RoomSlot] = None
+                       roomSlot: Option[RoomSlot]
                      ) derives JsonCodec:
   val votes: Int = interestedParties.count(_.position == Interested)
 
@@ -33,21 +33,24 @@ object Discussion:
              topic: Topic,
              facilitator: Person,
              id: TopicId,
-              glyphicon: Glyphicon
+             glyphicon: Glyphicon,
+             roomSlot: Option[RoomSlot] = None
            ): Discussion =
     Discussion(
       topic,
       facilitator,
       Set(Feedback(facilitator, Interested)),
       id,
-      glyphicon
+      glyphicon,
+      roomSlot
     )
 
   val example1 = Discussion(
     Topic.parseOrDie("Continuous Deployment - A goal, an asymptote, or an ass out of you and me?"),
     Person("Bill"),
     TopicId(1),
-    GlyphiconUtils.names(1)
+    GlyphiconUtils.names(1),
+    roomSlot = Some(RoomSlot(Room.king, TimeSlot("8:00-8:50")))
   )
 
   val example2 = Discussion(
@@ -72,7 +75,8 @@ object Discussion:
       Person("John"),
       Set(Feedback(Person("Bill"), VotePosition.NotInterested)),
       TopicId(4),
-      GlyphiconUtils.names(4)
+      GlyphiconUtils.names(4),
+      None
     )
     
   val example5 =
@@ -81,7 +85,8 @@ object Discussion:
       Person("John"),
       Set.empty,
       TopicId(5),
-      GlyphiconUtils.names(5)
+      GlyphiconUtils.names(5),
+      None
     )
 
   val example6 =
@@ -90,7 +95,8 @@ object Discussion:
       Person("John"),
       Set.empty,
       TopicId(5),
-      GlyphiconUtils.names(6)
+      GlyphiconUtils.names(6),
+      None
     )
 
 
@@ -115,6 +121,7 @@ enum DiscussionAction derives JsonCodec:
   case Vote(topic: TopicId, feedback: Feedback)
   case RemoveVote(topic: TopicId, voter: Person)
   case Rename(topicId: TopicId, newTopic: Topic) // Any reason to pass original, now that I'm updating based on id?
+//  case AssignToRoomSlot(discussion: Discussion, roomSlot: RoomSlot) // TODO
 
 
 enum DiscussionActionConfirmed derives JsonCodec:
@@ -131,6 +138,7 @@ object DiscussionActionConfirmed:
       case DiscussionAction.Vote(topic, feedback) => DiscussionActionConfirmed.Vote(topic, feedback)
       case DiscussionAction.RemoveVote(topic, voter) => DiscussionActionConfirmed.RemoveVote(topic, voter)
       case DiscussionAction.Rename(topicId, newTopic) => DiscussionActionConfirmed.Rename(topicId, newTopic)
+      //  case AssignToRoomSlot(discussion: Discussion, roomSlot: RoomSlot) // TODO
       case other => throw new Exception(s"Unexpected discussion action: $other")
 
 
@@ -170,6 +178,22 @@ case class FullSchedule(
                        ) derives JsonCodec:
   def findDiscussion(searchTarget: Discussion): Option[ScheduledDiscussion] =
     slots.flatMap(slot => slot.findDiscussion(searchTarget)).headOption
+
+object FullSchedule:
+  val example =
+    FullSchedule(
+      List(
+        TimeSlotForAllRooms(
+          TimeSlot("8:00-8:50"),
+          List(ScheduleSlot(Room.king, Some(Discussion.example1)), ScheduleSlot(Room.hawk), ScheduleSlot(Room.artGallery, Some(Discussion.example2)), ScheduleSlot(Room.danceHall))
+        ),
+        TimeSlotForAllRooms(
+          TimeSlot("9:20-10:10"),
+          List(ScheduleSlot(Room.king, Some(Discussion.example3)), ScheduleSlot(Room.hawk), ScheduleSlot(Room.artGallery), ScheduleSlot(Room.danceHall))
+        )
+      )
+
+    )
 
 case class TimeSlotForAllRooms(
                            time: TimeSlot,
