@@ -1,14 +1,10 @@
 package co.wtf.openspaces
 
-import co.wtf.openspaces.{Discussion, Room, ScheduleSlot}
-import com.raquo.laminar.api.L.{*, given}
-import io.laminext.websocket.WebSocket
-import org.scalajs.dom
-import zio.json.*
-import org.scalajs.dom.window
 import animus.*
-
-import scala.util.Random
+import com.raquo.laminar.api.L.{*, given}
+import org.scalajs.dom
+import org.scalajs.dom.window
+import zio.json.*
 
 val localStorage = window.localStorage
 
@@ -236,12 +232,12 @@ enum AppView:
   case ScheduleView
   case SubmitTopic
 
-def ScheduleSlotComponent(timeSlot: TimeSlot, scheduleSlot: ScheduleSlot, updateDiscussion: Observer[ScheduledDiscussion]) =
+def ScheduleSlotComponent(timeSlot: TimeSlot, room: Room, discussionState: DiscussionState, updateDiscussion: Observer[ScheduledDiscussion]) =
 
-    scheduleSlot.discussion match
+    discussionState.roomSlotContent(RoomSlot(room, timeSlot)) match
       case Some(value) =>
         span(
-          onClick.mapTo(ScheduledDiscussion(value, scheduleSlot.room, timeSlot)) --> updateDiscussion,
+          onClick.mapTo(ScheduledDiscussion(value, room, timeSlot)) --> updateDiscussion,
           SvgIcon(value.glyphicon).amend(cls := "filledTopic") // TODO amend always makes me suspicious
         )
       case None =>
@@ -249,18 +245,22 @@ def ScheduleSlotComponent(timeSlot: TimeSlot, scheduleSlot: ScheduleSlot, update
           SvgIcon(GlyphiconUtils.plus)
         )
 
-def SlotSchedule(timeOfSlot: String, $timeSlotsForAllRooms: Signal[TimeSlotForAllRooms], updateDiscussion: Observer[ScheduledDiscussion]) =
+def SlotSchedule(
+                  timeOfSlot: String,
+                  // This tuple is obviously terrible. TODO Figure out a better way
+                  $timeSlotsForAllRooms: Signal[(TimeSlotForAllRooms, DiscussionState)]
+                  , updateDiscussion: Observer[ScheduledDiscussion]
+                ) =
   div(
     cls:="SlotRow",
     div(cls:="TimeOfSlot", timeOfSlot),
     children <--
       $timeSlotsForAllRooms.map {
-        timeSlotsForAllRooms =>
-          println("timeSlotsForAllRooms: " + timeSlotsForAllRooms)
-          timeSlotsForAllRooms.cells
+        (timeSlotsForAllRooms, discussionState) =>
+          timeSlotsForAllRooms.rooms
             .map {
-              cell =>
-                div(cls:="Cell", ScheduleSlotComponent(timeSlotsForAllRooms.time, cell, updateDiscussion))
+              room =>
+                div(cls:="Cell", ScheduleSlotComponent(timeSlotsForAllRooms.time, room, discussionState, updateDiscussion))
             }
       }
   )
@@ -294,10 +294,13 @@ def ScheduleView() = {
 
   val updateDiscussion: Observer[ScheduledDiscussion] = setActiveDiscussion
 
-  val fullSchedule =
+  val fullSchedule: Var[DiscussionState] =
     Var(
-      FullSchedule.example // TODO Eventually stop this.
+      DiscussionState.example
+//      FullSchedule.example // TODO Eventually stop this.
     )
+
+  println("topics: \n" + fullSchedule.now().data.values.mkString("\n"))
 
   div(
     cls := "container",
@@ -326,12 +329,12 @@ def ScheduleView() = {
       ),
       SlotSchedule(
         "1",
-        fullSchedule.signal.map(_.slots(0)),
+        fullSchedule.signal.map(discussionState => (discussionState.slots(0), discussionState)),
         updateDiscussion
       ),
       SlotSchedule(
         "2",
-        fullSchedule.signal.map(_.slots(1)),
+        fullSchedule.signal.map(discussionState => (discussionState.slots(1), discussionState)),
         updateDiscussion
       ),
     ),
@@ -349,7 +352,7 @@ object FrontEnd extends App:
     ).build()
 
   val topicsToReview: Var[DiscussionState] =
-    Var(DiscussionState())
+    Var(DiscussionState.example)
 
 
   val errorBanner =

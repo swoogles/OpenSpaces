@@ -58,7 +58,8 @@ object Discussion:
       "Managing emotional energy on the job"),
     Person("Emma"),
     TopicId(2),
-    GlyphiconUtils.names(2)
+    GlyphiconUtils.names(2),
+    Some(RoomSlot(Room.artGallery, TimeSlot("8:00-8:50")))
   )
 
   val example3 =
@@ -66,7 +67,8 @@ object Discussion:
       Topic.parseOrDie("How to make a great cup of coffee"),
       Person("John"),
       TopicId(3),
-      GlyphiconUtils.names(3)
+      GlyphiconUtils.names(3),
+      Some(RoomSlot(Room.king, TimeSlot("9:20-10:10")))
     )
 
   val example4 =
@@ -100,18 +102,6 @@ object Discussion:
     )
 
 
-
-
-
-
-
-
-/* TODO Split this into at least:
-    - User-submitted actions
-      - These can be considered "attempts" and can be rejected
-    - Server-side updates
-      - These are authoritative, they will always update Client-side state
-*/
 enum DiscussionAction derives JsonCodec:
   case Add(
             topic: Topic,
@@ -173,47 +163,7 @@ case class RoomSlot(
                                 timeSlot: TimeSlot
                               )derives JsonCodec
 
-case class FullSchedule(
-                       slots: List[TimeSlotForAllRooms]
-                       ) derives JsonCodec:
-  def findDiscussion(searchTarget: Discussion): Option[ScheduledDiscussion] =
-    slots.flatMap(slot => slot.findDiscussion(searchTarget)).headOption
-
-object FullSchedule:
-  val example =
-    FullSchedule(
-      List(
-        TimeSlotForAllRooms(
-          TimeSlot("8:00-8:50"),
-          List(ScheduleSlot(Room.king, Some(Discussion.example1)), ScheduleSlot(Room.hawk), ScheduleSlot(Room.artGallery, Some(Discussion.example2)), ScheduleSlot(Room.danceHall))
-        ),
-        TimeSlotForAllRooms(
-          TimeSlot("9:20-10:10"),
-          List(ScheduleSlot(Room.king, Some(Discussion.example3)), ScheduleSlot(Room.hawk), ScheduleSlot(Room.artGallery), ScheduleSlot(Room.danceHall))
-        )
-      )
-
-    )
-
 case class TimeSlotForAllRooms(
-                           time: TimeSlot,
-                           cells: List[ScheduleSlot]
-                       ) derives JsonCodec:
-  def findDiscussion(searchTarget: Discussion): Option[ScheduledDiscussion] =
-    cells.flatMap(cell => cell.withDiscussion(searchTarget))
-      .headOption
-      .map(filledCell => ScheduledDiscussion(searchTarget, filledCell.room, time))
-
-case class ScheduleSlot(
-                         room: Room,
-                         discussion: Option[Discussion] = None
-                       ) derives JsonCodec:
-  def withDiscussion(searchTarget: Discussion): Option[FilledCell] =
-    discussion.filter(_ == searchTarget)
-      .map( d => FilledCell(room, d))
-
-
-case class FilledCell(
-                         room: Room,
-                         discussion: Discussion
+                                time: TimeSlot,
+                                rooms: List[Room]
                        ) derives JsonCodec

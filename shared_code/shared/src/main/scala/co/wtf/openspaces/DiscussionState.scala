@@ -1,9 +1,13 @@
 package co.wtf.openspaces
 
 case class DiscussionState(
+                            slots: List[TimeSlotForAllRooms],
                             data: Map[TopicId, Discussion],
-                            fullSchedule: FullSchedule
                           ):
+  def roomSlotContent(roomSlot: RoomSlot): Option[Discussion] =
+    println("Looking in roomSlot: " + roomSlot)
+    data.values.find(_.roomSlot.contains(roomSlot))
+
   def apply(discussion: Discussion): DiscussionState = {
     copy(
       data = data + (discussion.id -> discussion) // Only add if new topic title
@@ -64,11 +68,38 @@ case class DiscussionState(
   }
 
 object DiscussionState:
-  def apply(input: Discussion*): DiscussionState =
+  def apply(
+             slots: List[TimeSlotForAllRooms],
+             input: Discussion*): DiscussionState =
     val startingState = Map(
       input.map(d => (d.id, d)) *
     )
+
+
     DiscussionState(
+      slots, // Instead of prepoulating slots here, it should be derived from the discussions, namely discussion.roomSlot
       startingState,
-      FullSchedule.example // Instead of prepoulating slots here, it should be derived from the discussions, namely discussion.roomSlot
+    )
+
+  val timeSlotExamples =
+    List(
+      TimeSlotForAllRooms(
+        TimeSlot("8:00-8:50"),
+        List(Room.king, Room.hawk, Room.artGallery, Room.danceHall)
+      ),
+      TimeSlotForAllRooms(
+        TimeSlot("9:20-10:10"),
+        List(Room.king, Room.hawk, Room.artGallery, Room.danceHall)
+      )
+    )
+
+  val example =
+    DiscussionState(
+      timeSlotExamples,
+      Discussion.example1,
+      Discussion.example2,
+      Discussion.example3,
+      Discussion.example4,
+      Discussion.example5,
+      Discussion.example6
     )

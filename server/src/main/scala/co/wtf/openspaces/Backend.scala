@@ -85,14 +85,7 @@ object Backend extends ZIOAppDefault {
         defer:
           DiscussionDataStore(
             Ref.make(
-              DiscussionState(
-                Discussion.example1,
-                Discussion.example2,
-                Discussion.example3,
-                Discussion.example4,
-                Discussion.example5,
-                Discussion.example6
-              )
+              DiscussionState.example
             ).run,
             ZIO.service[GlyphiconService].run
           )
