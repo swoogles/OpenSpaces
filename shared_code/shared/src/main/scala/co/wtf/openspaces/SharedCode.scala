@@ -23,7 +23,8 @@ case class Discussion(
                        facilitator: Person,
                        interestedParties: Set[Feedback],
                        id: TopicId,
-                       glyphicon: Glyphicon
+                       glyphicon: Glyphicon,
+                       roomSlot: Option[RoomSlot] = None
                      ) derives JsonCodec:
   val votes: Int = interestedParties.count(_.position == Interested)
 
@@ -158,6 +159,11 @@ case class ScheduledDiscussion(
                                 room: Room,
                                 timeSlot: TimeSlot
                               ) derives JsonCodec
+
+case class RoomSlot(
+                                room: Room,
+                                timeSlot: TimeSlot
+                              )derives JsonCodec
 
 case class FullSchedule(
                        slots: List[TimeSlotForAllRooms]
