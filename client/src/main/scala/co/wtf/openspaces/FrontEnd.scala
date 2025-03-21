@@ -288,34 +288,11 @@ def ScheduleView() = {
   val activeDiscussion: Var[Option[ScheduledDiscussion]] =
     Var(None)
 
-  val targetDiscussion: Var[Option[ScheduledDiscussion]] =
-    Var(None)
-
   val setActiveDiscussion: Observer[ScheduledDiscussion] = Observer {
     discussion => activeDiscussion.set(Some(discussion))
   }
 
-  val setTargetDiscussion: Observer[ScheduledDiscussion] = Observer {
-    discussion => targetDiscussion.set(Some(discussion))
-  }
-
-  val settingActiveDiscussion: Var[Boolean] = Var(true) // Don't love the boolean here
-
-  val updateDiscussion: Observer[ScheduledDiscussion] = Observer {
-    discussion =>
-      if (settingActiveDiscussion.now()) {
-        activeDiscussion.set(Some(discussion))
-      } else {
-        targetDiscussion.set(Some(discussion))
-      }
-  }
-
-  val swapDiscussions: Observer[Unit] = Observer {
-    _ =>
-      val tmp = activeDiscussion.now()
-      activeDiscussion.set(targetDiscussion.now())
-      targetDiscussion.set(tmp)
-  }
+  val updateDiscussion: Observer[ScheduledDiscussion] = setActiveDiscussion
 
   val fullSchedule =
     Var(
@@ -339,13 +316,7 @@ def ScheduleView() = {
     div(
       cls := "Targets",
       div(
-        cls := "Swap",
-        onClick.mapTo(()) --> swapDiscussions,
-        SvgIcon(Glyphicon("glyphicons-basic-82-refresh.svg")),
-      ),
-      div(
         cls := "ActiveDiscussion Topic",
-        onClick.mapTo(true) --> settingActiveDiscussion,
         child <-- activeDiscussion.signal.map {
           case Some(discussion) =>
             div(
@@ -355,19 +326,6 @@ def ScheduleView() = {
           case None => span("nothing")
         }
       ),
-      div(
-        // TODO I think I should bail on swap. Just add to schedule and remove.
-        cls := "SwapTarget Topic",
-        onClick.mapTo(false) --> settingActiveDiscussion,
-        child <-- targetDiscussion.signal.map {
-          case Some(discussion) =>
-            div(
-              SvgIcon(discussion.discussion.glyphicon),
-              span(discussion.discussion.topic.unwrap)
-            )
-          case None => span("nothing")
-        }
-      )
     ),
     div(
       cls := "Schedule",
@@ -440,8 +398,8 @@ object FrontEnd extends App:
     )
 
   val app = {
-    liveTopicSubmissionAndVoting
-//    ScheduleView()
+//    liveTopicSubmissionAndVoting
+    ScheduleView()
   }
 
   render(container, app)
