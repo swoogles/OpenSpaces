@@ -242,6 +242,7 @@ def ScheduleSlotComponent(
                            room: Room,
                            discussionState: DiscussionState,
                            updateDiscussion: Observer[Discussion],
+                           $activeDiscussion: StrictSignal[Option[Discussion]]
                          // TODO pass in the currnet discussion target, to decide whether to show a place empty or with the plus sign
                          ) =
 
@@ -253,14 +254,41 @@ def ScheduleSlotComponent(
         )
       case None =>
         span(
-          SvgIcon(GlyphiconUtils.plus)
+          child <-- $activeDiscussion.map {
+            case Some(discussion) =>
+              discussion.roomSlot match
+                case Some(value) =>// TODO Make this impossible
+                  if (value == RoomSlot(room, timeSlot))
+                    span(
+                      cls := "glyphicon",
+                      SvgIcon(discussion.glyphicon).amend(cls := "filledTopic") // TODO amend always makes me suspicious
+                    )
+                  else
+                    span(
+                      cls := "glyphicon",
+                      "-"
+                    )
+                case None =>
+                  println("Should show a plus")
+                  span(
+                    SvgIcon(GlyphiconUtils.plus),
+                    onClick.mapTo(discussion.copy(roomSlot = Some(RoomSlot(room, timeSlot)))) --> updateDiscussion
+                  )
+            case None =>
+              println("showing a boring dash")
+              span(
+                cls := "glyphicon",
+                "-"
+              )
+          }
         )
 
 def SlotSchedule(
                   timeOfSlot: String,
                   // This tuple is obviously terrible. TODO Figure out a better way
                   $timeSlotsForAllRooms: Signal[(TimeSlotForAllRooms, DiscussionState)]
-                  , updateDiscussion: Observer[Discussion]
+                  , updateDiscussion: Observer[Discussion],
+                  activeDiscussion: StrictSignal[Option[Discussion]]
                 ) =
   div(
     cls:="SlotRow",
@@ -271,7 +299,7 @@ def SlotSchedule(
           timeSlotsForAllRooms.rooms
             .map {
               room =>
-                div(cls:="Cell", ScheduleSlotComponent(timeSlotsForAllRooms.time, room, discussionState, updateDiscussion))
+                div(cls:="Cell", ScheduleSlotComponent(timeSlotsForAllRooms.time, room, discussionState, updateDiscussion, activeDiscussion))
             }
       }
   )
@@ -329,12 +357,14 @@ def ScheduleView(fullSchedule: Var[DiscussionState], activeDiscussion: Var[Optio
       SlotSchedule(
         "1",
         fullSchedule.signal.map(discussionState => (discussionState.slots(0), discussionState)),
-        setActiveDiscussion
+        setActiveDiscussion,
+        activeDiscussion.signal
       ),
       SlotSchedule(
         "2",
         fullSchedule.signal.map(discussionState => (discussionState.slots(1), discussionState)),
-        setActiveDiscussion
+        setActiveDiscussion,
+        activeDiscussion.signal
       ),
     ),
   )
@@ -358,15 +388,13 @@ object FrontEnd extends App:
     ErrorBanner()
 
   val submitNewTopic: Observer[DiscussionAction] = Observer {
-    discussion =>
-      discussion match
-        case add: DiscussionAction.Add =>
-          if (add.facilitator.unwrap.trim.length < 2)
-            errorBanner.error.set(Some("User name too short. Tell us who you are!"))
-          else
-            errorBanner.error.set(None)
-            topicUpdates.sendOne(discussion)
-        case _ => ()
+    case discussion@(add: DiscussionAction.Add) =>
+      if (add.facilitator.unwrap.trim.length < 2)
+        errorBanner.error.set(Some("User name too short. Tell us who you are!"))
+      else
+        errorBanner.error.set(None)
+        topicUpdates.sendOne(discussion)
+    case _ => ()
   }
 
   val name = getOrCreatePersistedName()
