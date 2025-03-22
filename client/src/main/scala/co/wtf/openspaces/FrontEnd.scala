@@ -165,9 +165,13 @@ private def DiscussionSubview(
                         SvgIcon(topic.glyphicon),
                         p(topic.facilitator.unwrap),
                         p("Votes ", child <-- signal.map(_.votes), " "),
-                        SvgIcon(GlyphiconUtils.schedule).amend(
-                          onClick.mapTo(topic) --> updateTargetDiscussion
-                        )
+                        topic.roomSlot match {
+                          case Some(value) => span()
+                          case None =>
+                            SvgIcon(GlyphiconUtils.schedule).amend(
+                              onClick.mapTo(topic) --> updateTargetDiscussion
+                            )
+                        }
                       )
                     case None =>
                       span()),
@@ -409,6 +413,12 @@ object FrontEnd extends App:
 
   val updateTargetDiscussion: Observer[Discussion] = Observer[Discussion] {
     discussion =>
+      dom.document
+        .getElementsByClassName("ActiveDiscussion").head
+        .scrollIntoView(
+          top = false,
+          //              { behavior: "instant", block: "end" }
+        )
       activeDiscussion.set(Some(discussion))
   }
 
