@@ -89,7 +89,7 @@ private def DiscussionSubview(
   votePosition: Option[VotePosition],
   name: StrictSignal[Person],
   topicUpdates: DiscussionAction => Unit,
-  // TODO Pass target updater here.
+  updateTargetDiscussion: Observer[Discussion]
 ) =
   val backgroundColorByPosition =
     votePosition match
@@ -166,10 +166,7 @@ private def DiscussionSubview(
                         p(topic.facilitator.unwrap),
                         p("Votes ", child <-- signal.map(_.votes), " "),
                         SvgIcon(GlyphiconUtils.schedule).amend(
-                          onClick --> Observer {
-                            _ => println("Should schedule a time")
-                          }
-                          
+                          onClick.mapTo(topic) --> updateTargetDiscussion
                         )
                       )
                     case None =>
@@ -206,7 +203,7 @@ private def DiscussionsToReview(
                                  topics: Signal[DiscussionState],
                                  name: StrictSignal[Person],
                                  topicUpdates: DiscussionAction => Unit,
-                                 // TODO Pass target updater here.
+                                 updateTargetDiscussion: Observer[Discussion]
                                ) =
   val localTopics = topics.map(_.data.values.toList)
   val topicsOfInterest: Signal[List[Discussion]] =
@@ -224,13 +221,13 @@ private def DiscussionsToReview(
 
   div(
     div("Unreviewed: "),
-    DiscussionSubview(unreviewedTopics, None, name, topicUpdates),
+    DiscussionSubview(unreviewedTopics, None, name, topicUpdates, updateTargetDiscussion),
     hr(),
     div("Interested: "),
-    DiscussionSubview(topicsOfInterest, Some(VotePosition.Interested), name, topicUpdates),
+    DiscussionSubview(topicsOfInterest, Some(VotePosition.Interested), name, topicUpdates, updateTargetDiscussion),
     hr(),
     div("Not Interested: "),
-    DiscussionSubview(topicsWithoutInterest, Some(VotePosition.NotInterested), name, topicUpdates),
+    DiscussionSubview(topicsWithoutInterest, Some(VotePosition.NotInterested), name, topicUpdates, updateTargetDiscussion),
   )
 
 
@@ -292,15 +289,11 @@ case class ErrorBanner(
         }
     )
 
-def ScheduleView(fullSchedule: Var[DiscussionState]) = {
-  val activeDiscussion: Var[Option[Discussion]] =
-    Var(None)
+def ScheduleView(fullSchedule: Var[DiscussionState], activeDiscussion: Var[Option[Discussion]]) = {
 
   val setActiveDiscussion: Observer[Discussion] = Observer {
     discussion => activeDiscussion.set(Some(discussion))
   }
-
-  val updateDiscussion: Observer[Discussion] = setActiveDiscussion
 
   div(
     cls := "container",
@@ -330,12 +323,12 @@ def ScheduleView(fullSchedule: Var[DiscussionState]) = {
       SlotSchedule(
         "1",
         fullSchedule.signal.map(discussionState => (discussionState.slots(0), discussionState)),
-        updateDiscussion
+        setActiveDiscussion
       ),
       SlotSchedule(
         "2",
         fullSchedule.signal.map(discussionState => (discussionState.slots(1), discussionState)),
-        updateDiscussion
+        setActiveDiscussion
       ),
     ),
   )
@@ -371,11 +364,19 @@ object FrontEnd extends App:
   }
 
   val name = getOrCreatePersistedName()
-  val liveTopicSubmissionAndVoting =
+  def liveTopicSubmissionAndVoting(updateTargetDiscussion: Observer[Discussion]) =
     div(
       TopicSubmission(submitNewTopic, name.signal, errorBanner.error.toObserver),
-      DiscussionsToReview(discussionState.signal, name.signal, topicUpdates.sendOne),
+      DiscussionsToReview(discussionState.signal, name.signal, topicUpdates.sendOne, updateTargetDiscussion),
     )
+    
+  val activeDiscussion: Var[Option[Discussion]] =
+    Var(None)
+    
+  val updateTargetDiscussion: Observer[Discussion] = Observer[Discussion] {
+    discussion =>
+      activeDiscussion.set(Some(discussion))
+  }
 
   val app = {
     div(
@@ -390,8 +391,8 @@ object FrontEnd extends App:
       },
       errorBanner.component,
       NameBadge(name),
-      ScheduleView(discussionState),
-      liveTopicSubmissionAndVoting,
+      ScheduleView(discussionState, activeDiscussion),
+      liveTopicSubmissionAndVoting(updateTargetDiscussion),
     )
   }
 
