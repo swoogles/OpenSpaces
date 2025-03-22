@@ -112,6 +112,7 @@ enum DiscussionAction derives JsonCodec:
   case RemoveVote(topic: TopicId, voter: Person)
   case Rename(topicId: TopicId, newTopic: Topic) // Any reason to pass original, now that I'm updating based on id?
   case UpdateRoomSlot(topicId: TopicId, roomSlot: RoomSlot) // TODO Should actually be an Option[RoomSlot], when unscheduling something
+  case Unschedule(topicId: TopicId) // TODO Should actually be an Option[RoomSlot], when unscheduling something
 //  case AssignToRoomSlot(discussion: Discussion, roomSlot: RoomSlot) // TODO
 
 
@@ -121,6 +122,7 @@ enum DiscussionActionConfirmed derives JsonCodec:
   case RemoveVote(topic: TopicId, voter: Person)
   case Rename(topicId: TopicId, newTopic: Topic) // Any reason to pass original, now that I'm updating based on id?
   case UpdateRoomSlot(topicId: TopicId, roomSlot: RoomSlot) // Any reason to pass original, now that I'm updating based on id?
+  case Unschedule(topicId: TopicId) // TODO Should actually be an Option[RoomSlot], when unscheduling something
   case AddResult(discussion: Discussion)
 
 object DiscussionActionConfirmed:
@@ -132,6 +134,7 @@ object DiscussionActionConfirmed:
       case DiscussionAction.RemoveVote(topic, voter) => DiscussionActionConfirmed.RemoveVote(topic, voter)
       case DiscussionAction.Rename(topicId, newTopic) => DiscussionActionConfirmed.Rename(topicId, newTopic)
       case DiscussionAction.UpdateRoomSlot(topicId, roomSlot) => DiscussionActionConfirmed.UpdateRoomSlot(topicId, roomSlot)
+      case DiscussionAction.Unschedule(topicId) => DiscussionActionConfirmed.Unschedule(topicId)
 
 
 case class Room(

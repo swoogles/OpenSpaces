@@ -345,7 +345,11 @@ def ScheduleView(fullSchedule: Var[DiscussionState], activeDiscussion: Var[Optio
           case Some(discussion) =>
             div(
               SvgIcon(discussion.glyphicon),
-              span(discussion.topic.unwrap)
+              span(discussion.topic.unwrap),
+              span(
+                onClick.mapTo(discussion.copy(roomSlot = None)) --> updateTargetDiscussion,
+                "Unslot"// TODO make updateDiscussion actually submit to server here
+              )
             )
           case None => span("nothing")
         }
@@ -431,7 +435,8 @@ object FrontEnd extends App:
       discussion.roomSlot match
         case Some(value) =>
           topicUpdates.sendOne(DiscussionAction.UpdateRoomSlot(discussion.id, value))
-        case None => ()
+        case None =>
+          topicUpdates.sendOne(DiscussionAction.Unschedule(discussion.id))
 
       activeDiscussion.set(Some(discussion))
   }

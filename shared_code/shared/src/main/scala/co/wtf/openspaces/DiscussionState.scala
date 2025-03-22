@@ -21,6 +21,11 @@ case class DiscussionState(
             _.map(value =>
               value.copy(roomSlot = Some(roomSlot)))
           }
+        case DiscussionActionConfirmed.Unschedule(topicId) =>
+          data.updatedWith(topicId) {
+            _.map(value =>
+              value.copy(roomSlot = None))
+          }
         case DiscussionActionConfirmed.Delete(topicId) =>
           val beforeDelete = data
           val res = data.filterNot(_._2.id == topicId)
