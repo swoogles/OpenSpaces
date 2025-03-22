@@ -244,45 +244,51 @@ enum AppView:
 def ScheduleSlotComponent(
                            timeSlot: TimeSlot,
                            room: Room,
-                           discussionState: DiscussionState,
+                           $discussionState: Signal[DiscussionState],
                            updateDiscussion: Observer[Discussion],
                            $activeDiscussion: StrictSignal[Option[Discussion]]
                          // TODO pass in the currnet discussion target, to decide whether to show a place empty or with the plus sign
                          ) =
 
-    discussionState.roomSlotContent(RoomSlot(room, timeSlot)) match
-      case Some(value) =>
-        span(
-          onClick.mapTo(value) --> updateDiscussion,
-          SvgIcon(value.glyphicon).amend(cls := "filledTopic") // TODO amend always makes me suspicious
-        )
-      case None =>
         span(
           child <-- $activeDiscussion.map {
-            case Some(discussion) =>
-              discussion.roomSlot match
-                case Some(value) =>// TODO Make this impossible
-                  if (value == RoomSlot(room, timeSlot))
-                    span(
-                      cls := "glyphicon",
-                      SvgIcon(discussion.glyphicon).amend(cls := "filledTopic") // TODO amend always makes me suspicious
-                    )
-                  else
-                    span(
-                      cls := "glyphicon",
-                      "-"
-                    )
-                case None =>
-                  println("Should show a plus")
-                  span(
-                    SvgIcon(GlyphiconUtils.plus),
-                    onClick.mapTo(discussion.copy(roomSlot = Some(RoomSlot(room, timeSlot)))) --> updateDiscussion
-                  )
-            case None =>
-              println("showing a boring dash")
+            discussionO =>
               span(
-                cls := "glyphicon",
-                "-"
+                child <-- $discussionState.map {
+                  discussionState =>
+                    discussionState.roomSlotContent(RoomSlot(room, timeSlot)) match
+                      case Some(value) =>
+                        span(
+                          onClick.mapTo(value) --> updateDiscussion, // TODO This is causing an unecesary update to be sent to server
+                          SvgIcon(value.glyphicon).amend(cls := "filledTopic") // TODO amend always makes me suspicious
+                        )
+                      case None =>
+                        discussionO match
+                          case Some(discussion) =>
+                            discussion.roomSlot match
+                              case Some(value) if (RoomSlot(room, timeSlot) == value) => // TODO Make this impossible
+                                span(
+                                  cls := "glyphicon",
+                                  SvgIcon(discussion.glyphicon).amend(cls := "filledTopic") // TODO amend always makes me suspicious
+                                )
+                              case Some(_) =>
+                                span(
+                                  cls := "glyphicon",
+                                  "-"
+                                )
+                              case None =>
+                                println("Should show a plus")
+                                span(
+                                  SvgIcon(GlyphiconUtils.plus),
+                                  onClick.mapTo(discussion.copy(roomSlot = Some(RoomSlot(room, timeSlot)))) --> updateDiscussion // TODO make updateDiscussion actually submit to server here
+                                )
+                          case None =>
+                            println("showing a boring dash")
+                            span(
+                              cls := "glyphicon",
+                              "-"
+                            )
+                }
               )
           }
         )
@@ -290,8 +296,9 @@ def ScheduleSlotComponent(
 def SlotSchedule(
                   timeOfSlot: String,
                   // This tuple is obviously terrible. TODO Figure out a better way
-                  $timeSlotsForAllRooms: Signal[(TimeSlotForAllRooms, DiscussionState)]
-                  , updateDiscussion: Observer[Discussion],
+                  $discussionState: Signal[DiscussionState],
+                  $timeSlotsForAllRooms: Signal[TimeSlotForAllRooms],
+                  updateDiscussion: Observer[Discussion],
                   activeDiscussion: StrictSignal[Option[Discussion]]
                 ) =
   div(
@@ -299,11 +306,11 @@ def SlotSchedule(
     div(cls:="TimeOfSlot", timeOfSlot),
     children <--
       $timeSlotsForAllRooms.map {
-        (timeSlotsForAllRooms, discussionState) =>
+        timeSlotsForAllRooms =>
           timeSlotsForAllRooms.rooms
             .map {
               room =>
-                div(cls:="Cell", ScheduleSlotComponent(timeSlotsForAllRooms.time, room, discussionState, updateDiscussion, activeDiscussion))
+                div(cls:="Cell", ScheduleSlotComponent(timeSlotsForAllRooms.time, room, $discussionState, updateDiscussion, activeDiscussion))
             }
       }
   )
@@ -327,11 +334,7 @@ case class ErrorBanner(
         }
     )
 
-def ScheduleView(fullSchedule: Var[DiscussionState], activeDiscussion: Var[Option[Discussion]]) = {
-
-  val setActiveDiscussion: Observer[Discussion] = Observer {
-    discussion => activeDiscussion.set(Some(discussion))
-  }
+def ScheduleView(fullSchedule: Var[DiscussionState], activeDiscussion: Var[Option[Discussion]], updateTargetDiscussion: Observer[Discussion]) = {
 
   div(
     cls := "container",
@@ -360,14 +363,16 @@ def ScheduleView(fullSchedule: Var[DiscussionState], activeDiscussion: Var[Optio
       ),
       SlotSchedule(
         "1",
-        fullSchedule.signal.map(discussionState => (discussionState.slots(0), discussionState)),
-        setActiveDiscussion,
+        fullSchedule.signal,
+        fullSchedule.signal.map(discussionState => discussionState.slots(0)),
+        updateTargetDiscussion,
         activeDiscussion.signal
       ),
       SlotSchedule(
         "2",
-        fullSchedule.signal.map(discussionState => (discussionState.slots(1), discussionState)),
-        setActiveDiscussion,
+        fullSchedule.signal,
+        fullSchedule.signal.map(discussionState => discussionState.slots(1)),
+        updateTargetDiscussion,
         activeDiscussion.signal
       ),
     ),
@@ -422,6 +427,17 @@ object FrontEnd extends App:
       activeDiscussion.set(Some(discussion))
   }
 
+  val setActiveDiscussion: Observer[Discussion] = Observer {
+    discussion =>
+      discussion.roomSlot match
+        case Some(value) =>
+          topicUpdates.sendOne(DiscussionAction.UpdateRoomSlot(discussion.id, value))
+        case None => ()
+
+      activeDiscussion.set(Some(discussion))
+  }
+
+
   val app = {
     div(
       cls := "PageContainer",
@@ -435,7 +451,7 @@ object FrontEnd extends App:
       },
       errorBanner.component,
       NameBadge(name),
-      ScheduleView(discussionState, activeDiscussion),
+      ScheduleView(discussionState, activeDiscussion, setActiveDiscussion),
       liveTopicSubmissionAndVoting(updateTargetDiscussion),
     )
   }

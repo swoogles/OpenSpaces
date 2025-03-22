@@ -16,6 +16,11 @@ case class DiscussionState(
   def apply(discussionAction: DiscussionAction): DiscussionState = {
     copy(data =
       discussionAction match
+        case DiscussionAction.UpdateRoomSlot(topicId, roomSlot) =>
+          data.updatedWith(topicId) {
+            _.map(value =>
+              value.copy(roomSlot = Some(roomSlot)))
+          }
         case DiscussionAction.Delete(topicId) =>
           data.filterNot(_._2.id == topicId)
         case DiscussionAction.Add(
@@ -45,6 +50,11 @@ case class DiscussionState(
   def apply(discussionAction: DiscussionActionConfirmed): DiscussionState = {
     copy(data =
       discussionAction match
+        case DiscussionActionConfirmed.UpdateRoomSlot(topicId, roomSlot) =>
+          data.updatedWith(topicId) {
+            _.map(value =>
+              value.copy(roomSlot = Some(roomSlot)))
+          }
         case DiscussionActionConfirmed.Delete(topicId) =>
           data.filterNot(_._2.id == topicId)
         case DiscussionActionConfirmed.Vote(topicId, voter) =>

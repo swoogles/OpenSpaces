@@ -111,6 +111,7 @@ enum DiscussionAction derives JsonCodec:
   case Vote(topic: TopicId, feedback: Feedback)
   case RemoveVote(topic: TopicId, voter: Person)
   case Rename(topicId: TopicId, newTopic: Topic) // Any reason to pass original, now that I'm updating based on id?
+  case UpdateRoomSlot(topicId: TopicId, roomSlot: RoomSlot) // TODO Should actually be an Option[RoomSlot], when unscheduling something
 //  case AssignToRoomSlot(discussion: Discussion, roomSlot: RoomSlot) // TODO
 
 
@@ -119,17 +120,19 @@ enum DiscussionActionConfirmed derives JsonCodec:
   case Vote(topic: TopicId, feedback: Feedback)
   case RemoveVote(topic: TopicId, voter: Person)
   case Rename(topicId: TopicId, newTopic: Topic) // Any reason to pass original, now that I'm updating based on id?
+  case UpdateRoomSlot(topicId: TopicId, roomSlot: RoomSlot) // Any reason to pass original, now that I'm updating based on id?
   case AddResult(discussion: Discussion)
 
 object DiscussionActionConfirmed:
   def fromDiscussionAction(discussionAction: DiscussionAction): DiscussionActionConfirmed =
     discussionAction match
+      case DiscussionAction.Add(topic, facilitator) => throw new Exception("This should not happen. You need to sort out your models.")
       case DiscussionAction.Delete(topic) => DiscussionActionConfirmed.Delete(topic)
       case DiscussionAction.Vote(topic, feedback) => DiscussionActionConfirmed.Vote(topic, feedback)
       case DiscussionAction.RemoveVote(topic, voter) => DiscussionActionConfirmed.RemoveVote(topic, voter)
       case DiscussionAction.Rename(topicId, newTopic) => DiscussionActionConfirmed.Rename(topicId, newTopic)
+      case DiscussionAction.UpdateRoomSlot(topicId, roomSlot) => DiscussionActionConfirmed.UpdateRoomSlot(topicId, roomSlot)
       //  case AssignToRoomSlot(discussion: Discussion, roomSlot: RoomSlot) // TODO
-      case other => throw new Exception(s"Unexpected discussion action: $other")
 
 
 case class Room(
