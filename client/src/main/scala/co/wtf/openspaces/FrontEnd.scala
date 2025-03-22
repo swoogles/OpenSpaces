@@ -88,7 +88,8 @@ private def DiscussionSubview(
   topicsOfInterest: Signal[List[Discussion]],
   votePosition: Option[VotePosition],
   name: StrictSignal[Person],
-  topicUpdates: DiscussionAction => Unit
+  topicUpdates: DiscussionAction => Unit,
+  // TODO Pass target updater here.
 ) =
   val backgroundColorByPosition =
     votePosition match
@@ -164,6 +165,12 @@ private def DiscussionSubview(
                         SvgIcon(topic.glyphicon),
                         p(topic.facilitator.unwrap),
                         p("Votes ", child <-- signal.map(_.votes), " "),
+                        SvgIcon(GlyphiconUtils.schedule).amend(
+                          onClick --> Observer {
+                            _ => println("Should schedule a time")
+                          }
+                          
+                        )
                       )
                     case None =>
                       span()),
@@ -198,7 +205,8 @@ private def DiscussionSubview(
 private def DiscussionsToReview(
                                  topics: Signal[DiscussionState],
                                  name: StrictSignal[Person],
-                                 topicUpdates: DiscussionAction => Unit
+                                 topicUpdates: DiscussionAction => Unit,
+                                 // TODO Pass target updater here.
                                ) =
   val localTopics = topics.map(_.data.values.toList)
   val topicsOfInterest: Signal[List[Discussion]] =
@@ -232,12 +240,12 @@ enum AppView:
   case ScheduleView
   case SubmitTopic
 
-def ScheduleSlotComponent(timeSlot: TimeSlot, room: Room, discussionState: DiscussionState, updateDiscussion: Observer[ScheduledDiscussion]) =
+def ScheduleSlotComponent(timeSlot: TimeSlot, room: Room, discussionState: DiscussionState, updateDiscussion: Observer[Discussion]) =
 
     discussionState.roomSlotContent(RoomSlot(room, timeSlot)) match
       case Some(value) =>
         span(
-          onClick.mapTo(ScheduledDiscussion(value, room, timeSlot)) --> updateDiscussion,
+          onClick.mapTo(value) --> updateDiscussion,
           SvgIcon(value.glyphicon).amend(cls := "filledTopic") // TODO amend always makes me suspicious
         )
       case None =>
@@ -249,7 +257,7 @@ def SlotSchedule(
                   timeOfSlot: String,
                   // This tuple is obviously terrible. TODO Figure out a better way
                   $timeSlotsForAllRooms: Signal[(TimeSlotForAllRooms, DiscussionState)]
-                  , updateDiscussion: Observer[ScheduledDiscussion]
+                  , updateDiscussion: Observer[Discussion]
                 ) =
   div(
     cls:="SlotRow",
@@ -284,23 +292,15 @@ case class ErrorBanner(
         }
     )
 
-def ScheduleView() = {
-  val activeDiscussion: Var[Option[ScheduledDiscussion]] =
+def ScheduleView(fullSchedule: Var[DiscussionState]) = {
+  val activeDiscussion: Var[Option[Discussion]] =
     Var(None)
 
-  val setActiveDiscussion: Observer[ScheduledDiscussion] = Observer {
+  val setActiveDiscussion: Observer[Discussion] = Observer {
     discussion => activeDiscussion.set(Some(discussion))
   }
 
-  val updateDiscussion: Observer[ScheduledDiscussion] = setActiveDiscussion
-
-  val fullSchedule: Var[DiscussionState] =
-    Var(
-      DiscussionState.example
-//      FullSchedule.example // TODO Eventually stop this.
-    )
-
-  println("topics: \n" + fullSchedule.now().data.values.mkString("\n"))
+  val updateDiscussion: Observer[Discussion] = setActiveDiscussion
 
   div(
     cls := "container",
@@ -311,8 +311,8 @@ def ScheduleView() = {
         child <-- activeDiscussion.signal.map {
           case Some(discussion) =>
             div(
-              SvgIcon(discussion.discussion.glyphicon),
-              span(discussion.discussion.topic.unwrap)
+              SvgIcon(discussion.glyphicon),
+              span(discussion.topic.unwrap)
             )
           case None => span("nothing")
         }
@@ -351,7 +351,7 @@ object FrontEnd extends App:
       _.fromJson[DiscussionActionConfirmed].left.map(Exception(_))
     ).build()
 
-  val topicsToReview: Var[DiscussionState] =
+  val discussionState: Var[DiscussionState] =
     Var(DiscussionState.example)
 
 
@@ -374,7 +374,7 @@ object FrontEnd extends App:
   val liveTopicSubmissionAndVoting =
     div(
       TopicSubmission(submitNewTopic, name.signal, errorBanner.error.toObserver),
-      DiscussionsToReview(topicsToReview.signal, name.signal, topicUpdates.sendOne),
+      DiscussionsToReview(discussionState.signal, name.signal, topicUpdates.sendOne),
     )
 
   val app = {
@@ -384,13 +384,13 @@ object FrontEnd extends App:
       topicUpdates.received.tapEach(println(_)) --> Observer {
         (event: DiscussionActionConfirmed) =>
           println("Websocket Event: " + event)
-          topicsToReview.update(existing =>
+          discussionState.update(existing =>
             existing(event)
           )
       },
       errorBanner.component,
       NameBadge(name),
-      ScheduleView(),
+      ScheduleView(discussionState),
       liveTopicSubmissionAndVoting,
     )
   }
