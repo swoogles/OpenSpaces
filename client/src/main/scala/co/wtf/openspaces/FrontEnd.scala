@@ -375,7 +375,7 @@ object FrontEnd extends App:
     div(
       cls := "PageContainer",
       topicUpdates.connect,
-      topicUpdates.received --> Observer {
+      topicUpdates.received.tapEach(println(_)) --> Observer {
         (event: DiscussionActionConfirmed) =>
           println("Websocket Event: " + event)
           topicsToReview.update(existing =>
@@ -389,8 +389,8 @@ object FrontEnd extends App:
     )
 
   val app = {
-//    liveTopicSubmissionAndVoting
-    ScheduleView()
+    liveTopicSubmissionAndVoting
+//    ScheduleView()
   }
 
   render(container, app)

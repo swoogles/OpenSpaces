@@ -102,12 +102,16 @@ object Backend extends ZIOAppDefault {
         channel.receiveAll {
           case Read(WebSocketFrame.Text(text)) =>
             defer:
+              println("Raw text: "+ text)
               val discussionAction = ZIO.fromEither(text.fromJson[DiscussionAction])
                 .mapError(deserError => new Exception(s"Failed to deserialize: $deserError"))
                 .run
 
+              println("Going to do action: " + discussionAction)
+
 
               val actionResult = discussionDataStore.applyAction(discussionAction).run
+              println("Action result: " + actionResult)
               defer:
                 val channels = connectedUsers.get.run
                 ZIO.foreachParDiscard(channels)( channel =>
@@ -125,7 +129,7 @@ object Backend extends ZIOAppDefault {
               val discussions = discussionDataStore.snapshot.run
               ZIO.foreachDiscard(discussions.data)((topic, discussion) =>
                 // TODO Make sure these are idompotent
-                channel.send(Read(WebSocketFrame.text(DiscussionActionConfirmed.AddResult(discussion).asInstanceOf[DiscussionAction].toJson)))
+                channel.send(Read(WebSocketFrame.text(DiscussionActionConfirmed.AddResult(discussion).asInstanceOf[DiscussionActionConfirmed].toJson)))
               ).run
 
               ZIO.when(false):
