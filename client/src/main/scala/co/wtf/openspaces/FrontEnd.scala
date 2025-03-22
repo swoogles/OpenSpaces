@@ -250,48 +250,48 @@ def ScheduleSlotComponent(
                          // TODO pass in the currnet discussion target, to decide whether to show a place empty or with the plus sign
                          ) =
 
+  span(
+    child <-- $discussionState.map { // TODO This should update the component whenever a Discussion is deleted.
+      discussionState =>
         span(
           child <-- $activeDiscussion.map {
             discussionO =>
-              span(
-                child <-- $discussionState.map { // TODO This should update the component whenever a Discussion is deleted.
-                  discussionState =>
-                    discussionState.roomSlotContent(RoomSlot(room, timeSlot)) match
-                      case Some(value) =>
-                        span(
-                          onClick.mapTo(value) --> updateDiscussion, // TODO This is causing an unecesary update to be sent to server
-                          SvgIcon(value.glyphicon).amend(cls := "filledTopic") // TODO amend always makes me suspicious
-                        )
-                      case None =>
-                        discussionO match
-                          case Some(discussion) =>
-                            discussion.roomSlot match
-                              case Some(value) if (RoomSlot(room, timeSlot) == value) => // TODO Make this impossible
-                                span(
-                                  cls := "glyphicon",
-                                  SvgIcon(discussion.glyphicon).amend(cls := "filledTopic") // TODO amend always makes me suspicious
-                                )
-                              case Some(_) =>
-                                span(
-                                  cls := "glyphicon",
-                                  "-"
-                                )
-                              case None =>
-                                println("Should show a plus")
-                                span(
-                                  SvgIcon(GlyphiconUtils.plus),
-                                  onClick.mapTo(discussion.copy(roomSlot = Some(RoomSlot(room, timeSlot)))) --> updateDiscussion // TODO make updateDiscussion actually submit to server here
-                                )
-                          case None =>
-                            println("showing a boring dash")
-                            span(
-                              cls := "glyphicon",
-                              "-"
-                            )
-                }
-              )
+              discussionState.roomSlotContent(RoomSlot(room, timeSlot)) match
+                case Some(value) =>
+                  span(
+                    onClick.mapTo(value) --> updateDiscussion, // TODO This is causing an unecesary update to be sent to server
+                    SvgIcon(value.glyphicon).amend(cls := "filledTopic") // TODO amend always makes me suspicious
+                  )
+                case None =>
+                  discussionO match
+                    case Some(discussion) =>
+                      discussion.roomSlot match
+                        case Some(value) if (RoomSlot(room, timeSlot) == value) => // TODO Make this impossible
+                          span(
+                            cls := "glyphicon",
+                            SvgIcon(discussion.glyphicon).amend(cls := "filledTopic") // TODO amend always makes me suspicious
+                          )
+                        case Some(_) =>
+                          span(
+                            cls := "glyphicon",
+                            "-"
+                          )
+                        case None =>
+                          println("Should show a plus")
+                          span(
+                            SvgIcon(GlyphiconUtils.plus),
+                            onClick.mapTo(discussion.copy(roomSlot = Some(RoomSlot(room, timeSlot)))) --> updateDiscussion // TODO make updateDiscussion actually submit to server here
+                          )
+                    case None =>
+                      println("showing a boring dash")
+                      span(
+                        cls := "glyphicon",
+                        "-"
+                      )
           }
         )
+    }
+  )
 
 def SlotSchedule(
                   timeOfSlot: String,

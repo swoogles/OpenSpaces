@@ -132,7 +132,6 @@ object DiscussionActionConfirmed:
       case DiscussionAction.RemoveVote(topic, voter) => DiscussionActionConfirmed.RemoveVote(topic, voter)
       case DiscussionAction.Rename(topicId, newTopic) => DiscussionActionConfirmed.Rename(topicId, newTopic)
       case DiscussionAction.UpdateRoomSlot(topicId, roomSlot) => DiscussionActionConfirmed.UpdateRoomSlot(topicId, roomSlot)
-      //  case AssignToRoomSlot(discussion: Discussion, roomSlot: RoomSlot) // TODO
 
 
 case class Room(
