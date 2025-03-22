@@ -166,13 +166,9 @@ private def DiscussionSubview(
                         SvgIcon(topic.glyphicon),
                         p(topic.facilitator.unwrap),
                         p("Votes ", child <-- signal.map(_.votes), " "),
-                        topic.roomSlot match {
-                          case Some(value) => span()
-                          case None =>
-                            SvgIcon(GlyphiconUtils.schedule).amend(
-                              onClick.mapTo(topic) --> updateTargetDiscussion
-                            )
-                        }
+                        SvgIcon(GlyphiconUtils.schedule).amend(
+                          onClick.mapTo(topic) --> updateTargetDiscussion
+                        )
                       )
                     case None =>
                       span()),
@@ -346,10 +342,15 @@ def ScheduleView(fullSchedule: Var[DiscussionState], activeDiscussion: Var[Optio
             div(
               SvgIcon(discussion.glyphicon),
               span(discussion.topic.unwrap),
-              span(
-                onClick.mapTo(discussion.copy(roomSlot = None)) --> updateTargetDiscussion,
-                "Unslot"// TODO make updateDiscussion actually submit to server here
-              )
+              discussion.roomSlot match {
+                case Some(roomSlot) =>
+                  button(
+                    onClick.mapTo(discussion.copy(roomSlot = None)) --> updateTargetDiscussion,
+                    "Unslot"// TODO make updateDiscussion actually submit to server here
+                  )
+                case None =>
+                  "Not scheduled."
+              }
             )
           case None => span("nothing")
         }
