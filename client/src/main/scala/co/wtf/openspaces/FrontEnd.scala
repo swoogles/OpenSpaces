@@ -136,6 +136,7 @@ private def DiscussionSubview(
                       color := "red",
                       border := "none", backgroundColor := "transparent", onClick --> Observer {
                         _ =>
+                          // TODO Make sure this updates the ActiveDiscussion, so it's not left lingering on the schedule.
                           topicUpdates(DiscussionAction.Delete(topic.id))
                       },
                       "x"
@@ -443,6 +444,14 @@ object FrontEnd extends App:
       topicUpdates.received.tapEach(println(_)) --> Observer {
         (event: DiscussionActionConfirmed) =>
           println("Websocket Event: " + event)
+
+          event match
+            case DiscussionActionConfirmed.Delete(topic) =>
+              if (activeDiscussion.now().map(_.id).contains(topic))
+                activeDiscussion.set(None)
+              else ()
+            case _ => ()
+
           discussionState.update(existing =>
             existing(event)
           )
