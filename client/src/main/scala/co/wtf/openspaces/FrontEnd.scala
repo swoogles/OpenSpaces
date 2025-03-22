@@ -254,7 +254,7 @@ def ScheduleSlotComponent(
           child <-- $activeDiscussion.map {
             discussionO =>
               span(
-                child <-- $discussionState.map {
+                child <-- $discussionState.map { // TODO This should update the component whenever a Discussion is deleted.
                   discussionState =>
                     discussionState.roomSlotContent(RoomSlot(room, timeSlot)) match
                       case Some(value) =>
