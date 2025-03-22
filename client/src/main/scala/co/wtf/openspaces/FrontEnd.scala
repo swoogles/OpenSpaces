@@ -277,13 +277,11 @@ def ScheduleSlotComponent(
                             "-"
                           )
                         case None =>
-                          println("Should show a plus")
                           span(
                             SvgIcon(GlyphiconUtils.plus),
                             onClick.mapTo(discussion.copy(roomSlot = Some(RoomSlot(room, timeSlot)))) --> updateDiscussion // TODO make updateDiscussion actually submit to server here
                           )
                     case None =>
-                      println("showing a boring dash")
                       span(
                         cls := "glyphicon",
                         "-"
@@ -390,7 +388,7 @@ object FrontEnd extends App:
     ).build()
 
   val discussionState: Var[DiscussionState] =
-    Var(DiscussionState.example)
+    Var(DiscussionState(DiscussionState.timeSlotExamples, Map.empty)) //
 
 
   val errorBanner =

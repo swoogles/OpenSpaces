@@ -5,7 +5,6 @@ case class DiscussionState(
                             data: Map[TopicId, Discussion],
                           ):
   def roomSlotContent(roomSlot: RoomSlot): Option[Discussion] =
-    println("Looking in roomSlot: " + roomSlot)
     data.values.find(_.roomSlot.contains(roomSlot))
 
   def apply(discussion: Discussion): DiscussionState = {
@@ -13,39 +12,6 @@ case class DiscussionState(
       data = data + (discussion.id -> discussion) // Only add if new topic title
     )
   }
-  def apply(discussionAction: DiscussionAction): DiscussionState = {
-    copy(data =
-      discussionAction match
-        case DiscussionAction.UpdateRoomSlot(topicId, roomSlot) =>
-          data.updatedWith(topicId) {
-            _.map(value =>
-              value.copy(roomSlot = Some(roomSlot)))
-          }
-        case DiscussionAction.Delete(topicId) =>
-          data.filterNot(_._2.id == topicId)
-        case DiscussionAction.Add(
-          topic,
-          facilitator,
-        ) =>
-          data // TOOD erm. // TODO Disallow duplicate names
-        case DiscussionAction.Vote(topicId, voter) =>
-          data.updatedWith(topicId) {
-            _.map(value =>
-              value.copy(interestedParties = value.interestedParties + voter))
-          }
-        case DiscussionAction.RemoveVote(topicId, voter) =>
-          data.updatedWith(topicId) {
-            _.map(value =>
-              value.copy(interestedParties = value.interestedParties.filterNot(_.voter == voter)))
-          }
-        case DiscussionAction.Rename(topicId, newTopic) =>
-          data.updatedWith(topicId) {
-            _.map(value =>
-              value.copy(topic = newTopic))
-          }
-    )
-  }
-
 
   def apply(discussionAction: DiscussionActionConfirmed): DiscussionState = {
     copy(data =
@@ -56,7 +22,11 @@ case class DiscussionState(
               value.copy(roomSlot = Some(roomSlot)))
           }
         case DiscussionActionConfirmed.Delete(topicId) =>
-          data.filterNot(_._2.id == topicId)
+          val beforeDelete = data
+          val res = data.filterNot(_._2.id == topicId)
+          println("beforeDelete: " + beforeDelete.size)
+          println("res: " + res.size)
+          res
         case DiscussionActionConfirmed.Vote(topicId, voter) =>
           data.updatedWith(topicId) {
             _.map(value =>

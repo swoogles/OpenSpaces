@@ -32,7 +32,11 @@ object Backend extends ZIOAppDefault {
             res <- discussionDatabase.updateAndGet(s => s(discussion))
           } yield DiscussionActionConfirmed.AddResult(discussion)
 
-        case other => discussionDatabase.updateAndGet(s => s(other)).as(DiscussionActionConfirmed.fromDiscussionAction(other))
+        case other =>
+          defer:
+            val confirmedAction = DiscussionActionConfirmed.fromDiscussionAction(other)
+            discussionDatabase.updateAndGet(s => s(confirmedAction)).run
+            confirmedAction
 
     private def randomExistingTopicId =
       defer:
@@ -127,6 +131,7 @@ object Backend extends ZIOAppDefault {
             defer:
               connectedUsers.update(_ :+ channel).run
               val discussions = discussionDataStore.snapshot.run
+              println("Current discussion size: " + discussions.data.size)
               ZIO.foreachDiscard(discussions.data)((topic, discussion) =>
                 // TODO Make sure these are idompotent
                 channel.send(Read(WebSocketFrame.text(DiscussionActionConfirmed.AddResult(discussion).asInstanceOf[DiscussionActionConfirmed].toJson)))
