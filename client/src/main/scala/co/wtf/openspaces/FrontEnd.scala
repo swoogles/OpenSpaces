@@ -237,7 +237,13 @@ enum AppView:
   case ScheduleView
   case SubmitTopic
 
-def ScheduleSlotComponent(timeSlot: TimeSlot, room: Room, discussionState: DiscussionState, updateDiscussion: Observer[Discussion]) =
+def ScheduleSlotComponent(
+                           timeSlot: TimeSlot,
+                           room: Room,
+                           discussionState: DiscussionState,
+                           updateDiscussion: Observer[Discussion],
+                         // TODO pass in the currnet discussion target, to decide whether to show a place empty or with the plus sign
+                         ) =
 
     discussionState.roomSlotContent(RoomSlot(room, timeSlot)) match
       case Some(value) =>
@@ -369,10 +375,10 @@ object FrontEnd extends App:
       TopicSubmission(submitNewTopic, name.signal, errorBanner.error.toObserver),
       DiscussionsToReview(discussionState.signal, name.signal, topicUpdates.sendOne, updateTargetDiscussion),
     )
-    
+
   val activeDiscussion: Var[Option[Discussion]] =
     Var(None)
-    
+
   val updateTargetDiscussion: Observer[Discussion] = Observer[Discussion] {
     discussion =>
       activeDiscussion.set(Some(discussion))
