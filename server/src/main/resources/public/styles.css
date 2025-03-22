@@ -1,14 +1,13 @@
 .PageContainer {
-    display: grid;
     background-color: #f4f8fc;
-    gap: 20px;
+    gap: 5px;
     justify-items: center;
 }
 .Banner {background-color: #FFFFFF; width: 100%; display: flex; justify-content: space-between; align-items: center;}
 .LogoImg {height: 70px; border-radius: 50%;}
 .Flex {display: flex; gap: 20px;}
 .TopicsContainer {display: grid; gap: 10px;}
-.TopicCard{border-radius: 4px; width: 250px;}
+.TopicCard{border-radius: 4px;}
 .TopicBody {padding: 4px 10px; white-space: pre-wrap;}
 .AddButton {background-color: transparent; border: none;}
 .VoteContainer {display: flex; gap: 5px; justify-content: space-between;}

@@ -373,6 +373,12 @@ object FrontEnd extends App:
   val name = getOrCreatePersistedName()
   val liveTopicSubmissionAndVoting =
     div(
+      TopicSubmission(submitNewTopic, name.signal, errorBanner.error.toObserver),
+      DiscussionsToReview(topicsToReview.signal, name.signal, topicUpdates.sendOne),
+    )
+
+  val app = {
+    div(
       cls := "PageContainer",
       topicUpdates.connect,
       topicUpdates.received.tapEach(println(_)) --> Observer {
@@ -384,13 +390,9 @@ object FrontEnd extends App:
       },
       errorBanner.component,
       NameBadge(name),
-      TopicSubmission(submitNewTopic, name.signal, errorBanner.error.toObserver),
-      DiscussionsToReview(topicsToReview.signal, name.signal, topicUpdates.sendOne),
+      ScheduleView(),
+      liveTopicSubmissionAndVoting,
     )
-
-  val app = {
-    liveTopicSubmissionAndVoting
-//    ScheduleView()
   }
 
   render(container, app)
