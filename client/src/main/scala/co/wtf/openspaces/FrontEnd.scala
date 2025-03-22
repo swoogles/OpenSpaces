@@ -106,7 +106,7 @@ private def DiscussionSubview(
           (index, topic, signal, transition) =>
             val $characters: Signal[List[(String, Int)]] =
               signal.map(_.topic.unwrap).map(_.split("").zipWithIndex.toList)
-            div(cls := "TopicCard",
+            div(cls := "TopicCard", // TODO Make this a component than can be used in the schedule view!
               backgroundColor := backgroundColorByPosition,
               transition.height,
               div(cls := "TopicBody",
