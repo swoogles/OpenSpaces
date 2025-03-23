@@ -524,7 +524,11 @@ object FrontEnd extends App:
                 case DiscussionActionConfirmed.UpdateRoomSlot(topicId, roomSlot) => Some(topicId)
                 case DiscussionActionConfirmed.Unschedule(topicId) => Some(topicId)
                 case DiscussionActionConfirmed.AddResult(discussion) => None
-            id.foreach(topicId => activeDiscussion.set(state.data.get(topicId)))
+            id.foreach(
+              topicId =>
+                if (activeDiscussion.now().map(_.id).contains(topicId))
+                  activeDiscussion.set(state.data.get(topicId))
+            )
 
             state
           }
