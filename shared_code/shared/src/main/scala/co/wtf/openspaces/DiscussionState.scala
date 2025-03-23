@@ -75,6 +75,10 @@ object DiscussionState:
       TimeSlotForAllRooms(
         TimeSlot("9:20-10:10"),
         List(Room.king, Room.hawk, Room.artGallery, Room.danceHall)
+      ),
+      TimeSlotForAllRooms(
+        TimeSlot("10:30-11:20"),
+        List(Room.king, Room.hawk, Room.artGallery, Room.danceHall)
       )
     )
 
