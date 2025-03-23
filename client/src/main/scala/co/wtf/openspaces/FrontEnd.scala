@@ -90,121 +90,129 @@ private def SingleDiscussionComponent(
                                        topicUpdates: DiscussionAction => Unit,
                                        updateTargetDiscussion: Observer[Discussion],
                                      //
-                                       index: TopicId,
-                                       topic: Discussion,
-                                       signal: Signal[Discussion],
-                                       transition: Transition
+                                       signal: Signal[Option[Discussion]],
+                                       transition: Option[Transition]
                                      ) = {
-  val votePosition = topic.interestedParties.find(_.voter == name.now())
-  val backgroundColorByPosition =
-    votePosition match
-      case Some(feedback) => feedback.position match
-        case VotePosition.Interested => "#6BB187"
-        case VotePosition.NotInterested => "#FB6775"
-      case None => "#C6DAD7"
+  signal.map {
+    case Some(topic) =>
+      val votePosition = topic.interestedParties.find(_.voter == name.now())
+      val backgroundColorByPosition =
+        votePosition match
+          case Some(feedback) => feedback.position match
+            case VotePosition.Interested => "#6BB187"
+            case VotePosition.NotInterested => "#FB6775"
+          case None => "#C6DAD7"
 
-  val $characters: Signal[List[(String, Int)]] =
-    signal.map(_.topic.unwrap).map(_.split("").zipWithIndex.toList)
-  div(cls := "TopicCard", // TODO Make this a component than can be used in the schedule view!
-    backgroundColor := backgroundColorByPosition,
-    transition.height,
-    div(cls := "TopicBody",
-      div(
-        display.inlineFlex,
-        flexWrap := "wrap",
-        justifyContent := "space-between",
-        span(
+      val $characters: List[(String, Int)] =
+        topic.topic.unwrap.split("").zipWithIndex.toList
+
+//        signal.map(_.topic.unwrap).map(_.split("").zipWithIndex.toList)
+      div(cls := "TopicCard", // TODO Make this a component than can be used in the schedule view!
+        backgroundColor := backgroundColorByPosition,
+        transition match
+          case Some(value) => value.height
+          case None => height("300px")
+          ,
+        div(cls := "TopicBody",
           div(
-            children <-- $characters.splitTransition(identity) {
-              case (_, (character, _), _, transition) =>
-                val newCharacter = character match
-                  case " " => '\u00A0'
-                  case _ => character.charAt(0)
-                div(
-                  newCharacter,
-                  display.inlineFlex,
-                  transition.width,
-                  //                              transition.height
-                )
-            }
+            display.inlineFlex,
+            flexWrap := "wrap",
+            justifyContent := "space-between",
+            span(
+              div(
+                topic.topic.unwrap
+//                $characters
+
+//                children <-- $characters.splitTransition(identity) {
+//                  case (_, (character, _), _, transition) =>
+//                    val newCharacter = character match
+//                      case " " => '\u00A0'
+//                      case _ => character.charAt(0)
+//                    div(
+//                      newCharacter,
+//                      display.inlineFlex,
+//                      transition.width,
+//                      //                              transition.height
+//                    )
+//                }
+              ),
+            ),
+            if (List("bill", "emma").exists(admin => name.now().unwrap.toLowerCase().contains(admin)))
+              button(
+                cls := "delete-topic",
+                color := "red",
+                border := "none", backgroundColor := "transparent", onClick --> Observer {
+                  _ =>
+                    // TODO Make sure this updates the ActiveDiscussion, so it's not left lingering on the schedule.
+                    topicUpdates(DiscussionAction.Delete(topic.id))
+                },
+                "x"
+              )
+            else span()
           ),
-        ),
-        if (List("bill", "emma").exists(admin => name.now().unwrap.toLowerCase().contains(admin)))
-          button(
-            cls := "delete-topic",
-            color := "red",
-            border := "none", backgroundColor := "transparent", onClick --> Observer {
-              _ =>
-                // TODO Make sure this updates the ActiveDiscussion, so it's not left lingering on the schedule.
-                topicUpdates(DiscussionAction.Delete(topic.id))
-            },
-            "x"
-          )
-        else span()
-      ),
-      span(
-        cls := "VoteContainer",
-        child <-- signal.map(
-          topicLive =>
-            if topicLive.interestedParties.map(_.voter).contains(name.now()) then
+          span(
+            cls := "VoteContainer",
+            if topic.interestedParties.map(_.voter).contains(name.now()) then
               span()
             else
               span(
                 button(
                   cls := "AddButton", onClick --> Observer {
                     _ =>
-                      topicUpdates(DiscussionAction.Vote(topicLive.id, Feedback(name.now(), VotePosition.NotInterested)))
+                      topicUpdates(DiscussionAction.Vote(topic.id, Feedback(name.now(), VotePosition.NotInterested)))
                   },
                   img(src := "./plus-icon-red.svg", role := "img")
                 ),
               )
-        ),
-        (votePosition match
-          case Some(position) =>
-            span(
-              SvgIcon(topic.glyphicon),
-              p(topic.facilitator.unwrap),
-              p("Votes ", child <-- signal.map(_.votes), " "),
-              topic.roomSlot match {
-                case Some(roomSlot) =>
-                  button(
-                    onClick.mapTo(topic.copy(roomSlot = None)) --> updateTargetDiscussion,
-                    "Unslot"
-                  )
-                case None =>
-                  "Not scheduled."
-              },
-              SvgIcon(GlyphiconUtils.schedule).amend(
-                onClick.mapTo(topic) --> updateTargetDiscussion
-              )
-            )
-          case None =>
-            span()),
-        child <-- signal.map(
-          topicLive =>
-            if topicLive.interestedParties.map(_.voter).contains(name.now()) then
-              button(
-                cls := "RemoveButton", onClick --> Observer {
-                  _ =>
-                    topicUpdates(DiscussionAction.RemoveVote(topicLive.id, name.now()))
-                },
-                "-"
-                //                    img(src := "./minus-icon.svg", role := "img") // TODO can we get a minus icon?
-              )
-            else
-              span(
-                button(
-                  cls := "AddButton", onClick --> Observer {
-                    _ =>
-                      topicUpdates(DiscussionAction.Vote(topicLive.id, Feedback(name.now(), VotePosition.Interested)))
+            ,
+            (votePosition match
+              case Some(position) =>
+                span(
+                  SvgIcon(topic.glyphicon),
+                  p(topic.facilitator.unwrap),
+                  p("Votes ", topic.votes),
+                  topic.roomSlot match {
+                    case Some(roomSlot) =>
+                      button(
+                        onClick.mapTo(topic.copy(roomSlot = None)) --> updateTargetDiscussion,
+                        "Unslot"
+                      )
+                    case None =>
+                      "Not scheduled."
                   },
-                  img(src := "./plus-icon-green.svg", role := "img")
-                ),
-              )
+                  SvgIcon(GlyphiconUtils.schedule).amend(
+                    onClick.mapTo(topic) --> updateTargetDiscussion
+                  )
+                )
+              case None =>
+                span()),
+                if topic.interestedParties.map(_.voter).contains(name.now()) then
+                  button(
+                    cls := "RemoveButton", onClick --> Observer {
+                      _ =>
+                        topicUpdates(DiscussionAction.RemoveVote(topic.id, name.now()))
+                    },
+                    "-"
+                    //                    img(src := "./minus-icon.svg", role := "img") // TODO can we get a minus icon?
+                  )
+                else
+                  span(
+                    button(
+                      cls := "AddButton", onClick --> Observer {
+                        _ =>
+                          topicUpdates(DiscussionAction.Vote(topic.id, Feedback(name.now(), VotePosition.Interested)))
+                      },
+                      img(src := "./plus-icon-green.svg", role := "img")
+                    ),
+                  )
+          )
         )
       )
-    )
-  )
+    case None =>
+      println("failed to get a topic")
+      div("nothing")
+  }
+
 }
 
 private def DiscussionSubview(
@@ -220,7 +228,9 @@ private def DiscussionSubview(
       topicsOfInterest
         .splitTransition(_.id)(
           (index: TopicId, topic: Discussion, signal: Signal[Discussion], transition: Transition) =>
-            SingleDiscussionComponent(name, topicUpdates, updateTargetDiscussion, index, topic, signal, transition)
+            div(
+              child <-- SingleDiscussionComponent(name, topicUpdates, updateTargetDiscussion, signal.map(Some(_)), Some(transition))
+            )
         )
   )
 
@@ -353,32 +363,45 @@ case class ErrorBanner(
         }
     )
 
-def ScheduleView(fullSchedule: Var[DiscussionState], activeDiscussion: Var[Option[Discussion]], updateTargetDiscussion: Observer[Discussion]) = {
+def ScheduleView(
+                  fullSchedule: Var[DiscussionState],
+                  activeDiscussion: Var[Option[Discussion]],
+                  topicUpdates: DiscussionAction => Unit,
+                  name: StrictSignal[Person],
+                  updateTargetDiscussion: Observer[Discussion]
+                ) = {
 
   div(
     cls := "container",
     div(
       cls := "Targets",
+
+      // TODO Use this once api is figured out:
       div(
         cls := "ActiveDiscussion Topic",
-        child <-- activeDiscussion.signal.map {
-          case Some(discussion) =>
-            div(
-              SvgIcon(discussion.glyphicon),
-              span(discussion.topic.unwrap),
-              discussion.roomSlot match {
-                case Some(roomSlot) =>
-                  button(
-                    onClick.mapTo(discussion.copy(roomSlot = None)) --> updateTargetDiscussion,
-                    "Unslot"
-                  )
-                case None =>
-                  "Not scheduled."
-              }
-            )
-          case None => span("nothing")
-        }
+        child <-- SingleDiscussionComponent(name, topicUpdates, updateTargetDiscussion, activeDiscussion.signal, None),
       ),
+
+//      div(
+//        cls := "ActiveDiscussion Topic",
+//        child <-- activeDiscussion.signal.map {
+//          case Some(discussion) =>
+//            div(
+//              SvgIcon(discussion.glyphicon),
+//              span(discussion.topic.unwrap),
+//              discussion.roomSlot match {
+//                case Some(roomSlot) =>
+//                  button(
+//                    onClick.mapTo(discussion.copy(roomSlot = None)) --> updateTargetDiscussion,
+//                    "Unslot"
+//                  )
+//                case None =>
+//                  "Not scheduled."
+//              }
+//            )
+//          case None => span("nothing")
+//        }
+//      ),
     ),
     div(
       cls := "Schedule",
@@ -453,6 +476,7 @@ object FrontEnd extends App:
 
   val updateTargetDiscussion: Observer[Discussion] = Observer[Discussion] {
     discussion =>
+      println("Should update target to: " + discussion)
       dom.document
         .getElementsByClassName("ActiveDiscussion").head
         .scrollIntoView(
@@ -489,13 +513,31 @@ object FrontEnd extends App:
               else ()
             case _ => ()
 
-          discussionState.update(existing =>
-            existing(event)
-          )
+          discussionState.update{existing =>
+            val state = existing(event)
+            val id:Option[TopicId] =
+              event match
+                case DiscussionActionConfirmed.Delete(topic) =>  Some(topic)
+                case DiscussionActionConfirmed.Vote(topic, feedback) => Some(topic)
+                case DiscussionActionConfirmed.RemoveVote(topic, voter) => Some(topic)
+                case DiscussionActionConfirmed.Rename(topicId, newTopic) => Some(topicId)
+                case DiscussionActionConfirmed.UpdateRoomSlot(topicId, roomSlot) => Some(topicId)
+                case DiscussionActionConfirmed.Unschedule(topicId) => Some(topicId)
+                case DiscussionActionConfirmed.AddResult(discussion) => None
+            id.foreach(topicId => activeDiscussion.set(state.data.get(topicId)))
+
+            state
+          }
       },
       errorBanner.component,
       NameBadge(name),
-      ScheduleView(discussionState, activeDiscussion, setActiveDiscussion),
+      ScheduleView(
+        discussionState,
+        activeDiscussion,
+        topicUpdates.sendOne,
+        name.signal,
+        setActiveDiscussion
+      ),
       liveTopicSubmissionAndVoting(updateTargetDiscussion),
     )
   }
