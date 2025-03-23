@@ -1,7 +1,13 @@
 ThisBuild / scalaVersion     := "3.3.5"
 ThisBuild / version          := "0.1.0-SNAPSHOT"
-ThisBuild / organization     := "com.example"
-ThisBuild / organizationName := "example"
+ThisBuild / organization     := "com.billding"
+ThisBuild / organizationName := "billding"
+
+enablePlugins(DockerPlugin)
+
+//Docker / mainClass := Some("com.example.MainClassName")
+
+name := "sticky-icky"
 
 import org.scalajs.linker.interface.ModuleSplitStyle
 
@@ -30,9 +36,16 @@ lazy val sharedCode =
   })
 
 lazy val server = (project in file("server"))
+  .enablePlugins(JavaAppPackaging, AshScriptPlugin)
   .dependsOn(sharedCode.jvm)
   .settings(
     name := "server",
+    dockerExposedPorts ++= Seq(8080, 9000, 9001),
+    dockerBaseImage := "eclipse-temurin:21",
+    dockerUpdateLatest := true,
+    dockerBuildxPlatforms := Seq("linux/arm64/v8", "linux/amd64"),
+    dockerUsername := Some("swoogles"),
+    Compile / mainClass := Some("co.wtf.openspaces.Backend"),
     libraryDependencies ++= Seq(
       "dev.zio" %% "zio" % "2.1.16",
       "dev.zio" %% "zio-http" % "3.0.1",
