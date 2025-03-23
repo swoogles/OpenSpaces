@@ -84,6 +84,129 @@ private def TopicSubmission(
     )
   )
 
+
+private def SingleDiscussionComponent(
+                                       name: StrictSignal[Person],
+                                       topicUpdates: DiscussionAction => Unit,
+                                       updateTargetDiscussion: Observer[Discussion],
+                                     //
+                                       index: TopicId,
+                                       topic: Discussion,
+                                       signal: Signal[Discussion],
+                                       transition: Transition
+                                     ) = {
+  val votePosition = topic.interestedParties.find(_.voter == name.now())
+  val backgroundColorByPosition =
+    votePosition match
+      case Some(feedback) => feedback.position match
+        case VotePosition.Interested => "#6BB187"
+        case VotePosition.NotInterested => "#FB6775"
+      case None => "#C6DAD7"
+
+  val $characters: Signal[List[(String, Int)]] =
+    signal.map(_.topic.unwrap).map(_.split("").zipWithIndex.toList)
+  div(cls := "TopicCard", // TODO Make this a component than can be used in the schedule view!
+    backgroundColor := backgroundColorByPosition,
+    transition.height,
+    div(cls := "TopicBody",
+      div(
+        display.inlineFlex,
+        flexWrap := "wrap",
+        justifyContent := "space-between",
+        span(
+          div(
+            children <-- $characters.splitTransition(identity) {
+              case (_, (character, _), _, transition) =>
+                val newCharacter = character match
+                  case " " => '\u00A0'
+                  case _ => character.charAt(0)
+                div(
+                  newCharacter,
+                  display.inlineFlex,
+                  transition.width,
+                  //                              transition.height
+                )
+            }
+          ),
+        ),
+        if (List("bill", "emma").exists(admin => name.now().unwrap.toLowerCase().contains(admin)))
+          button(
+            cls := "delete-topic",
+            color := "red",
+            border := "none", backgroundColor := "transparent", onClick --> Observer {
+              _ =>
+                // TODO Make sure this updates the ActiveDiscussion, so it's not left lingering on the schedule.
+                topicUpdates(DiscussionAction.Delete(topic.id))
+            },
+            "x"
+          )
+        else span()
+      ),
+      span(
+        cls := "VoteContainer",
+        child <-- signal.map(
+          topicLive =>
+            if topicLive.interestedParties.map(_.voter).contains(name.now()) then
+              span()
+            else
+              span(
+                button(
+                  cls := "AddButton", onClick --> Observer {
+                    _ =>
+                      topicUpdates(DiscussionAction.Vote(topicLive.id, Feedback(name.now(), VotePosition.NotInterested)))
+                  },
+                  img(src := "./plus-icon-red.svg", role := "img")
+                ),
+              )
+        ),
+        (votePosition match
+          case Some(position) =>
+            span(
+              SvgIcon(topic.glyphicon),
+              p(topic.facilitator.unwrap),
+              p("Votes ", child <-- signal.map(_.votes), " "),
+              topic.roomSlot match {
+                case Some(roomSlot) =>
+                  button(
+                    onClick.mapTo(topic.copy(roomSlot = None)) --> updateTargetDiscussion,
+                    "Unslot"
+                  )
+                case None =>
+                  "Not scheduled."
+              },
+              SvgIcon(GlyphiconUtils.schedule).amend(
+                onClick.mapTo(topic) --> updateTargetDiscussion
+              )
+            )
+          case None =>
+            span()),
+        child <-- signal.map(
+          topicLive =>
+            if topicLive.interestedParties.map(_.voter).contains(name.now()) then
+              button(
+                cls := "RemoveButton", onClick --> Observer {
+                  _ =>
+                    topicUpdates(DiscussionAction.RemoveVote(topicLive.id, name.now()))
+                },
+                "-"
+                //                    img(src := "./minus-icon.svg", role := "img") // TODO can we get a minus icon?
+              )
+            else
+              span(
+                button(
+                  cls := "AddButton", onClick --> Observer {
+                    _ =>
+                      topicUpdates(DiscussionAction.Vote(topicLive.id, Feedback(name.now(), VotePosition.Interested)))
+                  },
+                  img(src := "./plus-icon-green.svg", role := "img")
+                ),
+              )
+        )
+      )
+    )
+  )
+}
+
 private def DiscussionSubview(
   topicsOfInterest: Signal[List[Discussion]],
   votePosition: Option[VotePosition],
@@ -91,112 +214,13 @@ private def DiscussionSubview(
   topicUpdates: DiscussionAction => Unit,
   updateTargetDiscussion: Observer[Discussion]
 ) =
-  val backgroundColorByPosition =
-    votePosition match
-      case Some(position) => position match
-        case VotePosition.Interested => "#6BB187"
-        case VotePosition.NotInterested => "#FB6775"
-      case None => "#C6DAD7"
   div(
     cls := "TopicsContainer",
     children <--
       topicsOfInterest
-
         .splitTransition(_.id)(
-          (index, topic, signal, transition) =>
-            val $characters: Signal[List[(String, Int)]] =
-              signal.map(_.topic.unwrap).map(_.split("").zipWithIndex.toList)
-            div(cls := "TopicCard", // TODO Make this a component than can be used in the schedule view!
-              backgroundColor := backgroundColorByPosition,
-              transition.height,
-              div(cls := "TopicBody",
-                div(
-                  display.inlineFlex,
-                  flexWrap := "wrap",
-                  justifyContent := "space-between",
-                  span(
-                    div(
-                      children <-- $characters.splitTransition(identity) {
-                        case (_, (character, _), _, transition) =>
-                          val newCharacter = character match
-                            case " " => '\u00A0'
-                            case _ => character.charAt(0)
-                          div(
-                            newCharacter,
-                            display.inlineFlex,
-                            transition.width,
-                            //                              transition.height
-                          )
-                      }
-                    ),
-                  ),
-                  if (List("bill", "emma").exists(admin => name.now().unwrap.toLowerCase().contains(admin)))
-                    button(
-                      cls := "delete-topic",
-                      color := "red",
-                      border := "none", backgroundColor := "transparent", onClick --> Observer {
-                        _ =>
-                          // TODO Make sure this updates the ActiveDiscussion, so it's not left lingering on the schedule.
-                          topicUpdates(DiscussionAction.Delete(topic.id))
-                      },
-                      "x"
-                    )
-                  else span()
-                ),
-                span(
-                  cls := "VoteContainer",
-                  child <-- signal.map(
-                    topicLive =>
-                      if topicLive.interestedParties.map(_.voter).contains(name.now()) then
-                        span()
-                      else
-                        span(
-                          button(
-                            cls := "AddButton", onClick --> Observer {
-                              _ =>
-                                topicUpdates(DiscussionAction.Vote(topicLive.id, Feedback(name.now(), VotePosition.NotInterested)))
-                            },
-                            img(src := "./plus-icon-red.svg", role := "img")
-                          ),
-                        )
-                  ),
-                  (votePosition match
-                    case Some(position) =>
-                      span(
-                        SvgIcon(topic.glyphicon),
-                        p(topic.facilitator.unwrap),
-                        p("Votes ", child <-- signal.map(_.votes), " "),
-                        SvgIcon(GlyphiconUtils.schedule).amend(
-                          onClick.mapTo(topic) --> updateTargetDiscussion
-                        )
-                      )
-                    case None =>
-                      span()),
-                  child <-- signal.map(
-                    topicLive =>
-                      if topicLive.interestedParties.map(_.voter).contains(name.now()) then
-                        button(
-                          cls := "RemoveButton", onClick --> Observer {
-                            _ =>
-                              topicUpdates(DiscussionAction.RemoveVote(topicLive.id, name.now()))
-                          },
-                          "-"
-                          //                    img(src := "./minus-icon.svg", role := "img") // TODO can we get a minus icon?
-                        )
-                      else
-                        span(
-                          button(
-                            cls := "AddButton", onClick --> Observer {
-                              _ =>
-                                topicUpdates(DiscussionAction.Vote(topicLive.id, Feedback(name.now(), VotePosition.Interested)))
-                            },
-                            img(src := "./plus-icon-green.svg", role := "img")
-                          ),
-                        )
-                  )
-                )
-              )
-            )
+          (index: TopicId, topic: Discussion, signal: Signal[Discussion], transition: Transition) =>
+            SingleDiscussionComponent(name, topicUpdates, updateTargetDiscussion, index, topic, signal, transition)
         )
   )
 
@@ -346,7 +370,7 @@ def ScheduleView(fullSchedule: Var[DiscussionState], activeDiscussion: Var[Optio
                 case Some(roomSlot) =>
                   button(
                     onClick.mapTo(discussion.copy(roomSlot = None)) --> updateTargetDiscussion,
-                    "Unslot"// TODO make updateDiscussion actually submit to server here
+                    "Unslot"
                   )
                 case None =>
                   "Not scheduled."
