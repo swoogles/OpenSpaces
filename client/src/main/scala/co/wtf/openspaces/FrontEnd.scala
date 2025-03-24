@@ -104,6 +104,16 @@ private def SingleDiscussionComponent(
       val feedbackOnTopic =
         topic.interestedParties.find(_.voter == name.now())
 
+      val ableToVoiceNegativity =
+        feedbackOnTopic match
+          case None | Some(Feedback(_, VotePosition.Interested)) => true
+          case Some(Feedback(_, VotePosition.NotInterested)) => false
+
+      val ableToVoicePositivity =
+        feedbackOnTopic match
+          case None | Some(Feedback(_, VotePosition.NotInterested)) => true
+          case Some(Feedback(_, VotePosition.Interested)) => false
+
 //        signal.map(_.topic.unwrap).map(_.split("").zipWithIndex.toList)
       div(cls := "TopicCard", // TODO Make this a component than can be used in the schedule view!
         backgroundColor := backgroundColorByPosition,
@@ -150,18 +160,19 @@ private def SingleDiscussionComponent(
           ),
           span(
             cls := "VoteContainer",
-            feedbackOnTopic match
-              case None | Some(Feedback(_, VotePosition.Interested)) =>
+            if (ableToVoiceNegativity)
                 span(
                   button(
                     cls := "AddButton", onClick --> Observer {
                       _ =>
+
+                        topicUpdates(DiscussionAction.RemoveVote(topic.id, name.now()))
                         topicUpdates(DiscussionAction.Vote(topic.id, Feedback(name.now(), VotePosition.NotInterested)))
                     },
                     img(src := "./plus-icon-red.svg", role := "img")
                   ),
                 )
-              case Some(Feedback(_, VotePosition.NotInterested)) =>
+              else
                 span(
                   button(
                     cls := "AddButton disabled",
@@ -190,25 +201,26 @@ private def SingleDiscussionComponent(
                 )
               case None =>
                 span()),
-                if topic.interestedParties.map(_.voter).contains(name.now()) then
-                  button(
-                    cls := "RemoveButton", onClick --> Observer {
-                      _ =>
-                        topicUpdates(DiscussionAction.RemoveVote(topic.id, name.now()))
-                    },
-                    "-"
-                    //                    img(src := "./minus-icon.svg", role := "img") // TODO can we get a minus icon?
-                  )
+
+                if (ableToVoicePositivity)
+                    span(
+                      button(
+                        cls := "AddButton", onClick --> Observer {
+                          _ =>
+                            topicUpdates(DiscussionAction.RemoveVote(topic.id, name.now()))
+                            topicUpdates(DiscussionAction.Vote(topic.id, Feedback(name.now(), VotePosition.Interested)))
+                        },
+                        img(src := "./plus-icon-green.svg", role := "img")
+                      ),
+                    )
                 else
                   span(
                     button(
-                      cls := "AddButton", onClick --> Observer {
-                        _ =>
-                          topicUpdates(DiscussionAction.Vote(topic.id, Feedback(name.now(), VotePosition.Interested)))
-                      },
-                      img(src := "./plus-icon-green.svg", role := "img")
+                      cls := "AddButton disabled",
+                      img(src := "./plus-icon-green.svg", role := "img"),
                     ),
                   )
+                ,
           )
         )
       )
