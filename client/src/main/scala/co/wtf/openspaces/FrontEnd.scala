@@ -269,16 +269,17 @@ private def DiscussionsToReview(
     localTopics
       .map(discussions => discussions.filterNot(d => d.interestedParties.exists(f => f.voter == name.now())))
 
+  val reviewedTopics =
+    localTopics
+      .map(discussions => discussions.filter(d => d.interestedParties.exists(f => f.voter == name.now())))
+
 
   div(
     div("Unreviewed: "),
     DiscussionSubview(unreviewedTopics, None, name, topicUpdates, updateTargetDiscussion),
     hr(),
-    div("Interested: "),
-    DiscussionSubview(topicsOfInterest, Some(VotePosition.Interested), name, topicUpdates, updateTargetDiscussion),
-    hr(),
-    div("Not Interested: "),
-    DiscussionSubview(topicsWithoutInterest, Some(VotePosition.NotInterested), name, topicUpdates, updateTargetDiscussion),
+    div("Reviewed: "),
+    DiscussionSubview(reviewedTopics, Some(VotePosition.Interested), name, topicUpdates, updateTargetDiscussion),
   )
 
 
