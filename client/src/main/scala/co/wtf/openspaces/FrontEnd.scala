@@ -96,15 +96,13 @@ private def SingleDiscussionComponent(
   signal.map {
     case Some(topic) =>
       val votePosition = topic.interestedParties.find(_.voter == name.now())
-      val backgroundColorByPosition =
-        votePosition match
-          case Some(feedback) => feedback.position match
-            case VotePosition.Interested => "#6BB187"
-            case VotePosition.NotInterested => "#FB6775"
-          case None => "#C6DAD7"
+      val backgroundColorByPosition = "#C6DAD7"
 
       val $characters: List[(String, Int)] =
         topic.topic.unwrap.split("").zipWithIndex.toList
+
+      val feedbackOnTopic =
+        topic.interestedParties.find(_.voter == name.now())
 
 //        signal.map(_.topic.unwrap).map(_.split("").zipWithIndex.toList)
       div(cls := "TopicCard", // TODO Make this a component than can be used in the schedule view!
@@ -152,18 +150,24 @@ private def SingleDiscussionComponent(
           ),
           span(
             cls := "VoteContainer",
-            if topic.interestedParties.map(_.voter).contains(name.now()) then
-              span()
-            else
-              span(
-                button(
-                  cls := "AddButton", onClick --> Observer {
-                    _ =>
-                      topicUpdates(DiscussionAction.Vote(topic.id, Feedback(name.now(), VotePosition.NotInterested)))
-                  },
-                  img(src := "./plus-icon-red.svg", role := "img")
-                ),
-              )
+            feedbackOnTopic match
+              case None | Some(Feedback(_, VotePosition.Interested)) =>
+                span(
+                  button(
+                    cls := "AddButton", onClick --> Observer {
+                      _ =>
+                        topicUpdates(DiscussionAction.Vote(topic.id, Feedback(name.now(), VotePosition.NotInterested)))
+                    },
+                    img(src := "./plus-icon-red.svg", role := "img")
+                  ),
+                )
+              case Some(Feedback(_, VotePosition.NotInterested)) =>
+                span(
+                  button(
+                    cls := "AddButton disabled",
+                    img(src := "./plus-icon-red.svg", role := "img"),
+                  ),
+                )
             ,
             (votePosition match
               case Some(position) =>

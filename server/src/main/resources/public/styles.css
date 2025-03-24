@@ -80,3 +80,7 @@
     vertical-align: middle;
     horiz-align: center;
 }
+
+.disabled {
+    opacity: 70%;
+}
