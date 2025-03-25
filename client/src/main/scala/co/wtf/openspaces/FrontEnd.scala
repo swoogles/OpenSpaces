@@ -159,8 +159,14 @@ private def SingleDiscussionComponent(
                 case Some(position) =>
                   span(
                     SvgIcon(topic.glyphicon),
-                    p(topic.facilitator.unwrap),
-                    p("Votes ", topic.votes),
+                    span(topic.facilitator.unwrap),
+                    span("Votes ", topic.votes),
+                    topic.roomSlot match {
+                      case Some(roomSlot) =>
+                        span(roomSlot.timeSlot.s + " " + roomSlot.room.name)
+                      case None =>
+                        span("Unscheduled")
+                    },
                   )
                 case None =>
                   span())
@@ -171,20 +177,20 @@ private def SingleDiscussionComponent(
                 if (ableToVoiceNegativity)
                   span(
                     button(
-                      cls := "AddButton", onClick --> Observer {
+                      cls := "AddButton disabled", onClick --> Observer {
                         _ =>
 
                           topicUpdates(DiscussionAction.RemoveVote(topic.id, name.now()))
                           topicUpdates(DiscussionAction.Vote(topic.id, Feedback(name.now(), VotePosition.NotInterested)))
                       },
-                      img(src := "./plus-icon-red.svg", role := "img")
+                      img(src := "./plus-icon-red.svg", role := "img"),
                     ),
                   )
                 else
                   span(
                     button(
-                      cls := "AddButton disabled",
-                      img(src := "./plus-icon-red.svg", role := "img"),
+                      cls := "AddButton",
+                      img(src := "./plus-icon-red.svg", role := "img")
                     ),
                   )
                 ,
@@ -192,19 +198,19 @@ private def SingleDiscussionComponent(
                 if (ableToVoicePositivity)
                   span(
                     button(
-                      cls := "AddButton", onClick --> Observer {
+                      cls := "AddButton disabled", onClick --> Observer {
                         _ =>
                           topicUpdates(DiscussionAction.RemoveVote(topic.id, name.now()))
                           topicUpdates(DiscussionAction.Vote(topic.id, Feedback(name.now(), VotePosition.Interested)))
                       },
-                      img(src := "./plus-icon-green.svg", role := "img")
+                      img(src := "./plus-icon-green.svg", role := "img"),
                     ),
                   )
                 else
                   span(
                     button(
-                      cls := "AddButton disabled",
-                      img(src := "./plus-icon-green.svg", role := "img"),
+                      cls := "AddButton",
+                      img(src := "./plus-icon-green.svg", role := "img")
                     ),
                   )
                 ,
@@ -212,7 +218,7 @@ private def SingleDiscussionComponent(
                   case Some(roomSlot) =>
                     button(
                       onClick.mapTo(topic.copy(roomSlot = None)) --> updateTargetDiscussion,
-                      "Unslot"
+                      "Reschedule"
                     )
                   case None =>
                     "Unscheduled"
