@@ -161,18 +161,6 @@ private def SingleDiscussionComponent(
                     SvgIcon(topic.glyphicon),
                     p(topic.facilitator.unwrap),
                     p("Votes ", topic.votes),
-                    topic.roomSlot match {
-                      case Some(roomSlot) =>
-                        button(
-                          onClick.mapTo(topic.copy(roomSlot = None)) --> updateTargetDiscussion,
-                          "Unslot"
-                        )
-                      case None =>
-                        "Not scheduled."
-                    },
-                    SvgIcon(GlyphiconUtils.schedule).amend(
-                      onClick.mapTo(topic) --> updateTargetDiscussion
-                    )
                   )
                 case None =>
                   span())
@@ -220,6 +208,18 @@ private def SingleDiscussionComponent(
                     ),
                   )
                 ,
+                topic.roomSlot match {
+                  case Some(roomSlot) =>
+                    button(
+                      onClick.mapTo(topic.copy(roomSlot = None)) --> updateTargetDiscussion,
+                      "Unslot"
+                    )
+                  case None =>
+                    "Unscheduled"
+                },
+                SvgIcon(GlyphiconUtils.schedule).amend(
+                  onClick.mapTo(topic) --> updateTargetDiscussion
+                )
               )
       )
     case None =>

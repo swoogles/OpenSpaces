@@ -65,7 +65,7 @@
 .TopicCard {
     border-radius: 4px;
     display: grid;
-    grid-template-columns: 3fr 1fr;
+    grid-template-columns: 3fr 2fr;
     grid-template-rows: 1fr 1fr;
     height: 15vh;
     grid-template-areas:
