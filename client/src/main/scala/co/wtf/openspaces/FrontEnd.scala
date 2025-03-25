@@ -163,9 +163,9 @@ private def SingleDiscussionComponent(
                     span("Votes ", topic.votes),
                     topic.roomSlot match {
                       case Some(roomSlot) =>
-                        span(roomSlot.timeSlot.s + " " + roomSlot.room.name)
+                        div(roomSlot.timeSlot.s + " " + roomSlot.room.name)
                       case None =>
-                        span("Unscheduled")
+                        div("Unscheduled")
                     },
                   )
                 case None =>
@@ -279,11 +279,7 @@ private def DiscussionsToReview(
 
 
   div(
-    div("Unreviewed: "),
-    DiscussionSubview(unreviewedTopics, None, name, topicUpdates, updateTargetDiscussion),
-    hr(),
-    div("Reviewed: "),
-    DiscussionSubview(reviewedTopics, Some(VotePosition.Interested), name, topicUpdates, updateTargetDiscussion),
+    DiscussionSubview(localTopics, None, name, topicUpdates, updateTargetDiscussion),
   )
 
 
