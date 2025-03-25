@@ -7,10 +7,11 @@
 .LogoImg {height: 70px; border-radius: 50%;}
 .Flex {display: flex; gap: 20px;}
 .TopicsContainer {display: grid; gap: 10px;}
-.TopicCard{border-radius: 4px;}
-.TopicBody {padding: 4px 10px; white-space: pre-wrap;}
-.AddButton {background-color: transparent; border: none;}
-.VoteContainer {display: flex; gap: 5px; justify-content: space-between;}
+.TopicBody {}
+.AddButton {
+    background-color: transparent;
+    border: none;
+}
 
 .filledTopic {
     border: solid black;
@@ -57,21 +58,36 @@
         "Room1 Room2 Room3 Room4";
 }
 
-.Targets {  display: grid;
-    grid-template-columns: 1fr;
-    grid-template-rows: 1fr;
-    gap: 0px 0px;
-    grid-auto-flow: row;
-    grid-template-areas:
-    "ActiveDiscussion ActiveDiscussion";
+.Targets {
+    grid-area: Targets;
 }
 
-.ActiveDiscussion { grid-area: ActiveDiscussion;
+.TopicCard {
+    border-radius: 4px;
+    display: grid;
+    grid-template-columns: 3fr 1fr;
+    grid-template-rows: 1fr 1fr;
+    height: 15vh;
+    grid-template-areas:
+        "MainActive MainActive"
+        "SecondaryActive ControlsActive";
+}
+
+.ActiveDiscussion {
     border-radius: 4px;
     border-color: darkcyan;
     min-width: 0;
-    overflow: auto;
-    height: 25vh;
+    height: 15vh;
+}
+
+.MainActive {
+    grid-area: MainActive;
+}
+.SecondaryActive {
+    grid-area: SecondaryActive;
+}
+.ControlsActive {
+    grid-area: ControlsActive;
 }
 
 .glyphicon {

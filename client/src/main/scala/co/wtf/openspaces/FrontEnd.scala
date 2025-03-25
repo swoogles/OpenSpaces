@@ -119,15 +119,11 @@ private def SingleDiscussionComponent(
         backgroundColor := backgroundColorByPosition,
         transition match
           case Some(value) => value.height
-          case None => height("300px")
+          case None => height("15vh")
           ,
-        div(cls := "TopicBody",
           div(
-            display.inlineFlex,
-            flexWrap := "wrap",
-            justifyContent := "space-between",
-            span(
-              div(
+            cls := "MainActive",
+//            justifyContent := "space-between",
                 topic.topic.unwrap
 //                $characters
 
@@ -143,8 +139,7 @@ private def SingleDiscussionComponent(
 //                      //                              transition.height
 //                    )
 //                }
-              ),
-            ),
+            ,
             if (List("bill", "emma").exists(admin => name.now().unwrap.toLowerCase().contains(admin)))
               button(
                 cls := "delete-topic",
@@ -158,61 +153,65 @@ private def SingleDiscussionComponent(
               )
             else span()
           ),
-          span(
-            cls := "VoteContainer",
-            if (ableToVoiceNegativity)
-                span(
-                  button(
-                    cls := "AddButton", onClick --> Observer {
-                      _ =>
-
-                        topicUpdates(DiscussionAction.RemoveVote(topic.id, name.now()))
-                        topicUpdates(DiscussionAction.Vote(topic.id, Feedback(name.now(), VotePosition.NotInterested)))
+            span(
+              cls := "SecondaryActive",
+              (votePosition match
+                case Some(position) =>
+                  span(
+                    SvgIcon(topic.glyphicon),
+                    p(topic.facilitator.unwrap),
+                    p("Votes ", topic.votes),
+                    topic.roomSlot match {
+                      case Some(roomSlot) =>
+                        button(
+                          onClick.mapTo(topic.copy(roomSlot = None)) --> updateTargetDiscussion,
+                          "Unslot"
+                        )
+                      case None =>
+                        "Not scheduled."
                     },
-                    img(src := "./plus-icon-red.svg", role := "img")
-                  ),
-                )
-              else
-                span(
-                  button(
-                    cls := "AddButton disabled",
-                    img(src := "./plus-icon-red.svg", role := "img"),
-                  ),
-                )
-            ,
-            (votePosition match
-              case Some(position) =>
-                span(
-                  SvgIcon(topic.glyphicon),
-                  p(topic.facilitator.unwrap),
-                  p("Votes ", topic.votes),
-                  topic.roomSlot match {
-                    case Some(roomSlot) =>
-                      button(
-                        onClick.mapTo(topic.copy(roomSlot = None)) --> updateTargetDiscussion,
-                        "Unslot"
-                      )
-                    case None =>
-                      "Not scheduled."
-                  },
-                  SvgIcon(GlyphiconUtils.schedule).amend(
-                    onClick.mapTo(topic) --> updateTargetDiscussion
+                    SvgIcon(GlyphiconUtils.schedule).amend(
+                      onClick.mapTo(topic) --> updateTargetDiscussion
+                    )
                   )
-                )
-              case None =>
-                span()),
+                case None =>
+                  span())
+              ,
+            ),
+              div(
+                cls := "ControlsActive",
+                if (ableToVoiceNegativity)
+                  span(
+                    button(
+                      cls := "AddButton", onClick --> Observer {
+                        _ =>
+
+                          topicUpdates(DiscussionAction.RemoveVote(topic.id, name.now()))
+                          topicUpdates(DiscussionAction.Vote(topic.id, Feedback(name.now(), VotePosition.NotInterested)))
+                      },
+                      img(src := "./plus-icon-red.svg", role := "img")
+                    ),
+                  )
+                else
+                  span(
+                    button(
+                      cls := "AddButton disabled",
+                      img(src := "./plus-icon-red.svg", role := "img"),
+                    ),
+                  )
+                ,
 
                 if (ableToVoicePositivity)
-                    span(
-                      button(
-                        cls := "AddButton", onClick --> Observer {
-                          _ =>
-                            topicUpdates(DiscussionAction.RemoveVote(topic.id, name.now()))
-                            topicUpdates(DiscussionAction.Vote(topic.id, Feedback(name.now(), VotePosition.Interested)))
-                        },
-                        img(src := "./plus-icon-green.svg", role := "img")
-                      ),
-                    )
+                  span(
+                    button(
+                      cls := "AddButton", onClick --> Observer {
+                        _ =>
+                          topicUpdates(DiscussionAction.RemoveVote(topic.id, name.now()))
+                          topicUpdates(DiscussionAction.Vote(topic.id, Feedback(name.now(), VotePosition.Interested)))
+                      },
+                      img(src := "./plus-icon-green.svg", role := "img")
+                    ),
+                  )
                 else
                   span(
                     button(
@@ -221,8 +220,7 @@ private def SingleDiscussionComponent(
                     ),
                   )
                 ,
-          )
-        )
+              )
       )
     case None =>
       println("failed to get a topic")
