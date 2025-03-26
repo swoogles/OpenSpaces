@@ -306,9 +306,13 @@ def ScheduleSlotComponent(
             discussionO =>
               discussionState.roomSlotContent(RoomSlot(room, timeSlot)) match
                 case Some(value) =>
+                  val selectedTopicStyling =
+                    if ($activeDiscussion.now().map(_.id).contains(value.id))
+                      "activeTopicIcon"
+                    else ""
                   span(
                     onClick.mapTo(value) --> updateDiscussion, // TODO This is causing an unecesary update to be sent to server
-                    SvgIcon(value.glyphicon).amend(cls := "filledTopic") // TODO amend always makes me suspicious
+                    SvgIcon(value.glyphicon).amend(cls := s"filledTopic $selectedTopicStyling") // TODO amend always makes me suspicious
                   )
                 case None =>
                   discussionO match

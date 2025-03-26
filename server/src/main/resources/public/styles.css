@@ -14,6 +14,11 @@
 }
 
 .filledTopic {
+    /*border: solid black;*/
+    /*border-radius: 5px;*/
+}
+
+.activeTopicIcon {
     border: solid black;
     border-radius: 5px;
 }
