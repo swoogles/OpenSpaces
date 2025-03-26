@@ -1,6 +1,7 @@
 package co.wtf.openspaces
 
 import animus.*
+import com.raquo.laminar.api.L.{*, given}
 import org.scalajs.dom
 import org.scalajs.dom.window
 import zio.json.*
