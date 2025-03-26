@@ -1,7 +1,6 @@
 package co.wtf.openspaces
 
 import animus.*
-import com.raquo.laminar.api.L.{*, given}
 import org.scalajs.dom
 import org.scalajs.dom.window
 import zio.json.*
@@ -89,7 +88,6 @@ private def SingleDiscussionComponent(
                                        name: StrictSignal[Person],
                                        topicUpdates: DiscussionAction => Unit,
                                        updateTargetDiscussion: Observer[Discussion],
-                                     //
                                        signal: Signal[Option[Discussion]],
                                        transition: Option[Transition]
                                      ) = {
@@ -114,7 +112,6 @@ private def SingleDiscussionComponent(
           case None | Some(Feedback(_, VotePosition.NotInterested)) => true
           case Some(Feedback(_, VotePosition.Interested)) => false
 
-//        signal.map(_.topic.unwrap).map(_.split("").zipWithIndex.toList)
       div(cls := "TopicCard", // TODO Make this a component than can be used in the schedule view!
         backgroundColor := backgroundColorByPosition,
         transition match
@@ -123,9 +120,7 @@ private def SingleDiscussionComponent(
           ,
           div(
             cls := "MainActive",
-//            justifyContent := "space-between",
                 topic.topic.unwrap
-//                $characters
 
 //                children <-- $characters.splitTransition(identity) {
 //                  case (_, (character, _), _, transition) =>
@@ -254,36 +249,6 @@ private def DiscussionSubview(
         )
   )
 
-private def DiscussionsToReview(
-                                 topics: Signal[DiscussionState],
-                                 name: StrictSignal[Person],
-                                 topicUpdates: DiscussionAction => Unit,
-                                 updateTargetDiscussion: Observer[Discussion]
-                               ) =
-  val localTopics = topics.map(_.data.values.toList)
-  val topicsOfInterest: Signal[List[Discussion]] =
-    localTopics
-      .map(discussions => discussions.filter(d => d.interestedParties.contains(Feedback(name.now(), VotePosition.Interested))))
-
-  val topicsWithoutInterest =
-    localTopics
-      .map(discussions => discussions.filter(d => d.interestedParties.contains(Feedback(name.now(), VotePosition.NotInterested))))
-
-  val unreviewedTopics =
-    localTopics
-      .map(discussions => discussions.filterNot(d => d.interestedParties.exists(f => f.voter == name.now())))
-
-  val reviewedTopics =
-    localTopics
-      .map(discussions => discussions.filter(d => d.interestedParties.exists(f => f.voter == name.now())))
-
-
-  div(
-    DiscussionSubview(localTopics, None, name, topicUpdates, updateTargetDiscussion),
-  )
-
-
-
 enum AppView:
   case Home
   case ScheduleView
@@ -295,11 +260,10 @@ def ScheduleSlotComponent(
                            $discussionState: Signal[DiscussionState],
                            updateDiscussion: Observer[Discussion],
                            $activeDiscussion: StrictSignal[Option[Discussion]]
-                         // TODO pass in the currnet discussion target, to decide whether to show a place empty or with the plus sign
                          ) =
 
   span(
-    child <-- $discussionState.map { // TODO This should update the component whenever a Discussion is deleted.
+    child <-- $discussionState.map {
       discussionState =>
         span(
           child <-- $activeDiscussion.map {
@@ -331,7 +295,7 @@ def ScheduleSlotComponent(
                         case None =>
                           span(
                             SvgIcon(GlyphiconUtils.plus),
-                            onClick.mapTo(discussion.copy(roomSlot = Some(RoomSlot(room, timeSlot)))) --> updateDiscussion // TODO make updateDiscussion actually submit to server here
+                            onClick.mapTo(discussion.copy(roomSlot = Some(RoomSlot(room, timeSlot)))) --> updateDiscussion
                           )
                     case None =>
                       span(
@@ -345,7 +309,6 @@ def ScheduleSlotComponent(
 
 def SlotSchedule(
                   timeOfSlot: String,
-                  // This tuple is obviously terrible. TODO Figure out a better way
                   $discussionState: Signal[DiscussionState],
                   $timeSlotsForAllRooms: Signal[TimeSlotForAllRooms],
                   updateDiscussion: Observer[Discussion],
@@ -397,32 +360,11 @@ def ScheduleView(
     div(
       cls := "Targets",
 
-      // TODO Use this once api is figured out:
       div(
         cls := "ActiveDiscussion Topic",
         child <-- SingleDiscussionComponent(name, topicUpdates, updateTargetDiscussion, activeDiscussion.signal, None),
       ),
 
-//      div(
-//        cls := "ActiveDiscussion Topic",
-//        child <-- activeDiscussion.signal.map {
-//          case Some(discussion) =>
-//            div(
-//              SvgIcon(discussion.glyphicon),
-//              span(discussion.topic.unwrap),
-//              discussion.roomSlot match {
-//                case Some(roomSlot) =>
-//                  button(
-//                    onClick.mapTo(discussion.copy(roomSlot = None)) --> updateTargetDiscussion,
-//                    "Unslot"
-//                  )
-//                case None =>
-//                  "Not scheduled."
-//              }
-//            )
-//          case None => span("nothing")
-//        }
-//      ),
     ),
     div(
       cls := "Schedule",
@@ -489,7 +431,7 @@ object FrontEnd extends App:
   def liveTopicSubmissionAndVoting(updateTargetDiscussion: Observer[Discussion]) =
     div(
       TopicSubmission(submitNewTopic, name.signal, errorBanner.error.toObserver),
-      DiscussionsToReview(discussionState.signal, name.signal, topicUpdates.sendOne, updateTargetDiscussion),
+      DiscussionSubview(discussionState.signal.map(_.data.values.toList), None, name.signal, topicUpdates.sendOne, updateTargetDiscussion),
     )
 
   val activeDiscussion: Var[Option[Discussion]] =
