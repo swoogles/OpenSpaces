@@ -214,8 +214,6 @@ private def SingleDiscussionComponent(
                     button(
                       cls := "AddButton",
                       img(src := "./plus-icon-green.svg", role := "img")
-                      #@$
-
                     ),
                   )
                 ,
