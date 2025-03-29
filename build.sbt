@@ -37,8 +37,13 @@ lazy val sharedCode =
 
 lazy val server = (project in file("server"))
   .enablePlugins(JavaAppPackaging, AshScriptPlugin)
-  .dependsOn(sharedCode.jvm)
+  .dependsOn(sharedCode.jvm, client)
   .settings(
+// Define a custom task that depends on projectA's compilation
+    {
+      val ensureACompiled = taskKey[Unit]("Ensure project A is compiled")
+      ensureACompiled := (client / Compile / fastOptJS).value
+    },
     name := "server",
     dockerExposedPorts ++= Seq(8080, 9000, 9001),
     dockerBaseImage := "eclipse-temurin:21",
