@@ -186,9 +186,9 @@ private def SingleDiscussionComponent(
                           topicUpdates(DiscussionAction.RemoveVote(topic.id, name.now()))
                           topicUpdates(DiscussionAction.Vote(topic.id, Feedback(name.now(), VotePosition.NotInterested)))
                       },
-                      img(src := "./plus-icon-red.svg", role := "img"),
-                    ),
-                  )
+                        SvgIcon(GlyphiconUtils.heartEmpty)
+                      )
+                    )
                 else
                   span(
                     button(
@@ -206,7 +206,7 @@ private def SingleDiscussionComponent(
                           topicUpdates(DiscussionAction.RemoveVote(topic.id, name.now()))
                           topicUpdates(DiscussionAction.Vote(topic.id, Feedback(name.now(), VotePosition.Interested)))
                       },
-                      img(src := "./plus-icon-green.svg", role := "img"),
+                      SvgIcon(GlyphiconUtils.heart)
                     ),
                   )
                 else
@@ -214,6 +214,8 @@ private def SingleDiscussionComponent(
                     button(
                       cls := "AddButton",
                       img(src := "./plus-icon-green.svg", role := "img")
+                      #@$
+
                     ),
                   )
                 ,
