@@ -42,3 +42,4 @@ website/ecosystem-sidebar.js
 .vscode 
 node_modules 
 
+/.env
