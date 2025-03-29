@@ -43,3 +43,5 @@ website/ecosystem-sidebar.js
 node_modules 
 
 /.env
+/server/src/main/resources/public/client-fastopt.js
+/server/src/main/resources/public/client-fastopt.js.map
