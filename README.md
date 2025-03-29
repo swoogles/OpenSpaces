@@ -2,6 +2,13 @@ Can we build an app for open spaces organization?
 
 ---
 
+To run this locally:
+```
+~server/reStart
+```
+
+---
+
 Desirable Characteristics of the stickies
 
 - Common, physical location for people to meet/discuss topics
