@@ -5,8 +5,13 @@ import zio.*
 import zio.json.*
 import zio.direct.*
 import zio.http.*
+import zio.http.codec.HttpCodec.query
+import zio.http.endpoint.Endpoint
 
 case class ClientId(value: String):
+  override def toString: String = value
+
+case class ClientSecret(value: String):
   override def toString: String = value
 
 object Backend extends ZIOAppDefault {
@@ -101,7 +106,9 @@ object Backend extends ZIOAppDefault {
                                connectedUsers: Ref[List[WebSocketChannel]],
                                discussionDataStore: DiscussionDataStore,
                                glyphiconService: GlyphiconService,
-                               clientId: ClientId
+                               clientId: ClientId,
+                               clientSecret: ClientSecret,
+                               client: Client
                              ):
 
     val socketApp: WebSocketApp[Any] =
@@ -160,18 +167,60 @@ object Backend extends ZIOAppDefault {
         }
       }
 
+    val  callback =
+      Endpoint(
+        Method.GET /
+          "callback"
+      )
+        .query(
+          query[String]("code")
+        )
+        .out[String]
+
+    val callbackRoute =
+      callback.implement { (code) =>
+        (for {
+          _ <- ZIO.debug("callback! Code: " + code)
+          /*
+           TODO Scala zio-http version of this code:
+           app.get("/callback", (req, res) => {
+              axios.post("https://github.com/login/oauth/access_token", {
+                  client_id: "33a703d019e0d23730ea",
+                  client_secret: "6f52b07d679f6955317a4fe7983d4b3b6cb0aa2e",
+                  code: req.query.code
+              }, {
+                  headers: {
+                      Accept: "application/json"
+                  }
+              }).then((result) => {
+                  console.log(result.data.access_token)
+                  res.send("you are authorized " + result.data.access_token)
+              }).catch((err) => {
+                  console.log(err);
+              })
+          })
+           */
+          res    <- client
+            .url(
+              URL.decode("https://github.com/login/oauth")
+                .getOrElse(???)
+                .addQueryParam("client_id", clientId.value)
+                .addQueryParam("client_secret", clientSecret.value)
+                .addQueryParam("code", code)
+            )
+            .get("/access_token")
+          data   <- res.body.asString
+          _      <- Console.printLine(data)
+        } yield "Hi there. Should have done some more callback stuff"
+        ).orDie
+      }
+
     val socketRoutes =
       Routes(
+        callbackRoute,
         Method.GET / "discussions"          -> handler(socketApp.toResponse),
         // TODO Build this URL way sooner
         Method.GET / "auth" -> handler(Response.redirect(URL.decode(s"https://github.com/login/oauth/authorize?client_id=$clientId").getOrElse(???))),
-        Method.GET / "callback" ->
-          Handler.fromZIO(
-            for {
-              _ <- ZIO.debug("callback!")
-            } yield Response.text("Hi there. Should have done some more callback stuff")
-          )
-//          handler(Response.redirect(URL.decode(s"https://github.com/login/oauth/authorize?client_id=$clientId").getOrElse(???))),
       )
 
   object ApplicationState:
@@ -187,6 +236,13 @@ object Backend extends ZIOAppDefault {
               .orDie
               .map(ClientId(_))
               .run
+            ,
+            System.env("GITHUB_CLIENT_SECRET")
+              .someOrFail(new Exception("No GITHUB_CLIENT_SECRET found in environment"))
+              .orDie
+              .map(ClientSecret(_))
+              .run,
+            ZIO.service[Client].run
           )
 
 
@@ -196,11 +252,14 @@ object Backend extends ZIOAppDefault {
     defer:
       val statefulRoutes = ZIO.serviceWith[ApplicationState](_.socketRoutes).run
 
-      Server.serve(statefulRoutes @@ Middleware.serveResources(Path.empty)).as("Just working around zio-direct limitation").run
+      Server.serve(statefulRoutes @@ Middleware.serveResources(Path.empty))
+        .as("Just working around zio-direct limitation").run
     .provide(
       Server.defaultWith(_.port(port)),
       ApplicationState.layer,
       DiscussionDataStore.layer,
       GlyphiconService.live,
+      Client.default,
+      Scope.default
     )
 }
