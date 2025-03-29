@@ -175,11 +175,13 @@ object Backend extends ZIOAppDefault {
 
 
   override def run =
+    val port = sys.env.getOrElse("PORT", throw new IllegalStateException("No value found for $PORT")).toInt
     defer:
       val statefulRoutes = ZIO.serviceWith[ApplicationState](_.socketRoutes).run
+
       Server.serve(statefulRoutes @@ Middleware.serveResources(Path.empty)).as("Just working around zio-direct limitation").run
     .provide(
-      Server.default,
+      Server.defaultWith(_.port(port)),
       ApplicationState.layer,
       DiscussionDataStore.layer,
       GlyphiconService.live,
