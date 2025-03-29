@@ -79,7 +79,14 @@ private def TopicSubmission(
               topicTitle, 
               name.now()
             )
-        ) --> submitEffect,
+        ).tapEach {
+          case _ =>
+            println("Unsafely clearing out submission, regardless of whether it got to the server")
+            println("Should wait till the Server confirms a TopicAdd, and if it matches the current text, clear it out")
+            println("Also a nice submission animation should happen")
+            textVar.set("")
+
+        } --> submitEffect,
       "Submit"
     )
   )
