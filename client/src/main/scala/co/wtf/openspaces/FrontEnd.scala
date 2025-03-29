@@ -41,8 +41,12 @@ private def NameBadge(textVar: Var[Person]) =
         textVar --> Observer {
           (value: Person) =>
             localStorage.setItem("name", value.unwrap)
-        }
+        },
       ),
+      a(
+        href := "/auth",
+        "Login",
+      )
     )
   )
 

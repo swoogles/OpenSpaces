@@ -6,6 +6,8 @@ import zio.json.*
 import zio.direct.*
 import zio.http.*
 
+case class ClientId(value: String):
+  override def toString: String = value
 
 object Backend extends ZIOAppDefault {
   import zio.http.ChannelEvent.{ExceptionCaught, Read, UserEvent, UserEventTriggered}
@@ -98,7 +100,8 @@ object Backend extends ZIOAppDefault {
   case class ApplicationState(
                                connectedUsers: Ref[List[WebSocketChannel]],
                                discussionDataStore: DiscussionDataStore,
-                               glyphiconService: GlyphiconService
+                               glyphiconService: GlyphiconService,
+                               clientId: ClientId
                              ):
 
     val socketApp: WebSocketApp[Any] =
@@ -160,6 +163,8 @@ object Backend extends ZIOAppDefault {
     val socketRoutes =
       Routes(
         Method.GET / "discussions"          -> handler(socketApp.toResponse),
+        // TODO Build this URL way sooner
+        Method.GET / "auth" -> handler(Response.redirect(URL.decode(s"https://github.com/login/oauth/authorize?client_id=$clientId").getOrElse(???))),
       )
 
   object ApplicationState:
@@ -169,7 +174,12 @@ object Backend extends ZIOAppDefault {
           ApplicationState(
             Ref.make(List.empty[WebSocketChannel]).run,
             ZIO.service[DiscussionDataStore].run,
-            ZIO.service[GlyphiconService].run
+            ZIO.service[GlyphiconService].run,
+            System.env("GITHUB_CLIENT_ID")
+              .someOrFail(new Exception("No GITHUB_CLIENT_ID found in environment"))
+              .orDie
+              .map(ClientId(_))
+              .run
           )
 
 
