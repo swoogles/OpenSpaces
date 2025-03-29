@@ -69,7 +69,7 @@ lazy val server = (project in file("server"))
     Compile / mainClass := Some("co.wtf.openspaces.Backend"),
 
     // Key fix: Make the stage task depend on client's fastOptJS
-    stage := (stage dependsOn (client / Compile / fastOptJS)).value,
+    stage := (stage dependsOn (client / Compile / fullOptJS)).value,
 
     // Also ensure the JS is available during development
     Compile / compile := ((Compile / compile) dependsOn (client / Compile / fastOptJS)).value,
