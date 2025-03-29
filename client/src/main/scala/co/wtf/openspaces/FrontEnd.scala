@@ -120,6 +120,11 @@ private def SingleDiscussionComponent(
           case None | Some(Feedback(_, VotePosition.NotInterested)) => true
           case Some(Feedback(_, VotePosition.Interested)) => false
 
+      val hasExpressedInterest =
+        feedbackOnTopic match
+          case Some(Feedback(_, VotePosition.Interested)) => true
+          case _ => false
+
       div(cls := "TopicCard", // TODO Make this a component than can be used in the schedule view!
         backgroundColor := backgroundColorByPosition,
         transition match
@@ -177,44 +182,28 @@ private def SingleDiscussionComponent(
             ),
               div(
                 cls := "ControlsActive",
-                if (ableToVoiceNegativity)
+                if (hasExpressedInterest)
                   span(
                     button(
-                      cls := "AddButton disabled", onClick --> Observer {
+                      cls := "AddButton", onClick --> Observer {
                         _ =>
-
                           topicUpdates(DiscussionAction.RemoveVote(topic.id, name.now()))
                           topicUpdates(DiscussionAction.Vote(topic.id, Feedback(name.now(), VotePosition.NotInterested)))
                       },
-                        SvgIcon(GlyphiconUtils.heartEmpty)
-                      )
+                      SvgIcon(GlyphiconUtils.heart)
                     )
+                  )
                 else
                   span(
                     button(
-                      cls := "AddButton",
-                      img(src := "./plus-icon-red.svg", role := "img")
-                    ),
-                  )
-                ,
-
-                if (ableToVoicePositivity)
-                  span(
-                    button(
-                      cls := "AddButton disabled", onClick --> Observer {
+                      cls := "AddButton", onClick --> Observer {
                         _ =>
+
                           topicUpdates(DiscussionAction.RemoveVote(topic.id, name.now()))
                           topicUpdates(DiscussionAction.Vote(topic.id, Feedback(name.now(), VotePosition.Interested)))
                       },
-                      SvgIcon(GlyphiconUtils.heart)
-                    ),
-                  )
-                else
-                  span(
-                    button(
-                      cls := "AddButton",
-                      img(src := "./plus-icon-green.svg", role := "img")
-                    ),
+                      SvgIcon(GlyphiconUtils.heartEmpty)
+                    )
                   )
                 ,
                 topic.roomSlot match {
