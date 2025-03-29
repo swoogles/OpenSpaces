@@ -165,6 +165,13 @@ object Backend extends ZIOAppDefault {
         Method.GET / "discussions"          -> handler(socketApp.toResponse),
         // TODO Build this URL way sooner
         Method.GET / "auth" -> handler(Response.redirect(URL.decode(s"https://github.com/login/oauth/authorize?client_id=$clientId").getOrElse(???))),
+        Method.GET / "callback" ->
+          Handler.fromZIO(
+            for {
+              _ <- ZIO.debug("callback!")
+            } yield Response.text("Hi there. Should have done some more callback stuff")
+          )
+//          handler(Response.redirect(URL.decode(s"https://github.com/login/oauth/authorize?client_id=$clientId").getOrElse(???))),
       )
 
   object ApplicationState:

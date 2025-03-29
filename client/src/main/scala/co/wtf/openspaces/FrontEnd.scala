@@ -46,6 +46,16 @@ private def NameBadge(textVar: Var[Person]) =
       a(
         href := "/auth",
         "Login",
+      ),
+      div(
+        // Make fetch request when this div element is mounted:
+        FetchStream.get("https://www.google.com") --> { responseText => println(responseText) },
+        // Make fetch request on every click:
+//        onClick.flatMap(_ => FetchStream.get(url)) --> { responseText => doSomething },
+        // Same, but also get the click event:
+//        onClick.flatMap(ev => FetchStream.get(url).map((ev, _))) --> {
+//          case (ev, responseText) => doSomething
+//        }
       )
     )
   )
