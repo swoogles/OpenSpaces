@@ -8,6 +8,21 @@ import zio.json.*
 
 val localStorage = window.localStorage
 
+import org.scalajs.dom
+import scala.scalajs.js.URIUtils
+
+def getCookie(name: String): Option[String] = {
+  val cookieString = dom.document.cookie
+  val cookies = cookieString.split(";")
+
+  cookies.find(_.trim.startsWith(s"$name=")) match {
+    case Some(cookie) =>
+      val encodedValue = cookie.trim.substring(name.length + 1)
+      Some(URIUtils.decodeURIComponent(encodedValue))
+    case None => None
+  }
+}
+
 private def getOrCreatePersistedName(): Var[Person] =
   val name =
     try {
@@ -31,6 +46,13 @@ private def BannerLogo() =
 
 private def NameBadge(textVar: Var[Person]) =
   div(cls := "Banner",
+    onClick --> Observer {
+      _ =>
+        println("ZZZ On load, getting cookie...")
+        println(getCookie("access_token"))
+        println("Done trying to get cookie")
+
+    },
     img(cls := "LogoImg", src := "./wtf-web-nodate.jpg", role := "img"),
     div(
       span("Name:"),
@@ -49,7 +71,7 @@ private def NameBadge(textVar: Var[Person]) =
       ),
       div(
         // Make fetch request when this div element is mounted:
-        FetchStream.get("https://www.google.com") --> { responseText => println(responseText) },
+//        FetchStream.get("https://www.google.com") --> { responseText => println(responseText) },
         // Make fetch request on every click:
 //        onClick.flatMap(_ => FetchStream.get(url)) --> { responseText => doSomething },
         // Same, but also get the click event:

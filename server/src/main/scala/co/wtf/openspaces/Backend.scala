@@ -15,6 +15,32 @@ case class ClientId(value: String):
 case class ClientSecret(value: String):
   override def toString: String = value
 
+case class AccessToken(
+  accessToken: String,
+  expiresIn: Int, // seconds
+  refreshToken: String,
+  refreshTokenExpiresIn: Int, // seconds
+  tokenType: String = "bearer"
+):
+  override def toString: String = accessToken
+
+object AccessToken:
+  def parse(
+    data: String
+  ): AccessToken = {
+    val queryParams = QueryParams.decode(data)
+
+    // Extract individual values
+    AccessToken(
+      accessToken = queryParams.queryParam("access_token").getOrElse("Not found"),
+      expiresIn = queryParams.queryParam("expires_in").getOrElse("Not found").toInt,
+      refreshToken = queryParams.queryParam("refresh_token").getOrElse("Not found"),
+      refreshTokenExpiresIn = queryParams.queryParam("refresh_token_expires_in").getOrElse("Not found").toInt,
+      tokenType = queryParams.queryParam("token_type").getOrElse("Not found")
+    )
+
+  }
+
 object Backend extends ZIOAppDefault {
   import zio.http.ChannelEvent.{ExceptionCaught, Read, UserEvent, UserEventTriggered}
 
@@ -179,52 +205,42 @@ object Backend extends ZIOAppDefault {
 //        .outHeader(Header.Location(URL.decode("/index.html").getOrElse(???)))
         .out[String](Status.PermanentRedirect)
         .outHeader(HeaderCodec.location ?? Doc.p("The user's location"))
+        .outHeader(HeaderCodec.authorization)
 
 
-    val callbackRoute =
-      callback.implement { (code) =>
-        ZIO.scoped(for {
-          _ <- ZIO.debug("callback! Code: " + code)
-          /*
-           TODO Scala zio-http version of this code:
-           app.get("/callback", (req, res) => {
-              axios.post("https://github.com/login/oauth/access_token", {
-                  client_id: "33a703d019e0d23730ea",
-                  client_secret: "6f52b07d679f6955317a4fe7983d4b3b6cb0aa2e",
-                  code: req.query.code
-              }, {
-                  headers: {
-                      Accept: "application/json"
-                  }
-              }).then((result) => {
-                  console.log(result.data.access_token)
-                  res.send("you are authorized " + result.data.access_token)
-              }).catch((err) => {
-                  console.log(err);
-              })
-          })
-           */
-          res    <- client
-            .url(
-              URL.decode("https://github.com/login/oauth")
-                .getOrElse(???)
-                .addQueryParam("client_id", clientId.value)
-                .addQueryParam("client_secret", clientSecret.value)
-                .addQueryParam("code", code)
-            )
-            .get("/access_token")
-          data   <- res.body.asString
-          _      <- Console.printLine(data)
-        } yield ("hi", Header.Location(URL.decode("/index.html").getOrElse(throw new Exception("Bad url: /index.html" ))))
-        ).orDie
-      }
+    val res = Response.ok.addCookie(Cookie.Response("access_token", "TODO_REAL_VALUE"))
+    handler(res.addCookie(Cookie.clear("key")))
+    
+
 
     val socketRoutes =
       Routes(
-        callbackRoute,
         Method.GET / "discussions"          -> handler(socketApp.toResponse),
         // TODO Build this URL way sooner
         Method.GET / "auth" -> handler(Response.redirect(URL.decode(s"https://github.com/login/oauth/authorize?client_id=$clientId").getOrElse(???))),
+        Method.GET / "callback" ->
+
+          handler(
+            (req: Request) =>
+
+              ZIO.scoped(for {
+                code <- ZIO.succeed(req.queryParam("code")).someOrFail(new Exception("No code provided in query parameters"))
+                _ <- ZIO.debug("callback! Code: " + code)
+                res    <- client
+                  .url(
+                    URL.decode("https://github.com/login/oauth")
+                      .getOrElse(???)
+                      .addQueryParam("client_id", clientId.value)
+                      .addQueryParam("client_secret", clientSecret.value)
+                      .addQueryParam("code", code)
+                  )
+                  .get("/access_token")
+                data   <- res.body.asString.map(AccessToken.parse)
+                _      <- Console.printLine(data)
+              } yield Response.redirect (URL.decode("/index.html").getOrElse(throw new Exception("Bad url: /index.html" ))
+              ).addCookie(Cookie.Response("access_token", data.accessToken))
+              ).orDie
+          ), // TODO Make sure we handle the code
       )
 
   object ApplicationState:
