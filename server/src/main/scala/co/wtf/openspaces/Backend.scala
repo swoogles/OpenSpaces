@@ -210,12 +210,24 @@ object Backend extends ZIOAppDefault {
 
     val res = Response.ok.addCookie(Cookie.Response("access_token", "TODO_REAL_VALUE"))
     handler(res.addCookie(Cookie.clear("key")))
-    
 
 
     val socketRoutes =
       Routes(
         Method.GET / "discussions"          -> handler(socketApp.toResponse),
+      )
+      /*
+      // This might actually be the backend bit that I want, but I don't know how to pass it via the front end.
+        @@ HandlerAspect.bearerAuthZIO { secret =>
+        defer:
+          ZIO.debug("TODO: Actual logic on this token: " + secret.stringValue).run
+          secret.stringValue.nonEmpty || true // TODO Real check
+      }
+
+       */
+
+    val authRoutes =
+      Routes(
         // TODO Build this URL way sooner
         Method.GET / "auth" -> handler(Response.redirect(URL.decode(s"https://github.com/login/oauth/authorize?client_id=$clientId").getOrElse(???))),
         Method.GET / "callback" ->
@@ -242,6 +254,11 @@ object Backend extends ZIOAppDefault {
               ).orDie
           ), // TODO Make sure we handle the code
       )
+
+    val allRoutes =
+      socketRoutes ++
+        authRoutes
+
 
   object ApplicationState:
     val layer =
@@ -270,7 +287,7 @@ object Backend extends ZIOAppDefault {
   override def run =
     val port = sys.env.getOrElse("PORT", throw new IllegalStateException("No value found for $PORT")).toInt
     defer:
-      val statefulRoutes = ZIO.serviceWith[ApplicationState](_.socketRoutes).run
+      val statefulRoutes = ZIO.serviceWith[ApplicationState](_.allRoutes).run
 
       Server.serve(statefulRoutes @@ Middleware.serveResources(Path.empty))
         .as("Just working around zio-direct limitation").run
@@ -280,6 +297,5 @@ object Backend extends ZIOAppDefault {
       DiscussionDataStore.layer,
       GlyphiconService.live,
       Client.default,
-      Scope.default
     )
 }
