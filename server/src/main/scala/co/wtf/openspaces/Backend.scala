@@ -5,6 +5,7 @@ import zio.*
 import zio.json.*
 import zio.direct.*
 import zio.http.*
+import zio.http.codec.{Doc, HeaderCodec}
 import zio.http.codec.HttpCodec.query
 import zio.http.endpoint.Endpoint
 
@@ -175,11 +176,14 @@ object Backend extends ZIOAppDefault {
         .query(
           query[String]("code")
         )
-        .out[String]
+//        .outHeader(Header.Location(URL.decode("/index.html").getOrElse(???)))
+        .out[String](Status.PermanentRedirect)
+        .outHeader(HeaderCodec.location ?? Doc.p("The user's location"))
+
 
     val callbackRoute =
       callback.implement { (code) =>
-        (for {
+        ZIO.scoped(for {
           _ <- ZIO.debug("callback! Code: " + code)
           /*
            TODO Scala zio-http version of this code:
@@ -211,7 +215,7 @@ object Backend extends ZIOAppDefault {
             .get("/access_token")
           data   <- res.body.asString
           _      <- Console.printLine(data)
-        } yield "Hi there. Should have done some more callback stuff"
+        } yield ("hi", Header.Location(???))
         ).orDie
       }
 
