@@ -215,7 +215,7 @@ object Backend extends ZIOAppDefault {
             .get("/access_token")
           data   <- res.body.asString
           _      <- Console.printLine(data)
-        } yield ("hi", Header.Location(???))
+        } yield ("hi", Header.Location(URL.decode("/index.html").getOrElse(throw new Exception("Bad url: /index.html" ))))
         ).orDie
       }
 
