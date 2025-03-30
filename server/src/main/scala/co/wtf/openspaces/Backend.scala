@@ -55,73 +55,6 @@ object Backend extends ZIOAppDefault {
                                client: Client
                              ):
 
-    val socketApp: WebSocketApp[Any] =
-      Handler.webSocket { channel =>
-        channel.receiveAll {
-          case Read(WebSocketFrame.Text(text)) =>
-            defer:
-              val discussionAction = ZIO.fromEither(text.fromJson[DiscussionAction])
-                .mapError(deserError => new Exception(s"Failed to deserialize: $deserError"))
-                .run
-
-              val actionResult = discussionDataStore.applyAction(discussionAction).run
-              defer:
-                val channels = connectedUsers.get.run
-                println(s"Action result: \n $actionResult\nWill send to ${channels.size} connected users.")
-                ZIO.foreachParDiscard(channels)( channel =>
-                  val fullJson = actionResult.toJsonPretty
-                  ZIO.debug(s"Sending discussion: $fullJson to $channel") *>
-                    channel.send(Read(WebSocketFrame.text(fullJson))).ignore
-                ).run
-              .run
-
-//            .catchAll(ex => ZIO.debug("Failed to handle action: " + ex)) // TODO Does this screw up the socket connection if we let errors escape?
-
-          case UserEventTriggered(UserEvent.HandshakeComplete) =>
-            defer:
-              connectedUsers.update(_ :+ channel).run
-              val discussions = discussionDataStore.snapshot.run
-              ZIO.foreachDiscard(discussions.data)((topic, discussion) =>
-                val content: DiscussionActionConfirmed = DiscussionActionConfirmed.AddResult(discussion)
-                channel.send(Read(WebSocketFrame.text(content.toJson)))
-              ).run
-
-              ZIO.when(false):
-                defer:
-                  val action = discussionDataStore.randomDiscussionAction.run
-                  channel.send(Read(WebSocketFrame.text(action.toJson))).run
-                .repeat(Schedule.spaced(1.seconds) && Schedule.forever)
-              .forkDaemon.run
-
-          case Read(WebSocketFrame.Close(status, reason)) =>
-            Console.printLine("Closing channel with status: " + status + " and reason: " + reason)
-
-          case ExceptionCaught(cause) =>
-            Console.printLine(s"Channel error!: ${cause.getMessage}")
-
-          case other =>
-            ZIO.debug("Other channel event: " + other)
-        }
-      }
-
-
-    // TODO Consider "ticketing" system described here for WS auth
-    // https://devcenter.heroku.com/articles/websocket-security
-
-    val socketRoutes =
-      Routes(
-        Method.GET / "discussions"          -> handler(socketApp.toResponse),
-      )
-      /*
-      // This might actually be the backend bit that I want, but I don't know how to pass it via the front end.
-        @@ HandlerAspect.bearerAuthZIO { secret =>
-        defer:
-          ZIO.debug("TODO: Actual logic on this token: " + secret.stringValue).run
-          secret.stringValue.nonEmpty || true // TODO Real check
-      }
-
-       */
-
     val authRoutes =
       Routes(
         // TODO Build this URL way sooner
@@ -151,10 +84,6 @@ object Backend extends ZIOAppDefault {
           ), // TODO Make sure we handle the code
       )
 
-    val allRoutes =
-      socketRoutes ++
-        authRoutes
-
 
   object ApplicationState:
     val layer =
@@ -183,13 +112,16 @@ object Backend extends ZIOAppDefault {
   override def run =
     val port = sys.env.getOrElse("PORT", throw new IllegalStateException("No value found for $PORT")).toInt
     defer:
-      val statefulRoutes = ZIO.serviceWith[ApplicationState](_.allRoutes).run
+      val statefulRoutes = ZIO.serviceWith[ApplicationState](_.authRoutes).run
+      val socketRoutes = ZIO.serviceWith[BackendSocketApp](_.socketRoutes).run
+      val allRoutes = statefulRoutes ++ socketRoutes
 
-      Server.serve(statefulRoutes @@ Middleware.serveResources(Path.empty))
+      Server.serve(allRoutes @@ Middleware.serveResources(Path.empty))
         .as("Just working around zio-direct limitation").run
     .provide(
       Server.defaultWith(_.port(port)),
       ApplicationState.layer,
+      BackendSocketApp.layer,
       DiscussionDataStore.layer,
       GlyphiconService.live,
       Client.default,
