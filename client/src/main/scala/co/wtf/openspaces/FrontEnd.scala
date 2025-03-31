@@ -381,31 +381,44 @@ def ScheduleView(
       ),
       div(
         cls:="TimeSlots",
-        div(
-          div("Monday"),
-          SlotSchedule(
-            fullSchedule.signal,
-            fullSchedule.signal.map(discussionState => discussionState.slots.head.slots(0)),
-            updateTargetDiscussion,
-            activeDiscussion.signal
-          ),
-          SlotSchedule(
-            fullSchedule.signal,
-            fullSchedule.signal.map(discussionState => discussionState.slots.head.slots(1)),
-            updateTargetDiscussion,
-            activeDiscussion.signal
-          ),
-          SlotSchedule(
-            fullSchedule.signal,
-            fullSchedule.signal.map(discussionState => discussionState.slots.head.slots(2)),
-            updateTargetDiscussion,
-            activeDiscussion.signal
-          ),
+        SlotSchedules(
+          fullSchedule.signal,
+          updateTargetDiscussion,
+          activeDiscussion.signal
+        ),
         )
       )
-    ),
   )
 }
+
+def SlotSchedules(
+                    $discussionState: Signal[DiscussionState],
+                    updateDiscussion: Observer[Discussion],
+                    activeDiscussion: StrictSignal[Option[Discussion]]
+                  ) =
+  div(
+    children <--
+      $discussionState.map(discussionState =>
+        discussionState.slots.map(daySlot =>
+          div(
+            div(daySlot.date.getDayOfWeek.toString()),
+            daySlot.slots.map(timeSlotsForAllRooms =>
+              div(
+                cls:="SlotRow",
+                div(cls:="TimeOfSlot", timeSlotsForAllRooms.time.s),
+
+                timeSlotsForAllRooms.rooms
+                  .map {
+                    room =>
+                      div(cls:="Cell", ScheduleSlotComponent(timeSlotsForAllRooms.time, room, $discussionState, updateDiscussion, activeDiscussion))
+                  }
+              )
+            )
+          )
+        )
+
+      )
+  )
 
 object FrontEnd extends App:
   lazy val container = dom.document.getElementById("app")
