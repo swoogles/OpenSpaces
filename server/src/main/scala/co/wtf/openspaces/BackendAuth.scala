@@ -2,6 +2,7 @@ package co.wtf.openspaces
 
 import zio.*
 import zio.direct.*
+import zio.json.*
 import zio.http.*
 
 case class ClientId(value: String):
@@ -75,7 +76,9 @@ case class ApplicationState(
   val ticketRoutes =
     Routes(
       Method.GET / "ticket" -> handler { (_: Request) =>
-        ZIO.succeed(Response.text("Ticket route accessed!"))
+        defer:
+          val ticket = ticketService.create.run
+          Response.json(ticket.toJson)
       }
     ) @@ HandlerAspect.bearerAuthZIO { secret =>
       defer:

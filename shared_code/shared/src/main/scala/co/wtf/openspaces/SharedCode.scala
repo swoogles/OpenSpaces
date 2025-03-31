@@ -5,6 +5,10 @@ import co.wtf.openspaces.VotePosition.Interested
 import zio.json.*
 
 import java.time.LocalDateTime
+import java.util.UUID
+
+
+case class Ticket(uuid: UUID) derives JsonCodec
 
 case class Person(unwrap: String)
 object Person:

@@ -1,13 +1,12 @@
 package co.wtf.openspaces
 
 import java.util.UUID
-import zio._
-import zio.direct._
-
-case class Ticket(UUID: UUID)
+import zio.*
+import zio.direct.*
+import zio.json.JsonCodec
 
 case class AuthenticatedTicketService(tickets: Ref[List[Ticket]]):
-  val create =
+  val create: ZIO[Any, Nothing, Ticket] =
     defer:
       val newTicket = Ticket(Random.nextUUID.run)
       tickets.update(_ :+ newTicket).run
