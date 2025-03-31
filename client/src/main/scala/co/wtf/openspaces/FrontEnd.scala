@@ -71,21 +71,6 @@ private def NameBadge(textVar: Var[Person]) =
       ),
       div(
         // Make fetch request when this div element is mounted:
-        FetchStream.get("/ticket", fetchOptions => fetchOptions.headers("Authorization" -> s"Bearer ${getCookie("access_token").get}"))
-          .flatMapSwitch {
-            responseText =>
-              val ticket = responseText.fromJson[Ticket].getOrElse(throw new Exception("Failed to parse ticket: " + responseText))
-              println("Ticket received: " + ticket)
-              FetchStream.get("/ticket", fetchOptions => fetchOptions.headers("Authorization" -> s"Bearer ${getCookie("access_token").get}"))
-          } --> Observer {
-          _ => println("terminal observer")
-        },
-        // Make fetch request on every click:
-//        onClick.flatMap(_ => FetchStream.get(url)) --> { responseText => doSomething },
-        // Same, but also get the click event:
-//        onClick.flatMap(ev => FetchStream.get(url).map((ev, _))) --> {
-//          case (ev, responseText) => doSomething
-//        }
       )
     )
   )
@@ -503,8 +488,31 @@ object FrontEnd extends App:
 
 
   val app = {
+      // Make fetch request on every click:
+      //        onClick.flatMap(_ => FetchStream.get(url)) --> { responseText => doSomething },
+      // Same, but also get the click event:
+      //        onClick.flatMap(ev => FetchStream.get(url).map((ev, _))) --> {
+      //          case (ev, responseText) => doSomething
+      //        }
     div(
       cls := "PageContainer",
+
+      getCookie("access_token") match {
+        case Some(accessToken) => {
+          FetchStream.get("/ticket", fetchOptions => fetchOptions.headers("Authorization" -> s"Bearer ${getCookie("access_token").get}"))
+            .flatMapSwitch {
+              responseText =>
+                val ticket = responseText.fromJson[Ticket].getOrElse(throw new Exception("Failed to parse ticket: " + responseText))
+                println("Ticket received: " + ticket)
+                FetchStream.get("/ticket", fetchOptions => fetchOptions.headers("Authorization" -> s"Bearer ${getCookie("access_token").get}"))
+            } --> Observer {
+            _ => println("terminal observer")
+          }
+        }
+        case None => span("No access token found. Please log in.")
+
+      },
+
       topicUpdates.connect,
       topicUpdates.received.tapEach(println(_)) --> Observer {
         (event: DiscussionActionConfirmed) =>
