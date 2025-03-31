@@ -103,6 +103,23 @@ object DiscussionState:
             List(Room.king, Room.hawk, Room.artGallery, Room.danceHall)
           )
         )
+      ),
+      DaySlots(
+        LocalDate.of(2025, 6, 27),
+        List(
+          TimeSlotForAllRooms(
+            TimeSlot("8:00-8:50"),
+            List(Room.king, Room.hawk, Room.artGallery, Room.danceHall)
+          ),
+          TimeSlotForAllRooms(
+            TimeSlot("9:20-10:10"),
+            List(Room.king, Room.hawk, Room.artGallery, Room.danceHall)
+          ),
+          TimeSlotForAllRooms(
+            TimeSlot("10:30-11:20"),
+            List(Room.king, Room.hawk, Room.artGallery, Room.danceHall)
+          )
+        )
       )
     )
 
