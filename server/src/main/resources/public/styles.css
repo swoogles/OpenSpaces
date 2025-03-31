@@ -34,12 +34,13 @@
 .Schedule {
     display: grid;
     grid-template-columns: 1fr 4fr;
-    grid-template-rows: min-content; /* Just the header row */
+    grid-template-rows: 1fr 4fr; /* Just the header row */
     /*grid-auto-rows: auto; !* Automatically create rows for additional content *!*/
     grid-auto-rows: min-content;
     gap: 10px 0px; /* Added some gap between rows */
     grid-template-areas:
-    "deadspace RoomHeaders";
+    "deadspace RoomHeaders"
+    "TimeSlots TimeSlots";
     grid-area: Schedule;
 }
 
@@ -104,4 +105,9 @@
 
 .disabled {
     opacity: 20%;
+}
+
+.TimeSlots {
+    grid-area: TimeSlots;
+    overflow-y: auto; /* Enables vertical scrolling when content exceeds max-height */
 }

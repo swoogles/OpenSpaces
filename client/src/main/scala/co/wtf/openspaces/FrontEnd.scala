@@ -46,13 +46,6 @@ private def BannerLogo() =
 
 private def NameBadge(textVar: Var[Person]) =
   div(cls := "Banner",
-    onClick --> Observer {
-      _ =>
-        println("ZZZ On load, getting cookie...")
-        println(getCookie("access_token"))
-        println("Done trying to get cookie")
-
-    },
     img(cls := "LogoImg", src := "./wtf-web-nodate.jpg", role := "img"),
     div(
       span("Name:"),
@@ -131,16 +124,6 @@ private def SingleDiscussionComponent(
 
       val feedbackOnTopic =
         topic.interestedParties.find(_.voter == name.now())
-
-      val ableToVoiceNegativity =
-        feedbackOnTopic match
-          case None | Some(Feedback(_, VotePosition.Interested)) => true
-          case Some(Feedback(_, VotePosition.NotInterested)) => false
-
-      val ableToVoicePositivity =
-        feedbackOnTopic match
-          case None | Some(Feedback(_, VotePosition.NotInterested)) => true
-          case Some(Feedback(_, VotePosition.Interested)) => false
 
       val hasExpressedInterest =
         feedbackOnTopic match
@@ -394,27 +377,30 @@ def ScheduleView(
         div(cls := "Room3", "Art!"),
         div(cls := "Room4", "Dance")
       ),
-      SlotSchedule(
-        "8:00",
-        fullSchedule.signal,
-        fullSchedule.signal.map(discussionState => discussionState.slots(0)),
-        updateTargetDiscussion,
-        activeDiscussion.signal
-      ),
-      SlotSchedule(
-        "9:20",
-        fullSchedule.signal,
-        fullSchedule.signal.map(discussionState => discussionState.slots(1)),
-        updateTargetDiscussion,
-        activeDiscussion.signal
-      ),
-      SlotSchedule(
-        "10:30",
-        fullSchedule.signal,
-        fullSchedule.signal.map(discussionState => discussionState.slots(2)),
-        updateTargetDiscussion,
-        activeDiscussion.signal
-      ),
+      div(
+        cls:="TimeSlots",
+        SlotSchedule(
+          "8:00",
+          fullSchedule.signal,
+          fullSchedule.signal.map(discussionState => discussionState.slots(0)),
+          updateTargetDiscussion,
+          activeDiscussion.signal
+        ),
+        SlotSchedule(
+          "9:20",
+          fullSchedule.signal,
+          fullSchedule.signal.map(discussionState => discussionState.slots(1)),
+          updateTargetDiscussion,
+          activeDiscussion.signal
+        ),
+        SlotSchedule(
+          "10:30",
+          fullSchedule.signal,
+          fullSchedule.signal.map(discussionState => discussionState.slots(2)),
+          updateTargetDiscussion,
+          activeDiscussion.signal
+        ),
+      )
     ),
   )
 }
@@ -481,12 +467,6 @@ object FrontEnd extends App:
 
 
   val app = {
-      // Make fetch request on every click:
-      //        onClick.flatMap(_ => FetchStream.get(url)) --> { responseText => doSomething },
-      // Same, but also get the click event:
-      //        onClick.flatMap(ev => FetchStream.get(url).map((ev, _))) --> {
-      //          case (ev, responseText) => doSomething
-      //        }
     div(
       cls := "PageContainer",
 
@@ -496,12 +476,11 @@ object FrontEnd extends App:
         case Some(accessToken) => {
           div(
             div(
-              // logout and delete the cookie
               button(
                 onClick --> Observer {
                   _ =>
                     deleteCookie("access_token")
-                    window.location.reload() // refresh the page
+                    window.location.reload()
                 },
                 "Logout"
               )
