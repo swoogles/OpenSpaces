@@ -310,23 +310,25 @@ def ScheduleSlotComponent(
   )
 
 def SlotSchedule(
-                  timeOfSlot: String,
                   $discussionState: Signal[DiscussionState],
                   $timeSlotsForAllRooms: Signal[TimeSlotForAllRooms],
                   updateDiscussion: Observer[Discussion],
                   activeDiscussion: StrictSignal[Option[Discussion]]
                 ) =
   div(
-    cls:="SlotRow",
-    div(cls:="TimeOfSlot", timeOfSlot),
-    children <--
+    child <--
       $timeSlotsForAllRooms.map {
         timeSlotsForAllRooms =>
-          timeSlotsForAllRooms.rooms
-            .map {
-              room =>
-                div(cls:="Cell", ScheduleSlotComponent(timeSlotsForAllRooms.time, room, $discussionState, updateDiscussion, activeDiscussion))
-            }
+          div(
+            cls:="SlotRow",
+            div(cls:="TimeOfSlot", timeSlotsForAllRooms.time.s),
+
+            timeSlotsForAllRooms.rooms
+              .map {
+                room =>
+                  div(cls:="Cell", ScheduleSlotComponent(timeSlotsForAllRooms.time, room, $discussionState, updateDiscussion, activeDiscussion))
+              }
+          )
       }
   )
 
@@ -382,21 +384,18 @@ def ScheduleView(
         div(
           div("Monday"),
           SlotSchedule(
-            "8:00",
             fullSchedule.signal,
             fullSchedule.signal.map(discussionState => discussionState.slots.head.slots(0)),
             updateTargetDiscussion,
             activeDiscussion.signal
           ),
           SlotSchedule(
-            "9:20",
             fullSchedule.signal,
             fullSchedule.signal.map(discussionState => discussionState.slots.head.slots(1)),
             updateTargetDiscussion,
             activeDiscussion.signal
           ),
           SlotSchedule(
-            "10:30",
             fullSchedule.signal,
             fullSchedule.signal.map(discussionState => discussionState.slots.head.slots(2)),
             updateTargetDiscussion,
