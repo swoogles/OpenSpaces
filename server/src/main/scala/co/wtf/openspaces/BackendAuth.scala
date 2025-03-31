@@ -1,13 +1,8 @@
 package co.wtf.openspaces
 
-import co.wtf.openspaces.VotePosition.NotInterested
 import zio.*
-import zio.json.*
 import zio.direct.*
 import zio.http.*
-import zio.http.codec.{Doc, HeaderCodec}
-import zio.http.codec.HttpCodec.query
-import zio.http.endpoint.Endpoint
 
 case class ClientId(value: String):
   override def toString: String = value

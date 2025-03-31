@@ -1,20 +1,11 @@
 package co.wtf.openspaces
 
-import co.wtf.openspaces.VotePosition.NotInterested
 import zio.*
-import zio.json.*
 import zio.direct.*
 import zio.http.*
-import zio.http.codec.{Doc, HeaderCodec}
-import zio.http.codec.HttpCodec.query
-import zio.http.endpoint.Endpoint
 
 
 object Backend extends ZIOAppDefault {
-  import zio.http.ChannelEvent.{ExceptionCaught, Read, UserEvent, UserEventTriggered}
-
-
-
 
   override def run =
     val port = sys.env.getOrElse("PORT", throw new IllegalStateException("No value found for $PORT")).toInt
