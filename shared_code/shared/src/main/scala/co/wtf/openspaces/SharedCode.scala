@@ -8,8 +8,6 @@ import java.time.LocalDateTime
 import java.util.UUID
 
 
-case class Ticket(uuid: UUID) derives JsonCodec
-
 case class Person(unwrap: String)
 object Person:
   given codec: JsonCodec[Person] = JsonCodec.string.transform[Person](s => Person(s), _.unwrap)
@@ -106,7 +104,11 @@ object Discussion:
     )
 
 
-enum DiscussionAction derives JsonCodec:
+sealed trait WebSocketMessage derives JsonCodec
+
+case class Ticket(uuid: UUID) extends WebSocketMessage derives JsonCodec
+
+enum DiscussionAction extends WebSocketMessage derives JsonCodec:
   case Add(
             topic: Topic,
             facilitator: Person,

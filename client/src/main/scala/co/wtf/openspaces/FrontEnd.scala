@@ -65,13 +65,6 @@ private def NameBadge(textVar: Var[Person]) =
             localStorage.setItem("name", value.unwrap)
         },
       ),
-      a(
-        href := "/auth",
-        "Login",
-      ),
-      div(
-        // Make fetch request when this div element is mounted:
-      )
     )
   )
 
@@ -431,7 +424,7 @@ object FrontEnd extends App:
   import io.laminext.websocket.*
 
   val topicUpdates =
-    WebSocket.url("/discussions").text[DiscussionActionConfirmed, DiscussionAction](
+    WebSocket.url("/discussions").text[DiscussionActionConfirmed, WebSocketMessage](
       _.toJson,
       _.fromJson[DiscussionActionConfirmed].left.map(Exception(_))
     ).build()
@@ -497,64 +490,72 @@ object FrontEnd extends App:
     div(
       cls := "PageContainer",
 
+      topicUpdates.connect,
+
       getCookie("access_token") match {
         case Some(accessToken) => {
-          FetchStream.get("/ticket", fetchOptions => fetchOptions.headers("Authorization" -> s"Bearer ${getCookie("access_token").get}"))
-            .flatMapSwitch {
-              responseText =>
-                val ticket = responseText.fromJson[Ticket].getOrElse(throw new Exception("Failed to parse ticket: " + responseText))
-                println("Ticket received: " + ticket)
-                FetchStream.get("/ticket", fetchOptions => fetchOptions.headers("Authorization" -> s"Bearer ${getCookie("access_token").get}"))
-            } --> Observer {
-            _ => println("terminal observer")
-          }
+          div(
+            FetchStream.get("/ticket", fetchOptions => fetchOptions.headers("Authorization" -> s"Bearer ${getCookie("access_token").get}")) --> {
+                (responseText: String) =>
+                  val ticket = responseText.fromJson[Ticket].getOrElse(throw new Exception("Failed to parse ticket: " + responseText))
+                  println("Ticket received: " + ticket)
+                  topicUpdates.sendOne(ticket)
+              },
+
+            topicUpdates.received.tapEach(println(_)) --> Observer {
+              (event: DiscussionActionConfirmed) =>
+                println("Websocket Event: " + event)
+
+                event match
+                  case DiscussionActionConfirmed.Delete(topic) =>
+                    if (activeDiscussion.now().map(_.id).contains(topic))
+                      activeDiscussion.set(None)
+                    else ()
+                  case _ => ()
+
+                discussionState.update{existing =>
+                  val state = existing(event)
+                  val id:Option[TopicId] =
+                    event match
+                      case DiscussionActionConfirmed.Delete(topic) =>  Some(topic)
+                      case DiscussionActionConfirmed.Vote(topic, feedback) => Some(topic)
+                      case DiscussionActionConfirmed.RemoveVote(topic, voter) => Some(topic)
+                      case DiscussionActionConfirmed.Rename(topicId, newTopic) => Some(topicId)
+                      case DiscussionActionConfirmed.UpdateRoomSlot(topicId, roomSlot) => Some(topicId)
+                      case DiscussionActionConfirmed.Unschedule(topicId) => Some(topicId)
+                      case DiscussionActionConfirmed.AddResult(discussion) => None
+                  id.foreach(
+                    topicId =>
+                      if (activeDiscussion.now().map(_.id).contains(topicId))
+                        activeDiscussion.set(state.data.get(topicId))
+                  )
+
+                  state
+                }
+            },
+            errorBanner.component,
+            NameBadge(name),
+            ScheduleView(
+              discussionState,
+              activeDiscussion,
+              topicUpdates.sendOne,
+              name.signal,
+              setActiveDiscussion
+            ),
+            liveTopicSubmissionAndVoting(updateTargetDiscussion),
+          )
         }
-        case None => span("No access token found. Please log in.")
+        case None =>
+          div(
+            span("No access token found. Please log in."),
+            a(
+              href := "/auth",
+              "Login",
+            ),
+          )
 
       },
 
-      topicUpdates.connect,
-      topicUpdates.received.tapEach(println(_)) --> Observer {
-        (event: DiscussionActionConfirmed) =>
-          println("Websocket Event: " + event)
-
-          event match
-            case DiscussionActionConfirmed.Delete(topic) =>
-              if (activeDiscussion.now().map(_.id).contains(topic))
-                activeDiscussion.set(None)
-              else ()
-            case _ => ()
-
-          discussionState.update{existing =>
-            val state = existing(event)
-            val id:Option[TopicId] =
-              event match
-                case DiscussionActionConfirmed.Delete(topic) =>  Some(topic)
-                case DiscussionActionConfirmed.Vote(topic, feedback) => Some(topic)
-                case DiscussionActionConfirmed.RemoveVote(topic, voter) => Some(topic)
-                case DiscussionActionConfirmed.Rename(topicId, newTopic) => Some(topicId)
-                case DiscussionActionConfirmed.UpdateRoomSlot(topicId, roomSlot) => Some(topicId)
-                case DiscussionActionConfirmed.Unschedule(topicId) => Some(topicId)
-                case DiscussionActionConfirmed.AddResult(discussion) => None
-            id.foreach(
-              topicId =>
-                if (activeDiscussion.now().map(_.id).contains(topicId))
-                  activeDiscussion.set(state.data.get(topicId))
-            )
-
-            state
-          }
-      },
-      errorBanner.component,
-      NameBadge(name),
-      ScheduleView(
-        discussionState,
-        activeDiscussion,
-        topicUpdates.sendOne,
-        name.signal,
-        setActiveDiscussion
-      ),
-      liveTopicSubmissionAndVoting(updateTargetDiscussion),
     )
   }
 
