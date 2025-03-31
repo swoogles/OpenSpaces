@@ -512,28 +512,27 @@ object FrontEnd extends App:
               (event: DiscussionActionConfirmed) =>
                 println("Websocket Event: " + event)
 
-                event match
-                  // TODO Recognize when an action was rejected because the user was unticketed, so that we can:
-                  //    - Request a ticket
-                  //    - Submit the ticket
-                  //    - Retry the action
-                  case DiscussionActionConfirmed.Delete(topic) =>
-                    if (activeDiscussion.now().map(_.id).contains(topic))
-                      activeDiscussion.set(None)
-                    else ()
-                  case _ => ()
+                // TODO Recognize when an action was rejected because the user was unticketed, so that we can:
+                //    - Request a ticket
+                //    - Submit the ticket
+                //    - Retry the action
 
                 discussionState.update{existing =>
                   val state = existing(event)
                   val id:Option[TopicId] =
                     event match
-                      case DiscussionActionConfirmed.Delete(topic) =>  Some(topic)
+                      case DiscussionActionConfirmed.Delete(topic) =>
+                        if (activeDiscussion.now().map(_.id).contains(topic))
+                          activeDiscussion.set(None)
+                        else ()
+                        Some(topic)
                       case DiscussionActionConfirmed.Vote(topic, feedback) => Some(topic)
                       case DiscussionActionConfirmed.RemoveVote(topic, voter) => Some(topic)
                       case DiscussionActionConfirmed.Rename(topicId, newTopic) => Some(topicId)
                       case DiscussionActionConfirmed.UpdateRoomSlot(topicId, roomSlot) => Some(topicId)
                       case DiscussionActionConfirmed.Unschedule(topicId) => Some(topicId)
                       case DiscussionActionConfirmed.AddResult(discussion) => None
+                      case DiscussionActionConfirmed.Rejected(action) => ???
                   id.foreach(
                     topicId =>
                       if (activeDiscussion.now().map(_.id).contains(topicId))

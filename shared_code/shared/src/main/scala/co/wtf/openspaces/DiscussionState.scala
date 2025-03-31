@@ -1,5 +1,7 @@
 package co.wtf.openspaces
 
+import co.wtf.openspaces.DiscussionActionConfirmed.Rejected
+
 import java.time.LocalDate
 
 case class DiscussionState(
@@ -18,6 +20,7 @@ case class DiscussionState(
   def apply(discussionAction: DiscussionActionConfirmed): DiscussionState = {
     copy(data =
       discussionAction match
+        case Rejected(action) => data // This should never actually get passed in, right?
         case DiscussionActionConfirmed.UpdateRoomSlot(topicId, roomSlot) =>
           data.updatedWith(topicId) {
             _.map(value =>

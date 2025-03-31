@@ -130,6 +130,7 @@ enum DiscussionActionConfirmed derives JsonCodec:
   case UpdateRoomSlot(topicId: TopicId, roomSlot: RoomSlot) // Any reason to pass original, now that I'm updating based on id?
   case Unschedule(topicId: TopicId) // TODO Should actually be an Option[RoomSlot], when unscheduling something
   case AddResult(discussion: Discussion)
+  case Rejected(discussionAction: DiscussionAction)
 
 object DiscussionActionConfirmed:
   def fromDiscussionAction(discussionAction: DiscussionAction): DiscussionActionConfirmed =
