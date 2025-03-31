@@ -473,6 +473,7 @@ object FrontEnd extends App:
     discussion =>
       discussion.roomSlot match
         case Some(value) =>
+          println("Doing things.")
           topicUpdates.sendOne(DiscussionAction.UpdateRoomSlot(discussion.id, value))
         case None =>
           topicUpdates.sendOne(DiscussionAction.Unschedule(discussion.id))

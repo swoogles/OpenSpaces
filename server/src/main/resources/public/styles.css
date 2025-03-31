@@ -53,7 +53,7 @@
         "TimeOfSlot Cell Cell Cell Cell";
     /* Remove grid-area: SlotRow; */
     grid-column: 1 / -1; /* Make it span all columns */
-    height: 5vh;
+    height: 8vh;
     align-self: start;
 }
 
