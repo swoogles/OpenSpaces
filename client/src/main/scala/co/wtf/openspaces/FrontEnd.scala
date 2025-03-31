@@ -384,21 +384,21 @@ def ScheduleView(
           SlotSchedule(
             "8:00",
             fullSchedule.signal,
-            fullSchedule.signal.map(discussionState => discussionState.slots(0)),
+            fullSchedule.signal.map(discussionState => discussionState.slots.head.slots(0)),
             updateTargetDiscussion,
             activeDiscussion.signal
           ),
           SlotSchedule(
             "9:20",
             fullSchedule.signal,
-            fullSchedule.signal.map(discussionState => discussionState.slots(1)),
+            fullSchedule.signal.map(discussionState => discussionState.slots.head.slots(1)),
             updateTargetDiscussion,
             activeDiscussion.signal
           ),
           SlotSchedule(
             "10:30",
             fullSchedule.signal,
-            fullSchedule.signal.map(discussionState => discussionState.slots(2)),
+            fullSchedule.signal.map(discussionState => discussionState.slots.head.slots(2)),
             updateTargetDiscussion,
             activeDiscussion.signal
           ),

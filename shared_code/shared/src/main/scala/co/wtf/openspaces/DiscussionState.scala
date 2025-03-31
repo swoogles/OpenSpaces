@@ -1,7 +1,9 @@
 package co.wtf.openspaces
 
+import java.time.LocalDate
+
 case class DiscussionState(
-                            slots: List[TimeSlotForAllRooms],
+                            slots: List[DaySlots],
                             data: Map[TopicId, Discussion],
                           ):
   def roomSlotContent(roomSlot: RoomSlot): Option[Discussion] =
@@ -54,7 +56,7 @@ case class DiscussionState(
 
 object DiscussionState:
   def apply(
-             slots: List[TimeSlotForAllRooms],
+             slots: List[DaySlots],
              input: Discussion*): DiscussionState =
     val startingState = Map(
       input.map(d => (d.id, d)) *
@@ -68,17 +70,39 @@ object DiscussionState:
 
   val timeSlotExamples =
     List(
-      TimeSlotForAllRooms(
-        TimeSlot("8:00-8:50"),
-        List(Room.king, Room.hawk, Room.artGallery, Room.danceHall)
+      DaySlots(
+        LocalDate.of(2025, 6, 24),
+        List(
+          TimeSlotForAllRooms(
+            TimeSlot("8:00-8:50"),
+            List(Room.king, Room.hawk, Room.artGallery, Room.danceHall)
+          ),
+          TimeSlotForAllRooms(
+            TimeSlot("9:20-10:10"),
+            List(Room.king, Room.hawk, Room.artGallery, Room.danceHall)
+          ),
+          TimeSlotForAllRooms(
+            TimeSlot("10:30-11:20"),
+            List(Room.king, Room.hawk, Room.artGallery, Room.danceHall)
+          )
+        )
       ),
-      TimeSlotForAllRooms(
-        TimeSlot("9:20-10:10"),
-        List(Room.king, Room.hawk, Room.artGallery, Room.danceHall)
-      ),
-      TimeSlotForAllRooms(
-        TimeSlot("10:30-11:20"),
-        List(Room.king, Room.hawk, Room.artGallery, Room.danceHall)
+      DaySlots(
+        LocalDate.of(2025, 6, 25),
+        List(
+          TimeSlotForAllRooms(
+            TimeSlot("8:00-8:50"),
+            List(Room.king, Room.hawk, Room.artGallery, Room.danceHall)
+          ),
+          TimeSlotForAllRooms(
+            TimeSlot("9:20-10:10"),
+            List(Room.king, Room.hawk, Room.artGallery, Room.danceHall)
+          ),
+          TimeSlotForAllRooms(
+            TimeSlot("10:30-11:20"),
+            List(Room.king, Room.hawk, Room.artGallery, Room.danceHall)
+          )
+        )
       )
     )
 
