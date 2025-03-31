@@ -45,12 +45,12 @@ case class BackendSocketApp(
                       println(s"Action result: \n $actionResult\nWill send to ${channels.size} connected users.")
                       ZIO.foreachParDiscard(channels)(channel =>
                         val fullJson = actionResult.toJsonPretty
-                        ZIO.debug(s"Sending discussion: $fullJson to $channel") *>
                           channel.send(Read(WebSocketFrame.text(fullJson))).ignore
                       ).run
                     .run
 
                   } else {
+                    // TODO Spit back the action to the user, so they can retry after being ticketed?
                     ZIO.debug("Received action from an unticketed channel. Ignoring...").run
                   }
 

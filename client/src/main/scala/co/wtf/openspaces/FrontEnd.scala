@@ -513,6 +513,10 @@ object FrontEnd extends App:
                 println("Websocket Event: " + event)
 
                 event match
+                  // TODO Recognize when an action was rejected because the user was unticketed, so that we can:
+                  //    - Request a ticket
+                  //    - Submit the ticket
+                  //    - Retry the action
                   case DiscussionActionConfirmed.Delete(topic) =>
                     if (activeDiscussion.now().map(_.id).contains(topic))
                       activeDiscussion.set(None)
