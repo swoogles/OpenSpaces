@@ -507,15 +507,26 @@ object FrontEnd extends App:
                   println("Ticket received: " + ticket)
                   topicUpdates.sendOne(ticket)
               },
+            
+            topicUpdates.received.flatMapSwitch {
+              (event: DiscussionActionConfirmed) =>
+                event match
+                  case DiscussionActionConfirmed.Rejected(discussionAction) =>
+                    println("Oh no! We need to do a new ticket!")
+                    FetchStream.get("/ticket", fetchOptions => fetchOptions.headers("Authorization" -> s"Bearer ${getCookie("access_token").get}"))
+                      .map( response => (response, discussionAction))
+                  case other => 
+                    EventStream.empty
+            } --> {
+              (ticketResponse, discussionAction) =>
+                val ticket = ticketResponse.fromJson[Ticket].getOrElse(throw new Exception("Failed to parse ticket: " + ticketResponse))
+                topicUpdates.sendOne(ticket)
+                topicUpdates.sendOne(discussionAction) // REtry after successful ticket post
+            },
 
             topicUpdates.received.tapEach(println(_)) --> Observer {
               (event: DiscussionActionConfirmed) =>
                 println("Websocket Event: " + event)
-
-                // TODO Recognize when an action was rejected because the user was unticketed, so that we can:
-                //    - Request a ticket
-                //    - Submit the ticket
-                //    - Retry the action
 
                 discussionState.update{existing =>
                   val state = existing(event)
@@ -532,7 +543,12 @@ object FrontEnd extends App:
                       case DiscussionActionConfirmed.UpdateRoomSlot(topicId, roomSlot) => Some(topicId)
                       case DiscussionActionConfirmed.Unschedule(topicId) => Some(topicId)
                       case DiscussionActionConfirmed.AddResult(discussion) => None
-                      case DiscussionActionConfirmed.Rejected(action) => ???
+                      case DiscussionActionConfirmed.Rejected(action) =>
+                        // TODO Recognize when an action was rejected because the user was unticketed, so that we can:
+                        //    - Request a ticket
+                        //    - Submit the ticket
+                        //    - Retry the action
+                      None
                   id.foreach(
                     topicId =>
                       if (activeDiscussion.now().map(_.id).contains(topicId))

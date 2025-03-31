@@ -50,8 +50,10 @@ case class BackendSocketApp(
                     .run
 
                   } else {
+                    ZIO.debug("Received action from an unticketed channel. Send back rejection").run
+                    val content: DiscussionActionConfirmed = DiscussionActionConfirmed.Rejected(discussionAction)
+                    channel.send(Read(WebSocketFrame.text(content.toJson))).ignore.run
                     // TODO Spit back the action to the user, so they can retry after being ticketed?
-                    ZIO.debug("Received action from an unticketed channel. Ignoring...").run
                   }
 
         case UserEventTriggered(UserEvent.HandshakeComplete) =>
