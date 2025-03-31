@@ -401,7 +401,7 @@ def SlotSchedules(
       $discussionState.map(discussionState =>
         discussionState.slots.map(daySlot =>
           div(
-            div(daySlot.date.getDayOfWeek.toString()),
+            div(daySlot.date.getDayOfWeek.toString().take(3)),
             daySlot.slots.map(timeSlotsForAllRooms =>
               div(
                 cls:="SlotRow",
