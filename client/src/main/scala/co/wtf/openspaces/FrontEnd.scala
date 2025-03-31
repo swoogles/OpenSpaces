@@ -495,6 +495,17 @@ object FrontEnd extends App:
       getCookie("access_token") match {
         case Some(accessToken) => {
           div(
+            div(
+              // logout and delete the cookie
+              button(
+                onClick --> Observer {
+                  _ =>
+                    deleteCookie("access_token")
+                    window.location.reload() // refresh the page
+                },
+                "Logout"
+              )
+            ),
             FetchStream.get("/ticket", fetchOptions => fetchOptions.headers("Authorization" -> s"Bearer ${getCookie("access_token").get}")) --> {
                 (responseText: String) =>
                   val ticket = responseText.fromJson[Ticket].getOrElse(throw new Exception("Failed to parse ticket: " + responseText))
@@ -560,3 +571,7 @@ object FrontEnd extends App:
   }
 
   render(container, app)
+
+def deleteCookie(name: String) = {
+  dom.document.cookie = name + "=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
+}
