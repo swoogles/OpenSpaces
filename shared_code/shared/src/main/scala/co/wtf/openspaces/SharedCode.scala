@@ -4,7 +4,7 @@ import co.wtf.openspaces.DiscussionAction.Rename
 import co.wtf.openspaces.VotePosition.Interested
 import zio.json.*
 
-import java.time.LocalDateTime
+import java.time.{LocalDate, LocalDateTime}
 import java.util.UUID
 
 
@@ -178,3 +178,8 @@ case class TimeSlotForAllRooms(
                                 time: TimeSlot,
                                 rooms: List[Room]
                        ) derives JsonCodec
+
+case class DaySlots(
+                      date: LocalDate,
+                      slots: List[TimeSlotForAllRooms]
+                    ) derives JsonCodec

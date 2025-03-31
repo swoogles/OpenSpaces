@@ -379,27 +379,30 @@ def ScheduleView(
       ),
       div(
         cls:="TimeSlots",
-        SlotSchedule(
-          "8:00",
-          fullSchedule.signal,
-          fullSchedule.signal.map(discussionState => discussionState.slots(0)),
-          updateTargetDiscussion,
-          activeDiscussion.signal
-        ),
-        SlotSchedule(
-          "9:20",
-          fullSchedule.signal,
-          fullSchedule.signal.map(discussionState => discussionState.slots(1)),
-          updateTargetDiscussion,
-          activeDiscussion.signal
-        ),
-        SlotSchedule(
-          "10:30",
-          fullSchedule.signal,
-          fullSchedule.signal.map(discussionState => discussionState.slots(2)),
-          updateTargetDiscussion,
-          activeDiscussion.signal
-        ),
+        div(
+          div("Monday"),
+          SlotSchedule(
+            "8:00",
+            fullSchedule.signal,
+            fullSchedule.signal.map(discussionState => discussionState.slots(0)),
+            updateTargetDiscussion,
+            activeDiscussion.signal
+          ),
+          SlotSchedule(
+            "9:20",
+            fullSchedule.signal,
+            fullSchedule.signal.map(discussionState => discussionState.slots(1)),
+            updateTargetDiscussion,
+            activeDiscussion.signal
+          ),
+          SlotSchedule(
+            "10:30",
+            fullSchedule.signal,
+            fullSchedule.signal.map(discussionState => discussionState.slots(2)),
+            updateTargetDiscussion,
+            activeDiscussion.signal
+          ),
+        )
       )
     ),
   )
