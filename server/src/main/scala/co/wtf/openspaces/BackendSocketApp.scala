@@ -32,7 +32,7 @@ case class BackendSocketApp(
               ).run
             .run
 
-        //            .catchAll(ex => ZIO.debug("Failed to handle action: " + ex)) // TODO Does this screw up the socket connection if we let errors escape?
+          .catchAll(ex => ZIO.debug("Failed to handle action: " + ex)) // TODO Does this screw up the socket connection if we let errors escape?
 
         case UserEventTriggered(UserEvent.HandshakeComplete) =>
           defer:
