@@ -34,7 +34,12 @@ object BackendSocketAppTest extends ZIOSpecDefault {
                 ZIO.serviceWithZIO[Client](_.socket(socketClient))
                 .debug
                 .run
-            assertTrue(true)
+                // TODO Do we need a delay here to make it consisten? That feels very unlikely. 
+                // Maybe I need to set a Promise at the end of the Socket Interaction, and wait on that?
+                ZIO.withClock(Clock.ClockLive) {
+                    ZIO.sleep(100.millis)
+                }.run
+            assertTrue(app.connectedUsers.get.run.size == 1)
     }
   ).provide(
     BackendSocketApp.layer, 

@@ -24,7 +24,7 @@ case class BackendSocketApp(
                 defer:
                   ZIO.debug(s"Server processing $ticket").run
                   authenticatedTicketService.use(ticket).mapError(new Exception(_)).run
-                  connectedUsers.update(_ :+ channel).run
+                  connectedUsers.updateAndGet(_ :+ channel).debug("Connected users").run
                   val discussions = discussionDataStore.snapshot.run
                   ZIO.foreachDiscard(discussions.data)((topic, discussion) =>
                     val content: DiscussionActionConfirmed = DiscussionActionConfirmed.AddResult(discussion)
