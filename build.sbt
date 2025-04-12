@@ -11,6 +11,7 @@ ThisBuild / libraryDependencies ++=Seq(
 
 enablePlugins(DockerPlugin)
 
+
 name := "sticky-icky"
 
 import org.scalajs.linker.interface.ModuleSplitStyle
