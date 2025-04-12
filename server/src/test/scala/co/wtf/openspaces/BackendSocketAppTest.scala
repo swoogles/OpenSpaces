@@ -14,12 +14,16 @@ object BackendSocketAppTest extends ZIOSpecDefault {
         defer:
             val app = ZIO.service[BackendSocketApp].run
             val ticket = ZIO.serviceWithZIO[AuthenticatedTicketService](_.create).debug.run
+            val backEndStateOriginal = ZIO.serviceWithZIO[DiscussionDataStore](_.snapshot).run
+
 
             val frontEndDiscussionState = Ref.make(
-                DiscussionState(List.empty, Map.empty)
+                DiscussionState(backEndStateOriginal.slots, Map.empty)
             ).run
 
             TestClient.installSocketApp(app.socketApp).run
+
+            val promise = Promise.make[Nothing, Unit].run
 
             val socketClient: WebSocketApp[Any] =
                 Handler.webSocket { channel =>
@@ -27,12 +31,11 @@ object BackendSocketAppTest extends ZIOSpecDefault {
                     case ChannelEvent.Read(WebSocketFrame.Text(text)) =>
                         defer:
                             val confirmedAction: DiscussionActionConfirmed = text.fromJson[DiscussionActionConfirmed].getOrElse(???)
-                            frontEndDiscussionState.update(state => state.apply(confirmedAction)).run
+                            val state = frontEndDiscussionState.updateAndGet(state => state.apply(confirmedAction)).run
                             // channel.send(ChannelEvent.Read(WebSocketFrame.text("Hi Server"))).run
 
                     case ChannelEvent.UserEventTriggered(UserEvent.HandshakeComplete) =>
                         defer:
-                            ZIO.debug("Client Handshake complete").run
                             channel.send(ChannelEvent.Read(WebSocketFrame.text(ticket.asInstanceOf[WebSocketMessage].toJson))).run
                             ZIO.unit.run
                     case _ =>
@@ -52,7 +55,7 @@ object BackendSocketAppTest extends ZIOSpecDefault {
             val backEndState = ZIO.serviceWithZIO[DiscussionDataStore](_.snapshot).run
             assertTrue(
                 app.connectedUsers.get.run.size == 1,
-                frontEndState.copy(slots = backEndState.slots) == backEndState,
+                frontEndState == backEndState,
             )
     }
   ).provide(
