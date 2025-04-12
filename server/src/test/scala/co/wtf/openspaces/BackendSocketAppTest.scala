@@ -9,55 +9,80 @@ import zio.http.ChannelEvent.UserEvent
 import java.util.UUID
 
 object BackendSocketAppTest extends ZIOSpecDefault {
+  case class IndividualClient(
+    frontEndDiscussionState: Ref[DiscussionState],
+    socketClient: WebSocketApp[Any]
+  )
+
+  object IndividualClient:
+    def make(
+      slots: List[DaySlots],
+      socketClient: (discussionState: Ref[DiscussionState]) => WebSocketApp[Any]
+    ): ZIO[Any, Nothing, IndividualClient] =
+      defer:
+        val frontEndDiscussionState = Ref.make(
+          DiscussionState(slots, Map.empty)
+        ).run
+        
+        IndividualClient(frontEndDiscussionState, socketClient(frontEndDiscussionState))
+
   override def spec = suite("BackendSocketAppTest")(
     test("test") {
-        defer:
-            val app = ZIO.service[BackendSocketApp].run
-            val ticket = ZIO.serviceWithZIO[AuthenticatedTicketService](_.create).debug.run
-            val backEndStateOriginal = ZIO.serviceWithZIO[DiscussionDataStore](_.snapshot).run
+      defer:
+        val app = ZIO.service[BackendSocketApp].run
+        val ticket = ZIO.serviceWithZIO[AuthenticatedTicketService](_.create).debug.run
+        val backEndStateOriginal = ZIO.serviceWithZIO[DiscussionDataStore](_.snapshot).run
+
+        TestClient.installSocketApp(app.socketApp).run
 
 
-            val frontEndDiscussionState = Ref.make(
-                DiscussionState(backEndStateOriginal.slots, Map.empty)
-            ).run
+        val individualClients = ZIO.foreach(Range(1,2))(_ => IndividualClient.make(
+          backEndStateOriginal.slots,
+          (discussionState: Ref[DiscussionState]) =>
+            Handler.webSocket { channel =>
+              channel.receiveAll {
+                case ChannelEvent.Read(WebSocketFrame.Text(text)) =>
+                  defer:
+                    val confirmedAction: DiscussionActionConfirmed = text.fromJson[DiscussionActionConfirmed].getOrElse(???)
+                    val state = discussionState.updateAndGet(state => state.apply(confirmedAction)).run
 
-            TestClient.installSocketApp(app.socketApp).run
+                case ChannelEvent.UserEventTriggered(UserEvent.HandshakeComplete) =>
+                  defer:
+                    channel.send(ChannelEvent.Read(WebSocketFrame.text(ticket.asInstanceOf[WebSocketMessage].toJson))).run
+                    ZIO.unit.run
 
-            val promise = Promise.make[Nothing, Unit].run
 
-            val socketClient: WebSocketApp[Any] =
-                Handler.webSocket { channel =>
-                channel.receiveAll {
-                    case ChannelEvent.Read(WebSocketFrame.Text(text)) =>
-                        defer:
-                            val confirmedAction: DiscussionActionConfirmed = text.fromJson[DiscussionActionConfirmed].getOrElse(???)
-                            val state = frontEndDiscussionState.updateAndGet(state => state.apply(confirmedAction)).run
-                            // channel.send(ChannelEvent.Read(WebSocketFrame.text("Hi Server"))).run
+                case _ =>
+                  ZIO.unit
+              }
+            }
+        )
+        ).run
 
-                    case ChannelEvent.UserEventTriggered(UserEvent.HandshakeComplete) =>
-                        defer:
-                            channel.send(ChannelEvent.Read(WebSocketFrame.text(ticket.asInstanceOf[WebSocketMessage].toJson))).run
-                            Bill Frasure <bill.frasure@gmail.com>
-                            ZIO.unit.run
-                    case _ =>
-                        ZIO.unit
-                }
-                }
-            val response = 
-                ZIO.serviceWithZIO[Client](_.socket(socketClient))
+
+        val response = 
+            ZIO.foreach(individualClients) { individualClient =>
+            ZIO.serviceWithZIO[Client](_.socket(individualClient.socketClient))
+                .repeatN(1)
                 .debug
+                }
                 .run
-                // TODO Do we need a delay here to make it consisten? That feels very unlikely. 
-                // Maybe I need to set a Promise at the end of the Socket Interaction, and wait on that?
-                ZIO.withClock(Clock.ClockLive) {
-                    ZIO.sleep(100.millis)
-                }.run
-            val frontEndState = frontEndDiscussionState.get.run
-            val backEndState = ZIO.serviceWithZIO[DiscussionDataStore](_.snapshot).run
-            assertTrue(
+
+        ZIO.withClock(Clock.ClockLive) {
+          ZIO.sleep(500.millis)
+        }.run
+
+        ZIO.foreach(individualClients) { individualClient =>
+            defer:
+                val frontEndState = individualClient.frontEndDiscussionState.get.run
+                val backEndState = ZIO.serviceWithZIO[DiscussionDataStore](_.snapshot).run
+
+                assertTrue(
                 app.connectedUsers.get.run.size == 1,
-                frontEndState == backEndState,
-            )
+                frontEndState == backEndState
+                )
+        }.run
+        assertCompletes
     }
   ).provide(
     BackendSocketApp.layer, 
@@ -66,5 +91,5 @@ object BackendSocketAppTest extends ZIOSpecDefault {
     DiscussionDataStore.layer, 
     AuthenticatedTicketService.layer, 
     GlyphiconService.layer
-    )
+  )
 }
