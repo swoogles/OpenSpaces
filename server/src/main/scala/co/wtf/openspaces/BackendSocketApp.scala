@@ -22,6 +22,7 @@ case class BackendSocketApp(
             case Right(value) => value match
               case ticket: Ticket =>
                 defer:
+                  ZIO.debug(s"Server processing $ticket").run
                   authenticatedTicketService.use(ticket).mapError(new Exception(_)).run
                   connectedUsers.update(_ :+ channel).run
                   val discussions = discussionDataStore.snapshot.run
@@ -58,7 +59,7 @@ case class BackendSocketApp(
 
         case UserEventTriggered(UserEvent.HandshakeComplete) =>
           defer:
-            ZIO.debug("Handshake complete").run
+            ZIO.debug("Server Handshake complete").run
             ZIO.unit.run
 
 
