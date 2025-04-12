@@ -45,7 +45,7 @@ object BackendSocketAppTest extends ZIOSpecDefault {
         // TODO Capture the ticket below, and use it when starting the socket communication. Then we can stop invasively jamming a ticket in via `create` above.
 
 
-        val individualClients = ZIO.foreach(Range(1,3)){_ => 
+        val individualClients = ZIO.foreach(Range(0,2)){_ => 
             defer:
                 val ticketResponse = 
                     client(Request.get(URL.root/"ticket").addHeader(Header.Authorization.Bearer("some junk token"))).debug.run
@@ -82,7 +82,6 @@ object BackendSocketAppTest extends ZIOSpecDefault {
         val response = 
             ZIO.foreach(individualClients) { individualClient =>
             ZIO.serviceWithZIO[Client](_.socket(individualClient.socketClient))
-                .repeatN(1)
                 .debug
                 }
                 .run
