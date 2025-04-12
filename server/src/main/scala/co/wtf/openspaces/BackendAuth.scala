@@ -37,11 +37,29 @@ object AccessToken:
 
   }
 
+case class TicketRoutesApp(ticketService: AuthenticatedTicketService):
+  val routes =
+    Routes(
+      Method.GET / "ticket" -> handler { (_: Request) =>
+        defer:
+          ZIO.debug("/ticket time!").run
+          val ticket = ticketService.create.run
+          Response.json(ticket.toJson)
+      }
+    ) @@ HandlerAspect.bearerAuthZIO { secret =>
+      defer:
+        ZIO.debug("TODO: Actual logic on this token: " + secret.stringValue).run
+        secret.stringValue.nonEmpty || true // TODO Real check
+    }
+
+object TicketRoutesApp:
+  val layer = ZLayer.fromFunction(TicketRoutesApp.apply _)
+
 case class ApplicationState(
                              clientId: ClientId,
                              clientSecret: ClientSecret,
                              client: Client,
-                             ticketService: AuthenticatedTicketService
+                             ticketRoutesApp: TicketRoutesApp
                            ):
 
   val initialRoutes =
@@ -73,20 +91,7 @@ case class ApplicationState(
         ), // TODO Make sure we handle the code
     )
 
-  val ticketRoutes =
-    Routes(
-      Method.GET / "ticket" -> handler { (_: Request) =>
-        defer:
-          val ticket = ticketService.create.run
-          Response.json(ticket.toJson)
-      }
-    ) @@ HandlerAspect.bearerAuthZIO { secret =>
-      defer:
-        ZIO.debug("TODO: Actual logic on this token: " + secret.stringValue).run
-        secret.stringValue.nonEmpty || true // TODO Real check
-    }
-
-  val authRoutes = initialRoutes ++ ticketRoutes
+  val authRoutes = initialRoutes ++ ticketRoutesApp.routes
 
 
 object ApplicationState:
@@ -106,7 +111,7 @@ object ApplicationState:
             .map(ClientSecret(_))
             .run,
           ZIO.service[Client].run,
-          ZIO.service[AuthenticatedTicketService].run
+          ZIO.service[TicketRoutesApp].run
         )
 
 

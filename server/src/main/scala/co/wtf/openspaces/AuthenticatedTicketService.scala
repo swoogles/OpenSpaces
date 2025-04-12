@@ -8,7 +8,7 @@ import zio.json.JsonCodec
 case class AuthenticatedTicketService(tickets: Ref[List[Ticket]]):
   val create: ZIO[Any, Nothing, Ticket] =
     defer:
-      val newTicket = Ticket(Random.nextUUID.run)
+      val newTicket = Ticket(Random.nextUUID.debug("Next random uuid").run)
       tickets.update(_ :+ newTicket).run
       newTicket
 

@@ -23,6 +23,7 @@ object Backend extends ZIOAppDefault {
       DiscussionDataStore.layer,
       GlyphiconService.layer,
       Client.default,
-      AuthenticatedTicketService.layer
+      AuthenticatedTicketService.layer,
+      TicketRoutesApp.layer,
     )
 }
