@@ -37,6 +37,7 @@ object BackendSocketAppTest extends ZIOSpecDefault {
                     case ChannelEvent.UserEventTriggered(UserEvent.HandshakeComplete) =>
                         defer:
                             channel.send(ChannelEvent.Read(WebSocketFrame.text(ticket.asInstanceOf[WebSocketMessage].toJson))).run
+                            Bill Frasure <bill.frasure@gmail.com>
                             ZIO.unit.run
                     case _ =>
                         ZIO.unit
