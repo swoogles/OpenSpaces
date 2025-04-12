@@ -18,7 +18,8 @@ case class BackendSocketApp(
       channel.receiveAll {
         case Read(WebSocketFrame.Text(text)) =>
           text.fromJson[WebSocketMessage] match
-            case Left(value) => ???
+            case Left(value) => 
+              ZIO.debug(s"Server received invalid message: $value")
             case Right(value) => value match
               case ticket: Ticket =>
                 defer:

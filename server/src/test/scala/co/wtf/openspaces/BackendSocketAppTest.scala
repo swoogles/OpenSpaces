@@ -14,12 +14,21 @@ object BackendSocketAppTest extends ZIOSpecDefault {
         defer:
             val app = ZIO.service[BackendSocketApp].run
             val ticket = ZIO.serviceWithZIO[AuthenticatedTicketService](_.create).debug.run
+
+            val frontEndDiscussionState = Ref.make(
+                DiscussionState(List.empty, Map.empty)
+            ).run
+
             TestClient.installSocketApp(app.socketApp).run
+
             val socketClient: WebSocketApp[Any] =
                 Handler.webSocket { channel =>
                 channel.receiveAll {
-                    case ChannelEvent.Read(WebSocketFrame.Text("Hi Client")) =>
-                    channel.send(ChannelEvent.Read(WebSocketFrame.text("Hi Server")))
+                    case ChannelEvent.Read(WebSocketFrame.Text(text)) =>
+                        defer:
+                            val confirmedAction: DiscussionActionConfirmed = text.fromJson[DiscussionActionConfirmed].getOrElse(???)
+                            frontEndDiscussionState.update(state => state.apply(confirmedAction)).run
+                            // channel.send(ChannelEvent.Read(WebSocketFrame.text("Hi Server"))).run
 
                     case ChannelEvent.UserEventTriggered(UserEvent.HandshakeComplete) =>
                         defer:
@@ -39,7 +48,12 @@ object BackendSocketAppTest extends ZIOSpecDefault {
                 ZIO.withClock(Clock.ClockLive) {
                     ZIO.sleep(100.millis)
                 }.run
-            assertTrue(app.connectedUsers.get.run.size == 1)
+            val frontEndState = frontEndDiscussionState.get.run
+            val backEndState = ZIO.serviceWithZIO[DiscussionDataStore](_.snapshot).run
+            assertTrue(
+                app.connectedUsers.get.run.size == 1,
+                frontEndState.copy(slots = backEndState.slots) == backEndState,
+            )
     }
   ).provide(
     BackendSocketApp.layer, 
