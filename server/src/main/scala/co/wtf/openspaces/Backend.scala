@@ -21,7 +21,7 @@ object Backend extends ZIOAppDefault {
       ApplicationState.layer,
       BackendSocketApp.layer,
       DiscussionDataStore.layer,
-      GlyphiconService.live,
+      GlyphiconService.layer,
       Client.default,
       AuthenticatedTicketService.layer
     )

@@ -25,7 +25,7 @@ object GlyphiconService:
       ref <- Ref.make(GlyphiconUtils.names)
     yield GlyphiconService(ref)
 
-  val live = ZLayer.fromZIO(make)
+  val layer = ZLayer.fromZIO(make)
 
 //  def getRandomIcon = ZIO.serviceWithZIO[GlyphiconService](_.getRandomIcon)
 //  def addIcon(icon: Glyphicon) = ZIO.serviceWithZIO[GlyphiconService](_.addIcon(icon))

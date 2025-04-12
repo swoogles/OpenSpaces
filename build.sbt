@@ -77,6 +77,7 @@ lazy val server = (project in file("server"))
     libraryDependencies ++= Seq(
       "dev.zio" %% "zio" % "2.1.16",
       "dev.zio" %% "zio-http" % "3.0.1",
+      "dev.zio" %% "zio-http-testkit" % "3.0.1",
       "dev.zio" %% "zio-direct" % "1.0.0-RC7"
     ),
   )

@@ -57,7 +57,10 @@ case class BackendSocketApp(
                   }
 
         case UserEventTriggered(UserEvent.HandshakeComplete) =>
-          ZIO.unit
+          defer:
+            ZIO.debug("Handshake complete").run
+            ZIO.unit.run
+
 
         case Read(WebSocketFrame.Close(status, reason)) =>
           Console.printLine("Closing channel with status: " + status + " and reason: " + reason)
