@@ -9,133 +9,131 @@ object DiscussionStateTest extends ZIOSpecDefault:
   val testUser2 = Person("testy-tester-2")
   val discussion =
     Discussion(
-      Topic.parseOrDie("Continuous Deployment - A goal, or an asymptote?"),
+      Topic.parseOrDie(
+        "Continuous Deployment - A goal, or an asymptote?",
+      ),
       testUser1,
       Set(testUser1),
-      TopicId(1)
+      TopicId(1),
     )
   val originalState =
     DiscussionState(
-    discussion
-  )
+      discussion,
+    )
   val spec =
     suite("DiscussionStateTest")(
-        suite("Vote")(
-          test("New vote"):
-            val res =
-              originalState(
-                DiscussionAction.Vote(discussion.id, testUser2)
-              )
-            val expected = DiscussionState(
-              discussion.copy(
-                interestedParties =
-                  Set(
-                    testUser1,
-                    testUser2
-                  )
-              )
+      suite("Vote")(
+        test("New vote"):
+          val res =
+            originalState(
+              DiscussionAction.Vote(discussion.id, testUser2),
             )
-            assertTrue(res == expected)
-          ,
-          test("Existing vote"):
-            val res =
-              originalState(
-                DiscussionAction.Vote(discussion.id, testUser1)
-              )
-            val expected = DiscussionState(
-              discussion.copy(
-                interestedParties =
-                  Set(
-                    testUser1,
-                  )
-              )
-            )
-            assertTrue(res == expected)
-        ),
-        suite("RemoveVote")(
-          test("existing vote"):
-            val res =
-              originalState(
-                DiscussionAction.RemoveVote(discussion.id, testUser1)
-              )
-            val expected = DiscussionState(
-              discussion.copy(
-                interestedParties =
-                  Set()
-              )
-            )
-            assertTrue(res == expected)
-          ,
-          test("non-existent vote"):
-            val res =
-              originalState(
-                DiscussionAction.RemoveVote(discussion.id, testUser2)
-              )
-            val expected = DiscussionState(
-              discussion.copy(
-                interestedParties =
-                  Set(testUser1)
-              )
-            )
-            assertTrue(res == expected)
-        ),
-
-        suite("Add discussion")(
-          test("new discussion"):
-            val newDiscussion =
-              Discussion(
-                Topic.parseOrDie("Managing emotional energy on the job"),
+          val expected = DiscussionState(
+            discussion.copy(
+              interestedParties = Set(
+                testUser1,
                 testUser2,
-                Set(Feedback(testUser2, VotePosition.Interested)),
-                TopicId(2),
-                GlyphiconUtils.names(2)
-              )
-            val res =
-              originalState(
-                DiscussionAction.Add(newDiscussion)
-              )
-            val expected = DiscussionState(
-              Map(
-                discussion.id -> discussion,
-                newDiscussion.id -> newDiscussion
-              )
+              ),
+            ),
+          )
+          assertTrue(res == expected)
+        ,
+        test("Existing vote"):
+          val res =
+            originalState(
+              DiscussionAction.Vote(discussion.id, testUser1),
             )
-            assertTrue(res == expected)
-            ,
-          test("existing discussion"):
-            val res =
-              originalState(
-                DiscussionAction.Add(discussion)
-              )
-            val expected = DiscussionState(
-              Map(
-                discussion.id -> discussion
-              )
+          val expected = DiscussionState(
+            discussion.copy(
+              interestedParties = Set(
+                testUser1,
+              ),
+            ),
+          )
+          assertTrue(res == expected),
+      ),
+      suite("RemoveVote")(
+        test("existing vote"):
+          val res =
+            originalState(
+              DiscussionAction.RemoveVote(discussion.id, testUser1),
             )
-            assertTrue(res == expected)
-        ),
+          val expected = DiscussionState(
+            discussion.copy(
+              interestedParties = Set(),
+            ),
+          )
+          assertTrue(res == expected)
+        ,
+        test("non-existent vote"):
+          val res =
+            originalState(
+              DiscussionAction.RemoveVote(discussion.id, testUser2),
+            )
+          val expected = DiscussionState(
+            discussion.copy(
+              interestedParties = Set(testUser1),
+            ),
+          )
+          assertTrue(res == expected),
+      ),
+      suite("Add discussion")(
+        test("new discussion"):
+          val newDiscussion =
+            Discussion(
+              Topic.parseOrDie(
+                "Managing emotional energy on the job",
+              ),
+              testUser2,
+              Set(Feedback(testUser2, VotePosition.Interested)),
+              TopicId(2),
+              GlyphiconUtils.names(2),
+            )
+          val res =
+            originalState(
+              DiscussionAction.Add(newDiscussion),
+            )
+          val expected = DiscussionState(
+            Map(
+              discussion.id    -> discussion,
+              newDiscussion.id -> newDiscussion,
+            ),
+          )
+          assertTrue(res == expected)
+        ,
+        test("existing discussion"):
+          val res =
+            originalState(
+              DiscussionAction.Add(discussion),
+            )
+          val expected = DiscussionState(
+            Map(
+              discussion.id -> discussion,
+            ),
+          )
+          assertTrue(res == expected),
+      ),
       suite("Remove discussion")(
         test("existing discussion"):
           val res =
             originalState(
-              DiscussionAction.Delete(discussion.id)
+              DiscussionAction.Delete(discussion.id),
             )
           val expected = DiscussionState(
-            Map()
+            Map(),
           )
           assertTrue(res == expected)
-          ,
+        ,
         test("non-existent discussion"):
           val res =
             originalState(
-              DiscussionAction.Delete(TopicId(2))
+              DiscussionAction.Delete(TopicId(2)),
             )
           val expected = DiscussionState(
             Map(
-              discussion.id -> discussion
-            )
+              discussion.id -> discussion,
+            ),
           )
-          assertTrue(res == expected)
-
-      )
+          assertTrue(res == expected),
+      ),
     )

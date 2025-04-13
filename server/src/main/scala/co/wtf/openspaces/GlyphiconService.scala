@@ -2,27 +2,27 @@ package co.wtf.openspaces
 
 import zio._
 
-case class GlyphiconService(availableIcons: Ref[List[Glyphicon]]):
+case class GlyphiconService(
+  availableIcons: Ref[List[Glyphicon]]):
 
   def getRandomIcon: UIO[Glyphicon] = // TODO Handle exhausted list
     for
-      icons <- availableIcons.get
-      _ <- ZIO.debug("Remaining icons: " + icons.length)
+      icons         <- availableIcons.get
+      _             <- ZIO.debug("Remaining icons: " + icons.length)
       randomIconIdx <- Random.nextIntBounded(icons.length)
       icon = icons(randomIconIdx)
       _ <- availableIcons.update(_.filterNot(_ == icon))
     yield icon
 
-  def addIcon(icon: Glyphicon): UIO[Unit] =
-    availableIcons.update(_ :+ icon)
-
+  def addIcon(
+    icon: Glyphicon,
+  ): UIO[Unit] = availableIcons.update(_ :+ icon)
 
 end GlyphiconService
 
 object GlyphiconService:
   def make =
-    for
-      ref <- Ref.make(GlyphiconUtils.names)
+    for ref <- Ref.make(GlyphiconUtils.names)
     yield GlyphiconService(ref)
 
   val layer = ZLayer.fromZIO(make)

@@ -9,7 +9,6 @@ object GlyphiconRandomDemo:
   def randomGlyphicon() =
     SvgIcon(
       names(
-        Random.nextInt(names.length)
-      )
+        Random.nextInt(names.length),
+      ),
     )
-

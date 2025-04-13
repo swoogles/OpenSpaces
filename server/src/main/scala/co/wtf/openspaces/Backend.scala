@@ -4,18 +4,26 @@ import zio.*
 import zio.direct.*
 import zio.http.*
 
-
 object Backend extends ZIOAppDefault {
 
   override def run =
-    val port = sys.env.getOrElse("PORT", throw new IllegalStateException("No value found for $PORT")).toInt
+    val port = sys.env
+      .getOrElse(
+        "PORT",
+        throw new IllegalStateException("No value found for $PORT"),
+      )
+      .toInt
     defer:
-      val statefulRoutes = ZIO.serviceWith[ApplicationState](_.authRoutes).run
-      val socketRoutes = ZIO.serviceWith[BackendSocketApp](_.socketRoutes).run
+      val statefulRoutes =
+        ZIO.serviceWith[ApplicationState](_.authRoutes).run
+      val socketRoutes =
+        ZIO.serviceWith[BackendSocketApp](_.socketRoutes).run
       val allRoutes = statefulRoutes ++ socketRoutes
 
-      Server.serve(allRoutes @@ Middleware.serveResources(Path.empty))
-        .as("Just working around zio-direct limitation").run
+      Server
+        .serve(allRoutes @@ Middleware.serveResources(Path.empty))
+        .as("Just working around zio-direct limitation")
+        .run
     .provide(
       Server.defaultWith(_.port(port)),
       ApplicationState.layer,
