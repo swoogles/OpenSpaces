@@ -68,7 +68,8 @@ case class BackendSocketApp(
                             .run
                         .repeat(
                           Schedule.spaced(
-                            1.seconds,
+                            500.millis,
+                            // 1.seconds,
                           ) && Schedule.forever,
                         )
                       .forkDaemon
