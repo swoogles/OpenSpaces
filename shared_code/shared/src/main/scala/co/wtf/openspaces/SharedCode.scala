@@ -129,9 +129,9 @@ enum DiscussionAction extends WebSocketMessage derives JsonCodec:
     newTopic: Topic) // Any reason to pass original, now that I'm updating based on id?
   case UpdateRoomSlot(
     topicId: TopicId,
-    roomSlot: RoomSlot) // TODO Should actually be an Option[RoomSlot], when unscheduling something
+    roomSlot: RoomSlot)
   case Unschedule(
-    topicId: TopicId) // TODO Should actually be an Option[RoomSlot], when unscheduling something
+    topicId: TopicId)
 //  case AssignToRoomSlot(discussion: Discussion, roomSlot: RoomSlot) // TODO
 
 enum DiscussionActionConfirmed derives JsonCodec:

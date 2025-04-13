@@ -8,7 +8,6 @@ case class GlyphiconService(
   def getRandomIcon: UIO[Glyphicon] = // TODO Handle exhausted list
     for
       icons         <- availableIcons.get
-      _             <- ZIO.debug("Remaining icons: " + icons.length)
       randomIconIdx <- Random.nextIntBounded(icons.length)
       icon = icons(randomIconIdx)
       _ <- availableIcons.update(_.filterNot(_ == icon))

@@ -43,7 +43,7 @@ class DiscussionDataStore(
 
   def randomDiscussionAction =
     defer:
-      val actionIdx = Random.nextIntBounded(5).run
+      val actionIdx = Random.nextIntBounded(10).run
       val noCurrentItems = snapshot.run.data.keys.toList.isEmpty
       val addNewDiscussion =
         val person =
@@ -55,15 +55,17 @@ class DiscussionDataStore(
 
       val action =
         if (noCurrentItems)
+          println("Adding new discussion")
           addNewDiscussion
         else
           actionIdx match {
             case 0 =>
+              println("Adding new discussion")
               addNewDiscussion
             case 1 =>
               val id = randomExistingTopicId.run
               DiscussionAction.Delete(id)
-            case 2 =>
+            case 2 | 3 | 4 =>
               val id = randomExistingTopicId.run
               val person = Person(
                 "RandomPerson - " + Random.nextIntBounded(20).run,
@@ -73,19 +75,50 @@ class DiscussionDataStore(
                 Feedback(person, VotePosition.Interested),
               )
 
-            case 3 =>
+            case 5 | 6 | 7 =>
               val id = randomExistingTopicId.run
               // TODO Ensure existing person that has voted for topic, unless it's got 0 votes
               val person = Person(
                 "RandomPerson - " + Random.nextIntBounded(20).run,
               )
               DiscussionAction.RemoveVote(id, person)
-            case 4 =>
+            case 8 =>
               val id = randomExistingTopicId.run
               val newTopic = DiscussionTopics.randomTopic.run
               DiscussionAction.Rename(id, newTopic)
+            case 9 =>
+              defer:
+                val id = randomExistingTopicId.run
+                val state =discussionDatabase.get.run
+                val slots = state.slots
+                // Find an available slot through some truly gory inline logic
+                val availableSlot =
+                  slots.flatMap(
+                    slot =>
+                      slot.slots.flatMap(timeSlotForAllRooms =>
+                        timeSlotForAllRooms.rooms.find( room =>
+                          !state.data.values.exists(discussion =>
+                            discussion.roomSlot.contains(RoomSlot(room, timeSlotForAllRooms.time)))
+                        ).map(room =>
+                          RoomSlot(
+                            room,
+                            timeSlotForAllRooms.time,
+                          )
+                        )
+                      )
+                  ).headOption
+                availableSlot match {
+                  case None =>
+                    DiscussionAction.Delete(id)
+                  case Some(roomSlot) =>
+                    DiscussionAction.UpdateRoomSlot(
+                      id,
+                      roomSlot
+                    )
+                }
+              .run
           }
-      applyAction(action).as(action).run
+      applyAction(action).run
 
 object DiscussionDataStore:
   val layer =

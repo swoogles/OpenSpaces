@@ -57,7 +57,7 @@ case class BackendSocketApp(
                       .run
 
                     ZIO
-                      .when(false):
+                      .when(true):
                         defer:
                           val action =
                             discussionDataStore.randomDiscussionAction.run
