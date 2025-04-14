@@ -495,14 +495,17 @@ object FrontEnd extends App:
   lazy val container = dom.document.getElementById("app")
   import io.laminext.websocket.*
 
-  val topicUpdates =
+  val topicUpdates = {
+    // If I don't confine the scope of it, it clashes with laminar's `span`. Weird.
+    import scala.concurrent.duration._
     WebSocket
       .url("/discussions")
       .text[DiscussionActionConfirmed, WebSocketMessage](
         _.toJson,
         _.fromJson[DiscussionActionConfirmed].left.map(Exception(_)),
       )
-      .build()
+      .build(autoReconnect = true, reconnectDelay = 1.second, reconnectDelayOffline = 20.seconds, reconnectRetries = 10)
+  }
 
   val discussionState: Var[DiscussionState] =
     Var(
@@ -644,7 +647,6 @@ object FrontEnd extends App:
             },
             topicUpdates.received.tapEach(println(_)) --> Observer {
               (event: DiscussionActionConfirmed) =>
-                println("Websocket Event: " + event)
 
                 discussionState.update { existing =>
                   val state = existing(event)

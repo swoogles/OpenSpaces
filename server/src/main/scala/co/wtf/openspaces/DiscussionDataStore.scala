@@ -55,12 +55,10 @@ class DiscussionDataStore(
 
       val action =
         if (noCurrentItems)
-          println("Adding new discussion")
           addNewDiscussion
         else
           actionIdx match {
             case 0 =>
-              println("Adding new discussion")
               addNewDiscussion
             case 1 =>
               val id = randomExistingTopicId.run
