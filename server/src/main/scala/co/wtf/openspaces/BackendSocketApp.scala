@@ -57,7 +57,7 @@ case class BackendSocketApp(
                       .run
 
                     ZIO
-                      .when(false):
+                      .when(true):
                         defer:
                           val action =
                             discussionDataStore.randomDiscussionAction.run
@@ -68,8 +68,8 @@ case class BackendSocketApp(
                             .run
                         .repeat(
                           Schedule.spaced(
-                            500.millis,
-                            // 1.seconds,
+                            // 500.millis,
+                            1.seconds,
                           ) && Schedule.forever,
                         )
                       .forkDaemon

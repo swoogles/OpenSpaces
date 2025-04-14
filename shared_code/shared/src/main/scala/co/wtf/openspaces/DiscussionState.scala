@@ -37,11 +37,7 @@ case class DiscussionState(
           _.map(value => value.copy(roomSlot = None))
         }
       case DiscussionActionConfirmed.Delete(topicId) =>
-        val beforeDelete = data
-        val res = data.filterNot(_._2.id == topicId)
-        println("beforeDelete: " + beforeDelete.size)
-        println("res: " + res.size)
-        res
+        data.filterNot(_._2.id == topicId)
       case DiscussionActionConfirmed.Vote(topicId, voter) =>
         data.updatedWith(topicId) {
           _.map(value =>
