@@ -55,7 +55,7 @@ object Discussion:
     Person("Bill"),
     TopicId(1),
     GlyphiconUtils.names(1),
-    roomSlot = Some(RoomSlot(Room.king, TimeSlot("8:00-8:50"))),
+    roomSlot = Some(RoomSlot(Room.king, TimeSlot("8:00-8:50", LocalDateTime.parse("2007-12-03T10:15:30")))),
   )
 
   val example2 = Discussion(
@@ -193,7 +193,7 @@ object Room:
 case class TimeSlot(
   s: String,
 //                     id: String,
-//                     startTime: LocalDateTime, // TODO Restore this. Required for dealing with topics showing up on multiple days
+  startTime: LocalDateTime = LocalDateTime.now(), // TODO Restore this. Required for dealing with topics showing up on multiple days
 //                     endTime: LocalDateTime // TODO Restore this.
 ) derives JsonCodec
 
