@@ -84,7 +84,7 @@ object DiscussionState:
         LocalDate.of(2025, 6, 24),
         List(
           TimeSlotForAllRooms(
-            TimeSlot("8:00-8:50", LocalDateTime.parse("2025-06-24T08:00:00")),
+            TimeSlot("8:00-8:50", LocalDateTime.parse("2025-06-24T08:00:00"), LocalDateTime.parse("2025-06-24T08:50:00")),
             List(Room.king,
                  Room.hawk,
                  Room.artGallery,
@@ -92,7 +92,7 @@ object DiscussionState:
             ),
           ),
           TimeSlotForAllRooms(
-            TimeSlot("9:20-10:10", LocalDateTime.parse("2025-06-24T09:20:00")),
+            TimeSlot("9:20-10:10", LocalDateTime.parse("2025-06-24T09:20:00"), LocalDateTime.parse("2025-06-24T10:10:00")),
             List(Room.king,
                  Room.hawk,
                  Room.artGallery,
@@ -100,7 +100,7 @@ object DiscussionState:
             ),
           ),
           TimeSlotForAllRooms(
-            TimeSlot("10:30-11:20", LocalDateTime.parse("2025-06-24T10:30:00")),
+            TimeSlot("10:30-11:20", LocalDateTime.parse("2025-06-24T10:30:00"), LocalDateTime.parse("2025-06-24T11:20:00")),
             List(Room.king,
                  Room.hawk,
                  Room.artGallery,
@@ -113,7 +113,7 @@ object DiscussionState:
         LocalDate.of(2025, 6, 25),
         List(
           TimeSlotForAllRooms(
-            TimeSlot("8:00-8:50", LocalDateTime.parse("2025-06-25T08:00:00")),
+            TimeSlot("8:00-8:50", LocalDateTime.parse("2025-06-25T08:00:00"), LocalDateTime.parse("2025-06-25T08:50:00")),
             List(Room.king,
                  Room.hawk,
                  Room.artGallery,
@@ -121,7 +121,7 @@ object DiscussionState:
             ),
           ),
           TimeSlotForAllRooms(
-            TimeSlot("9:20-10:10", LocalDateTime.parse("2025-06-25T09:20:00")),
+            TimeSlot("9:20-10:10", LocalDateTime.parse("2025-06-25T09:20:00"), LocalDateTime.parse("2025-06-25T10:10:00")),
             List(Room.king,
                  Room.hawk,
                  Room.artGallery,
@@ -129,7 +129,7 @@ object DiscussionState:
             ),
           ),
           TimeSlotForAllRooms(
-            TimeSlot("10:30-11:20", LocalDateTime.parse("2025-06-25T10:30:00")),
+            TimeSlot("10:30-11:20", LocalDateTime.parse("2025-06-25T10:30:00"), LocalDateTime.parse("2025-06-25T11:20:00")),
             List(Room.king,
                  Room.hawk,
                  Room.artGallery,
@@ -142,7 +142,7 @@ object DiscussionState:
         LocalDate.of(2025, 6, 27),
         List(
           TimeSlotForAllRooms(
-            TimeSlot("8:00-8:50", LocalDateTime.parse("2025-06-27T08:00:00")),
+            TimeSlot("8:00-8:50", LocalDateTime.parse("2025-06-27T08:00:00"), LocalDateTime.parse("2025-06-27T08:50:00")),
             List(Room.king,
                  Room.hawk,
                  Room.artGallery,
@@ -150,7 +150,7 @@ object DiscussionState:
             ),
           ),
           TimeSlotForAllRooms(
-            TimeSlot("9:20-10:10", LocalDateTime.parse("2025-06-27T09:20:00")),
+            TimeSlot("9:20-10:10", LocalDateTime.parse("2025-06-27T09:20:00"), LocalDateTime.parse("2025-06-27T10:10:00")),
             List(Room.king,
                  Room.hawk,
                  Room.artGallery,
@@ -158,7 +158,7 @@ object DiscussionState:
             ),
           ),
           TimeSlotForAllRooms(
-            TimeSlot("10:30-11:20", LocalDateTime.parse("2025-06-27T10:30:00")),
+            TimeSlot("10:30-11:20", LocalDateTime.parse("2025-06-27T10:30:00"), LocalDateTime.parse("2025-06-27T11:20:00")),
             List(Room.king,
                  Room.hawk,
                  Room.artGallery,
