@@ -169,7 +169,7 @@ object DiscussionState:
       ),
     )
 
-  val example =
+  val exampleWithDiscussions =
     DiscussionState(
       timeSlotExamples,
       Discussion.example1,
@@ -178,4 +178,9 @@ object DiscussionState:
       Discussion.example4,
       Discussion.example5,
       Discussion.example6,
+    )
+
+  val example =
+    DiscussionState(
+      timeSlotExamples,
     )

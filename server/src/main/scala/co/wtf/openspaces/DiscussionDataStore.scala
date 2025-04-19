@@ -119,6 +119,18 @@ class DiscussionDataStore(
       applyAction(action).run
 
 object DiscussionDataStore:
+  val layerWithSampleData =
+    ZLayer.fromZIO:
+      defer:
+        DiscussionDataStore(
+          Ref
+            .make(
+              DiscussionState.exampleWithDiscussions,
+            )
+            .run,
+          ZIO.service[GlyphiconService].run,
+        )
+
   val layer =
     ZLayer.fromZIO:
       defer:

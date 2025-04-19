@@ -45,6 +45,8 @@ object BackendSocketAppTest extends ZIOSpecDefault {
           val backEndStateOriginal =
             ZIO.serviceWithZIO[DiscussionDataStore](_.snapshot).run
 
+          println("Original size: " + backEndStateOriginal.data.size)
+
           TestClient.installSocketApp(app.socketApp).run
 
           val ticketRoutesApp = ZIO.service[TicketRoutesApp].run
@@ -106,6 +108,23 @@ object BackendSocketAppTest extends ZIOSpecDefault {
                                 )
                                 .run
 
+                              channel
+                                .send(
+                                  ChannelEvent.Read(
+                                    WebSocketFrame.text(
+                                      DiscussionAction.Delete(
+                                        TopicId(1)
+                                      )
+                                        .asInstanceOf[
+                                          WebSocketMessage,
+                                        ]
+                                        .toJson
+                                    ),
+                                  ),
+                                )
+                                .run
+
+
                           case other =>
                             defer:
                               ZIO.debug(s"Received unexpected event: $other").run
@@ -141,6 +160,8 @@ object BackendSocketAppTest extends ZIOSpecDefault {
                 val backEndState = ZIO
                   .serviceWithZIO[DiscussionDataStore](_.snapshot)
                   .run
+
+                println("Final size: " + backEndState.data.size)
 
                 assertTrue(
                   app.connectedUsers.get.run.size == 1,
