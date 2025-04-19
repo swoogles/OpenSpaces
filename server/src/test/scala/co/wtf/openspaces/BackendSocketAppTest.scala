@@ -142,15 +142,14 @@ object BackendSocketAppTest extends ZIOSpecDefault {
             }
             .run
 
-          val response =
-            ZIO
-              .foreach(individualClients) { individualClient =>
-                ZIO
-                  .serviceWithZIO[Client](
-                    _.socket(individualClient.socketClient),
-                  )
-              }
-              .run
+          ZIO
+            .foreach(individualClients) { individualClient =>
+              ZIO
+                .serviceWithZIO[Client](
+                  _.socket(individualClient.socketClient),
+                )
+            }
+            .run
 
           ZIO
             .withClock(Clock.ClockLive) {

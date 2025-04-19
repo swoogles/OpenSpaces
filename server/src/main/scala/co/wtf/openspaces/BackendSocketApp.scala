@@ -40,11 +40,8 @@ case class BackendSocketApp(
         .run
       val discussions = discussionDataStore.snapshot.run
       ZIO
-        .foreachDiscard(discussions.data)(
-          (
-            topic,
-            discussion,
-          ) =>
+        .foreachDiscard(discussions.data.values)(
+            discussion =>
             openSpacesServerChannel
               .send(
                 DiscussionActionConfirmed.AddResult(
@@ -101,19 +98,18 @@ case class BackendSocketApp(
     channel: WebSocketChannel,
     discussionAction: DiscussionAction
   ): ZIO[Any, Throwable, Unit] =
+    val openSpacesServerChannel = OpenSpacesServerChannel(channel)
     defer:
       ZIO
         .debug(
           "Received action from an unticketed channel. Send back rejection",
         )
         .run
-      val content: DiscussionActionConfirmed =
-        DiscussionActionConfirmed.Rejected(
-          discussionAction,
-        )
-      channel
+      openSpacesServerChannel
         .send(
-          Read(WebSocketFrame.text(content.toJson)),
+          DiscussionActionConfirmed.Rejected(
+            discussionAction,
+          )
         )
         .ignore
         .run
