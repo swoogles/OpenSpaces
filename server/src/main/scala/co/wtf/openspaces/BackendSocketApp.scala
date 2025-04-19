@@ -27,7 +27,6 @@ case class BackendSocketApp(
               value match
                 case ticket: Ticket =>
                   defer:
-                    ZIO.debug(s"Server processing $ticket").run
                     authenticatedTicketService
                       .use(ticket)
                       .tapError(e =>
@@ -37,7 +36,6 @@ case class BackendSocketApp(
                       .run
                     connectedUsers
                       .updateAndGet(_ :+ channel)
-                      .debug("Connected users")
                       .run
                     val discussions = discussionDataStore.snapshot.run
                     ZIO
@@ -119,7 +117,7 @@ case class BackendSocketApp(
 
         case UserEventTriggered(UserEvent.HandshakeComplete) =>
           defer:
-            ZIO.debug("Server Handshake complete").run
+            ZIO.debug("Server Handshake complete. Waiting for a valid ticket before sending data.").run
             ZIO.unit.run
 
         case Read(WebSocketFrame.Close(status, reason)) =>

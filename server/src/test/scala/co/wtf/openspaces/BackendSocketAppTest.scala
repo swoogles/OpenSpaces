@@ -8,6 +8,13 @@ import zio.direct.*
 import zio.http.ChannelEvent.UserEvent
 import java.util.UUID
 
+case class OpenSpacesChannel(
+  channel: WebSocketChannel,
+):
+  def send(message: WebSocketMessage): ZIO[Any, Throwable, Unit] =
+    channel.send(ChannelEvent.Read(WebSocketFrame.text(message.toJson)))
+
+
 object BackendSocketAppTest extends ZIOSpecDefault {
   case class IndividualClient(
     frontEndDiscussionState: Ref[DiscussionState],
@@ -30,6 +37,7 @@ object BackendSocketAppTest extends ZIOSpecDefault {
         IndividualClient(frontEndDiscussionState,
                          socketClient(frontEndDiscussionState),
         )
+
 
   override def spec =
     suite("BackendSocketAppTest")(
@@ -64,10 +72,10 @@ object BackendSocketAppTest extends ZIOSpecDefault {
                       .addHeader(
                         Header.Authorization.Bearer("some junk token"),
                       ),
-                  ).debug.run
+                  ).run
 
                 val ticket =
-                  ticketResponse.body.asString.debug.run
+                  ticketResponse.body.asString.run
                     .fromJson[Ticket]
                     .getOrElse(???)
 
@@ -76,6 +84,7 @@ object BackendSocketAppTest extends ZIOSpecDefault {
                     backEndStateOriginal.slots,
                     (discussionState: Ref[DiscussionState]) =>
                       Handler.webSocket { channel =>
+                        val openSpacesChannel = OpenSpacesChannel(channel)
                         channel.receiveAll {
                           case ChannelEvent
                                 .Read(WebSocketFrame.Text(text)) =>
@@ -94,40 +103,17 @@ object BackendSocketAppTest extends ZIOSpecDefault {
                                 UserEvent.HandshakeComplete,
                               ) =>
                             defer:
-                              channel
+                              openSpacesChannel
+                                .send(ticket)
+                              .run
+
+                              openSpacesChannel
                                 .send(
-                                  ChannelEvent.Read(
-                                    WebSocketFrame.text(
-                                      ticket
-                                        .asInstanceOf[
-                                          WebSocketMessage,
-                                        ]
-                                        .toJson,
-                                    ),
-                                  ),
+                                  DiscussionAction.Delete(
+                                    TopicId(1)
+                                  )
                                 )
-                                .run
-
-                              channel
-                                .send(
-                                  ChannelEvent.Read(
-                                    WebSocketFrame.text(
-                                      DiscussionAction.Delete(
-                                        TopicId(1)
-                                      )
-                                        .asInstanceOf[
-                                          WebSocketMessage,
-                                        ]
-                                        .toJson
-                                    ),
-                                  ),
-                                )
-                                .run
-
-
-                          case other =>
-                            defer:
-                              ZIO.debug(s"Received unexpected event: $other").run
+                              .run
                         }
                       },
                   )
@@ -142,7 +128,6 @@ object BackendSocketAppTest extends ZIOSpecDefault {
                   .serviceWithZIO[Client](
                     _.socket(individualClient.socketClient),
                   )
-                  .debug
               }
               .run
 

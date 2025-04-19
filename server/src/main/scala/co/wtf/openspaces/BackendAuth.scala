@@ -54,7 +54,6 @@ case class TicketRoutesApp(
     Routes(
       Method.GET / "ticket" -> handler { (_: Request) =>
         defer:
-          ZIO.debug("/ticket time!").run
           val ticket = ticketService.create.run
           Response.json(ticket.toJson)
       },

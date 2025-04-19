@@ -10,7 +10,7 @@ case class AuthenticatedTicketService(
   val create: ZIO[Any, Nothing, Ticket] =
     defer:
       val newTicket =
-        Ticket(Random.nextUUID.debug("Next random uuid").run)
+        Ticket(Random.nextUUID.run)
       tickets.update(_ :+ newTicket).run
       newTicket
 
