@@ -7,13 +7,34 @@ import zio.http.*
 import zio.direct.*
 import zio.http.ChannelEvent.UserEvent
 import java.util.UUID
+import zio.http.ChannelEvent.ExceptionCaught
+import zio.http.ChannelEvent.Read
+import zio.http.ChannelEvent.UserEventTriggered
+import zio.http.ChannelEvent.Registered
+import zio.http.ChannelEvent.Unregistered
+// TODO Use map/contrmap on 
+// type WebSocketChannel = Channel[WebSocketChannelEvent, WebSocketChannelEvent]
+//
+// And Figure out what the right output types are.
 
-case class OpenSpacesChannel(
+
+/*
+                        channel.map {
+                          case Read(message) => 
+                            Read(
+                              message
+                                .fromJson[DiscussionActionConfirmed]
+                                .getOrElse(???)
+                            )
+                          case other => other
+                        }
+*/
+
+case class OpenSpacesClientChannel(
   channel: WebSocketChannel,
 ):
   def send(message: WebSocketMessage): ZIO[Any, Throwable, Unit] =
     channel.send(ChannelEvent.Read(WebSocketFrame.text(message.toJson)))
-
 
 object BackendSocketAppTest extends ZIOSpecDefault {
   case class IndividualClient(
@@ -84,7 +105,7 @@ object BackendSocketAppTest extends ZIOSpecDefault {
                     backEndStateOriginal.slots,
                     (discussionState: Ref[DiscussionState]) =>
                       Handler.webSocket { channel =>
-                        val openSpacesChannel = OpenSpacesChannel(channel)
+                        val openSpacesClientChannel = OpenSpacesClientChannel(channel)
                         channel.receiveAll {
                           case ChannelEvent
                                 .Read(WebSocketFrame.Text(text)) =>
@@ -103,11 +124,11 @@ object BackendSocketAppTest extends ZIOSpecDefault {
                                 UserEvent.HandshakeComplete,
                               ) =>
                             defer:
-                              openSpacesChannel
+                              openSpacesClientChannel
                                 .send(ticket)
                               .run
 
-                              openSpacesChannel
+                              openSpacesClientChannel
                                 .send(
                                   DiscussionAction.Delete(
                                     TopicId(1)

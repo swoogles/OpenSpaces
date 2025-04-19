@@ -11,13 +11,70 @@ import zio.http.ChannelEvent.{
 }
 import zio.json.*
 
+case class OpenSpacesServerChannel(
+  channel: WebSocketChannel,
+):
+
+  def send(message: DiscussionActionConfirmed): ZIO[Any, Throwable, Unit] =
+    channel.send(ChannelEvent.Read(WebSocketFrame.text(message.toJson)))
+
+
 case class BackendSocketApp(
   connectedUsers: Ref[List[WebSocketChannel]],
   discussionDataStore: DiscussionDataStore,
   authenticatedTicketService: AuthenticatedTicketService):
 
+  def handleTicket(ticket: Ticket, channel: WebSocketChannel) =
+    val openSpacesServerChannel = OpenSpacesServerChannel(channel)
+
+    defer:
+      authenticatedTicketService
+        .use(ticket)
+        .tapError(e =>
+          ZIO.debug(s"Error processing ticket: $e"),
+        )
+        .mapError(new Exception(_))
+        .run
+      connectedUsers
+        .updateAndGet(_ :+ channel)
+        .run
+      val discussions = discussionDataStore.snapshot.run
+      ZIO
+        .foreachDiscard(discussions.data)(
+          (
+            topic,
+            discussion,
+          ) =>
+            openSpacesServerChannel
+              .send(
+                DiscussionActionConfirmed.AddResult(
+                  discussion,
+                )
+              ),
+        )
+
+  def startSpawningRandomActions(channel: WebSocketChannel) =
+    ZIO
+      .when(false):
+        defer:
+          val action =
+            discussionDataStore.randomDiscussionAction.run
+          channel
+            .send(
+              Read(WebSocketFrame.text(action.toJson)),
+            )
+            .run
+        .repeat(
+          Schedule.spaced(
+            500.millis,
+            // 1.seconds,
+          ) && Schedule.forever,
+        )
+      .forkDaemon
+
   val socketApp: WebSocketApp[Any] =
     Handler.webSocket { channel =>
+      val openSpacesServerChannel = OpenSpacesServerChannel(channel)
       channel.receiveAll {
         case Read(WebSocketFrame.Text(text)) =>
           text.fromJson[WebSocketMessage] match
@@ -27,51 +84,8 @@ case class BackendSocketApp(
               value match
                 case ticket: Ticket =>
                   defer:
-                    authenticatedTicketService
-                      .use(ticket)
-                      .tapError(e =>
-                        ZIO.debug(s"Error processing ticket: $e"),
-                      )
-                      .mapError(new Exception(_))
-                      .run
-                    connectedUsers
-                      .updateAndGet(_ :+ channel)
-                      .run
-                    val discussions = discussionDataStore.snapshot.run
-                    ZIO
-                      .foreachDiscard(discussions.data)(
-                        (
-                          topic,
-                          discussion,
-                        ) =>
-                          val content: DiscussionActionConfirmed =
-                            DiscussionActionConfirmed.AddResult(
-                              discussion,
-                            )
-                          channel.send(
-                            Read(WebSocketFrame.text(content.toJson)),
-                          ),
-                      )
-                      .run
-
-                    ZIO
-                      .when(false):
-                        defer:
-                          val action =
-                            discussionDataStore.randomDiscussionAction.run
-                          channel
-                            .send(
-                              Read(WebSocketFrame.text(action.toJson)),
-                            )
-                            .run
-                        .repeat(
-                          Schedule.spaced(
-                            500.millis,
-                            // 1.seconds,
-                          ) && Schedule.forever,
-                        )
-                      .forkDaemon
-                      .run
+                    handleTicket(ticket, channel).run
+                    startSpawningRandomActions(channel).run
                 case discussionAction: DiscussionAction =>
                   defer:
                     if (connectedUsers.get.run.contains(channel)) {
