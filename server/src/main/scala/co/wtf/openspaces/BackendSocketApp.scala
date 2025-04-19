@@ -72,9 +72,54 @@ case class BackendSocketApp(
         )
       .forkDaemon
 
+  private def handleTicketedAction(
+    channel: WebSocketChannel,
+    discussionAction: DiscussionAction
+  ): ZIO[Any, Throwable, Unit] =
+    defer:
+      val actionResult = discussionDataStore
+        .applyAction(discussionAction)
+        .run
+      defer:
+        val channels = connectedUsers.get.run
+        println(
+          s"Action result: \n $actionResult\nWill send to ${channels.size} connected users.",
+        )
+        ZIO
+          .foreachParDiscard(channels)(channel =>
+            val fullJson = actionResult.toJsonPretty
+            channel
+              .send(
+                Read(WebSocketFrame.text(fullJson)),
+              )
+              .ignore,
+          )
+          .run
+      .run
+
+  private def handleUnticketedAction(
+    channel: WebSocketChannel,
+    discussionAction: DiscussionAction
+  ): ZIO[Any, Throwable, Unit] =
+    defer:
+      ZIO
+        .debug(
+          "Received action from an unticketed channel. Send back rejection",
+        )
+        .run
+      val content: DiscussionActionConfirmed =
+        DiscussionActionConfirmed.Rejected(
+          discussionAction,
+        )
+      channel
+        .send(
+          Read(WebSocketFrame.text(content.toJson)),
+        )
+        .ignore
+        .run
+
   val socketApp: WebSocketApp[Any] =
     Handler.webSocket { channel =>
-      val openSpacesServerChannel = OpenSpacesServerChannel(channel)
       channel.receiveAll {
         case Read(WebSocketFrame.Text(text)) =>
           text.fromJson[WebSocketMessage] match
@@ -87,52 +132,13 @@ case class BackendSocketApp(
                     handleTicket(ticket, channel).run
                     startSpawningRandomActions(channel).run
                 case discussionAction: DiscussionAction =>
-                  defer:
-                    if (connectedUsers.get.run.contains(channel)) {
-                      val actionResult = discussionDataStore
-                        .applyAction(discussionAction)
-                        .run
-                      defer:
-                        val channels = connectedUsers.get.run
-                        println(
-                          s"Action result: \n $actionResult\nWill send to ${channels.size} connected users.",
-                        )
-                        ZIO
-                          .foreachParDiscard(channels)(channel =>
-                            val fullJson = actionResult.toJsonPretty
-                            channel
-                              .send(
-                                Read(WebSocketFrame.text(fullJson)),
-                              )
-                              .ignore,
-                          )
-                          .run
-                      .run
-
-                    }
-                    else {
-                      ZIO
-                        .debug(
-                          "Received action from an unticketed channel. Send back rejection",
-                        )
-                        .run
-                      val content: DiscussionActionConfirmed =
-                        DiscussionActionConfirmed.Rejected(
-                          discussionAction,
-                        )
-                      channel
-                        .send(
-                          Read(WebSocketFrame.text(content.toJson)),
-                        )
-                        .ignore
-                        .run
-                      // TODO Spit back the action to the user, so they can retry after being ticketed?
-                    }
+                  if (connectedUsers.get.run.contains(channel))
+                    handleTicketedAction(channel, discussionAction)
+                  else
+                    handleUnticketedAction(channel, discussionAction)
 
         case UserEventTriggered(UserEvent.HandshakeComplete) =>
-          defer:
-            ZIO.debug("Server Handshake complete. Waiting for a valid ticket before sending data.").run
-            ZIO.unit.run
+          ZIO.debug("Server Handshake complete. Waiting for a valid ticket before sending data.")
 
         case Read(WebSocketFrame.Close(status, reason)) =>
           Console.printLine(
