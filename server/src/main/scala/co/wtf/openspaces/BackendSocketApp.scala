@@ -48,11 +48,11 @@ case class BackendSocketApp(
                   discussion,
                 )
               ),
-        )
+        ).run
 
   def startSpawningRandomActions(channel: WebSocketChannel) =
     ZIO
-      .when(false):
+      .when(true):
         defer:
           val action =
             discussionDataStore.randomDiscussionAction.run
@@ -98,26 +98,19 @@ case class BackendSocketApp(
     channel: WebSocketChannel,
     discussionAction: DiscussionAction
   ): ZIO[Any, Throwable, Unit] =
-    val openSpacesServerChannel = OpenSpacesServerChannel(channel)
-    defer:
-      ZIO
-        .debug(
-          "Received action from an unticketed channel. Send back rejection",
+    OpenSpacesServerChannel(channel)
+      .send(
+        DiscussionActionConfirmed.Rejected(
+          discussionAction,
         )
-        .run
-      openSpacesServerChannel
-        .send(
-          DiscussionActionConfirmed.Rejected(
-            discussionAction,
-          )
-        )
-        .ignore
-        .run
+      ).debug("unticketed. Sending back")
+      .ignore
 
   val socketApp: WebSocketApp[Any] =
     Handler.webSocket { channel =>
       channel.receiveAll {
         case Read(WebSocketFrame.Text(text)) =>
+          println("Received message: " + text)
           text.fromJson[WebSocketMessage] match
             case Left(value) =>
               ZIO.debug(s"Server received invalid message: $value")
@@ -125,8 +118,8 @@ case class BackendSocketApp(
               value match
                 case ticket: Ticket =>
                   defer:
-                    handleTicket(ticket, channel).run
-                    startSpawningRandomActions(channel).run
+                    handleTicket(ticket, channel).debug("handleTicket").run
+                    startSpawningRandomActions(channel).debug("startSpawningRandomActions").run
                 case discussionAction: DiscussionAction =>
                   if (connectedUsers.get.run.contains(channel))
                     handleTicketedAction(channel, discussionAction)
