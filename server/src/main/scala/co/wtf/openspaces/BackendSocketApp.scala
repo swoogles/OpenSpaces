@@ -24,7 +24,7 @@ case class BackendSocketApp(
   discussionDataStore: DiscussionDataStore,
   authenticatedTicketService: AuthenticatedTicketService):
 
-  def handleTicket(ticket: Ticket, channel: WebSocketChannel) =
+  def handleTicket(ticket: Ticket, channel: WebSocketChannel): ZIO[Any, Throwable, Unit] =
     val openSpacesServerChannel = OpenSpacesServerChannel(channel)
 
     defer:
