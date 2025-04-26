@@ -11,51 +11,16 @@ import zio.http.ChannelEvent.{
 }
 import zio.json.*
 
-case class OpenSpacesServerChannel(
-  channel: WebSocketChannel,
-):
-
-  def send(message: DiscussionActionConfirmed): ZIO[Any, Throwable, Unit] =
-    channel.send(ChannelEvent.Read(WebSocketFrame.text(message.toJson)))
-
-
 case class BackendSocketApp(
-  connectedUsers: Ref[List[WebSocketChannel]],
-  discussionDataStore: DiscussionDataStore,
-  authenticatedTicketService: AuthenticatedTicketService):
-
-  def handleTicket(ticket: Ticket, channel: WebSocketChannel): ZIO[Any, Throwable, Unit] =
-    val openSpacesServerChannel = OpenSpacesServerChannel(channel)
-
-    defer:
-      authenticatedTicketService
-        .use(ticket)
-        .tapError(e =>
-          ZIO.debug(s"Error processing ticket: $e"),
-        )
-        .mapError(new Exception(_))
-        .run
-      connectedUsers
-        .updateAndGet(_ :+ channel)
-        .run
-      val discussions = discussionDataStore.snapshot.run
-      ZIO
-        .foreachDiscard(discussions.data.values)(
-            discussion =>
-            openSpacesServerChannel
-              .send(
-                DiscussionActionConfirmed.AddResult(
-                  discussion,
-                )
-              ),
-        ).run
+  discussionService: DiscussionService
+):
 
   def startSpawningRandomActions(channel: WebSocketChannel) =
     ZIO
-      .when(true):
+      .when(false):
         defer:
           val action =
-            discussionDataStore.randomDiscussionAction.run
+            discussionService.randomDiscussionAction.run
           channel
             .send(
               Read(WebSocketFrame.text(action.toJson)),
@@ -69,43 +34,6 @@ case class BackendSocketApp(
         )
       .forkDaemon
 
-  private def handleTicketedAction(
-    channel: WebSocketChannel,
-    discussionAction: DiscussionAction
-  ): ZIO[Any, Throwable, Unit] =
-    defer:
-      val actionResult = discussionDataStore
-        .applyAction(discussionAction)
-        .run
-      defer:
-        val channels = connectedUsers.get.run
-        println(
-          s"Action result: \n $actionResult\nWill send to ${channels.size} connected users.",
-        )
-        ZIO
-          .foreachParDiscard(channels)(channel =>
-            val fullJson = actionResult.toJsonPretty
-            channel
-              .send(
-                Read(WebSocketFrame.text(fullJson)),
-              )
-              .ignore,
-          )
-          .run
-      .run
-
-  private def handleUnticketedAction(
-    channel: WebSocketChannel,
-    discussionAction: DiscussionAction
-  ): ZIO[Any, Throwable, Unit] =
-    OpenSpacesServerChannel(channel)
-      .send(
-        DiscussionActionConfirmed.Rejected(
-          discussionAction,
-        )
-      ).debug("unticketed. Sending back")
-      .ignore
-
   val socketApp: WebSocketApp[Any] =
     Handler.webSocket { channel =>
       channel.receiveAll {
@@ -115,16 +43,10 @@ case class BackendSocketApp(
             case Left(value) =>
               ZIO.debug(s"Server received invalid message: $value")
             case Right(value) =>
-              value match
-                case ticket: Ticket =>
-                  defer:
-                    handleTicket(ticket, channel).debug("handleTicket").run
-                    startSpawningRandomActions(channel).debug("startSpawningRandomActions").run
-                case discussionAction: DiscussionAction =>
-                  if (connectedUsers.get.run.contains(channel))
-                    handleTicketedAction(channel, discussionAction)
-                  else
-                    handleUnticketedAction(channel, discussionAction)
+              defer:
+                discussionService.handleMessage(value, OpenSpacesServerChannel(channel)).debug("handleMessage").run
+                // This can't be done here, it can only be done after we've recognized the value as a ticket down in discussion service.
+                // startSpawningRandomActions(channel).debug("startSpawningRandomActions").run
 
         case UserEventTriggered(UserEvent.HandshakeComplete) =>
           ZIO.debug("Server Handshake complete. Waiting for a valid ticket before sending data.")
@@ -152,7 +74,5 @@ object BackendSocketApp:
     ZLayer.fromZIO:
       defer:
         BackendSocketApp(
-          Ref.make(List.empty[WebSocketChannel]).run,
-          ZIO.service[DiscussionDataStore].run,
-          ZIO.service[AuthenticatedTicketService].run,
+          ZIO.service[DiscussionService].run
         )

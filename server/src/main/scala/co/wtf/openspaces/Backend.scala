@@ -28,6 +28,7 @@ object Backend extends ZIOAppDefault {
       Server.defaultWith(_.port(port)),
       ApplicationState.layer,
       BackendSocketApp.layer,
+      DiscussionService.layer,
       DiscussionDataStore.layerWithSampleData,
       GlyphiconService.layer,
       Client.default,
