@@ -60,6 +60,10 @@ object BackendSocketAppTest extends ZIOSpecDefault {
                          socketClient(frontEndDiscussionState),
         )
 
+  private def waitForStateSync: ZIO[Any, Nothing, Unit] =
+    ZIO.withClock(Clock.ClockLive) {
+      ZIO.sleep(500.millis)
+    }
 
   override def spec =
     suite("BackendSocketAppTest")(
@@ -152,11 +156,7 @@ object BackendSocketAppTest extends ZIOSpecDefault {
             }
             .run
 
-          ZIO
-            .withClock(Clock.ClockLive) {
-              ZIO.sleep(500.millis)
-            }
-            .run
+          waitForStateSync.run
 
           ZIO
             .foreach(individualClients) { individualClient =>
@@ -251,11 +251,7 @@ object BackendSocketAppTest extends ZIOSpecDefault {
             )
             .run
 
-          ZIO
-            .withClock(Clock.ClockLive) {
-              ZIO.sleep(1500.millis)
-            }
-            .run
+          waitForStateSync.run
 
           defer:
               val frontEndState = individualClient.frontEndDiscussionState.get.run
@@ -359,11 +355,7 @@ object BackendSocketAppTest extends ZIOSpecDefault {
             )
             .run
 
-          ZIO
-            .withClock(Clock.ClockLive) {
-              ZIO.sleep(1500.millis)
-            }
-            .run
+          waitForStateSync.run
 
           defer:
             val frontEndState = individualClient.frontEndDiscussionState.get.run
@@ -475,11 +467,7 @@ object BackendSocketAppTest extends ZIOSpecDefault {
               )
               .run
 
-            ZIO
-              .withClock(Clock.ClockLive) {
-                ZIO.sleep(500.millis)
-              }
-              .run
+            waitForStateSync.run
 
             defer:
               val frontEndState = individualClient.frontEndDiscussionState.get.run
@@ -544,11 +532,7 @@ object BackendSocketAppTest extends ZIOSpecDefault {
             )
             .run
 
-          ZIO
-            .withClock(Clock.ClockLive) {
-              ZIO.sleep(500.millis)
-            }
-            .run
+          waitForStateSync.run
 
           defer:
             val frontEndState = individualClient.frontEndDiscussionState.get.run
