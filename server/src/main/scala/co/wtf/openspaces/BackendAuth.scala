@@ -59,11 +59,7 @@ case class TicketRoutesApp(
       },
     ) @@ HandlerAspect.bearerAuthZIO { secret =>
       defer:
-        ZIO
-          .debug(
-            "TODO: Actual logic on this token: " + secret.stringValue,
-          )
-          .run
+        ZIO.unit.run
         secret.stringValue.nonEmpty || true // TODO Real check
     }
 
@@ -101,7 +97,6 @@ case class ApplicationState(
                       "No code provided in query parameters",
                     ),
                   )
-                _ <- ZIO.debug("callback! Code: " + code)
                 res <- client
                   .url(
                     URL
@@ -115,7 +110,6 @@ case class ApplicationState(
                   )
                   .get("/access_token")
                 data <- res.body.asString.map(AccessToken.parse)
-                _    <- Console.printLine(data)
               } yield Response
                 .redirect(
                   URL

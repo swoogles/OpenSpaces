@@ -12,18 +12,14 @@ case class DiscussionService(
 ):
 
   def handleMessage(message: WebSocketMessage, channel: OpenSpacesServerChannel): ZIO[Any, Throwable, Unit] =
-    println("handleMessageZ: " + message)
     message match
       case ticket: Ticket =>
-        println("Ticket :)")
         handleTicket(ticket, channel)
       case discussionAction: DiscussionAction =>
         defer:
-            if (connectedUsers.get.debug("connectedUsers").run.contains(channel)) {
-                println("ZZ Ticketed :)")
+            if (connectedUsers.get.run.contains(channel)) {
                 handleTicketedAction(channel, discussionAction).run
             } else {
-                println("ZZ Unticketed :(")
                 handleUnticketedAction(channel, discussionAction).run
             }
 
@@ -31,19 +27,16 @@ case class DiscussionService(
     discussionDataStore.randomDiscussionAction
 
   private def handleTicket(ticket: Ticket, channel: OpenSpacesServerChannel): ZIO[Any, Throwable, Unit] =
-
     defer:
       authenticatedTicketService
         .use(ticket)
-        .debug("You've got a golden ticket!")
         .tapError(e =>
-          ZIO.debug(s"Error processing ticket: $e"),
+          ZIO.unit,
         )
         .mapError(new Exception(_))
         .run
       connectedUsers
         .updateAndGet(_ :+ channel)
-        .debug("Added channel to connected users")
         .run
       val discussions = discussionDataStore.snapshot.run
       ZIO
@@ -58,7 +51,7 @@ case class DiscussionService(
         ).run
 
   private def handleTicketedAction(
-    channel: OpenSpacesServerChannel, // TODO Not actually doing anything with this channel.
+    channel: OpenSpacesServerChannel,
     discussionAction: DiscussionAction
   ): ZIO[Any, Throwable, Unit] =
     defer:
@@ -67,9 +60,6 @@ case class DiscussionService(
         .run
       defer:
         val channels = connectedUsers.get.run
-        println(
-          s"Action result: \n $actionResult\nWill send to ${channels.size} connected users.",
-        )
         ZIO
           .foreachParDiscard(channels)(channel =>
             channel
@@ -90,7 +80,7 @@ case class DiscussionService(
         DiscussionActionConfirmed.Rejected(
           discussionAction,
         )
-      ).debug("unticketed. Sending back")
+      )
       .ignore
 
 object DiscussionService:

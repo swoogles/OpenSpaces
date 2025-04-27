@@ -108,15 +108,7 @@ private def TopicSubmission(
           ),
         )
         .tapEach { case _ =>
-          println(
-            "Unsafely clearing out submission, regardless of whether it got to the server",
-          )
-          println(
-            "Should wait till the Server confirms a TopicAdd, and if it matches the current text, clear it out",
-          )
-          println("Also a nice submission animation should happen")
           textVar.set("")
-
         } --> submitEffect,
       "Submit",
     ),
@@ -264,7 +256,6 @@ private def SingleDiscussionComponent(
         ),
       )
     case None =>
-      println("failed to get a topic")
       div("nothing")
   }
 
@@ -550,13 +541,11 @@ object FrontEnd extends App:
 
   val updateTargetDiscussion: Observer[Discussion] =
     Observer[Discussion] { discussion =>
-      println("Should update target to: " + discussion)
       dom.document
         .getElementsByClassName("ActiveDiscussion")
         .head
         .scrollIntoView(
           top = false,
-          //              { behavior: "instant", block: "end" }
         )
       activeDiscussion.set(Some(discussion))
     }
@@ -565,7 +554,6 @@ object FrontEnd extends App:
     discussion =>
       discussion.roomSlot match
         case Some(value) =>
-          println("Doing things.")
           topicUpdates.sendOne(
             DiscussionAction.UpdateRoomSlot(discussion.id, value),
           )
@@ -616,7 +604,6 @@ object FrontEnd extends App:
                   case DiscussionActionConfirmed.Rejected(
                         discussionAction,
                       ) =>
-                    println("Oh no! We need to do a new ticket!")
                     FetchStream
                       .get(
                         "/ticket",
@@ -643,9 +630,9 @@ object FrontEnd extends App:
                 topicUpdates.sendOne(ticket)
                 topicUpdates.sendOne(
                   discussionAction,
-                ) // REtry after successful ticket post
+                )
             },
-            topicUpdates.received.tapEach(println(_)) --> Observer {
+            topicUpdates.received --> Observer {
               (event: DiscussionActionConfirmed) =>
 
                 discussionState.update { existing =>

@@ -38,29 +38,24 @@ case class BackendSocketApp(
     Handler.webSocket { channel =>
       channel.receiveAll {
         case Read(WebSocketFrame.Text(text)) =>
-          println("Received message: " + text)
           text.fromJson[WebSocketMessage] match
             case Left(value) =>
-              ZIO.debug(s"Server received invalid message: $value")
+              ZIO.unit
             case Right(value) =>
               defer:
-                discussionService.handleMessage(value, OpenSpacesServerChannel(channel)).debug("handleMessage").run
-                // This can't be done here, it can only be done after we've recognized the value as a ticket down in discussion service.
-                // startSpawningRandomActions(channel).debug("startSpawningRandomActions").run
+                discussionService.handleMessage(value, OpenSpacesServerChannel(channel)).run
 
         case UserEventTriggered(UserEvent.HandshakeComplete) =>
-          ZIO.debug("Server Handshake complete. Waiting for a valid ticket before sending data.")
+          ZIO.unit
 
         case Read(WebSocketFrame.Close(status, reason)) =>
-          Console.printLine(
-            "Closing channel with status: " + status + " and reason: " + reason,
-          )
+          ZIO.unit
 
         case ExceptionCaught(cause) =>
-          Console.printLine(s"Channel error!: ${cause.getMessage}")
+          ZIO.unit
 
         case other =>
-          ZIO.debug("Other channel event: " + other)
+          ZIO.unit
       }
     }
 
