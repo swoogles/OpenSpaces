@@ -80,8 +80,6 @@ object BackendSocketAppTest extends ZIOSpecDefault {
           val backEndStateOriginal =
             ZIO.serviceWithZIO[DiscussionDataStore](_.snapshot).run
 
-          println("Original size: " + backEndStateOriginal.data.size)
-
           TestClient.installSocketApp(app.socketApp).run
 
           val ticketRoutesApp = ZIO.service[TicketRoutesApp].run
@@ -165,8 +163,6 @@ object BackendSocketAppTest extends ZIOSpecDefault {
                 val backEndState = ZIO
                   .serviceWithZIO[DiscussionDataStore](_.snapshot)
                   .run
-
-                println("Final size: " + backEndState.data.size)
 
                 assertTrue(
                   app.discussionService.connectedUsers.get.run.size == 1,
@@ -292,11 +288,9 @@ object BackendSocketAppTest extends ZIOSpecDefault {
                   channel.receiveAll {
                     case ChannelEvent.Read(WebSocketFrame.Text(text)) =>
                       defer:
-                        println("Reading in client")
                         val confirmedAction: DiscussionActionConfirmed = text
                           .fromJson[DiscussionActionConfirmed]
                           .getOrElse(???)
-                        println("confirmedAction: " + confirmedAction)
                         val state = discussionState
                           .updateAndGet(state =>
                             state.apply(confirmedAction),
@@ -306,14 +300,13 @@ object BackendSocketAppTest extends ZIOSpecDefault {
                     case ChannelEvent.UserEventTriggered(UserEvent.HandshakeComplete) =>
                       ZIO.scoped(
                         defer:
-                          println("Getting ticket")
                           val ticketResponse = client(
                             Request
                               .get(URL.root / "ticket")
                               .addHeader(
                                 Header.Authorization.Bearer("some junk token"),
                               ),
-                          ).debug("ticketResponse").run
+                          ).run
 
                           val ticket = ticketResponse.body.to[Ticket].run
 
@@ -468,7 +461,6 @@ object BackendSocketAppTest extends ZIOSpecDefault {
                 .serviceWithZIO[DiscussionDataStore](_.snapshot)
                 .run
 
-              println("frontEndState.data.values: " + frontEndState.data.values.head.roomSlot)
               assertTrue(
                 frontEndState == backEndState,
                 frontEndState.data.size == 1,
