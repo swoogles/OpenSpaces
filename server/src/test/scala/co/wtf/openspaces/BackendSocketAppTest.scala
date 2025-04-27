@@ -13,6 +13,7 @@ import zio.http.ChannelEvent.UserEventTriggered
 import zio.http.ChannelEvent.Registered
 import zio.http.ChannelEvent.Unregistered
 import java.time.LocalDateTime
+import zio.schema.codec.JsonCodec.zioJsonBinaryCodec
 // TODO Use map/contrmap on 
 // type WebSocketChannel = Channel[WebSocketChannelEvent, WebSocketChannelEvent]
 //
@@ -101,9 +102,7 @@ object BackendSocketAppTest extends ZIOSpecDefault {
                   ).run
 
                 val ticket =
-                  ticketResponse.body.asString.run
-                    .fromJson[Ticket]
-                    .getOrElse(???)
+                  ticketResponse.body.to[Ticket].run
 
                 IndividualClient
                   .make(
@@ -224,9 +223,7 @@ object BackendSocketAppTest extends ZIOSpecDefault {
                               ),
                           ).run
 
-                          val ticket = ticketResponse.body.asString.run
-                            .fromJson[Ticket]
-                            .getOrElse(???)
+                          val ticket = ticketResponse.body.to[Ticket].run
 
                           openSpacesClientChannel.send(ticket).run
 
@@ -318,9 +315,7 @@ object BackendSocketAppTest extends ZIOSpecDefault {
                               ),
                           ).debug("ticketResponse").run
 
-                          val ticket = ticketResponse.body.asString.run
-                            .fromJson[Ticket]
-                            .getOrElse(???)
+                          val ticket = ticketResponse.body.to[Ticket].run
 
                           openSpacesClientChannel.send(ticket).run
 
@@ -419,9 +414,7 @@ object BackendSocketAppTest extends ZIOSpecDefault {
                                 ),
                             ).run
 
-                            val ticket = ticketResponse.body.asString.run
-                              .fromJson[Ticket]
-                              .getOrElse(???)
+                            val ticket = ticketResponse.body.to[Ticket].run
 
                             openSpacesClientChannel.send(ticket).run
 
