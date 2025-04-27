@@ -567,7 +567,6 @@ object BackendSocketAppTest extends ZIOSpecDefault {
           assertCompletes
       },
     ).provide(
-      BackendSocketApp.layer,
       TestClient.layer,
       Scope.default,
       DiscussionDataStore.layer,
@@ -575,5 +574,7 @@ object BackendSocketAppTest extends ZIOSpecDefault {
       TicketRoutesApp.layer,
       GlyphiconService.layer,
       DiscussionService.layer,
+      RandomActionSpawner.layer,
+      BackendSocketApp.layer,
     )
 }

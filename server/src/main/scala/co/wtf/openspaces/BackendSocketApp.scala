@@ -12,28 +12,9 @@ import zio.http.ChannelEvent.{
 import zio.json.*
 
 case class BackendSocketApp(
-  discussionService: DiscussionService):
-
-  def startSpawningRandomActions(
-    channel: WebSocketChannel,
-  ) =
-    ZIO
-      .when(false):
-        defer:
-          val action =
-            discussionService.randomDiscussionAction.run
-          channel
-            .send(
-              Read(WebSocketFrame.text(action.toJson)),
-            )
-            .run
-        .repeat(
-          Schedule.spaced(
-            500.millis,
-              // 1.seconds,
-          ) && Schedule.forever,
-        )
-      .forkDaemon
+  discussionService: DiscussionService,
+  randomActionSpawner: RandomActionSpawner
+):
 
   val socketApp: WebSocketApp[Any] =
     Handler.webSocket { channel =>
@@ -49,6 +30,7 @@ case class BackendSocketApp(
                                  OpenSpacesServerChannel(channel),
                   )
                   .run
+                randomActionSpawner.startSpawningRandomActions(channel).run
 
         case UserEventTriggered(UserEvent.HandshakeComplete) =>
           ZIO.unit
@@ -75,4 +57,5 @@ object BackendSocketApp:
       defer:
         BackendSocketApp(
           ZIO.service[DiscussionService].run,
+          ZIO.service[RandomActionSpawner].run,
         )
