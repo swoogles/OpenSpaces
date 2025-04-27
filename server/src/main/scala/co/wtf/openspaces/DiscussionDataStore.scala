@@ -87,31 +87,39 @@ class DiscussionDataStore(
             case 9 =>
               defer:
                 val id = randomExistingTopicId.run
-                val state =discussionDatabase.get.run
+                val state = discussionDatabase.get.run
                 val slots = state.slots
                 // Find an available slot through some truly gory inline logic
                 val availableSlot =
-                  slots.flatMap(
-                    slot =>
+                  slots
+                    .flatMap(slot =>
                       slot.slots.flatMap(timeSlotForAllRooms =>
-                        timeSlotForAllRooms.rooms.find( room =>
-                          !state.data.values.exists(discussion =>
-                            discussion.roomSlot.contains(RoomSlot(room, timeSlotForAllRooms.time)))
-                        ).map(room =>
-                          RoomSlot(
-                            room,
-                            timeSlotForAllRooms.time,
+                        timeSlotForAllRooms.rooms
+                          .find(room =>
+                            !state.data.values.exists(discussion =>
+                              discussion.roomSlot.contains(
+                                RoomSlot(room,
+                                         timeSlotForAllRooms.time,
+                                ),
+                              ),
+                            ),
                           )
-                        )
-                      )
-                  ).headOption
+                          .map(room =>
+                            RoomSlot(
+                              room,
+                              timeSlotForAllRooms.time,
+                            ),
+                          ),
+                      ),
+                    )
+                    .headOption
                 availableSlot match {
                   case None =>
                     DiscussionAction.Delete(id)
                   case Some(roomSlot) =>
                     DiscussionAction.UpdateRoomSlot(
                       id,
-                      roomSlot
+                      roomSlot,
                     )
                 }
               .run

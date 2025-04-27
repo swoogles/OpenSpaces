@@ -495,7 +495,11 @@ object FrontEnd extends App:
         _.toJson,
         _.fromJson[DiscussionActionConfirmed].left.map(Exception(_)),
       )
-      .build(autoReconnect = true, reconnectDelay = 1.second, reconnectDelayOffline = 20.seconds, reconnectRetries = 10)
+      .build(autoReconnect = true,
+             reconnectDelay = 1.second,
+             reconnectDelayOffline = 20.seconds,
+             reconnectRetries = 10,
+      )
   }
 
   val discussionState: Var[DiscussionState] =
@@ -634,64 +638,65 @@ object FrontEnd extends App:
             },
             topicUpdates.received --> Observer {
               (event: DiscussionActionConfirmed) =>
-
-                discussionState.update { existing =>
-                  val state = existing(event)
-                  val id: Option[TopicId] =
-                    event match
-                      case DiscussionActionConfirmed.Delete(topic) =>
-                        if (
-                          activeDiscussion
-                            .now()
-                            .map(_.id)
-                            .contains(topic)
-                        )
-                          activeDiscussion.set(None)
-                        else ()
-                        Some(topic)
-                      case DiscussionActionConfirmed.Vote(topic,
-                                                          feedback,
-                          ) =>
-                        Some(topic)
-                      case DiscussionActionConfirmed.RemoveVote(topic,
-                                                                voter,
-                          ) =>
-                        Some(topic)
-                      case DiscussionActionConfirmed.Rename(topicId,
-                                                            newTopic,
-                          ) =>
-                        Some(topicId)
-                      case DiscussionActionConfirmed
-                            .UpdateRoomSlot(topicId, roomSlot) =>
-                        Some(topicId)
-                      case DiscussionActionConfirmed.Unschedule(
-                            topicId,
-                          ) =>
-                        Some(topicId)
-                      case DiscussionActionConfirmed.AddResult(
-                            discussion,
-                          ) =>
-                        None
-                      case DiscussionActionConfirmed.Rejected(
-                            action,
-                          ) =>
-                        // TODO Recognize when an action was rejected because the user was unticketed, so that we can:
-                        //    - Request a ticket
-                        //    - Submit the ticket
-                        //    - Retry the action
-                        None
-                  id.foreach(topicId =>
-                    if (
-                      activeDiscussion
-                        .now()
-                        .map(_.id)
-                        .contains(topicId)
+                discussionState
+                  .update { existing =>
+                    val state = existing(event)
+                    val id: Option[TopicId] =
+                      event match
+                        case DiscussionActionConfirmed.Delete(
+                              topic,
+                            ) =>
+                          if (
+                            activeDiscussion
+                              .now()
+                              .map(_.id)
+                              .contains(topic)
+                          )
+                            activeDiscussion.set(None)
+                          else ()
+                          Some(topic)
+                        case DiscussionActionConfirmed.Vote(topic,
+                                                            feedback,
+                            ) =>
+                          Some(topic)
+                        case DiscussionActionConfirmed
+                              .RemoveVote(topic, voter) =>
+                          Some(topic)
+                        case DiscussionActionConfirmed.Rename(topicId,
+                                                              newTopic,
+                            ) =>
+                          Some(topicId)
+                        case DiscussionActionConfirmed
+                              .UpdateRoomSlot(topicId, roomSlot) =>
+                          Some(topicId)
+                        case DiscussionActionConfirmed.Unschedule(
+                              topicId,
+                            ) =>
+                          Some(topicId)
+                        case DiscussionActionConfirmed.AddResult(
+                              discussion,
+                            ) =>
+                          None
+                        case DiscussionActionConfirmed.Rejected(
+                              action,
+                            ) =>
+                          // TODO Recognize when an action was rejected because the user was unticketed, so that we can:
+                          //    - Request a ticket
+                          //    - Submit the ticket
+                          //    - Retry the action
+                          None
+                    id.foreach(topicId =>
+                      if (
+                        activeDiscussion
+                          .now()
+                          .map(_.id)
+                          .contains(topicId)
+                      )
+                        activeDiscussion.set(state.data.get(topicId)),
                     )
-                      activeDiscussion.set(state.data.get(topicId)),
-                  )
 
-                  state
-                }
+                    state
+                  }
             },
             errorBanner.component,
             NameBadge(name),
