@@ -227,7 +227,8 @@ case class ScheduledDiscussion(
 case class RoomSlot(
   room: Room,
   timeSlot: TimeSlot)
-    derives JsonCodec
+    derives JsonCodec:
+  def displayString: String = timeSlot.s + " " + room.name
 
 case class TimeSlotForAllRooms(
   time: TimeSlot,

@@ -327,7 +327,7 @@ private def SingleDiscussionComponent(
                 topic.roomSlot match {
                   case Some(roomSlot) =>
                     div(
-                      roomSlot.timeSlot.s + " " + roomSlot.room.name,
+                      roomSlot.displayString,
                     )
                   case None =>
                     div("Unscheduled")
