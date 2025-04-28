@@ -170,60 +170,17 @@ object FrontEnd extends App:
                 discussionState
                   .update { existing =>
                     val state = existing(event)
-                    val id: Option[TopicId] =
-                      event match
-                        case DiscussionActionConfirmed.Delete(
-                              topic,
-                            ) =>
-                          // Doing this mutation activeDuscssion here is really screwing up the ability to pull this pattern match into a separate function.
-                          if (
-                            activeDiscussion
-                              .now()
-                              .map(_.id)
-                              .contains(topic)
-                          )
-                            activeDiscussion.set(None)
-                          else ()
-                          Some(topic)
-                        case DiscussionActionConfirmed.Vote(topic,
-                                                            feedback,
-                            ) =>
-                          Some(topic)
-                        case DiscussionActionConfirmed
-                              .RemoveVote(topic, voter) =>
-                          Some(topic)
-                        case DiscussionActionConfirmed.Rename(topicId,
-                                                              newTopic,
-                            ) =>
-                          Some(topicId)
-                        case DiscussionActionConfirmed
-                              .UpdateRoomSlot(topicId, roomSlot) =>
-                          Some(topicId)
-                        case DiscussionActionConfirmed.Unschedule(
-                              topicId,
-                            ) =>
-                          Some(topicId)
-                        case DiscussionActionConfirmed.AddResult(
-                              discussion,
-                            ) =>
-                          None
-                        case DiscussionActionConfirmed.Rejected(
-                              action,
-                            ) =>
-                          // TODO Recognize when an action was rejected because the user was unticketed, so that we can:
-                          //    - Request a ticket
-                          //    - Submit the ticket
-                          //    - Retry the action
-                          None
-                    id.foreach(topicId =>
-                      if (
-                        activeDiscussion
-                          .now()
-                          .map(_.id)
-                          .contains(topicId)
-                      )
-                        activeDiscussion.set(state.data.get(topicId)),
-                    )
+                    val (topicId, shouldClearActive) = handleDiscussionActionConfirmed(event)
+                    
+                    if (shouldClearActive) {
+                      activeDiscussion.set(None)
+                    }
+                    
+                    topicId.foreach { id =>
+                      if (activeDiscussion.now().map(_.id).contains(id)) {
+                        activeDiscussion.set(state.data.get(id))
+                      }
+                    }
 
                     state
                   }
@@ -730,3 +687,24 @@ def deleteCookie(
 ) =
   dom.document.cookie =
     name + "=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
+
+private def handleDiscussionActionConfirmed(event: DiscussionActionConfirmed): (Option[TopicId], Boolean) = {
+  event match {
+    case DiscussionActionConfirmed.Delete(topic) =>
+      (Some(topic), true)
+    case DiscussionActionConfirmed.Vote(topic, _) =>
+      (Some(topic), false)
+    case DiscussionActionConfirmed.RemoveVote(topic, _) =>
+      (Some(topic), false)
+    case DiscussionActionConfirmed.Rename(topicId, _) =>
+      (Some(topicId), false)
+    case DiscussionActionConfirmed.UpdateRoomSlot(topicId, _) =>
+      (Some(topicId), false)
+    case DiscussionActionConfirmed.Unschedule(topicId) =>
+      (Some(topicId), false)
+    case DiscussionActionConfirmed.AddResult(_) =>
+      (None, false)
+    case DiscussionActionConfirmed.Rejected(_) =>
+      (None, false)
+  }
+}
