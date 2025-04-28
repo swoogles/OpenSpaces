@@ -8,6 +8,7 @@ case class Glyphicon(
 
 object GlyphiconUtils:
   val plus = Glyphicon("glyphicons-basic-371-plus.svg")
+  val minus = Glyphicon("glyphicons-basic-372-minus.svg")
   val schedule = Glyphicon("glyphicons-basic-46-calendar.svg")
 
   val heart = Glyphicon("glyphicons-basic-13-heart.svg")

@@ -457,9 +457,9 @@ def ScheduleSlotComponent(
                 onClick.mapTo(
                   value,
                 ) --> updateDiscussion, // TODO This is causing an unecesary update to be sent to server
-                SvgIcon(value.glyphicon).amend(
-                  cls := s"filledTopic $selectedTopicStyling",
-                ), // TODO amend always makes me suspicious
+                SvgIcon(value.glyphicon,
+                        s"filledTopic $selectedTopicStyling",
+                ),
               )
             case None =>
               discussionO match
@@ -469,17 +469,9 @@ def ScheduleSlotComponent(
                         if RoomSlot(room,
                                     timeSlot,
                         ) == value => // TODO Make this impossible
-                      span(
-                        cls := "glyphicon",
-                        SvgIcon(discussion.glyphicon).amend(
-                          cls := "filledTopic",
-                        ), // TODO amend always makes me suspicious
-                      )
+                      SvgIcon(discussion.glyphicon, "filledTopic")
                     case Some(_) =>
-                      span(
-                        cls := "glyphicon",
-                        "-",
-                      )
+                      SvgIcon(GlyphiconUtils.minus)
                     case None =>
                       span(
                         SvgIcon(GlyphiconUtils.plus),
@@ -490,10 +482,7 @@ def ScheduleSlotComponent(
                         ) --> updateDiscussion,
                       )
                 case None =>
-                  span(
-                    cls := "glyphicon",
-                    "-",
-                  )
+                  SvgIcon(GlyphiconUtils.minus)
         },
       )
     },
