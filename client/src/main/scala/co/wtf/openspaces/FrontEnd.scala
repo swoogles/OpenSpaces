@@ -11,6 +11,249 @@ val localStorage = window.localStorage
 import org.scalajs.dom
 import scala.scalajs.js.URIUtils
 
+object FrontEnd extends App:
+  lazy val container = dom.document.getElementById("app")
+  import io.laminext.websocket.*
+
+  val topicUpdates = {
+    // If I don't confine the scope of it, it clashes with laminar's `span`. Weird.
+    import scala.concurrent.duration._
+    WebSocket
+      .url("/discussions")
+      .text[DiscussionActionConfirmed, WebSocketMessage](
+        _.toJson,
+        _.fromJson[DiscussionActionConfirmed].left.map(Exception(_)),
+      )
+      .build(autoReconnect = true,
+             reconnectDelay = 1.second,
+             reconnectDelayOffline = 20.seconds,
+             reconnectRetries = 10,
+      )
+  }
+
+  val discussionState: Var[DiscussionState] =
+    Var(
+      DiscussionState(DiscussionState.timeSlotExamples, Map.empty),
+    ) //
+
+  val errorBanner =
+    ErrorBanner()
+
+  val submitNewTopic: Observer[DiscussionAction] = Observer {
+    case discussion @ (add: DiscussionAction.Add) =>
+      if (add.facilitator.unwrap.trim.length < 2)
+        errorBanner.error.set(
+          Some("User name too short. Tell us who you are!"),
+        )
+      else
+        errorBanner.error.set(None)
+        topicUpdates.sendOne(discussion)
+    case _ => ()
+  }
+
+  val name = getOrCreatePersistedName()
+  def liveTopicSubmissionAndVoting(
+    updateTargetDiscussion: Observer[Discussion],
+  ) =
+    div(
+      TopicSubmission(submitNewTopic,
+                      name.signal,
+                      errorBanner.error.toObserver,
+      ),
+      DiscussionSubview(
+        discussionState.signal.map(_.data.values.toList),
+        None,
+        name.signal,
+        topicUpdates.sendOne,
+        updateTargetDiscussion,
+      ),
+    )
+
+  val activeDiscussion: Var[Option[Discussion]] =
+    Var(None)
+
+  val updateTargetDiscussion: Observer[Discussion] =
+    Observer[Discussion] { discussion =>
+      dom.document
+        .getElementsByClassName("ActiveDiscussion")
+        .head
+        .scrollIntoView(
+          top = false,
+        )
+      activeDiscussion.set(Some(discussion))
+    }
+
+  val setActiveDiscussion: Observer[Discussion] = Observer {
+    discussion =>
+      discussion.roomSlot match
+        case Some(value) =>
+          topicUpdates.sendOne(
+            DiscussionAction.UpdateRoomSlot(discussion.id, value),
+          )
+        case None =>
+          topicUpdates.sendOne(
+            DiscussionAction.Unschedule(discussion.id),
+          )
+
+      activeDiscussion.set(Some(discussion))
+  }
+
+  val app =
+    div(
+      cls := "PageContainer",
+      topicUpdates.connect,
+      getCookie("access_token") match {
+        case Some(accessToken) =>
+          div(
+            div(
+              button(
+                onClick --> Observer { _ =>
+                  deleteCookie("access_token")
+                  window.location.reload()
+                },
+                "Logout",
+              ),
+            ),
+            FetchStream.get(
+              "/ticket",
+              fetchOptions =>
+                fetchOptions.headers(
+                  "Authorization" -> s"Bearer ${getCookie("access_token").get}",
+                ),
+            ) --> { (responseText: String) =>
+              val ticket = responseText
+                .fromJson[Ticket]
+                .getOrElse(
+                  throw new Exception(
+                    "Failed to parse ticket: " + responseText,
+                  ),
+                )
+              println("Ticket received: " + ticket)
+              topicUpdates.sendOne(ticket)
+            },
+            topicUpdates.received.flatMapSwitch {
+              (event: DiscussionActionConfirmed) =>
+                event match
+                  case DiscussionActionConfirmed.Rejected(
+                        discussionAction,
+                      ) =>
+                    FetchStream
+                      .get(
+                        "/ticket",
+                        fetchOptions =>
+                          fetchOptions.headers(
+                            "Authorization" -> s"Bearer ${getCookie("access_token").get}",
+                          ),
+                      )
+                      .map(response => (response, discussionAction))
+                  case other =>
+                    EventStream.empty
+            } --> {
+              (
+                ticketResponse,
+                discussionAction,
+              ) =>
+                val ticket = ticketResponse
+                  .fromJson[Ticket]
+                  .getOrElse(
+                    throw new Exception(
+                      "Failed to parse ticket: " + ticketResponse,
+                    ),
+                  )
+                topicUpdates.sendOne(ticket)
+                topicUpdates.sendOne(
+                  discussionAction,
+                )
+            },
+            topicUpdates.received --> Observer {
+              (event: DiscussionActionConfirmed) =>
+                discussionState
+                  .update { existing =>
+                    val state = existing(event)
+                    val id: Option[TopicId] =
+                      event match
+                        case DiscussionActionConfirmed.Delete(
+                              topic,
+                            ) =>
+                          // Doing this mutation activeDuscssion here is really screwing up the ability to pull this pattern match into a separate function.
+                          if (
+                            activeDiscussion
+                              .now()
+                              .map(_.id)
+                              .contains(topic)
+                          )
+                            activeDiscussion.set(None)
+                          else ()
+                          Some(topic)
+                        case DiscussionActionConfirmed.Vote(topic,
+                                                            feedback,
+                            ) =>
+                          Some(topic)
+                        case DiscussionActionConfirmed
+                              .RemoveVote(topic, voter) =>
+                          Some(topic)
+                        case DiscussionActionConfirmed.Rename(topicId,
+                                                              newTopic,
+                            ) =>
+                          Some(topicId)
+                        case DiscussionActionConfirmed
+                              .UpdateRoomSlot(topicId, roomSlot) =>
+                          Some(topicId)
+                        case DiscussionActionConfirmed.Unschedule(
+                              topicId,
+                            ) =>
+                          Some(topicId)
+                        case DiscussionActionConfirmed.AddResult(
+                              discussion,
+                            ) =>
+                          None
+                        case DiscussionActionConfirmed.Rejected(
+                              action,
+                            ) =>
+                          // TODO Recognize when an action was rejected because the user was unticketed, so that we can:
+                          //    - Request a ticket
+                          //    - Submit the ticket
+                          //    - Retry the action
+                          None
+                    id.foreach(topicId =>
+                      if (
+                        activeDiscussion
+                          .now()
+                          .map(_.id)
+                          .contains(topicId)
+                      )
+                        activeDiscussion.set(state.data.get(topicId)),
+                    )
+
+                    state
+                  }
+            },
+            errorBanner.component,
+            NameBadge(name),
+            ScheduleView(
+              discussionState,
+              activeDiscussion,
+              topicUpdates.sendOne,
+              name.signal,
+              setActiveDiscussion,
+            ),
+            liveTopicSubmissionAndVoting(updateTargetDiscussion),
+          )
+        case None =>
+          div(
+            span("No access token found. Please log in."),
+            a(
+              href := "/auth",
+              "Login",
+            ),
+          )
+
+      },
+    )
+
+  render(container, app)
+
+
 def getCookie(
   name: String,
 ): Option[String] = {
@@ -481,247 +724,6 @@ def SlotSchedules(
         ),
       ),
   )
-
-object FrontEnd extends App:
-  lazy val container = dom.document.getElementById("app")
-  import io.laminext.websocket.*
-
-  val topicUpdates = {
-    // If I don't confine the scope of it, it clashes with laminar's `span`. Weird.
-    import scala.concurrent.duration._
-    WebSocket
-      .url("/discussions")
-      .text[DiscussionActionConfirmed, WebSocketMessage](
-        _.toJson,
-        _.fromJson[DiscussionActionConfirmed].left.map(Exception(_)),
-      )
-      .build(autoReconnect = true,
-             reconnectDelay = 1.second,
-             reconnectDelayOffline = 20.seconds,
-             reconnectRetries = 10,
-      )
-  }
-
-  val discussionState: Var[DiscussionState] =
-    Var(
-      DiscussionState(DiscussionState.timeSlotExamples, Map.empty),
-    ) //
-
-  val errorBanner =
-    ErrorBanner()
-
-  val submitNewTopic: Observer[DiscussionAction] = Observer {
-    case discussion @ (add: DiscussionAction.Add) =>
-      if (add.facilitator.unwrap.trim.length < 2)
-        errorBanner.error.set(
-          Some("User name too short. Tell us who you are!"),
-        )
-      else
-        errorBanner.error.set(None)
-        topicUpdates.sendOne(discussion)
-    case _ => ()
-  }
-
-  val name = getOrCreatePersistedName()
-  def liveTopicSubmissionAndVoting(
-    updateTargetDiscussion: Observer[Discussion],
-  ) =
-    div(
-      TopicSubmission(submitNewTopic,
-                      name.signal,
-                      errorBanner.error.toObserver,
-      ),
-      DiscussionSubview(
-        discussionState.signal.map(_.data.values.toList),
-        None,
-        name.signal,
-        topicUpdates.sendOne,
-        updateTargetDiscussion,
-      ),
-    )
-
-  val activeDiscussion: Var[Option[Discussion]] =
-    Var(None)
-
-  val updateTargetDiscussion: Observer[Discussion] =
-    Observer[Discussion] { discussion =>
-      dom.document
-        .getElementsByClassName("ActiveDiscussion")
-        .head
-        .scrollIntoView(
-          top = false,
-        )
-      activeDiscussion.set(Some(discussion))
-    }
-
-  val setActiveDiscussion: Observer[Discussion] = Observer {
-    discussion =>
-      discussion.roomSlot match
-        case Some(value) =>
-          topicUpdates.sendOne(
-            DiscussionAction.UpdateRoomSlot(discussion.id, value),
-          )
-        case None =>
-          topicUpdates.sendOne(
-            DiscussionAction.Unschedule(discussion.id),
-          )
-
-      activeDiscussion.set(Some(discussion))
-  }
-
-  val app =
-    div(
-      cls := "PageContainer",
-      topicUpdates.connect,
-      getCookie("access_token") match {
-        case Some(accessToken) =>
-          div(
-            div(
-              button(
-                onClick --> Observer { _ =>
-                  deleteCookie("access_token")
-                  window.location.reload()
-                },
-                "Logout",
-              ),
-            ),
-            FetchStream.get(
-              "/ticket",
-              fetchOptions =>
-                fetchOptions.headers(
-                  "Authorization" -> s"Bearer ${getCookie("access_token").get}",
-                ),
-            ) --> { (responseText: String) =>
-              val ticket = responseText
-                .fromJson[Ticket]
-                .getOrElse(
-                  throw new Exception(
-                    "Failed to parse ticket: " + responseText,
-                  ),
-                )
-              println("Ticket received: " + ticket)
-              topicUpdates.sendOne(ticket)
-            },
-            topicUpdates.received.flatMapSwitch {
-              (event: DiscussionActionConfirmed) =>
-                event match
-                  case DiscussionActionConfirmed.Rejected(
-                        discussionAction,
-                      ) =>
-                    FetchStream
-                      .get(
-                        "/ticket",
-                        fetchOptions =>
-                          fetchOptions.headers(
-                            "Authorization" -> s"Bearer ${getCookie("access_token").get}",
-                          ),
-                      )
-                      .map(response => (response, discussionAction))
-                  case other =>
-                    EventStream.empty
-            } --> {
-              (
-                ticketResponse,
-                discussionAction,
-              ) =>
-                val ticket = ticketResponse
-                  .fromJson[Ticket]
-                  .getOrElse(
-                    throw new Exception(
-                      "Failed to parse ticket: " + ticketResponse,
-                    ),
-                  )
-                topicUpdates.sendOne(ticket)
-                topicUpdates.sendOne(
-                  discussionAction,
-                )
-            },
-            topicUpdates.received --> Observer {
-              (event: DiscussionActionConfirmed) =>
-                discussionState
-                  .update { existing =>
-                    val state = existing(event)
-                    val id: Option[TopicId] =
-                      event match
-                        case DiscussionActionConfirmed.Delete(
-                              topic,
-                            ) =>
-                          if (
-                            activeDiscussion
-                              .now()
-                              .map(_.id)
-                              .contains(topic)
-                          )
-                            activeDiscussion.set(None)
-                          else ()
-                          Some(topic)
-                        case DiscussionActionConfirmed.Vote(topic,
-                                                            feedback,
-                            ) =>
-                          Some(topic)
-                        case DiscussionActionConfirmed
-                              .RemoveVote(topic, voter) =>
-                          Some(topic)
-                        case DiscussionActionConfirmed.Rename(topicId,
-                                                              newTopic,
-                            ) =>
-                          Some(topicId)
-                        case DiscussionActionConfirmed
-                              .UpdateRoomSlot(topicId, roomSlot) =>
-                          Some(topicId)
-                        case DiscussionActionConfirmed.Unschedule(
-                              topicId,
-                            ) =>
-                          Some(topicId)
-                        case DiscussionActionConfirmed.AddResult(
-                              discussion,
-                            ) =>
-                          None
-                        case DiscussionActionConfirmed.Rejected(
-                              action,
-                            ) =>
-                          // TODO Recognize when an action was rejected because the user was unticketed, so that we can:
-                          //    - Request a ticket
-                          //    - Submit the ticket
-                          //    - Retry the action
-                          None
-                    id.foreach(topicId =>
-                      if (
-                        activeDiscussion
-                          .now()
-                          .map(_.id)
-                          .contains(topicId)
-                      )
-                        activeDiscussion.set(state.data.get(topicId)),
-                    )
-
-                    state
-                  }
-            },
-            errorBanner.component,
-            NameBadge(name),
-            ScheduleView(
-              discussionState,
-              activeDiscussion,
-              topicUpdates.sendOne,
-              name.signal,
-              setActiveDiscussion,
-            ),
-            liveTopicSubmissionAndVoting(updateTargetDiscussion),
-          )
-        case None =>
-          div(
-            span("No access token found. Please log in."),
-            a(
-              href := "/auth",
-              "Login",
-            ),
-          )
-
-      },
-    )
-
-  render(container, app)
 
 def deleteCookie(
   name: String,
