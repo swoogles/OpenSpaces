@@ -13,23 +13,6 @@ import scala.scalajs.js.URIUtils
 
 object FrontEnd extends App:
   lazy val container = dom.document.getElementById("app")
-  import io.laminext.websocket.*
-
-  val topicUpdates = {
-    // If I don't confine the scope of it, it clashes with laminar's `span`. Weird.
-    import scala.concurrent.duration._
-    WebSocket
-      .url("/discussions")
-      .text[DiscussionActionConfirmed, WebSocketMessage](
-        _.toJson,
-        _.fromJson[DiscussionActionConfirmed].left.map(Exception(_)),
-      )
-      .build(autoReconnect = true,
-             reconnectDelay = 1.second,
-             reconnectDelayOffline = 20.seconds,
-             reconnectRetries = 10,
-      )
-  }
 
   val discussionState: Var[DiscussionState] =
     Var(
@@ -98,6 +81,16 @@ object FrontEnd extends App:
       activeDiscussion.set(Some(discussion))
   }
 
+  val logoutButton = div(
+    button(
+      onClick --> Observer { _ =>
+        deleteCookie("access_token")
+        window.location.reload()
+      },
+      "Logout",
+    ),
+  )
+
   val app =
     div(
       cls := "PageContainer",
@@ -105,85 +98,29 @@ object FrontEnd extends App:
       getCookie("access_token") match {
         case Some(accessToken) =>
           div(
-            div(
-              button(
-                onClick --> Observer { _ =>
-                  deleteCookie("access_token")
-                  window.location.reload()
-                },
-                "Logout",
-              ),
-            ),
-            FetchStream.get(
-              "/ticket",
-              fetchOptions =>
-                fetchOptions.headers(
-                  "Authorization" -> s"Bearer ${getCookie("access_token").get}",
-                ),
-            ) --> { (responseText: String) =>
-              val ticket = responseText
-                .fromJson[Ticket]
-                .getOrElse(
-                  throw new Exception(
-                    "Failed to parse ticket: " + responseText,
-                  ),
-                )
-              println("Ticket received: " + ticket)
-              topicUpdates.sendOne(ticket)
-            },
-            topicUpdates.received.flatMapSwitch {
-              (event: DiscussionActionConfirmed) =>
-                event match
-                  case DiscussionActionConfirmed.Rejected(
-                        discussionAction,
-                      ) =>
-                    FetchStream
-                      .get(
-                        "/ticket",
-                        fetchOptions =>
-                          fetchOptions.headers(
-                            "Authorization" -> s"Bearer ${getCookie("access_token").get}",
-                          ),
-                      )
-                      .map(response => (response, discussionAction))
-                  case other =>
-                    EventStream.empty
-            } --> {
-              (
-                ticketResponse,
-                discussionAction,
-              ) =>
-                val ticket = ticketResponse
-                  .fromJson[Ticket]
-                  .getOrElse(
-                    throw new Exception(
-                      "Failed to parse ticket: " + ticketResponse,
-                    ),
-                  )
-                topicUpdates.sendOne(ticket)
-                topicUpdates.sendOne(
-                  discussionAction,
-                )
-            },
-            topicUpdates.received --> Observer {
-              (event: DiscussionActionConfirmed) =>
-                discussionState
-                  .update { existing =>
-                    val state = existing(event)
-                    val (topicId, shouldClearActive) = handleDiscussionActionConfirmed(event)
-                    
-                    if (shouldClearActive) {
-                      activeDiscussion.set(None)
-                    }
-                    
-                    topicId.foreach { id =>
-                      if (activeDiscussion.now().map(_.id).contains(id)) {
-                        activeDiscussion.set(state.data.get(id))
-                      }
-                    }
+            logoutButton,
+            ticketCenter(topicUpdates),
+            topicUpdates.received --> Observer { (event: DiscussionActionConfirmed) =>
+              discussionState
+                .update { existing =>
+                  val state = existing(event)
+                  val (topicId, shouldClearActive) =
+                    handleDiscussionActionConfirmed(event)
 
-                    state
+                  if (shouldClearActive) {
+                    activeDiscussion.set(None)
                   }
+
+                  topicId.foreach { id =>
+                    if (
+                      activeDiscussion.now().map(_.id).contains(id)
+                    ) {
+                      activeDiscussion.set(state.data.get(id))
+                    }
+                  }
+
+                  state
+                }
             },
             errorBanner.component,
             NameBadge(name),
@@ -209,7 +146,6 @@ object FrontEnd extends App:
     )
 
   render(container, app)
-
 
 def getCookie(
   name: String,
@@ -688,7 +624,9 @@ def deleteCookie(
   dom.document.cookie =
     name + "=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
 
-private def handleDiscussionActionConfirmed(event: DiscussionActionConfirmed): (Option[TopicId], Boolean) = {
+private def handleDiscussionActionConfirmed(
+  event: DiscussionActionConfirmed,
+): (Option[TopicId], Boolean) =
   event match {
     case DiscussionActionConfirmed.Delete(topic) =>
       (Some(topic), true)
@@ -707,4 +645,79 @@ private def handleDiscussionActionConfirmed(event: DiscussionActionConfirmed): (
     case DiscussionActionConfirmed.Rejected(_) =>
       (None, false)
   }
+
+import io.laminext.websocket.*
+val topicUpdates
+  : WebSocket[DiscussionActionConfirmed, WebSocketMessage] = {
+  // If I don't confine the scope of it, it clashes with laminar's `span`. Weird.
+  import scala.concurrent.duration._
+  WebSocket
+    .url("/discussions")
+    .text[DiscussionActionConfirmed, WebSocketMessage](
+      _.toJson,
+      _.fromJson[DiscussionActionConfirmed].left.map(Exception(_)),
+    )
+    .build(autoReconnect = true,
+           reconnectDelay = 1.second,
+           reconnectDelayOffline = 20.seconds,
+           reconnectRetries = 10,
+    )
+
 }
+
+def ticketCenter(
+  topicUpdates: WebSocket[DiscussionActionConfirmed, WebSocketMessage],
+) =
+  div(
+    FetchStream.get(
+      "/ticket",
+      fetchOptions =>
+        fetchOptions.headers(
+          "Authorization" -> s"Bearer ${getCookie("access_token").get}",
+        ),
+    ) --> { (responseText: String) =>
+      val ticket = responseText
+        .fromJson[Ticket]
+        .getOrElse(
+          throw new Exception(
+            "Failed to parse ticket: " + responseText,
+          ),
+        )
+      println("Ticket received: " + ticket)
+      topicUpdates.sendOne(ticket)
+    },
+    topicUpdates.received.flatMapSwitch {
+      (event: DiscussionActionConfirmed) =>
+        event match
+          case DiscussionActionConfirmed.Rejected(
+                discussionAction,
+              ) =>
+            FetchStream
+              .get(
+                "/ticket",
+                fetchOptions =>
+                  fetchOptions.headers(
+                    "Authorization" -> s"Bearer ${getCookie("access_token").get}",
+                  ),
+              )
+              .map(response => (response, discussionAction))
+          case other =>
+            EventStream.empty
+    } --> {
+      (
+        ticketResponse,
+        discussionAction,
+      ) =>
+        val ticket = ticketResponse
+          .fromJson[Ticket]
+          .getOrElse(
+            throw new Exception(
+              "Failed to parse ticket: " + ticketResponse,
+            ),
+          )
+        topicUpdates.sendOne(ticket)
+        topicUpdates.sendOne(
+          discussionAction,
+        )
+    },
+  )
