@@ -5,6 +5,7 @@ import com.raquo.laminar.api.L.{*, given}
 import org.scalajs.dom
 import org.scalajs.dom.window
 import zio.json.*
+import neotype.*
 
 val localStorage = window.localStorage
 
@@ -227,7 +228,7 @@ private def TopicSubmission(
       onClick
         .mapTo(textVar.now())
         .map(s =>
-          val res = Topic.parse(s)
+          val res = Topic.make(s)
           res match
             case Left(value) =>
               setErrorMsg.onNext(Some(value))
@@ -274,6 +275,7 @@ private def SingleDiscussionComponent(
           case Some(Feedback(_, VotePosition.Interested)) => true
           case _                                          => false
 
+      // import neotype.unwrap
       div(
         cls := "TopicCard", // TODO Make this a component than can be used in the schedule view!
         backgroundColor := backgroundColorByPosition,
@@ -283,7 +285,7 @@ private def SingleDiscussionComponent(
         ,
         div(
           cls := "MainActive",
-          topic.topic.unwrap
+          div(topic.topic.toString)
 
 //                children <-- $characters.splitTransition(identity) {
 //                  case (_, (character, _), _, transition) =>

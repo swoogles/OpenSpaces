@@ -12,13 +12,12 @@ import zio.http.ChannelEvent.{
 }
 
 case class RandomActionSpawner(
-  discussionService: DiscussionService
-):
+  discussionService: DiscussionService):
   def startSpawningRandomActions(
     channel: WebSocketChannel,
   ) =
     ZIO
-      .when(false):
+      .when(true):
         defer:
           val action =
             discussionService.randomDiscussionAction.run
@@ -41,4 +40,4 @@ object RandomActionSpawner:
       defer:
         RandomActionSpawner(
           ZIO.service[DiscussionService].run,
-        ) 
+        )

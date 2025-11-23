@@ -2,6 +2,8 @@ package co.wtf.openspaces
 
 import co.wtf.openspaces.DiscussionAction.Rename
 import co.wtf.openspaces.VotePosition.Interested
+import neotype.*
+import neotype.interop.ziojson.given
 import zio.json.*
 
 import java.time.{LocalDate, LocalDateTime}
@@ -49,7 +51,7 @@ object Discussion:
     )
 
   val example1 = Discussion(
-    Topic.parseOrDie(
+    Topic(
       "Continuous Deployment - A goal, an asymptote, or an ass out of you and me?",
     ),
     Person("Bill"),
@@ -66,7 +68,7 @@ object Discussion:
   )
 
   val example2 = Discussion(
-    Topic.parseOrDie("Managing emotional energy on the job"),
+    Topic("Managing emotional energy on the job"),
     Person("Emma"),
     TopicId(2),
     GlyphiconUtils.names(2),
@@ -82,7 +84,7 @@ object Discussion:
 
   val example3 =
     Discussion(
-      Topic.parseOrDie("How to make a great cup of coffee"),
+      Topic("How to make a great cup of coffee"),
       Person("John"),
       TopicId(3),
       GlyphiconUtils.names(3),
@@ -98,7 +100,7 @@ object Discussion:
 
   val example4 =
     Discussion(
-      Topic.parseOrDie("How to make a great cup of tea"),
+      Topic("How to make a great cup of tea"),
       Person("John"),
       Set(Feedback(Person("Bill"), VotePosition.NotInterested)),
       TopicId(4),
@@ -108,7 +110,7 @@ object Discussion:
 
   val example5 =
     Discussion(
-      Topic.parseOrDie("Fighting round the world"),
+      Topic("Fighting round the world"),
       Person("John"),
       Set.empty,
       TopicId(5),
@@ -118,7 +120,7 @@ object Discussion:
 
   val example6 =
     Discussion(
-      Topic.parseOrDie("Pandas - friends or foes?"),
+      Topic("Pandas - friends or foes?"),
       Person("John"),
       Set.empty,
       TopicId(5),

@@ -105,7 +105,7 @@ object DiscussionTopics:
       "Implementing FinOps: Cloud Financial Management in Practice",
       "The Future of Web Performance: Core Web Vitals and Beyond",
       "Practical Approaches to Building Explainable AI Systems",
-    ).map(Topic.parseOrDie)
+    ).map(Topic.unsafeMake)
   val randomTopic: ZIO[Any, Nothing, Topic] =
     defer:
       val idx = Random.nextIntBounded(entries.size).run
