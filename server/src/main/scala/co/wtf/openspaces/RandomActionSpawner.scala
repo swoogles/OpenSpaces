@@ -17,7 +17,7 @@ case class RandomActionSpawner(
     channel: WebSocketChannel,
   ) =
     ZIO
-      .when(true):
+      .when(false):
         defer:
           val action =
             discussionService.randomDiscussionAction.run
