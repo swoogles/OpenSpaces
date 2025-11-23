@@ -127,26 +127,16 @@ class DiscussionDataStore(
       applyAction(action).run
 
 object DiscussionDataStore:
-  val layerWithSampleData =
+  def layer(
+    useSampleData: Boolean,
+  ) =
     ZLayer.fromZIO:
       defer:
+        val initialState =
+          if useSampleData then DiscussionState.exampleWithDiscussions
+          else DiscussionState.example
         DiscussionDataStore(
-          Ref
-            .make(
-              DiscussionState.exampleWithDiscussions,
-            )
-            .run,
+          Ref.make(initialState).run,
           ZIO.service[GlyphiconService].run,
         )
-
-  val layer =
-    ZLayer.fromZIO:
-      defer:
-        DiscussionDataStore(
-          Ref
-            .make(
-              DiscussionState.example,
-            )
-            .run,
-          ZIO.service[GlyphiconService].run,
-        )
+        //

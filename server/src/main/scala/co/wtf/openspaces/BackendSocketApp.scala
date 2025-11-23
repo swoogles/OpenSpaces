@@ -13,37 +13,37 @@ import zio.json.*
 
 case class BackendSocketApp(
   discussionService: DiscussionService,
-  randomActionSpawner: RandomActionSpawner
-):
+  randomActionSpawner: RandomActionSpawner):
 
   val socketApp: WebSocketApp[Any] =
     Handler.webSocket { channel =>
-      channel.receiveAll {
-        case Read(WebSocketFrame.Text(text)) =>
-          text.fromJson[WebSocketMessage] match
-            case Left(value) =>
-              ZIO.unit
-            case Right(value) =>
-              defer:
-                discussionService
-                  .handleMessage(value,
-                                 OpenSpacesServerChannel(channel),
-                  )
-                  .run
-                randomActionSpawner.startSpawningRandomActions(channel).run
+      defer:
+        randomActionSpawner.startSpawningRandomActions(channel).run
+        channel.receiveAll {
+          case Read(WebSocketFrame.Text(text)) =>
+            text.fromJson[WebSocketMessage] match
+              case Left(value) =>
+                ZIO.unit
+              case Right(value) =>
+                defer:
+                  discussionService
+                    .handleMessage(value,
+                                   OpenSpacesServerChannel(channel),
+                    )
+                    .run
 
-        case UserEventTriggered(UserEvent.HandshakeComplete) =>
-          ZIO.unit
+          case UserEventTriggered(UserEvent.HandshakeComplete) =>
+            ZIO.unit
 
-        case Read(WebSocketFrame.Close(status, reason)) =>
-          ZIO.unit
+          case Read(WebSocketFrame.Close(status, reason)) =>
+            ZIO.unit
 
-        case ExceptionCaught(cause) =>
-          ZIO.unit
+          case ExceptionCaught(cause) =>
+            ZIO.unit
 
-        case other =>
-          ZIO.unit
-      }
+          case other =>
+            ZIO.unit
+        }.run
     }
 
   val socketRoutes =

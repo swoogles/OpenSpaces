@@ -30,7 +30,7 @@ object Backend extends ZIOAppDefault {
       BackendSocketApp.layer,
       DiscussionService.layer,
       RandomActionSpawner.layer,
-      DiscussionDataStore.layerWithSampleData,
+      DiscussionDataStore.layer(useSampleData = true),
       GlyphiconService.layer,
       Client.default,
       AuthenticatedTicketService.layer,
