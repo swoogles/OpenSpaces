@@ -285,7 +285,7 @@ private def SingleDiscussionComponent(
         ,
         div(
           cls := "MainActive",
-          div(topic.topic.toString)
+          div(topic.topicName)
 
 //                children <-- $characters.splitTransition(identity) {
 //                  case (_, (character, _), _, transition) =>
@@ -324,7 +324,7 @@ private def SingleDiscussionComponent(
             case Some(position) =>
               span(
                 SvgIcon(topic.glyphicon),
-                span(topic.facilitator.unwrap),
+                span(topic.facilitatorName),
                 span("Votes ", topic.votes),
                 topic.roomSlot match {
                   case Some(roomSlot) =>

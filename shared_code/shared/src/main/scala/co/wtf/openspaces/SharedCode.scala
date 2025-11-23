@@ -3,17 +3,16 @@ package co.wtf.openspaces
 import co.wtf.openspaces.DiscussionAction.Rename
 import co.wtf.openspaces.VotePosition.Interested
 import neotype.*
+import neotype.given
 import neotype.interop.ziojson.given
 import zio.json.*
 
 import java.time.{LocalDate, LocalDateTime}
 import java.util.UUID
 
-case class Person(
-  unwrap: String)
-object Person:
-  given codec: JsonCodec[Person] =
-    JsonCodec.string.transform[Person](s => Person(s), _.unwrap)
+// TODO Conver to newType, like Topic, but without the length requirement
+type Person = Person.Type
+object Person extends Newtype[String]
 
 enum VotePosition derives JsonCodec:
   case Interested, NotInterested
@@ -31,7 +30,10 @@ case class Discussion(
   glyphicon: Glyphicon,
   roomSlot: Option[RoomSlot])
     derives JsonCodec:
+
   val votes: Int = interestedParties.count(_.position == Interested)
+  val facilitatorName = facilitator.unwrap
+  val topicName = topic.unwrap
 
 object Discussion:
   def apply(
