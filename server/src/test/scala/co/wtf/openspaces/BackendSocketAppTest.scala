@@ -574,7 +574,7 @@ object BackendSocketAppTest extends ZIOSpecDefault {
       TicketRoutesApp.layer,
       GlyphiconService.layer,
       DiscussionService.layer,
-      RandomActionSpawner.layer,
+      RandomActionSpawner.layer(active = false),
       BackendSocketApp.layer,
     )
 }

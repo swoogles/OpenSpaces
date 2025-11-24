@@ -12,12 +12,13 @@ import zio.http.ChannelEvent.{
 }
 
 case class RandomActionSpawner(
-  discussionService: DiscussionService):
+  discussionService: DiscussionService,
+  active: Boolean):
   def startSpawningRandomActions(
     channel: WebSocketChannel,
   ) =
     ZIO
-      .when(false):
+      .when(active):
         defer:
           val action =
             discussionService.randomDiscussionAction.run
@@ -35,9 +36,12 @@ case class RandomActionSpawner(
       .forkDaemon
 
 object RandomActionSpawner:
-  val layer =
+  def layer(
+    active: Boolean,
+  ) =
     ZLayer.fromZIO:
       defer:
         RandomActionSpawner(
           ZIO.service[DiscussionService].run,
+          active,
         )
