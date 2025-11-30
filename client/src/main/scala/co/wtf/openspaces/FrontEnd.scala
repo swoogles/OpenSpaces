@@ -557,27 +557,41 @@ def ScheduleSlotComponent(
                         val iconElement = event.currentTarget
                           .asInstanceOf[org.scalajs.dom.Element]
                         val rect = iconElement.getBoundingClientRect()
-                        val menuWidth = 350
-                        val menuHeight = 300
                         val viewportHeight = dom.window.innerHeight
                         val viewportWidth = dom.window.innerWidth
 
-                        val x =
-                          rect.left + rect.width / 2 - menuWidth / 2
-                        val y =
-                          if (
-                            rect.bottom + menuHeight + 5 > viewportHeight
-                          )
-                            rect.top - menuHeight - 5
-                          else rect.bottom + 5
+                        // Dynamic menu width: min(350, viewport - 20px margin)
+                        val menuWidth =
+                          Math.min(350.0, viewportWidth - 20)
 
-                        val clampedX = Math.max(
-                          5,
-                          Math.min(x, viewportWidth - menuWidth - 5),
-                        )
+                        // For very small screens, center the menu
+                        val x =
+                          if (viewportWidth <= 400) 10.0
+                          else
+                            rect.left + rect.width / 2 - menuWidth / 2
+
+                        // Clamp X position to stay within viewport
+                        val clampedX =
+                          if (viewportWidth <= 400) 10.0
+                          else
+                            Math.max(
+                              10.0,
+                              Math.min(x,
+                                       viewportWidth - menuWidth - 10,
+                              ),
+                            )
+
+                        // Position near top of screen to ensure visibility
+                        // Use 10% from top or 20px, whichever is larger
+                        val clampedY =
+                          Math.max(20.0, viewportHeight * 0.05)
 
                         showSwapMenu.onNext(
-                          (activeDiscussion, value, clampedX, y),
+                          (activeDiscussion,
+                           value,
+                           clampedX,
+                           clampedY,
+                          ),
                         )
                       }
                   }
