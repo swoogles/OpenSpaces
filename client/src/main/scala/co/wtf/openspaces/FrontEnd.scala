@@ -486,6 +486,7 @@ def ScheduleSlotComponent(
   updateDiscussion: Observer[Discussion],
   $activeDiscussion: StrictSignal[Option[Discussion]],
   showPopover: Observer[(Discussion, Double, Double)],
+  topicUpdates: DiscussionAction => Unit,
 ) =
   span(
     child <-- $discussionState.map { discussionState =>
@@ -552,7 +553,22 @@ def ScheduleSlotComponent(
                         ) == value => // TODO Make this impossible
                       SvgIcon(discussion.glyphicon, "filledTopic")
                     case Some(_) =>
-                      SvgIcon(GlyphiconUtils.minus)
+                      // Empty slot when active discussion is scheduled elsewhere
+                      // Long-press to move the topic here
+                      span(
+                        cls := "emptySlotWithActiveDiscussion",
+                        SvgIcon(GlyphiconUtils.minus),
+                        onContextMenu.preventDefault --> Observer {
+                          (event: org.scalajs.dom.MouseEvent) =>
+                            event.stopPropagation()
+                            topicUpdates(
+                              DiscussionAction.MoveTopic(
+                                discussion.id,
+                                RoomSlot(room, timeSlot),
+                              ),
+                            )
+                        },
+                      )
                     case None =>
                       span(
                         SvgIcon(GlyphiconUtils.plus),
@@ -575,6 +591,7 @@ def SlotSchedule(
   updateDiscussion: Observer[Discussion],
   activeDiscussion: StrictSignal[Option[Discussion]],
   showPopover: Observer[(Discussion, Double, Double)],
+  topicUpdates: DiscussionAction => Unit,
 ) =
   div(
     child <--
@@ -591,6 +608,7 @@ def SlotSchedule(
                                         updateDiscussion,
                                         activeDiscussion,
                                         showPopover,
+                                        topicUpdates,
                   ),
               )
             },
@@ -809,6 +827,7 @@ def ScheduleView(
           updateTargetDiscussion,
           activeDiscussion.signal,
           showPopover,
+          topicUpdates,
         ),
       ),
     ),
@@ -819,6 +838,7 @@ def SlotSchedules(
   updateDiscussion: Observer[Discussion],
   activeDiscussion: StrictSignal[Option[Discussion]],
   showPopover: Observer[(Discussion, Double, Double)],
+  topicUpdates: DiscussionAction => Unit,
 ) =
   div(
     children <--
@@ -840,6 +860,7 @@ def SlotSchedules(
                                             updateDiscussion,
                                             activeDiscussion,
                                             showPopover,
+                                            topicUpdates,
                       ),
                     )
                   },
@@ -871,6 +892,8 @@ private def handleDiscussionActionConfirmed(
     case DiscussionActionConfirmed.UpdateRoomSlot(topicId, _) =>
       (Some(topicId), false)
     case DiscussionActionConfirmed.Unschedule(topicId) =>
+      (Some(topicId), false)
+    case DiscussionActionConfirmed.MoveTopic(topicId, _) =>
       (Some(topicId), false)
     case DiscussionActionConfirmed.AddResult(_) =>
       (None, false)

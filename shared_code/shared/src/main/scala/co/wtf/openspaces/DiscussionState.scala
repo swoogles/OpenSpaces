@@ -59,6 +59,10 @@ case class DiscussionState(
         data.updatedWith(topicId) {
           _.map(value => value.copy(topic = newTopic))
         }
+      case DiscussionActionConfirmed.MoveTopic(topicId, targetRoomSlot) =>
+        data.updatedWith(topicId) {
+          _.map(value => value.copy(roomSlot = Some(targetRoomSlot)))
+        }
 
       case DiscussionActionConfirmed.AddResult(discussion) =>
         data + (discussion.id -> discussion),

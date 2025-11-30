@@ -157,7 +157,9 @@ enum DiscussionAction extends WebSocketMessage derives JsonCodec:
     roomSlot: RoomSlot)
   case Unschedule(
     topicId: TopicId)
-//  case AssignToRoomSlot(discussion: Discussion, roomSlot: RoomSlot) // TODO
+  case MoveTopic(
+    topicId: TopicId,
+    targetRoomSlot: RoomSlot)
 
 enum DiscussionActionConfirmed derives JsonCodec:
   case Delete(
@@ -176,6 +178,9 @@ enum DiscussionActionConfirmed derives JsonCodec:
     roomSlot: RoomSlot) // Any reason to pass original, now that I'm updating based on id?
   case Unschedule(
     topicId: TopicId) // TODO Should actually be an Option[RoomSlot], when unscheduling something
+  case MoveTopic(
+    topicId: TopicId,
+    targetRoomSlot: RoomSlot)
   case AddResult(
     discussion: Discussion)
   case Rejected(
@@ -202,6 +207,8 @@ object DiscussionActionConfirmed:
         DiscussionActionConfirmed.UpdateRoomSlot(topicId, roomSlot)
       case DiscussionAction.Unschedule(topicId) =>
         DiscussionActionConfirmed.Unschedule(topicId)
+      case DiscussionAction.MoveTopic(topicId, targetRoomSlot) =>
+        DiscussionActionConfirmed.MoveTopic(topicId, targetRoomSlot)
 
 case class Room(
   id: Int,
