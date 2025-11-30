@@ -18,6 +18,7 @@ case class BackendSocketApp(
   val socketApp: WebSocketApp[Any] =
     Handler.webSocket { channel =>
       defer:
+        // TODO I'm pretty sure this would get kicked off for every user that joins
         randomActionSpawner.startSpawningRandomActions(channel).run
         channel.receiveAll {
           case Read(WebSocketFrame.Text(text)) =>
@@ -53,9 +54,4 @@ case class BackendSocketApp(
 
 object BackendSocketApp:
   val layer =
-    ZLayer.fromZIO:
-      defer:
-        BackendSocketApp(
-          ZIO.service[DiscussionService].run,
-          ZIO.service[RandomActionSpawner].run,
-        )
+    ZLayer.derive[BackendSocketApp]

@@ -37,7 +37,6 @@ case class DiscussionService(
     defer:
       authenticatedTicketService
         .use(ticket)
-        .tapError(e => ZIO.unit)
         .mapError(new Exception(_))
         .run
       connectedUsers
@@ -79,7 +78,7 @@ case class DiscussionService(
   private def handleUnticketedAction(
     channel: OpenSpacesServerChannel,
     discussionAction: DiscussionAction,
-  ): ZIO[Any, Throwable, Unit] =
+  ): UIO[Unit] =
     channel
       .send(
         DiscussionActionConfirmed.Rejected(
