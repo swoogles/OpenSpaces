@@ -27,6 +27,32 @@ class DiscussionDataStore(
           res <- discussionDatabase.updateAndGet(s => s(discussion))
         } yield DiscussionActionConfirmed.AddResult(discussion)
 
+      case swap @ DiscussionAction.SwapTopics(topic1,
+                                              expectedSlot1,
+                                              topic2,
+                                              expectedSlot2,
+          ) =>
+        defer:
+          val currentState = discussionDatabase.get.run
+          val actualSlot1 =
+            currentState.data.get(topic1).flatMap(_.roomSlot)
+          val actualSlot2 =
+            currentState.data.get(topic2).flatMap(_.roomSlot)
+
+          // Validate that the room slots haven't changed since the user saw them
+          val slotsMatch =
+            actualSlot1.contains(expectedSlot1) &&
+              actualSlot2.contains(expectedSlot2)
+
+          if (slotsMatch)
+            val confirmedAction =
+              DiscussionActionConfirmed.fromDiscussionAction(swap)
+            discussionDatabase
+              .updateAndGet(s => s(confirmedAction))
+              .run
+            confirmedAction
+          else DiscussionActionConfirmed.Rejected(swap)
+
       case other =>
         defer:
           val confirmedAction =

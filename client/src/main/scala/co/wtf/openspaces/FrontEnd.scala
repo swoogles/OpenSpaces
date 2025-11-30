@@ -169,27 +169,40 @@ object FrontEnd extends App:
           div(
             logoutButton,
             ticketCenter(topicUpdates),
-            topicUpdates.received --> Observer { (event: DiscussionActionConfirmed) =>
-              discussionState
-                .update { existing =>
-                  val state = existing(event)
-                  val (topicId, shouldClearActive) =
-                    handleDiscussionActionConfirmed(event)
+            topicUpdates.received --> Observer {
+              (event: DiscussionActionConfirmed) =>
+                // Handle swap rejection feedback
+                event match
+                  case DiscussionActionConfirmed.Rejected(
+                        _: DiscussionAction.SwapTopics,
+                      ) =>
+                    errorBanner.error.set(
+                      Some(
+                        "Swap failed: One or both topics were moved by another user. Please try again.",
+                      ),
+                    )
+                  case _ => ()
 
-                  if (shouldClearActive) {
-                    activeDiscussion.set(None)
-                  }
+                discussionState
+                  .update { existing =>
+                    val state = existing(event)
+                    val (topicId, shouldClearActive) =
+                      handleDiscussionActionConfirmed(event)
 
-                  topicId.foreach { id =>
-                    if (
-                      activeDiscussion.now().map(_.id).contains(id)
-                    ) {
-                      activeDiscussion.set(state.data.get(id))
+                    if (shouldClearActive) {
+                      activeDiscussion.set(None)
                     }
-                  }
 
-                  state
-                }
+                    topicId.foreach { id =>
+                      if (
+                        activeDiscussion.now().map(_.id).contains(id)
+                      ) {
+                        activeDiscussion.set(state.data.get(id))
+                      }
+                    }
+
+                    state
+                  }
             },
             errorBanner.component,
             NameBadge(name),
@@ -691,9 +704,13 @@ case class ErrorBanner(
         error.signal.map {
           case Some(value) =>
             div(
-              cls := "Error",
-              color := "red",
-              "Error: " + value,
+              cls := "ErrorBanner",
+              span(cls := "ErrorBanner-message", "Error: " + value),
+              button(
+                cls := "ErrorBanner-dismiss",
+                onClick --> Observer(_ => error.set(None)),
+                "×",
+              ),
             )
           case None =>
             div()
@@ -911,13 +928,21 @@ def SwapActionMenu(
       button(
         cls := "SwapActionMenu-swapButton",
         onClick --> Observer { _ =>
-          topicUpdates(
-            DiscussionAction.SwapTopics(
-              selectedDiscussion.id,
-              targetDiscussion.id,
-            ),
-          )
-          dismissMenu.onNext(())
+          // Both discussions must have room slots for swap to work
+          (selectedDiscussion.roomSlot,
+           targetDiscussion.roomSlot,
+          ) match
+            case (Some(slot1), Some(slot2)) =>
+              topicUpdates(
+                DiscussionAction.SwapTopics(
+                  selectedDiscussion.id,
+                  slot1,
+                  targetDiscussion.id,
+                  slot2,
+                ),
+              )
+              dismissMenu.onNext(())
+            case _ => () // Should not happen - UI prevents this
         },
         span("⇅"),
         span("Swap Room Slots"),
@@ -1051,7 +1076,7 @@ private def handleDiscussionActionConfirmed(
       (Some(topicId), false)
     case DiscussionActionConfirmed.MoveTopic(topicId, _) =>
       (Some(topicId), false)
-    case DiscussionActionConfirmed.SwapTopics(topic1, _) =>
+    case DiscussionActionConfirmed.SwapTopics(topic1, _, _, _) =>
       (Some(topic1), false)
     case DiscussionActionConfirmed.AddResult(_) =>
       (None, false)
