@@ -56,8 +56,13 @@ object FrontEnd extends App:
   val activeDiscussion: Var[Option[Discussion]] =
     Var(None)
 
+  // Popover state: (Discussion, x position, y position)
+  val popoverState: Var[Option[(Discussion, Double, Double)]] =
+    Var(None)
+
   val updateTargetDiscussion: Observer[Discussion] =
     Observer[Discussion] { discussion =>
+      dismissPopover.onNext(())
       dom.document
         .getElementsByClassName("ActiveDiscussion")
         .head
@@ -92,10 +97,49 @@ object FrontEnd extends App:
     ),
   )
 
+  val dismissPopover: Observer[Unit] =
+    Observer { _ =>
+      popoverState.set(None)
+    }
+
   val app =
     div(
       cls := "PageContainer",
       topicUpdates.connect,
+      // Global click-outside handler to dismiss popover
+      onClick --> Observer { (event: org.scalajs.dom.MouseEvent) =>
+        val target =
+          event.target.asInstanceOf[org.scalajs.dom.Element]
+        // Don't dismiss if clicking on popover itself (it stops propagation)
+        // Don't dismiss if clicking on a glyphicon (which will show a new popover)
+        // EXCEPT for the minus icon, which should dismiss since it's an empty slot
+        val isMinusIcon = target.tagName.toLowerCase == "img" &&
+          target
+            .asInstanceOf[org.scalajs.dom.HTMLImageElement]
+            .src
+            .contains("minus.svg")
+        val isGlyphicon = (target.classList.contains("glyphicon") ||
+          target.tagName.toLowerCase == "img") && !isMinusIcon
+        if (!isGlyphicon) {
+          dismissPopover.onNext(())
+        }
+      },
+      // Popover component at top level
+      child <-- popoverState.signal.map {
+        case Some((discussion, x, y)) =>
+          TopicPopover(
+            discussion,
+            x,
+            y,
+            name.signal,
+            topicUpdates.sendOne,
+            setActiveDiscussion,
+            dismissPopover,
+            updateTargetDiscussion,
+          )
+        case None =>
+          div()
+      },
       getCookie("access_token") match {
         case Some(accessToken) =>
           div(
@@ -131,6 +175,7 @@ object FrontEnd extends App:
               topicUpdates.sendOne,
               name.signal,
               setActiveDiscussion,
+              popoverState,
             ),
             liveTopicSubmissionAndVoting(updateTargetDiscussion),
           )
@@ -440,6 +485,7 @@ def ScheduleSlotComponent(
   $discussionState: Signal[DiscussionState],
   updateDiscussion: Observer[Discussion],
   $activeDiscussion: StrictSignal[Option[Discussion]],
+  showPopover: Observer[(Discussion, Double, Double)],
 ) =
   span(
     child <-- $discussionState.map { discussionState =>
@@ -456,6 +502,39 @@ def ScheduleSlotComponent(
                   "activeTopicIcon"
                 else ""
               span(
+                onClick --> Observer {
+                  (event: org.scalajs.dom.MouseEvent) =>
+                    event.stopPropagation()
+                    val iconElement = event.currentTarget
+                      .asInstanceOf[org.scalajs.dom.Element]
+                    val rect = iconElement.getBoundingClientRect()
+                    // Position popover centered below the icon with a small gap
+                    // Try to position it above if it would go off-screen or cover schedule slots
+                    val popoverWidth = 250
+                    val popoverHeight = 200 // Approximate height
+                    val x =
+                      rect.left + rect.width / 2 - popoverWidth / 2
+                    val viewportHeight = dom.window.innerHeight
+                    val viewportWidth = dom.window.innerWidth
+
+                    // If popover would go off bottom of screen, position above instead
+                    val y = if (
+                      rect.bottom + popoverHeight + 5 > viewportHeight
+                    ) {
+                      rect.top - popoverHeight - 5
+                    }
+                    else {
+                      rect.bottom + 5
+                    }
+
+                    // Clamp x position to stay within viewport
+                    val clampedX = Math.max(
+                      5,
+                      Math.min(x, viewportWidth - popoverWidth - 5),
+                    )
+
+                    showPopover.onNext((value, clampedX, y))
+                },
                 onClick.mapTo(
                   value,
                 ) --> updateDiscussion, // TODO This is causing an unecesary update to be sent to server
@@ -495,6 +574,7 @@ def SlotSchedule(
   $timeSlotsForAllRooms: Signal[TimeSlotForAllRooms],
   updateDiscussion: Observer[Discussion],
   activeDiscussion: StrictSignal[Option[Discussion]],
+  showPopover: Observer[(Discussion, Double, Double)],
 ) =
   div(
     child <--
@@ -510,6 +590,7 @@ def SlotSchedule(
                                         $discussionState,
                                         updateDiscussion,
                                         activeDiscussion,
+                                        showPopover,
                   ),
               )
             },
@@ -534,13 +615,170 @@ case class ErrorBanner(
         },
     )
 
+def TopicPopover(
+  discussion: Discussion,
+  x: Double,
+  y: Double,
+  name: StrictSignal[Person],
+  topicUpdates: DiscussionAction => Unit,
+  setActiveDiscussion: Observer[Discussion],
+  dismissPopover: Observer[Unit],
+  updateTargetDiscussion: Observer[Discussion],
+) =
+  val votePosition =
+    discussion.interestedParties.find(_.voter == name.now())
+  val backgroundColorByPosition = "#C6DAD7"
+  val feedbackOnTopic =
+    discussion.interestedParties.find(_.voter == name.now())
+  val hasExpressedInterest =
+    feedbackOnTopic match
+      case Some(Feedback(_, VotePosition.Interested)) => true
+      case _                                          => false
+
+  div(
+    cls := "TopicPopover",
+    position := "fixed",
+    left := s"${x}px",
+    top := s"${y}px",
+    backgroundColor := backgroundColorByPosition,
+    borderRadius := "4px",
+    padding := "12px",
+    minWidth := "250px",
+    maxWidth := "400px",
+    boxShadow := "0 4px 6px rgba(0, 0, 0, 0.1), 0 1px 3px rgba(0, 0, 0, 0.08)",
+    zIndex := "1000",
+    border := "1px solid #ccc",
+    // Stop propagation so clicks inside popover don't dismiss it
+    onClick.preventDefault.stopPropagation --> Observer(_ => ()),
+    div(
+      cls := "PopoverHeader",
+      display := "flex",
+      justifyContent := "space-between",
+      alignItems := "center",
+      marginBottom := "8px",
+      div(
+        fontWeight := "bold",
+        fontSize := "16px",
+        discussion.topicName,
+      ),
+      if (
+        List("bill", "emma").exists(admin =>
+          name.now().unwrap.toLowerCase().contains(admin),
+        )
+      )
+        button(
+          cls := "delete-topic",
+          color := "red",
+          border := "none",
+          backgroundColor := "transparent",
+          cursor := "pointer",
+          onClick --> Observer { _ =>
+            topicUpdates(DiscussionAction.Delete(discussion.id))
+            dismissPopover.onNext(())
+          },
+          "×",
+        )
+      else span(),
+    ),
+    div(
+      cls := "PopoverContent",
+      fontSize := "14px",
+      div(
+        display := "flex",
+        alignItems := "center",
+        gap := "8px",
+        marginBottom := "8px",
+        SvgIcon(discussion.glyphicon),
+        span(discussion.facilitatorName),
+        span(s"Votes: ${discussion.votes}"),
+      ),
+      discussion.roomSlot match {
+        case Some(roomSlot) =>
+          div(roomSlot.displayString, marginBottom := "8px")
+        case None =>
+          div("Unscheduled", marginBottom := "8px")
+      },
+      div(
+        cls := "PopoverControls",
+        display := "flex",
+        gap := "8px",
+        alignItems := "center",
+        if (hasExpressedInterest)
+          button(
+            cls := "AddButton",
+            onClick --> Observer { _ =>
+              topicUpdates(
+                DiscussionAction.RemoveVote(discussion.id, name.now()),
+              )
+              topicUpdates(
+                DiscussionAction.Vote(
+                  discussion.id,
+                  Feedback(name.now(), VotePosition.NotInterested),
+                ),
+              )
+            },
+            SvgIcon(GlyphiconUtils.heart),
+          )
+        else
+          button(
+            cls := "AddButton",
+            onClick --> Observer { _ =>
+              topicUpdates(
+                DiscussionAction.RemoveVote(discussion.id, name.now()),
+              )
+              topicUpdates(
+                DiscussionAction.Vote(
+                  discussion.id,
+                  Feedback(name.now(), VotePosition.Interested),
+                ),
+              )
+            },
+            SvgIcon(GlyphiconUtils.heartEmpty),
+          ),
+        discussion.roomSlot match {
+          case Some(roomSlot) =>
+            button(
+              onClick --> Observer { _ =>
+                dismissPopover.onNext(())
+                setActiveDiscussion.onNext(
+                  discussion.copy(roomSlot = None),
+                )
+              },
+              "Reschedule",
+            )
+
+            button(
+              onClick.mapTo(
+                discussion.copy(roomSlot = None),
+              ) --> updateTargetDiscussion,
+              "Reschedule",
+            )
+          case None =>
+            span("Unscheduled")
+        },
+        SvgIcon(GlyphiconUtils.schedule).amend(
+          onClick --> Observer { _ =>
+            dismissPopover.onNext(())
+            setActiveDiscussion.onNext(discussion)
+          },
+        ),
+      ),
+    ),
+  )
+
 def ScheduleView(
   fullSchedule: Var[DiscussionState],
   activeDiscussion: Var[Option[Discussion]],
   topicUpdates: DiscussionAction => Unit,
   name: StrictSignal[Person],
   updateTargetDiscussion: Observer[Discussion],
+  popoverState: Var[Option[(Discussion, Double, Double)]],
 ) =
+  val showPopover: Observer[(Discussion, Double, Double)] =
+    Observer { case (discussion, x, y) =>
+      popoverState.set(Some((discussion, x, y)))
+    }
+
   div(
     cls := "container",
     div(
@@ -570,6 +808,7 @@ def ScheduleView(
           fullSchedule.signal,
           updateTargetDiscussion,
           activeDiscussion.signal,
+          showPopover,
         ),
       ),
     ),
@@ -579,6 +818,7 @@ def SlotSchedules(
   $discussionState: Signal[DiscussionState],
   updateDiscussion: Observer[Discussion],
   activeDiscussion: StrictSignal[Option[Discussion]],
+  showPopover: Observer[(Discussion, Double, Double)],
 ) =
   div(
     children <--
@@ -599,6 +839,7 @@ def SlotSchedules(
                                             $discussionState,
                                             updateDiscussion,
                                             activeDiscussion,
+                                            showPopover,
                       ),
                     )
                   },
