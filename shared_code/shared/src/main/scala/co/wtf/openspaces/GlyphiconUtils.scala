@@ -16,6 +16,9 @@ object GlyphiconUtils:
   val heart = Glyphicon("glyphicons-basic-13-heart.svg")
   val heartEmpty = Glyphicon("glyphicons-basic-20-heart-empty.svg")
 
+  val chevronDown = Glyphicon("glyphicons-basic-221-chevron-down.svg")
+  val chevronUp = Glyphicon("glyphicons-basic-222-chevron-up.svg")
+
   val emptySlot =
     emptyCircle // TODO Make sure empty circle is not available for created topics
 

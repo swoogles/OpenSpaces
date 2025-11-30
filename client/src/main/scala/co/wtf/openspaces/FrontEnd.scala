@@ -312,20 +312,35 @@ private def SingleDiscussionComponent(
 ) = {
   signal.map {
     case Some(topic) =>
-      val votePosition =
+      val currentFeedback =
         topic.interestedParties.find(_.voter == name.now())
       val backgroundColorByPosition = "#C6DAD7"
 
       val $characters: List[(String, Int)] =
         topic.topic.unwrap.split("").zipWithIndex.toList
 
-      val feedbackOnTopic =
-        topic.interestedParties.find(_.voter == name.now())
+      val isInterested =
+        currentFeedback.exists(_.position == VotePosition.Interested)
+      val isNotInterested =
+        currentFeedback.exists(
+          _.position == VotePosition.NotInterested,
+        )
 
-      val hasExpressedInterest =
-        feedbackOnTopic match
-          case Some(Feedback(_, VotePosition.Interested)) => true
-          case _                                          => false
+      def handleVote(
+        target: Option[VotePosition],
+      ) =
+        val voter = name.now()
+        topicUpdates(
+          DiscussionAction.RemoveVote(topic.id, voter),
+        )
+        target.foreach { position =>
+          topicUpdates(
+            DiscussionAction.Vote(
+              topic.id,
+              Feedback(voter, position),
+            ),
+          )
+        }
 
       // import neotype.unwrap
       div(
@@ -372,7 +387,7 @@ private def SingleDiscussionComponent(
         ),
         span(
           cls := "SecondaryActive",
-          votePosition match
+          currentFeedback match
             case Some(position) =>
               span(
                 SvgIcon(topic.glyphicon),
@@ -392,43 +407,43 @@ private def SingleDiscussionComponent(
         ),
         div(
           cls := "ControlsActive",
-          if (hasExpressedInterest)
-            span(
+          div(
+            cls := "VoteControls",
+            SvgIcon(GlyphiconUtils.schedule).amend(
+              onClick.mapTo(topic) --> updateTargetDiscussion,
+            ),
+            div(
+              cls := "VoteChevronStack",
               button(
-                cls := "AddButton",
+                cls := (
+                  if isInterested then
+                    "AddButton VoteButton VoteButton--active"
+                  else "AddButton VoteButton"
+                ),
                 onClick --> Observer { _ =>
-                  topicUpdates(
-                    DiscussionAction.RemoveVote(topic.id, name.now()),
-                  )
-                  topicUpdates(
-                    DiscussionAction.Vote(
-                      topic.id,
-                      Feedback(name.now(), VotePosition.NotInterested),
-                    ),
+                  handleVote(
+                    if isInterested then None
+                    else Some(VotePosition.Interested),
                   )
                 },
-                SvgIcon(GlyphiconUtils.heart),
+                SvgIcon(GlyphiconUtils.chevronUp),
               ),
-            )
-          else
-            span(
               button(
-                cls := "AddButton",
+                cls := (
+                  if isNotInterested then
+                    "AddButton VoteButton VoteButton--active"
+                  else "AddButton VoteButton"
+                ),
                 onClick --> Observer { _ =>
-
-                  topicUpdates(
-                    DiscussionAction.RemoveVote(topic.id, name.now()),
-                  )
-                  topicUpdates(
-                    DiscussionAction.Vote(
-                      topic.id,
-                      Feedback(name.now(), VotePosition.Interested),
-                    ),
+                  handleVote(
+                    if isNotInterested then None
+                    else Some(VotePosition.NotInterested),
                   )
                 },
-                SvgIcon(GlyphiconUtils.heartEmpty),
+                SvgIcon(GlyphiconUtils.chevronDown),
               ),
             ),
+          ),
           topic.roomSlot match {
             case Some(roomSlot) =>
               button(
@@ -440,9 +455,6 @@ private def SingleDiscussionComponent(
             case None =>
               "Unscheduled"
           },
-          SvgIcon(GlyphiconUtils.schedule).amend(
-            onClick.mapTo(topic) --> updateTargetDiscussion,
-          ),
         ),
       )
     case None =>
