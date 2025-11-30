@@ -171,7 +171,7 @@ object FrontEnd extends App:
             ticketCenter(topicUpdates),
             topicUpdates.received --> Observer {
               (event: DiscussionActionConfirmed) =>
-                // Handle swap rejection feedback
+                // Handle rejection feedback
                 event match
                   case DiscussionActionConfirmed.Rejected(
                         _: DiscussionAction.SwapTopics,
@@ -179,6 +179,14 @@ object FrontEnd extends App:
                     errorBanner.error.set(
                       Some(
                         "Swap failed: One or both topics were moved by another user. Please try again.",
+                      ),
+                    )
+                  case DiscussionActionConfirmed.Rejected(
+                        _: DiscussionAction.MoveTopic,
+                      ) =>
+                    errorBanner.error.set(
+                      Some(
+                        "Move failed: That slot was just filled by another user. Please try again.",
                       ),
                     )
                   case _ => ()

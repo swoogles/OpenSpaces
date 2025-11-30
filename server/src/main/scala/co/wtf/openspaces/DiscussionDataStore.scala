@@ -53,6 +53,27 @@ class DiscussionDataStore(
             confirmedAction
           else DiscussionActionConfirmed.Rejected(swap)
 
+      case move @ DiscussionAction.MoveTopic(topicId,
+                                             targetRoomSlot,
+          ) =>
+        defer:
+          val currentState = discussionDatabase.get.run
+          // Check if target slot is occupied by a different discussion
+          val targetOccupied = currentState.data.values.exists {
+            discussion =>
+              discussion.id != topicId &&
+              discussion.roomSlot.contains(targetRoomSlot)
+          }
+
+          if (targetOccupied) DiscussionActionConfirmed.Rejected(move)
+          else
+            val confirmedAction =
+              DiscussionActionConfirmed.fromDiscussionAction(move)
+            discussionDatabase
+              .updateAndGet(s => s(confirmedAction))
+              .run
+            confirmedAction
+
       case other =>
         defer:
           val confirmedAction =
