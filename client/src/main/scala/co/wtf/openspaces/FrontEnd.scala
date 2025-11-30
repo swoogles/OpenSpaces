@@ -617,7 +617,7 @@ def ScheduleSlotComponent(
                       // Long-press to move the topic here
                       span(
                         cls := "emptySlotWithActiveDiscussion",
-                        SvgIcon(GlyphiconUtils.minus),
+                        SvgIcon(GlyphiconUtils.emptySlot),
                         onContextMenu.preventDefault --> Observer {
                           (event: org.scalajs.dom.MouseEvent) =>
                             event.stopPropagation()
@@ -639,7 +639,7 @@ def ScheduleSlotComponent(
                         ) --> updateDiscussion,
                       )
                 case None =>
-                  SvgIcon(GlyphiconUtils.minus)
+                  SvgIcon(GlyphiconUtils.emptySlot)
         },
       )
     },
