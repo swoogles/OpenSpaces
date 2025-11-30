@@ -67,7 +67,6 @@ object FrontEnd extends App:
 
   val updateTargetDiscussion: Observer[Discussion] =
     Observer[Discussion] { discussion =>
-      dismissPopover.onNext(())
       dom.document
         .getElementsByClassName("ActiveDiscussion")
         .head
@@ -102,11 +101,6 @@ object FrontEnd extends App:
     ),
   )
 
-  val dismissPopover: Observer[Unit] =
-    Observer { _ =>
-      popoverState.set(None)
-    }
-
   val dismissSwapMenu: Observer[Unit] =
     Observer { _ =>
       swapMenuState.set(None)
@@ -116,40 +110,7 @@ object FrontEnd extends App:
     div(
       cls := "PageContainer",
       topicUpdates.connect,
-      // Global click-outside handler to dismiss popover
-      onClick --> Observer { (event: org.scalajs.dom.MouseEvent) =>
-        val target =
-          event.target.asInstanceOf[org.scalajs.dom.Element]
-        // Don't dismiss if clicking on popover itself (it stops propagation)
-        // Don't dismiss if clicking on a glyphicon (which will show a new popover)
-        // EXCEPT for the minus icon, which should dismiss since it's an empty slot
-        val isMinusIcon = target.tagName.toLowerCase == "img" &&
-          target
-            .asInstanceOf[org.scalajs.dom.HTMLImageElement]
-            .src
-            .contains("minus.svg")
-        val isGlyphicon = (target.classList.contains("glyphicon") ||
-          target.tagName.toLowerCase == "img") && !isMinusIcon
-        if (!isGlyphicon) {
-          dismissPopover.onNext(())
-        }
-      },
       // Popover component at top level
-      child <-- popoverState.signal.map {
-        case Some((discussion, x, y)) =>
-          TopicPopover(
-            discussion,
-            x,
-            y,
-            name.signal,
-            topicUpdates.sendOne,
-            setActiveDiscussion,
-            dismissPopover,
-            updateTargetDiscussion,
-          )
-        case None =>
-          div()
-      },
       // Swap action menu at top level
       child <-- swapMenuState.signal.map {
         case Some((selectedDiscussion, targetDiscussion, x, y)) =>
@@ -724,157 +685,6 @@ case class ErrorBanner(
             div()
         },
     )
-
-def TopicPopover(
-  discussion: Discussion,
-  x: Double,
-  y: Double,
-  name: StrictSignal[Person],
-  topicUpdates: DiscussionAction => Unit,
-  setActiveDiscussion: Observer[Discussion],
-  dismissPopover: Observer[Unit],
-  updateTargetDiscussion: Observer[Discussion],
-) =
-  val votePosition =
-    discussion.interestedParties.find(_.voter == name.now())
-  val backgroundColorByPosition = "#C6DAD7"
-  val feedbackOnTopic =
-    discussion.interestedParties.find(_.voter == name.now())
-  val hasExpressedInterest =
-    feedbackOnTopic match
-      case Some(Feedback(_, VotePosition.Interested)) => true
-      case _                                          => false
-
-  div(
-    cls := "TopicPopover",
-    position := "fixed",
-    left := s"${x}px",
-    top := s"${y}px",
-    backgroundColor := backgroundColorByPosition,
-    borderRadius := "4px",
-    padding := "12px",
-    minWidth := "250px",
-    maxWidth := "400px",
-    boxShadow := "0 4px 6px rgba(0, 0, 0, 0.1), 0 1px 3px rgba(0, 0, 0, 0.08)",
-    zIndex := "1000",
-    border := "1px solid #ccc",
-    // Stop propagation so clicks inside popover don't dismiss it
-    onClick.preventDefault.stopPropagation --> Observer(_ => ()),
-    div(
-      cls := "PopoverHeader",
-      display := "flex",
-      justifyContent := "space-between",
-      alignItems := "center",
-      marginBottom := "8px",
-      div(
-        fontWeight := "bold",
-        fontSize := "16px",
-        discussion.topicName,
-      ),
-      if (
-        List("bill", "emma").exists(admin =>
-          name.now().unwrap.toLowerCase().contains(admin),
-        )
-      )
-        button(
-          cls := "delete-topic",
-          color := "red",
-          border := "none",
-          backgroundColor := "transparent",
-          cursor := "pointer",
-          onClick --> Observer { _ =>
-            topicUpdates(DiscussionAction.Delete(discussion.id))
-            dismissPopover.onNext(())
-          },
-          "×",
-        )
-      else span(),
-    ),
-    div(
-      cls := "PopoverContent",
-      fontSize := "14px",
-      div(
-        display := "flex",
-        alignItems := "center",
-        gap := "8px",
-        marginBottom := "8px",
-        SvgIcon(discussion.glyphicon),
-        span(discussion.facilitatorName),
-        span(s"Votes: ${discussion.votes}"),
-      ),
-      discussion.roomSlot match {
-        case Some(roomSlot) =>
-          div(roomSlot.displayString, marginBottom := "8px")
-        case None =>
-          div("Unscheduled", marginBottom := "8px")
-      },
-      div(
-        cls := "PopoverControls",
-        display := "flex",
-        gap := "8px",
-        alignItems := "center",
-        if (hasExpressedInterest)
-          button(
-            cls := "AddButton",
-            onClick --> Observer { _ =>
-              topicUpdates(
-                DiscussionAction.RemoveVote(discussion.id, name.now()),
-              )
-              topicUpdates(
-                DiscussionAction.Vote(
-                  discussion.id,
-                  Feedback(name.now(), VotePosition.NotInterested),
-                ),
-              )
-            },
-            SvgIcon(GlyphiconUtils.heart),
-          )
-        else
-          button(
-            cls := "AddButton",
-            onClick --> Observer { _ =>
-              topicUpdates(
-                DiscussionAction.RemoveVote(discussion.id, name.now()),
-              )
-              topicUpdates(
-                DiscussionAction.Vote(
-                  discussion.id,
-                  Feedback(name.now(), VotePosition.Interested),
-                ),
-              )
-            },
-            SvgIcon(GlyphiconUtils.heartEmpty),
-          ),
-        discussion.roomSlot match {
-          case Some(roomSlot) =>
-            button(
-              onClick --> Observer { _ =>
-                dismissPopover.onNext(())
-                setActiveDiscussion.onNext(
-                  discussion.copy(roomSlot = None),
-                )
-              },
-              "Reschedule",
-            )
-
-            button(
-              onClick.mapTo(
-                discussion.copy(roomSlot = None),
-              ) --> updateTargetDiscussion,
-              "Reschedule",
-            )
-          case None =>
-            span("Unscheduled")
-        },
-        SvgIcon(GlyphiconUtils.schedule).amend(
-          onClick --> Observer { _ =>
-            dismissPopover.onNext(())
-            setActiveDiscussion.onNext(discussion)
-          },
-        ),
-      ),
-    ),
-  )
 
 def SwapActionMenu(
   selectedDiscussion: Discussion,
