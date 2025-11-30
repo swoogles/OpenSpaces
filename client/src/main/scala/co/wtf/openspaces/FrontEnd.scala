@@ -65,6 +65,10 @@ object FrontEnd extends App:
     : Var[Option[(Discussion, Discussion, Double, Double)]] =
     Var(None)
 
+  // Unscheduled discussions menu state: (RoomSlot, x position, y position)
+  val unscheduledMenuState: Var[Option[(RoomSlot, Double, Double)]] =
+    Var(None)
+
   val updateTargetDiscussion: Observer[Discussion] =
     Observer[Discussion] { discussion =>
       dom.document
@@ -106,6 +110,11 @@ object FrontEnd extends App:
       swapMenuState.set(None)
     }
 
+  val dismissUnscheduledMenu: Observer[Unit] =
+    Observer { _ =>
+      unscheduledMenuState.set(None)
+    }
+
   val app =
     div(
       cls := "PageContainer",
@@ -125,6 +134,25 @@ object FrontEnd extends App:
         case None =>
           div()
       },
+      // Unscheduled discussions menu at top level
+      child <-- unscheduledMenuState.signal
+        .combineWith(discussionState.signal)
+        .map {
+          case (Some((roomSlot, x, y)), discussionState) =>
+            val unscheduledDiscussions = discussionState.data.values
+              .filter(_.roomSlot.isEmpty)
+              .toList
+            UnscheduledDiscussionsMenu(
+              unscheduledDiscussions,
+              roomSlot,
+              x,
+              y,
+              topicUpdates.sendOne,
+              dismissUnscheduledMenu,
+            )
+          case _ =>
+            div()
+        },
       getCookie("access_token") match {
         case Some(accessToken) =>
           div(
@@ -183,6 +211,7 @@ object FrontEnd extends App:
               setActiveDiscussion,
               popoverState,
               swapMenuState,
+              unscheduledMenuState,
             ),
             liveTopicSubmissionAndVoting(updateTargetDiscussion),
           )
@@ -505,6 +534,7 @@ def ScheduleSlotComponent(
   $activeDiscussion: StrictSignal[Option[Discussion]],
   showPopover: Observer[(Discussion, Double, Double)],
   showSwapMenu: Observer[(Discussion, Discussion, Double, Double)],
+  showUnscheduledMenu: Observer[(RoomSlot, Double, Double)],
   topicUpdates: DiscussionAction => Unit,
 ) =
   span(
@@ -650,7 +680,67 @@ def ScheduleSlotComponent(
                         ) --> updateDiscussion,
                       )
                 case None =>
-                  SvgIcon(GlyphiconUtils.emptySlot)
+                  // Empty slot - show menu on short click, long press only if active discussion exists
+                  span(
+                    SvgIcon(GlyphiconUtils.emptySlot),
+                    onClick --> Observer {
+                      (event: org.scalajs.dom.MouseEvent) =>
+                        event.stopPropagation()
+                        val iconElement = event.currentTarget
+                          .asInstanceOf[org.scalajs.dom.Element]
+                        val rect = iconElement.getBoundingClientRect()
+                        val viewportHeight = dom.window.innerHeight
+                        val viewportWidth = dom.window.innerWidth
+
+                        // Dynamic menu width: min(350, viewport - 20px margin)
+                        val menuWidth =
+                          Math.min(350.0, viewportWidth - 20)
+
+                        // For very small screens, center the menu
+                        val x =
+                          if (viewportWidth <= 400) 10.0
+                          else
+                            rect.left + rect.width / 2 - menuWidth / 2
+
+                        // Clamp X position to stay within viewport
+                        val clampedX =
+                          if (viewportWidth <= 400) 10.0
+                          else
+                            Math.max(
+                              10.0,
+                              Math.min(x,
+                                       viewportWidth - menuWidth - 10,
+                              ),
+                            )
+
+                        // Position near top of screen to ensure visibility
+                        // Use 10% from top or 20px, whichever is larger
+                        val clampedY =
+                          Math.max(20.0, viewportHeight * 0.05)
+
+                        showUnscheduledMenu.onNext(
+                          (RoomSlot(room, timeSlot),
+                           clampedX,
+                           clampedY,
+                          ),
+                        )
+                    },
+                    // Long-press only works when there's an active discussion
+                    if (discussionO.exists(_.roomSlot.isDefined))
+                      onContextMenu.preventDefault --> Observer {
+                        (event: org.scalajs.dom.MouseEvent) =>
+                          event.stopPropagation()
+                          discussionO.foreach { activeDiscussion =>
+                            topicUpdates(
+                              DiscussionAction.MoveTopic(
+                                activeDiscussion.id,
+                                RoomSlot(room, timeSlot),
+                              ),
+                            )
+                          }
+                      }
+                    else emptyMod,
+                  )
         },
       )
     },
@@ -663,6 +753,7 @@ def SlotSchedule(
   activeDiscussion: StrictSignal[Option[Discussion]],
   showPopover: Observer[(Discussion, Double, Double)],
   showSwapMenu: Observer[(Discussion, Discussion, Double, Double)],
+  showUnscheduledMenu: Observer[(RoomSlot, Double, Double)],
   topicUpdates: DiscussionAction => Unit,
 ) =
   div(
@@ -682,6 +773,7 @@ def SlotSchedule(
                                       activeDiscussion,
                                       showPopover,
                                       showSwapMenu,
+                                      showUnscheduledMenu,
                                       topicUpdates,
                 ),
               )
@@ -798,6 +890,74 @@ def SwapActionMenu(
     ),
   )
 
+def UnscheduledDiscussionsMenu(
+  unscheduledDiscussions: List[Discussion],
+  targetRoomSlot: RoomSlot,
+  x: Double,
+  y: Double,
+  topicUpdates: DiscussionAction => Unit,
+  dismissMenu: Observer[Unit],
+) =
+  div(
+    cls := "SwapActionMenu",
+    left := s"${x}px",
+    top := s"${y}px",
+    onClick.preventDefault.stopPropagation --> Observer(_ => ()),
+    div(cls := "SwapActionMenu-header", "Assign Discussion"),
+    div(
+      cls := "SwapActionMenu-section",
+      div(cls := "SwapActionMenu-label",
+          s"Room Slot: ${targetRoomSlot.displayString}",
+      ),
+    ),
+    div(
+      cls := "SwapActionMenu-section",
+      div(cls := "SwapActionMenu-label", "Available Discussions:"),
+      if (unscheduledDiscussions.isEmpty) {
+        div(
+          cls := "SwapActionMenu-topic",
+          div(
+            div(cls := "SwapActionMenu-topicName",
+                "No unscheduled discussions available",
+            ),
+          ),
+        )
+      }
+      else {
+        div(
+          cls := "SwapActionMenu-actions",
+          unscheduledDiscussions.map { discussion =>
+            button(
+              cls := "SwapActionMenu-swapButton",
+              onClick --> Observer { _ =>
+                topicUpdates(
+                  DiscussionAction.UpdateRoomSlot(
+                    discussion.id,
+                    targetRoomSlot,
+                  ),
+                )
+                dismissMenu.onNext(())
+              },
+              SvgIcon(discussion.glyphicon),
+              span(
+                cls := "SwapActionMenu-topicName",
+                discussion.topicName,
+              ),
+            )
+          },
+        )
+      },
+    ),
+    div(
+      cls := "SwapActionMenu-actions",
+      button(
+        cls := "SwapActionMenu-cancelButton",
+        onClick.mapToUnit --> dismissMenu,
+        "Cancel",
+      ),
+    ),
+  )
+
 def ScheduleView(
   fullSchedule: Var[DiscussionState],
   activeDiscussion: Var[Option[Discussion]],
@@ -805,7 +965,10 @@ def ScheduleView(
   name: StrictSignal[Person],
   updateTargetDiscussion: Observer[Discussion],
   popoverState: Var[Option[(Discussion, Double, Double)]],
-  swapMenuState: Var[Option[(Discussion, Discussion, Double, Double)]],
+  swapMenuState: Var[
+    Option[(Discussion, Discussion, Double, Double)],
+  ],
+  unscheduledMenuState: Var[Option[(RoomSlot, Double, Double)]],
 ) =
   val showPopover: Observer[(Discussion, Double, Double)] =
     Observer { case (discussion, x, y) =>
@@ -816,6 +979,11 @@ def ScheduleView(
     : Observer[(Discussion, Discussion, Double, Double)] =
     Observer { case (selected, target, x, y) =>
       swapMenuState.set(Some((selected, target, x, y)))
+    }
+
+  val showUnscheduledMenu: Observer[(RoomSlot, Double, Double)] =
+    Observer { case (roomSlot, x, y) =>
+      unscheduledMenuState.set(Some((roomSlot, x, y)))
     }
 
   div(
@@ -849,6 +1017,7 @@ def ScheduleView(
           activeDiscussion.signal,
           showPopover,
           showSwapMenu,
+          showUnscheduledMenu,
           topicUpdates,
         ),
       ),
@@ -861,6 +1030,7 @@ def SlotSchedules(
   activeDiscussion: StrictSignal[Option[Discussion]],
   showPopover: Observer[(Discussion, Double, Double)],
   showSwapMenu: Observer[(Discussion, Discussion, Double, Double)],
+  showUnscheduledMenu: Observer[(RoomSlot, Double, Double)],
   topicUpdates: DiscussionAction => Unit,
 ) =
   div(
@@ -884,6 +1054,7 @@ def SlotSchedules(
                                             activeDiscussion,
                                             showPopover,
                                             showSwapMenu,
+                                            showUnscheduledMenu,
                                             topicUpdates,
                       ),
                     )
