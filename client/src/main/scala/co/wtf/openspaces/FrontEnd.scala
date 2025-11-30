@@ -149,6 +149,7 @@ object FrontEnd extends App:
               y,
               topicUpdates.sendOne,
               dismissUnscheduledMenu,
+              setActiveDiscussion,
             )
           case _ =>
             div()
@@ -655,10 +656,55 @@ def ScheduleSlotComponent(
                       SvgIcon(discussion.glyphicon, "filledTopic")
                     case Some(_) =>
                       // Empty slot when active discussion is scheduled elsewhere
-                      // Long-press to move the topic here
+                      // Quick click shows unscheduled menu, long-press moves the topic here
                       span(
                         cls := "emptySlotWithActiveDiscussion",
                         SvgIcon(GlyphiconUtils.emptySlot),
+                        onClick --> Observer {
+                          (event: org.scalajs.dom.MouseEvent) =>
+                            event.stopPropagation()
+                            val iconElement = event.currentTarget
+                              .asInstanceOf[org.scalajs.dom.Element]
+                            val rect =
+                              iconElement.getBoundingClientRect()
+                            val viewportHeight =
+                              dom.window.innerHeight
+                            val viewportWidth = dom.window.innerWidth
+
+                            // Dynamic menu width: min(350, viewport - 20px margin)
+                            val menuWidth =
+                              Math.min(350.0, viewportWidth - 20)
+
+                            // For very small screens, center the menu
+                            val x =
+                              if (viewportWidth <= 400) 10.0
+                              else
+                                rect.left + rect.width / 2 - menuWidth / 2
+
+                            // Clamp X position to stay within viewport
+                            val clampedX =
+                              if (viewportWidth <= 400) 10.0
+                              else
+                                Math.max(
+                                  10.0,
+                                  Math.min(
+                                    x,
+                                    viewportWidth - menuWidth - 10,
+                                  ),
+                                )
+
+                            // Position near top of screen to ensure visibility
+                            // Use 10% from top or 20px, whichever is larger
+                            val clampedY =
+                              Math.max(20.0, viewportHeight * 0.05)
+
+                            showUnscheduledMenu.onNext(
+                              (RoomSlot(room, timeSlot),
+                               clampedX,
+                               clampedY,
+                              ),
+                            )
+                        },
                         onContextMenu.preventDefault --> Observer {
                           (event: org.scalajs.dom.MouseEvent) =>
                             event.stopPropagation()
@@ -680,7 +726,7 @@ def ScheduleSlotComponent(
                         ) --> updateDiscussion,
                       )
                 case None =>
-                  // Empty slot - show menu on short click, long press only if active discussion exists
+                  // Empty slot - show menu on short click, long press logs to console (placeholder)
                   span(
                     SvgIcon(GlyphiconUtils.emptySlot),
                     onClick --> Observer {
@@ -725,21 +771,14 @@ def ScheduleSlotComponent(
                           ),
                         )
                     },
-                    // Long-press only works when there's an active discussion
-                    if (discussionO.exists(_.roomSlot.isDefined))
-                      onContextMenu.preventDefault --> Observer {
-                        (event: org.scalajs.dom.MouseEvent) =>
-                          event.stopPropagation()
-                          discussionO.foreach { activeDiscussion =>
-                            topicUpdates(
-                              DiscussionAction.MoveTopic(
-                                activeDiscussion.id,
-                                RoomSlot(room, timeSlot),
-                              ),
-                            )
-                          }
-                      }
-                    else emptyMod,
+                    onContextMenu.preventDefault --> Observer {
+                      (event: org.scalajs.dom.MouseEvent) =>
+                        event.stopPropagation()
+                        // Placeholder for future behavior when no discussion is selected
+                        dom.console.log(
+                          "Long press on empty slot (no discussion selected) - placeholder for future behavior",
+                        )
+                    },
                   )
         },
       )
@@ -897,6 +936,7 @@ def UnscheduledDiscussionsMenu(
   y: Double,
   topicUpdates: DiscussionAction => Unit,
   dismissMenu: Observer[Unit],
+  setActiveDiscussion: Observer[Discussion],
 ) =
   div(
     cls := "SwapActionMenu",
@@ -935,6 +975,10 @@ def UnscheduledDiscussionsMenu(
                     discussion.id,
                     targetRoomSlot,
                   ),
+                )
+                // Set the discussion as active after assigning it to the room slot
+                setActiveDiscussion.onNext(
+                  discussion.copy(roomSlot = Some(targetRoomSlot)),
                 )
                 dismissMenu.onNext(())
               },
