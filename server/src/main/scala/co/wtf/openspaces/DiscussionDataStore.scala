@@ -73,6 +73,7 @@ class DiscussionDataStore(
               .updateAndGet(s => s(confirmedAction))
               .run
             confirmedAction
+      // TODO Case for voting - IF a topic was deleted, the vote should be rejected.
 
       case other =>
         defer:
