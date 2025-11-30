@@ -407,43 +407,6 @@ private def SingleDiscussionComponent(
         ),
         div(
           cls := "ControlsActive",
-          div(
-            cls := "VoteControls",
-            SvgIcon(GlyphiconUtils.schedule).amend(
-              onClick.mapTo(topic) --> updateTargetDiscussion,
-            ),
-            div(
-              cls := "VoteChevronStack",
-              button(
-                cls := (
-                  if isInterested then
-                    "AddButton VoteButton VoteButton--active"
-                  else "AddButton VoteButton"
-                ),
-                onClick --> Observer { _ =>
-                  handleVote(
-                    if isInterested then None
-                    else Some(VotePosition.Interested),
-                  )
-                },
-                SvgIcon(GlyphiconUtils.chevronUp),
-              ),
-              button(
-                cls := (
-                  if isNotInterested then
-                    "AddButton VoteButton VoteButton--active"
-                  else "AddButton VoteButton"
-                ),
-                onClick --> Observer { _ =>
-                  handleVote(
-                    if isNotInterested then None
-                    else Some(VotePosition.NotInterested),
-                  )
-                },
-                SvgIcon(GlyphiconUtils.chevronDown),
-              ),
-            ),
-          ),
           topic.roomSlot match {
             case Some(roomSlot) =>
               button(
@@ -455,6 +418,43 @@ private def SingleDiscussionComponent(
             case None =>
               "Unscheduled"
           },
+          SvgIcon(GlyphiconUtils.schedule).amend(
+            onClick.mapTo(topic) --> updateTargetDiscussion,
+          ),
+        ),
+        div(
+          cls := "VoteColumn",
+          div(
+            cls := "VoteChevronStack",
+            button(
+              cls := (
+                if isInterested then
+                  "AddButton VoteButton VoteButton--active"
+                else "AddButton VoteButton"
+              ),
+              onClick --> Observer { _ =>
+                handleVote(
+                  if isInterested then None
+                  else Some(VotePosition.Interested),
+                )
+              },
+              SvgIcon(GlyphiconUtils.chevronUp),
+            ),
+            button(
+              cls := (
+                if isNotInterested then
+                  "AddButton VoteButton VoteButton--active"
+                else "AddButton VoteButton"
+              ),
+              onClick --> Observer { _ =>
+                handleVote(
+                  if isNotInterested then None
+                  else Some(VotePosition.NotInterested),
+                )
+              },
+              SvgIcon(GlyphiconUtils.chevronDown),
+            ),
+          ),
         ),
       )
     case None =>
