@@ -16,7 +16,8 @@ object GlyphiconUtils:
   val heart = Glyphicon("glyphicons-basic-13-heart.svg")
   val heartEmpty = Glyphicon("glyphicons-basic-20-heart-empty.svg")
 
-  val emptySlot = emptyCircle
+  val emptySlot =
+    emptyCircle // TODO Make sure empty circle is not available for created topics
 
   val ignoredPlusIcons =
     "glyphicons-basic-7-user-plus.svg\nglyphicons-basic-125-envelope-plus.svg\nglyphicons-basic-132-inbox-plus.svg\nglyphicons-basic-142-database-plus.svg\nglyphicons-basic-146-folder-plus.svg\nglyphicons-basic-191-circle-empty-plus.svg\nglyphicons-basic-291-square-empty-plus.svg\nglyphicons-basic-396-filter-plus.svg\nglyphicons-basic-446-wallet-plus.svg\nglyphicons-basic-502-server-plus.svg\nglyphicons-basic-631-circle-plus.svg\nglyphicons-basic-801-file-plus.svg\nglyphicons-basic-809-drop-plus.svg\nglyphicons-basic-841-square-plus.svg\nglyphicons-basic-852-subtitles-plus.svg\nglyphicons-basic-864-user-vr-plus.svg\nglyphicons-basic-965-layers-plus.svg\nglyphicons-basic-1007-invoice-plus.svg"
