@@ -387,23 +387,19 @@ private def SingleDiscussionComponent(
         ),
         span(
           cls := "SecondaryActive",
-          currentFeedback match
-            case Some(position) =>
-              span(
-                SvgIcon(topic.glyphicon),
-                span(topic.facilitatorName),
-                span("Votes ", topic.votes),
-                topic.roomSlot match {
-                  case Some(roomSlot) =>
-                    div(
-                      roomSlot.displayString,
-                    )
-                  case None =>
-                    div("Unscheduled")
-                },
-              )
-            case None =>
-              span(),
+          span(
+            SvgIcon(topic.glyphicon),
+            span(topic.facilitatorName),
+            span("Votes ", topic.votes),
+            topic.roomSlot match {
+              case Some(roomSlot) =>
+                span(
+                  roomSlot.displayString,
+                )
+              case None =>
+                span("Unscheduled")
+            },
+          ),
         ),
         div(
           cls := "ControlsActive",
