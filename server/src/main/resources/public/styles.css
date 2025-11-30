@@ -40,8 +40,33 @@
 }
 
 .activeTopicIcon {
-    border: solid black;
-    border-radius: 5px;
+    /* border: solid black;
+    border-radius: 5px; */
+    animation: selectedTopicPulse 1.8s ease-in-out infinite;
+    transform-origin: center;
+}
+
+@keyframes selectedTopicPulse {
+    0% {
+        transform: scale(1);
+        box-shadow: 0 0 0 rgba(0, 0, 0, 0.15);
+    }
+
+    50% {
+        transform: scale(1.05);
+        box-shadow: 0 0 8px rgba(0, 0, 0, 0.2);
+    }
+
+    100% {
+        transform: scale(1);
+        box-shadow: 0 0 0 rgba(0, 0, 0, 0.15);
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .activeTopicIcon {
+        animation: none;
+    }
 }
 
 .container {
@@ -166,21 +191,21 @@
         right: 10px !important;
         width: auto !important;
     }
-    
+
     .SwapActionMenu-header {
         font-size: 14px;
     }
-    
+
     .SwapActionMenu-topicName {
         font-size: 14px;
         word-break: break-word;
     }
-    
+
     .SwapActionMenu-topic {
         padding: 8px;
         flex-wrap: wrap;
     }
-    
+
     .SwapActionMenu-swapButton,
     .SwapActionMenu-cancelButton {
         padding: 10px 12px;
@@ -215,11 +240,13 @@
     display: flex;
     align-items: center;
     gap: 8px;
-    min-width: 0; /* Allow flex children to shrink below content size */
+    min-width: 0;
+    /* Allow flex children to shrink below content size */
 }
 
-.SwapActionMenu-topic > div {
-    min-width: 0; /* Allow text container to shrink */
+.SwapActionMenu-topic>div {
+    min-width: 0;
+    /* Allow text container to shrink */
     flex: 1;
 }
 
