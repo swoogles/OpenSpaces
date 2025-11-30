@@ -64,6 +64,13 @@ case class DiscussionState(
           _.map(value => value.copy(roomSlot = Some(targetRoomSlot)))
         }
 
+      case DiscussionActionConfirmed.SwapTopics(topic1, topic2) =>
+        val roomSlot1 = data.get(topic1).flatMap(_.roomSlot)
+        val roomSlot2 = data.get(topic2).flatMap(_.roomSlot)
+        data
+          .updatedWith(topic1)(_.map(_.copy(roomSlot = roomSlot2)))
+          .updatedWith(topic2)(_.map(_.copy(roomSlot = roomSlot1)))
+
       case DiscussionActionConfirmed.AddResult(discussion) =>
         data + (discussion.id -> discussion),
     )

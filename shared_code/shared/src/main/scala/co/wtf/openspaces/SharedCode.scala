@@ -160,6 +160,9 @@ enum DiscussionAction extends WebSocketMessage derives JsonCodec:
   case MoveTopic(
     topicId: TopicId,
     targetRoomSlot: RoomSlot)
+  case SwapTopics(
+    topic1: TopicId,
+    topic2: TopicId)
 
 enum DiscussionActionConfirmed derives JsonCodec:
   case Delete(
@@ -181,6 +184,9 @@ enum DiscussionActionConfirmed derives JsonCodec:
   case MoveTopic(
     topicId: TopicId,
     targetRoomSlot: RoomSlot)
+  case SwapTopics(
+    topic1: TopicId,
+    topic2: TopicId)
   case AddResult(
     discussion: Discussion)
   case Rejected(
@@ -209,6 +215,8 @@ object DiscussionActionConfirmed:
         DiscussionActionConfirmed.Unschedule(topicId)
       case DiscussionAction.MoveTopic(topicId, targetRoomSlot) =>
         DiscussionActionConfirmed.MoveTopic(topicId, targetRoomSlot)
+      case DiscussionAction.SwapTopics(topic1, topic2) =>
+        DiscussionActionConfirmed.SwapTopics(topic1, topic2)
 
 case class Room(
   id: Int,

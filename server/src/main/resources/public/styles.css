@@ -3,11 +3,32 @@
     gap: 5px;
     justify-items: center;
 }
-.Banner {background-color: #FFFFFF; width: 100%; display: flex; justify-content: space-between; align-items: center;}
-.LogoImg {height: 70px; border-radius: 50%;}
-.Flex {display: flex; gap: 20px;}
-.TopicsContainer {display: grid; gap: 10px;}
+
+.Banner {
+    background-color: #FFFFFF;
+    width: 100%;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.LogoImg {
+    height: 70px;
+    border-radius: 50%;
+}
+
+.Flex {
+    display: flex;
+    gap: 20px;
+}
+
+.TopicsContainer {
+    display: grid;
+    gap: 10px;
+}
+
 .TopicBody {}
+
 .AddButton {
     background-color: transparent;
     border: none;
@@ -23,24 +44,27 @@
     border-radius: 5px;
 }
 
-.container {  display: grid;
+.container {
+    display: grid;
     grid-template-columns: 1fr;
     grid-template-rows: 2fr 4fr;
     grid-template-areas:
-    "Targets"
-    "Schedule";
+        "Targets"
+        "Schedule";
 }
 
 .Schedule {
     display: grid;
     grid-template-columns: 2fr 4fr;
-    grid-template-rows: 1fr 9fr; /* Just the header row */
+    grid-template-rows: 1fr 9fr;
+    /* Just the header row */
     /*grid-auto-rows: auto; !* Automatically create rows for additional content *!*/
     grid-auto-rows: min-content;
-    gap: 10px 0px; /* Added some gap between rows */
+    gap: 10px 0px;
+    /* Added some gap between rows */
     grid-template-areas:
-    "deadspace RoomHeaders"
-    "TimeSlots TimeSlots";
+        "deadspace RoomHeaders"
+        "TimeSlots TimeSlots";
     grid-area: Schedule;
 }
 
@@ -52,12 +76,14 @@
     grid-template-areas:
         "TimeOfSlot Cell Cell Cell Cell";
     /* Remove grid-area: SlotRow; */
-    grid-column: 1 / -1; /* Make it span all columns */
+    grid-column: 1 / -1;
+    /* Make it span all columns */
     height: 8vh;
     align-self: start;
 }
 
-.RoomHeaders {   display: grid;
+.RoomHeaders {
+    display: grid;
     grid-template-columns: 1fr 1fr 1fr 1fr;
     grid-area: RoomHeaders;
     grid-template-areas:
@@ -89,9 +115,11 @@
 .MainActive {
     grid-area: MainActive;
 }
+
 .SecondaryActive {
     grid-area: SecondaryActive;
 }
+
 .ControlsActive {
     grid-area: ControlsActive;
 }
@@ -110,5 +138,105 @@
 .TimeSlots {
     grid-area: TimeSlots;
     max-height: 40vh;
-    overflow-y: auto; /* Enables vertical scrolling when content exceeds max-height */
+    overflow-y: auto;
+    /* Enables vertical scrolling when content exceeds max-height */
+}
+
+/* Swap Action Menu */
+.SwapActionMenu {
+    position: fixed;
+    background-color: #fff;
+    border-radius: 8px;
+    padding: 16px;
+    min-width: 350px;
+    max-width: 450px;
+    box-shadow: 0 8px 16px rgba(0, 0, 0, 0.15), 0 2px 6px rgba(0, 0, 0, 0.1);
+    z-index: 1001;
+    border: 2px solid #4a90d9;
+}
+
+.SwapActionMenu-header {
+    font-weight: bold;
+    font-size: 16px;
+    margin-bottom: 12px;
+    border-bottom: 1px solid #ddd;
+    padding-bottom: 8px;
+}
+
+.SwapActionMenu-section {
+    margin-bottom: 12px;
+}
+
+.SwapActionMenu-section--target {
+    margin-bottom: 16px;
+}
+
+.SwapActionMenu-label {
+    font-size: 12px;
+    color: #666;
+    margin-bottom: 4px;
+}
+
+.SwapActionMenu-topic {
+    padding: 10px;
+    border-radius: 6px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.SwapActionMenu-topic--selected {
+    background-color: #e8f4fc;
+}
+
+.SwapActionMenu-topic--target {
+    background-color: #fcf4e8;
+}
+
+.SwapActionMenu-topicName {
+    font-weight: bold;
+}
+
+.SwapActionMenu-roomSlot {
+    font-size: 12px;
+    color: #666;
+}
+
+.SwapActionMenu-actions {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.SwapActionMenu-swapButton {
+    width: 100%;
+    padding: 12px 16px;
+    background-color: #4a90d9;
+    color: #fff;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-weight: bold;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+}
+
+.SwapActionMenu-swapButton:hover {
+    background-color: #3a7fc8;
+}
+
+.SwapActionMenu-cancelButton {
+    width: 100%;
+    padding: 10px 16px;
+    background-color: #f8f9fa;
+    color: #333;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    cursor: pointer;
+}
+
+.SwapActionMenu-cancelButton:hover {
+    background-color: #e9ecef;
 }

@@ -60,6 +60,11 @@ object FrontEnd extends App:
   val popoverState: Var[Option[(Discussion, Double, Double)]] =
     Var(None)
 
+  // Swap action menu state: (selected Discussion, target Discussion, x position, y position)
+  val swapMenuState
+    : Var[Option[(Discussion, Discussion, Double, Double)]] =
+    Var(None)
+
   val updateTargetDiscussion: Observer[Discussion] =
     Observer[Discussion] { discussion =>
       dismissPopover.onNext(())
@@ -102,6 +107,11 @@ object FrontEnd extends App:
       popoverState.set(None)
     }
 
+  val dismissSwapMenu: Observer[Unit] =
+    Observer { _ =>
+      swapMenuState.set(None)
+    }
+
   val app =
     div(
       cls := "PageContainer",
@@ -136,6 +146,20 @@ object FrontEnd extends App:
             setActiveDiscussion,
             dismissPopover,
             updateTargetDiscussion,
+          )
+        case None =>
+          div()
+      },
+      // Swap action menu at top level
+      child <-- swapMenuState.signal.map {
+        case Some((selectedDiscussion, targetDiscussion, x, y)) =>
+          SwapActionMenu(
+            selectedDiscussion,
+            targetDiscussion,
+            x,
+            y,
+            topicUpdates.sendOne,
+            dismissSwapMenu,
           )
         case None =>
           div()
@@ -176,6 +200,7 @@ object FrontEnd extends App:
               name.signal,
               setActiveDiscussion,
               popoverState,
+              swapMenuState,
             ),
             liveTopicSubmissionAndVoting(updateTargetDiscussion),
           )
@@ -486,6 +511,7 @@ def ScheduleSlotComponent(
   updateDiscussion: Observer[Discussion],
   $activeDiscussion: StrictSignal[Option[Discussion]],
   showPopover: Observer[(Discussion, Double, Double)],
+  showSwapMenu: Observer[(Discussion, Discussion, Double, Double)],
   topicUpdates: DiscussionAction => Unit,
 ) =
   span(
@@ -502,6 +528,10 @@ def ScheduleSlotComponent(
                 )
                   "activeTopicIcon"
                 else ""
+              // Check if there's an active discussion that's different from this slot's topic
+              val isSwappable = discussionO.exists(active =>
+                active.id != value.id && active.roomSlot.isDefined,
+              )
               span(
                 onClick --> Observer {
                   (event: org.scalajs.dom.MouseEvent) =>
@@ -536,6 +566,40 @@ def ScheduleSlotComponent(
 
                     showPopover.onNext((value, clampedX, y))
                 },
+                // Long-press to show swap menu when there's an active discussion
+                if (isSwappable)
+                  onContextMenu.preventDefault --> Observer {
+                    (event: org.scalajs.dom.MouseEvent) =>
+                      event.stopPropagation()
+                      discussionO.foreach { activeDiscussion =>
+                        val iconElement = event.currentTarget
+                          .asInstanceOf[org.scalajs.dom.Element]
+                        val rect = iconElement.getBoundingClientRect()
+                        val menuWidth = 350
+                        val menuHeight = 300
+                        val viewportHeight = dom.window.innerHeight
+                        val viewportWidth = dom.window.innerWidth
+
+                        val x =
+                          rect.left + rect.width / 2 - menuWidth / 2
+                        val y =
+                          if (
+                            rect.bottom + menuHeight + 5 > viewportHeight
+                          )
+                            rect.top - menuHeight - 5
+                          else rect.bottom + 5
+
+                        val clampedX = Math.max(
+                          5,
+                          Math.min(x, viewportWidth - menuWidth - 5),
+                        )
+
+                        showSwapMenu.onNext(
+                          (activeDiscussion, value, clampedX, y),
+                        )
+                      }
+                  }
+                else emptyMod,
                 onClick.mapTo(
                   value,
                 ) --> updateDiscussion, // TODO This is causing an unecesary update to be sent to server
@@ -591,6 +655,7 @@ def SlotSchedule(
   updateDiscussion: Observer[Discussion],
   activeDiscussion: StrictSignal[Option[Discussion]],
   showPopover: Observer[(Discussion, Double, Double)],
+  showSwapMenu: Observer[(Discussion, Discussion, Double, Double)],
   topicUpdates: DiscussionAction => Unit,
 ) =
   div(
@@ -601,15 +666,17 @@ def SlotSchedule(
           div(cls := "TimeOfSlot", timeSlotsForAllRooms.time.s),
           timeSlotsForAllRooms.rooms
             .map { room =>
-              div(cls := "Cell",
-                  ScheduleSlotComponent(timeSlotsForAllRooms.time,
-                                        room,
-                                        $discussionState,
-                                        updateDiscussion,
-                                        activeDiscussion,
-                                        showPopover,
-                                        topicUpdates,
-                  ),
+              div(
+                cls := "Cell",
+                ScheduleSlotComponent(timeSlotsForAllRooms.time,
+                                      room,
+                                      $discussionState,
+                                      updateDiscussion,
+                                      activeDiscussion,
+                                      showPopover,
+                                      showSwapMenu,
+                                      topicUpdates,
+                ),
               )
             },
         )
@@ -784,6 +851,85 @@ def TopicPopover(
     ),
   )
 
+def SwapActionMenu(
+  selectedDiscussion: Discussion,
+  targetDiscussion: Discussion,
+  x: Double,
+  y: Double,
+  topicUpdates: DiscussionAction => Unit,
+  dismissMenu: Observer[Unit],
+) =
+  div(
+    cls := "SwapActionMenu",
+    left := s"${x}px",
+    top := s"${y}px",
+    onClick.preventDefault.stopPropagation --> Observer(_ => ()),
+    div(cls := "SwapActionMenu-header", "Actions"),
+    // Selected topic (current selection)
+    div(
+      cls := "SwapActionMenu-section",
+      div(cls := "SwapActionMenu-label", "Selected Topic:"),
+      div(
+        cls := "SwapActionMenu-topic SwapActionMenu-topic--selected",
+        SvgIcon(selectedDiscussion.glyphicon),
+        div(
+          div(cls := "SwapActionMenu-topicName",
+              selectedDiscussion.topicName,
+          ),
+          div(
+            cls := "SwapActionMenu-roomSlot",
+            selectedDiscussion.roomSlot
+              .map(_.displayString)
+              .getOrElse("Unscheduled"),
+          ),
+        ),
+      ),
+    ),
+    // Target topic
+    div(
+      cls := "SwapActionMenu-section SwapActionMenu-section--target",
+      div(cls := "SwapActionMenu-label", "Target Topic:"),
+      div(
+        cls := "SwapActionMenu-topic SwapActionMenu-topic--target",
+        SvgIcon(targetDiscussion.glyphicon),
+        div(
+          div(cls := "SwapActionMenu-topicName",
+              targetDiscussion.topicName,
+          ),
+          div(
+            cls := "SwapActionMenu-roomSlot",
+            targetDiscussion.roomSlot
+              .map(_.displayString)
+              .getOrElse("Unscheduled"),
+          ),
+        ),
+      ),
+    ),
+    // Action buttons
+    div(
+      cls := "SwapActionMenu-actions",
+      button(
+        cls := "SwapActionMenu-swapButton",
+        onClick --> Observer { _ =>
+          topicUpdates(
+            DiscussionAction.SwapTopics(
+              selectedDiscussion.id,
+              targetDiscussion.id,
+            ),
+          )
+          dismissMenu.onNext(())
+        },
+        span("⇅"),
+        span("Swap Room Slots"),
+      ),
+      button(
+        cls := "SwapActionMenu-cancelButton",
+        onClick.mapToUnit --> dismissMenu,
+        "Cancel",
+      ),
+    ),
+  )
+
 def ScheduleView(
   fullSchedule: Var[DiscussionState],
   activeDiscussion: Var[Option[Discussion]],
@@ -791,10 +937,17 @@ def ScheduleView(
   name: StrictSignal[Person],
   updateTargetDiscussion: Observer[Discussion],
   popoverState: Var[Option[(Discussion, Double, Double)]],
+  swapMenuState: Var[Option[(Discussion, Discussion, Double, Double)]],
 ) =
   val showPopover: Observer[(Discussion, Double, Double)] =
     Observer { case (discussion, x, y) =>
       popoverState.set(Some((discussion, x, y)))
+    }
+
+  val showSwapMenu
+    : Observer[(Discussion, Discussion, Double, Double)] =
+    Observer { case (selected, target, x, y) =>
+      swapMenuState.set(Some((selected, target, x, y)))
     }
 
   div(
@@ -827,6 +980,7 @@ def ScheduleView(
           updateTargetDiscussion,
           activeDiscussion.signal,
           showPopover,
+          showSwapMenu,
           topicUpdates,
         ),
       ),
@@ -838,6 +992,7 @@ def SlotSchedules(
   updateDiscussion: Observer[Discussion],
   activeDiscussion: StrictSignal[Option[Discussion]],
   showPopover: Observer[(Discussion, Double, Double)],
+  showSwapMenu: Observer[(Discussion, Discussion, Double, Double)],
   topicUpdates: DiscussionAction => Unit,
 ) =
   div(
@@ -860,6 +1015,7 @@ def SlotSchedules(
                                             updateDiscussion,
                                             activeDiscussion,
                                             showPopover,
+                                            showSwapMenu,
                                             topicUpdates,
                       ),
                     )
@@ -895,6 +1051,8 @@ private def handleDiscussionActionConfirmed(
       (Some(topicId), false)
     case DiscussionActionConfirmed.MoveTopic(topicId, _) =>
       (Some(topicId), false)
+    case DiscussionActionConfirmed.SwapTopics(topic1, _) =>
+      (Some(topic1), false)
     case DiscussionActionConfirmed.AddResult(_) =>
       (None, false)
     case DiscussionActionConfirmed.Rejected(_) =>
