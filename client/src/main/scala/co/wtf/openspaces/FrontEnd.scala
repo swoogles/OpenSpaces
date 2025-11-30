@@ -390,7 +390,6 @@ private def SingleDiscussionComponent(
           span(
             SvgIcon(topic.glyphicon),
             span(topic.facilitatorName),
-            span("Votes ", topic.votes),
             topic.roomSlot match {
               case Some(roomSlot) =>
                 span(
@@ -435,6 +434,10 @@ private def SingleDiscussionComponent(
                 )
               },
               SvgIcon(GlyphiconUtils.chevronUp),
+            ),
+            span(
+              cls := "VoteCount",
+              topic.votes.toString,
             ),
             button(
               cls := (

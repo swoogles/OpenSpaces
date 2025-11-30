@@ -43,6 +43,13 @@
     width: 100%;
 }
 
+.VoteCount {
+    font-weight: 600;
+    font-size: 1.25rem;
+    color: #1f2933;
+    line-height: 1;
+}
+
 .VoteButton {
     background-color: transparent;
     border: none;
