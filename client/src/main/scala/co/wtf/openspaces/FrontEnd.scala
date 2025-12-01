@@ -147,6 +147,7 @@ object FrontEnd extends App:
               roomSlot,
               x,
               y,
+              name.signal,
               topicUpdates.sendOne,
               dismissUnscheduledMenu,
               setActiveDiscussion,
@@ -917,10 +918,41 @@ def UnscheduledDiscussionsMenu(
   targetRoomSlot: RoomSlot,
   x: Double,
   y: Double,
+  facilitator: StrictSignal[Person],
   topicUpdates: DiscussionAction => Unit,
   dismissMenu: Observer[Unit],
   setActiveDiscussion: Observer[Discussion],
 ) =
+  val textVar = Var("")
+  val errorVar = Var[Option[String]](None)
+
+  def submitNewDiscussion() =
+    val topicAttempt =
+      Topic.make(textVar.now())
+
+    topicAttempt match
+      case Left(error) =>
+        errorVar.set(Some(error))
+      case Right(topic) =>
+        val facilitatorName = facilitator.now()
+        if (facilitatorName.unwrap.trim.length < 2) {
+          errorVar.set(
+            Some("Please enter your name (2+ characters) before adding."),
+          )
+        }
+        else {
+          topicUpdates(
+            DiscussionAction.AddWithRoomSlot(
+              topic,
+              facilitatorName,
+              targetRoomSlot,
+            ),
+          )
+          textVar.set("")
+          errorVar.set(None)
+          dismissMenu.onNext(())
+        }
+
   div(
     cls := "SwapActionMenu",
     left := s"${x}px",
@@ -932,6 +964,30 @@ def UnscheduledDiscussionsMenu(
       div(cls := "SwapActionMenu-label",
           s"Room Slot: ${targetRoomSlot.displayString}",
       ),
+    ),
+    div(
+      cls := "SwapActionMenu-section",
+      div(cls := "SwapActionMenu-label", "Add New Discussion:"),
+      textArea(
+        cls := "SwapActionMenu-textArea",
+        placeholder := "Describe the discussion to schedule...",
+        value <-- textVar.signal,
+        onInput.mapToValue --> textVar,
+      ),
+      button(
+        cls := "SwapActionMenu-swapButton",
+        onClick --> Observer { _ =>
+          submitNewDiscussion()
+        },
+        "Add & Assign",
+      ),
+      child <--
+        errorVar.signal.map {
+          case Some(errorMessage) =>
+            div(cls := "SwapActionMenu-error", errorMessage)
+          case None =>
+            span()
+        },
     ),
     div(
       cls := "SwapActionMenu-section",
