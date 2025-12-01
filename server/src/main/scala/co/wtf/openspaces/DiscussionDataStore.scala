@@ -14,18 +14,30 @@ class DiscussionDataStore(
     discussionAction match
       case DiscussionAction.Add(topic, facilitator) =>
         for {
-          randomIcon <- glyphiconService.getRandomIcon
-          randomId   <- Random.nextLong
-          discussion = Discussion(
-            topic,
-            facilitator,
-            Set(Feedback(facilitator, VotePosition.Interested)),
-            TopicId(randomId),
-            randomIcon,
-            None,
-          )
-          res <- discussionDatabase.updateAndGet(s => s(discussion))
+          discussion <- createDiscussion(topic,
+                                         facilitator,
+                                         None,
+                               )
+          _ <- discussionDatabase.updateAndGet(s => s(discussion))
         } yield DiscussionActionConfirmed.AddResult(discussion)
+      case addWithRoom @ DiscussionAction.AddWithRoomSlot(topic,
+                                                          facilitator,
+                                                          roomSlot,
+          ) =>
+        defer:
+          val currentState = discussionDatabase.get.run
+          val slotOccupied = currentState.data.values.exists(
+            _.roomSlot.contains(roomSlot),
+          )
+          if slotOccupied then DiscussionActionConfirmed.Rejected(addWithRoom)
+          else
+            val discussion =
+              createDiscussion(topic,
+                               facilitator,
+                               Some(roomSlot),
+              ).run
+            discussionDatabase.updateAndGet(s => s(discussion)).run
+            DiscussionActionConfirmed.AddResult(discussion)
 
       case swap @ DiscussionAction.SwapTopics(topic1,
                                               expectedSlot1,
@@ -173,6 +185,23 @@ class DiscussionDataStore(
               .run
           }
       applyAction(action).run
+
+  private def createDiscussion(
+    topic: Topic,
+    facilitator: Person,
+    roomSlot: Option[RoomSlot],
+  ): UIO[Discussion] =
+    for {
+      randomIcon <- glyphiconService.getRandomIcon
+      randomId   <- Random.nextLong
+    } yield Discussion(
+      topic,
+      facilitator,
+      Set(Feedback(facilitator, VotePosition.Interested)),
+      TopicId(randomId),
+      randomIcon,
+      roomSlot,
+    )
 
 object DiscussionDataStore:
   def layer(

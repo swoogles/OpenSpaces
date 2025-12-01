@@ -21,6 +21,10 @@ enum DiscussionAction extends WebSocketMessage derives JsonCodec:
   case Add(
     topic: Topic,
     facilitator: Person)
+  case AddWithRoomSlot(
+    topic: Topic,
+    facilitator: Person,
+    roomSlot: RoomSlot)
   case Delete(
     topic: TopicId)
   case Vote(
@@ -82,6 +86,10 @@ object DiscussionActionConfirmed:
   ): DiscussionActionConfirmed =
     discussionAction match
       case DiscussionAction.Add(topic, facilitator) =>
+        throw new Exception(
+          "This should not happen. You need to sort out your models.",
+        )
+      case DiscussionAction.AddWithRoomSlot(topic, facilitator, _) =>
         throw new Exception(
           "This should not happen. You need to sort out your models.",
         )
