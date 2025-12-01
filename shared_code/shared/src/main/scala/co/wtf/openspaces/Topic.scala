@@ -13,5 +13,9 @@ object Topic extends Newtype[String]:
   override inline def validate(
     value: String,
   ) =
-    if value.nonEmpty && value.trim.length > 10 then true
-    else "String must not be empty"
+    if (value.trim.length < 5)
+      "Name must be at least 5 characters long"
+    else if (value.trim.length > 100)
+      "Name must be less than 100 characters long"
+    else
+      true
