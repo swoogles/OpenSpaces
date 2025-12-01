@@ -356,6 +356,7 @@ private def SingleDiscussionComponent(
         currentFeedback.exists(
           _.position == VotePosition.NotInterested,
         )
+      val isScheduled = topic.roomSlot.isDefined
 
       def handleVote(
         target: Option[VotePosition],
@@ -431,6 +432,25 @@ private def SingleDiscussionComponent(
             },
           ),
         ),
+        if isScheduled then
+          div(
+            cls := "ControlsActive",
+            button(
+              cls := "TopicCard-unschedule",
+              title := "Unschedule topic",
+              onClick --> Observer { _ =>
+                topicUpdates(
+                  DiscussionAction.Unschedule(topic.id),
+                )
+              },
+              SvgIcon(
+                GlyphiconUtils.minus,
+                "TopicCard-unscheduleIcon",
+              ),
+              span(cls := "TopicCard-unscheduleLabel", "Unschedule"),
+            ),
+          )
+        else emptyNode,
         div(
           cls := "VoteColumn",
           div(
