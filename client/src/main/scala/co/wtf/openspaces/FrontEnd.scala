@@ -431,23 +431,6 @@ private def SingleDiscussionComponent(
           ),
         ),
         div(
-          cls := "ControlsActive",
-          topic.roomSlot match {
-            case Some(roomSlot) =>
-              button(
-                onClick.mapTo(
-                  topic.copy(roomSlot = None),
-                ) --> updateTargetDiscussion,
-                "Reschedule",
-              )
-            case None =>
-              "Unscheduled"
-          },
-          SvgIcon(GlyphiconUtils.schedule).amend(
-            onClick.mapTo(topic) --> updateTargetDiscussion,
-          ),
-        ),
-        div(
           cls := "VoteColumn",
           div(
             cls := "VoteChevronStack",
