@@ -69,6 +69,11 @@ object FrontEnd extends App:
   val unscheduledMenuState: Var[Option[(RoomSlot, Double, Double)]] =
     Var(None)
 
+  // Active discussion actions menu state: (Discussion, x position, y position)
+  val activeDiscussionMenuState
+    : Var[Option[(Discussion, Double, Double)]] =
+    Var(None)
+
   val updateTargetDiscussion: Observer[Discussion] =
     Observer[Discussion] { discussion =>
       dom.document
@@ -115,6 +120,11 @@ object FrontEnd extends App:
       unscheduledMenuState.set(None)
     }
 
+  val dismissActiveDiscussionMenu: Observer[Unit] =
+    Observer { _ =>
+      activeDiscussionMenuState.set(None)
+    }
+
   val app =
     div(
       cls := "PageContainer",
@@ -155,6 +165,19 @@ object FrontEnd extends App:
           case _ =>
             div()
         },
+      // Active discussion action menu at top level
+      child <-- activeDiscussionMenuState.signal.map {
+        case Some((discussion, x, y)) =>
+          ActiveDiscussionActionMenu(
+            discussion,
+            x,
+            y,
+            topicUpdates.sendOne,
+            dismissActiveDiscussionMenu,
+          )
+        case None =>
+          div()
+      },
       getCookie("access_token") match {
         case Some(accessToken) =>
           div(
@@ -214,6 +237,7 @@ object FrontEnd extends App:
               popoverState,
               swapMenuState,
               unscheduledMenuState,
+              activeDiscussionMenuState,
             ),
             liveTopicSubmissionAndVoting(updateTargetDiscussion),
           )
@@ -356,8 +380,6 @@ private def SingleDiscussionComponent(
         currentFeedback.exists(
           _.position == VotePosition.NotInterested,
         )
-      val isScheduled = topic.roomSlot.isDefined
-
       def handleVote(
         target: Option[VotePosition],
       ) =
@@ -432,25 +454,6 @@ private def SingleDiscussionComponent(
             },
           ),
         ),
-        if isScheduled then
-          div(
-            cls := "ControlsActive",
-            button(
-              cls := "TopicCard-unschedule",
-              title := "Unschedule topic",
-              onClick --> Observer { _ =>
-                topicUpdates(
-                  DiscussionAction.Unschedule(topic.id),
-                )
-              },
-              SvgIcon(
-                GlyphiconUtils.minus,
-                "TopicCard-unscheduleIcon",
-              ),
-              span(cls := "TopicCard-unscheduleLabel", "Unschedule"),
-            ),
-          )
-        else emptyNode,
         div(
           cls := "VoteColumn",
           div(
@@ -1061,6 +1064,78 @@ def UnscheduledDiscussionsMenu(
     ),
   )
 
+def ActiveDiscussionActionMenu(
+  discussion: Discussion,
+  x: Double,
+  y: Double,
+  topicUpdates: DiscussionAction => Unit,
+  dismissMenu: Observer[Unit],
+) =
+  val isScheduled = discussion.roomSlot.isDefined
+
+  val cancelButton =
+    button(
+      cls := "SwapActionMenu-cancelButton",
+      onClick.mapToUnit --> dismissMenu,
+      "Close",
+    )
+
+  val actionElements: List[HtmlElement] =
+    if (isScheduled) then
+      List(
+        button(
+          cls := "SwapActionMenu-swapButton",
+          onClick --> Observer { _ =>
+            topicUpdates(
+              DiscussionAction.Unschedule(discussion.id),
+            )
+            dismissMenu.onNext(())
+          },
+          SvgIcon(GlyphiconUtils.minus),
+          span("Unschedule topic"),
+        ),
+        cancelButton,
+      )
+    else
+      List(
+        div(
+          cls := "SwapActionMenu-topic SwapActionMenu-topic--selected",
+          span(
+            cls := "SwapActionMenu-topicName",
+            "This discussion is not scheduled yet.",
+          ),
+        ),
+        cancelButton,
+      )
+
+  div(
+    cls := "SwapActionMenu",
+    left := s"${x}px",
+    top := s"${y}px",
+    onClick.preventDefault.stopPropagation --> Observer(_ => ()),
+    div(cls := "SwapActionMenu-header", "Discussion actions"),
+    div(
+      cls := "SwapActionMenu-topic SwapActionMenu-topic--selected",
+      SvgIcon(discussion.glyphicon),
+      div(
+        div(
+          cls := "SwapActionMenu-topicName",
+          discussion.topicName,
+        ),
+        div(
+          cls := "SwapActionMenu-roomSlot",
+          discussion.roomSlot
+            .map(_.displayString)
+            .getOrElse("Unscheduled"),
+        ),
+      ),
+    ),
+    div(
+      cls := "SwapActionMenu-actions",
+      actionElements*,
+    ),
+  )
+
 def ScheduleView(
   fullSchedule: Var[DiscussionState],
   activeDiscussion: Var[Option[Discussion]],
@@ -1072,6 +1147,7 @@ def ScheduleView(
     Option[(Discussion, Discussion, Double, Double)],
   ],
   unscheduledMenuState: Var[Option[(RoomSlot, Double, Double)]],
+  activeDiscussionMenuState: Var[Option[(Discussion, Double, Double)]],
 ) =
   val showPopover: Observer[(Discussion, Double, Double)] =
     Observer { case (discussion, x, y) =>
@@ -1089,12 +1165,54 @@ def ScheduleView(
       unscheduledMenuState.set(Some((roomSlot, x, y)))
     }
 
+  val showActiveDiscussionMenu
+    : Observer[(Discussion, Double, Double)] =
+    Observer { case (discussion, x, y) =>
+      activeDiscussionMenuState.set(Some((discussion, x, y)))
+    }
+
   div(
     cls := "container",
     div(
       cls := "Targets",
       div(
         cls := "ActiveDiscussion Topic",
+        onContextMenu.preventDefault --> Observer {
+          (event: org.scalajs.dom.MouseEvent) =>
+            event.stopPropagation()
+            activeDiscussion.now().foreach { discussion =>
+              if (discussion.roomSlot.isDefined) {
+                val cardElement = event.currentTarget
+                  .asInstanceOf[org.scalajs.dom.Element]
+                val rect = cardElement.getBoundingClientRect()
+                val viewportHeight = dom.window.innerHeight
+                val viewportWidth = dom.window.innerWidth
+
+                val menuWidth = Math.min(350.0, viewportWidth - 20)
+                val x =
+                  if (viewportWidth <= 400) 10.0
+                  else rect.left + rect.width / 2 - menuWidth / 2
+
+                val clampedX =
+                  if (viewportWidth <= 400) 10.0
+                  else
+                    Math.max(
+                      10.0,
+                      Math.min(
+                        x,
+                        viewportWidth - menuWidth - 10,
+                      ),
+                    )
+
+                val clampedY =
+                  Math.max(20.0, viewportHeight * 0.05)
+
+                showActiveDiscussionMenu.onNext(
+                  (discussion, clampedX, clampedY),
+                )
+              }
+            }
+        },
         child <-- SingleDiscussionComponent(name,
                                             topicUpdates,
                                             updateTargetDiscussion,

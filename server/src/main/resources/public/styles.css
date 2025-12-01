@@ -182,40 +182,6 @@
     align-items: center;
 }
 
-.TopicCard-unschedule {
-    border: none;
-    background: rgba(0, 0, 0, 0.05);
-    color: #1f2933;
-    font-size: 0.7rem;
-    padding: 2px 8px;
-    border-radius: 999px;
-    display: inline-flex;
-    align-items: center;
-    gap: 4px;
-    line-height: 1;
-    cursor: pointer;
-}
-
-.TopicCard-unschedule:hover {
-    background: rgba(0, 0, 0, 0.12);
-}
-
-.TopicCard-unschedule:focus-visible {
-    outline: 2px solid rgba(0, 0, 0, 0.4);
-    outline-offset: 2px;
-}
-
-.TopicCard-unscheduleIcon {
-    width: 18px;
-    height: 18px;
-}
-
-.TopicCard-unscheduleLabel {
-    font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: 0.04em;
-}
-
 .VoteColumn {
     grid-area: VoteColumn;
     display: flex;
