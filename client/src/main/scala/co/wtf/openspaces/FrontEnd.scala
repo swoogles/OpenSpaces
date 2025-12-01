@@ -69,6 +69,40 @@ object FrontEnd extends App:
   val unscheduledMenuState: Var[Option[(RoomSlot, Double, Double)]] =
     Var(None)
 
+  private case class PendingSlotAssignment(
+    topic: Topic,
+    facilitator: Person,
+    roomSlot: RoomSlot,
+  )
+
+  private val pendingSlotAssignments: Var[List[PendingSlotAssignment]] =
+    Var(Nil)
+
+  private def handlePendingSlotAssignment(
+    discussion: Discussion,
+  ): Unit =
+    val maybeAssignment =
+      pendingSlotAssignments.now().find(assignment =>
+        assignment.topic == discussion.topic &&
+        assignment.facilitator == discussion.facilitator,
+      )
+
+    maybeAssignment.foreach { assignment =>
+      pendingSlotAssignments.update { assignments =>
+        val (before, after) = assignments.span(_ != assignment)
+        before ++ after.drop(1)
+      }
+      topicUpdates.sendOne(
+        DiscussionAction.UpdateRoomSlot(
+          discussion.id,
+          assignment.roomSlot,
+        ),
+      )
+      activeDiscussion.set(
+        Some(discussion.copy(roomSlot = Some(assignment.roomSlot))),
+      )
+    }
+
   val updateTargetDiscussion: Observer[Discussion] =
     Observer[Discussion] { discussion =>
       dom.document
@@ -150,6 +184,21 @@ object FrontEnd extends App:
               topicUpdates.sendOne,
               dismissUnscheduledMenu,
               setActiveDiscussion,
+              topic =>
+                val facilitator = name.now()
+                pendingSlotAssignments.update(
+                  _ :+ PendingSlotAssignment(
+                    topic,
+                    facilitator,
+                    roomSlot,
+                  ),
+                )
+                topicUpdates.sendOne(
+                  DiscussionAction.Add(
+                    topic,
+                    facilitator,
+                  ),
+                ),
             )
           case _ =>
             div()
@@ -179,6 +228,11 @@ object FrontEnd extends App:
                         "Move failed: That slot was just filled by another user. Please try again.",
                       ),
                     )
+                  case _ => ()
+
+                event match
+                  case DiscussionActionConfirmed.AddResult(discussion) =>
+                    handlePendingSlotAssignment(discussion)
                   case _ => ()
 
                 discussionState
@@ -920,7 +974,22 @@ def UnscheduledDiscussionsMenu(
   topicUpdates: DiscussionAction => Unit,
   dismissMenu: Observer[Unit],
   setActiveDiscussion: Observer[Discussion],
+  createDiscussionForSlot: Topic => Unit,
 ) =
+  val quickAddText = Var("")
+  val quickAddError = Var(Option.empty[String])
+
+  def handleQuickAdd(): Unit =
+    val candidate = quickAddText.now().trim
+    Topic.make(candidate) match
+      case Left(errorMsg) =>
+        quickAddError.set(Some(errorMsg))
+      case Right(topic) =>
+        quickAddError.set(None)
+        createDiscussionForSlot(topic)
+        quickAddText.set("")
+        dismissMenu.onNext(())
+
   div(
     cls := "SwapActionMenu",
     left := s"${x}px",
@@ -932,6 +1001,32 @@ def UnscheduledDiscussionsMenu(
       div(cls := "SwapActionMenu-label",
           s"Room Slot: ${targetRoomSlot.displayString}",
       ),
+    ),
+    div(
+      cls := "SwapActionMenu-section",
+      div(cls := "SwapActionMenu-label", "Create New Discussion:"),
+      textArea(
+        cls := "SwapActionMenu-textInput",
+        placeholder := "Type a topic title…",
+        value <-- quickAddText.signal,
+        onInput.mapToValue --> quickAddText,
+      ),
+      button(
+        cls := "SwapActionMenu-swapButton",
+        disabled <-- quickAddText.signal.map(_.trim.length < 5),
+        onClick.preventDefault.stopPropagation --> Observer(_ => handleQuickAdd()),
+        "Add to Slot",
+      ),
+      child <-- quickAddError.signal.map {
+        case Some(msg) =>
+          div(
+            cls := "SwapActionMenu-error",
+            color := "red",
+            msg,
+          )
+        case None =>
+          div()
+      },
     ),
     div(
       cls := "SwapActionMenu-section",
