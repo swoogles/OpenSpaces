@@ -1080,7 +1080,7 @@ def ActiveDiscussionActionMenu(
       "Close",
     )
 
-  val actionElements: List[HtmlElement] =
+  val actionElements: List[Modifier[HtmlElement]] =
     if (isScheduled) then
       List(
         button(
@@ -1108,6 +1108,9 @@ def ActiveDiscussionActionMenu(
         cancelButton,
       )
 
+  val actionSection =
+    (cls := "SwapActionMenu-actions") :: actionElements
+
   div(
     cls := "SwapActionMenu",
     left := s"${x}px",
@@ -1130,10 +1133,7 @@ def ActiveDiscussionActionMenu(
         ),
       ),
     ),
-    div(
-      cls := "SwapActionMenu-actions",
-      actionElements*,
-    ),
+    div(actionSection*),
   )
 
 def ScheduleView(
