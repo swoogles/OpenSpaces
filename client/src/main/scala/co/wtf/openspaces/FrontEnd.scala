@@ -364,6 +364,7 @@ private def SingleDiscussionComponent(
   updateTargetDiscussion: Observer[Discussion],
   signal: Signal[Option[Discussion]],
   transition: Option[Transition],
+  iconModifiers: Seq[Modifier[HtmlElement]] = Seq.empty,
 ) = {
   signal.map {
     case Some(topic) =>
@@ -442,7 +443,7 @@ private def SingleDiscussionComponent(
         span(
           cls := "SecondaryActive",
           span(
-            SvgIcon(topic.glyphicon),
+            SvgIcon(topic.glyphicon).amend(iconModifiers*),
             span(topic.facilitatorName),
             topic.roomSlot match {
               case Some(roomSlot) =>
@@ -1136,6 +1137,50 @@ def ActiveDiscussionActionMenu(
     div(actionSection*),
   )
 
+private def menuPositionForElement(
+  targetElement: org.scalajs.dom.Element,
+): (Double, Double) =
+  val rect = targetElement.getBoundingClientRect()
+  val viewportHeight = dom.window.innerHeight
+  val viewportWidth = dom.window.innerWidth
+
+  val menuWidth = Math.min(350.0, viewportWidth - 20)
+  val x =
+    if (viewportWidth <= 400) 10.0
+    else rect.left + rect.width / 2 - menuWidth / 2
+
+  val clampedX =
+    if (viewportWidth <= 400) 10.0
+    else
+      Math.max(
+        10.0,
+        Math.min(x, viewportWidth - menuWidth - 10),
+      )
+
+  val clampedY = Math.max(20.0, viewportHeight * 0.05)
+
+  (clampedX, clampedY)
+
+private def activeDiscussionLongPressBinder(
+  activeDiscussionNow: () => Option[Discussion],
+  showActiveDiscussionMenu: Observer[(Discussion, Double, Double)],
+): Binder[HtmlElement] =
+  onContextMenu.preventDefault --> Observer {
+    (event: org.scalajs.dom.MouseEvent) =>
+      event.stopPropagation()
+      activeDiscussionNow().foreach { discussion =>
+        if (discussion.roomSlot.isDefined) {
+          val (clampedX, clampedY) =
+            menuPositionForElement(
+              event.currentTarget.asInstanceOf[org.scalajs.dom.Element],
+            )
+          showActiveDiscussionMenu.onNext(
+            (discussion, clampedX, clampedY),
+          )
+        }
+      }
+  }
+
 def ScheduleView(
   fullSchedule: Var[DiscussionState],
   activeDiscussion: Var[Option[Discussion]],
@@ -1171,53 +1216,25 @@ def ScheduleView(
       activeDiscussionMenuState.set(Some((discussion, x, y)))
     }
 
+  val handleActiveDiscussionLongPress =
+    activeDiscussionLongPressBinder(() => activeDiscussion.now(),
+                                    showActiveDiscussionMenu,
+    )
+
   div(
     cls := "container",
     div(
       cls := "Targets",
       div(
         cls := "ActiveDiscussion Topic",
-        onContextMenu.preventDefault --> Observer {
-          (event: org.scalajs.dom.MouseEvent) =>
-            event.stopPropagation()
-            activeDiscussion.now().foreach { discussion =>
-              if (discussion.roomSlot.isDefined) {
-                val cardElement = event.currentTarget
-                  .asInstanceOf[org.scalajs.dom.Element]
-                val rect = cardElement.getBoundingClientRect()
-                val viewportHeight = dom.window.innerHeight
-                val viewportWidth = dom.window.innerWidth
-
-                val menuWidth = Math.min(350.0, viewportWidth - 20)
-                val x =
-                  if (viewportWidth <= 400) 10.0
-                  else rect.left + rect.width / 2 - menuWidth / 2
-
-                val clampedX =
-                  if (viewportWidth <= 400) 10.0
-                  else
-                    Math.max(
-                      10.0,
-                      Math.min(
-                        x,
-                        viewportWidth - menuWidth - 10,
-                      ),
-                    )
-
-                val clampedY =
-                  Math.max(20.0, viewportHeight * 0.05)
-
-                showActiveDiscussionMenu.onNext(
-                  (discussion, clampedX, clampedY),
-                )
-              }
-            }
-        },
+        handleActiveDiscussionLongPress,
         child <-- SingleDiscussionComponent(name,
                                             topicUpdates,
                                             updateTargetDiscussion,
                                             activeDiscussion.signal,
                                             None,
+                                            iconModifiers =
+                                              Seq(handleActiveDiscussionLongPress),
         ),
       ),
     ),
