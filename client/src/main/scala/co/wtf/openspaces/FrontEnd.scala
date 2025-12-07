@@ -12,6 +12,70 @@ val localStorage = window.localStorage
 import org.scalajs.dom
 import scala.scalajs.js.URIUtils
 
+/** Tracks the DOM positions of each schedule slot so animations can
+  * start from the actual on-screen location rather than an estimated
+  * grid slot.
+  */
+object SlotPositionTracker:
+  private val slotElements: Var[Map[RoomSlot, dom.Element]] = Var(
+    Map.empty,
+  )
+  // Keep last known centers so animations still have a reasonable start
+  // point even if a slot temporarily unmounts (e.g., virtualization or
+  // view changes).
+  private val lastKnownCenters: Var[Map[RoomSlot, (Double, Double)]] =
+    Var(
+      Map.empty,
+    )
+
+  /** Register a slot element so we can compute its live center
+    * position.
+    *
+    * @return
+    *   a cleanup function to unregister on unmount
+    */
+  def register(
+    slot: RoomSlot,
+    element: dom.Element,
+  ): () => Unit =
+    slotElements.update(_ + (slot -> element))
+    // Capture an initial center right away
+    updateCenter(slot, element)
+    () =>
+      slotElements.update(_ - slot)
+      () // keep lastKnownCenters for fallback
+
+  /** Current center point for a slot, if its element is mounted. */
+  def center(
+    slot: RoomSlot,
+  ): Option[(Double, Double)] =
+    slotElements
+      .now()
+      .get(slot)
+      .flatMap(el => updateCenter(slot, el))
+      .orElse(lastKnownCenters.now().get(slot))
+
+  private def updateCenter(
+    slot: RoomSlot,
+    element: dom.Element,
+  ): Option[(Double, Double)] =
+    val rect = element.getBoundingClientRect()
+    val center =
+      (rect.left + rect.width / 2, rect.top + rect.height / 2)
+    lastKnownCenters.update(_ + (slot -> center))
+    Some(center)
+
+  /** Pixel delta from one slot center to another, if both are known.
+    */
+  def offsetBetween(
+    fromSlot: RoomSlot,
+    toSlot: RoomSlot,
+  ): Option[(Double, Double)] =
+    for
+      from <- center(fromSlot)
+      to   <- center(toSlot)
+    yield (from._1 - to._1, from._2 - to._2)
+
 /** Tracks active swap animations for smooth position transitions.
   *
   * Animation flow:
@@ -53,11 +117,13 @@ object SwapAnimationState:
     fromSlot: RoomSlot,
     toSlot: RoomSlot,
   ): (Double, Double) =
-    val colDiff = fromSlot.room.id - toSlot.room.id
-    val rowDiff = timeSlotToRow(fromSlot.timeSlot) - timeSlotToRow(
-      toSlot.timeSlot,
-    )
-    (colDiff * cellWidth, rowDiff * cellHeight)
+    SlotPositionTracker.offsetBetween(fromSlot, toSlot).getOrElse {
+      val colDiff = fromSlot.room.id - toSlot.room.id
+      val rowDiff = timeSlotToRow(fromSlot.timeSlot) - timeSlotToRow(
+        toSlot.timeSlot,
+      )
+      (colDiff * cellWidth, rowDiff * cellHeight)
+    }
 
   /** Increments and returns the new animation generation for a topic
     */
@@ -779,12 +845,25 @@ def ScheduleSlotComponent(
   showUnscheduledMenu: Observer[RoomSlot],
   topicUpdates: DiscussionAction => Unit,
 ) =
+  val roomSlot = RoomSlot(room, timeSlot)
+  // Keep unregister handle across mount/unmount
+  var unregisterSlot: () => Unit = () => ()
   span(
+    // Track this slot's DOM position so move animations can start from the
+    // actual on-screen slot instead of an approximate grid offset
+    onMountUnmountCallback(
+      ctx =>
+        val element = ctx.thisNode.ref
+        unregisterSlot =
+          SlotPositionTracker.register(roomSlot, element)
+      ,
+      _ => unregisterSlot(),
+    ),
     child <-- $discussionState.map { discussionState =>
       span(
         child <-- $activeDiscussion.map { discussionO =>
           discussionState.roomSlotContent(
-            RoomSlot(room, timeSlot),
+            roomSlot,
           ) match
             case Some(value) =>
               val selectedTopicStyling =
@@ -837,9 +916,7 @@ def ScheduleSlotComponent(
                 case Some(discussion) =>
                   discussion.roomSlot match
                     case Some(value)
-                        if RoomSlot(room,
-                                    timeSlot,
-                        ) == value => // TODO Make this impossible
+                        if roomSlot == value => // TODO Make this impossible
                       SvgIcon(discussion.glyphicon, "filledTopic")
                     case Some(_) =>
                       // Empty slot when active discussion is scheduled elsewhere
@@ -848,7 +925,7 @@ def ScheduleSlotComponent(
                         cls := "emptySlotWithActiveDiscussion",
                         SvgIcon(GlyphiconUtils.emptySlot),
                         onClick.stopPropagation.mapTo(
-                          RoomSlot(room, timeSlot),
+                          roomSlot,
                         ) --> showUnscheduledMenu,
                         onContextMenu.preventDefault --> Observer {
                           (event: org.scalajs.dom.MouseEvent) =>
@@ -856,7 +933,7 @@ def ScheduleSlotComponent(
                             topicUpdates(
                               DiscussionAction.MoveTopic(
                                 discussion.id,
-                                RoomSlot(room, timeSlot),
+                                roomSlot,
                               ),
                             )
                         },
@@ -865,9 +942,7 @@ def ScheduleSlotComponent(
                       span(
                         SvgIcon(GlyphiconUtils.plus),
                         onClick.mapTo(
-                          discussion.copy(roomSlot =
-                            Some(RoomSlot(room, timeSlot)),
-                          ),
+                          discussion.copy(roomSlot = Some(roomSlot)),
                         ) --> updateDiscussion,
                       )
                 case None =>
@@ -875,7 +950,7 @@ def ScheduleSlotComponent(
                   span(
                     SvgIcon(GlyphiconUtils.emptySlot),
                     onClick.stopPropagation.mapTo(
-                      RoomSlot(room, timeSlot),
+                      roomSlot,
                     ) --> showUnscheduledMenu,
                     onContextMenu.preventDefault --> Observer {
                       (event: org.scalajs.dom.MouseEvent) =>
