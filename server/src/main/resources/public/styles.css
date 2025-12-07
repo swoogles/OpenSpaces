@@ -379,3 +379,13 @@
 .ErrorBanner-dismiss:hover {
     color: #491217;
 }
+
+/* Swap Animation Styles */
+.swap-animating {
+    position: relative;
+    z-index: 100;
+}
+
+.swap-topic-icon {
+    display: inline-block;
+}

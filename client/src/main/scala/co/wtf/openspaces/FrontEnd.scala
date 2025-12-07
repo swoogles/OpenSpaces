@@ -12,6 +12,111 @@ val localStorage = window.localStorage
 import org.scalajs.dom
 import scala.scalajs.js.URIUtils
 
+/** Tracks active swap animations for smooth position transitions.
+  *
+  * Animation flow:
+  *   1. When a swap is confirmed, we set initial offsets (from old
+  *      position to new) 2. After a brief delay (one animation
+  *      frame), we clear the offsets to (0, 0) 3. The spring
+  *      animation interpolates from the offset to (0, 0), creating
+  *      the sliding effect
+  */
+object SwapAnimationState:
+  // Stores the INITIAL offsets for each topic (where they should appear to come FROM)
+  val initialOffsets: Var[Map[TopicId, (Double, Double)]] = Var(
+    Map.empty,
+  )
+
+  // Stores whether each topic's animation should be "animating to zero"
+  val animatingToZero: Var[Set[TopicId]] = Var(Set.empty)
+
+  /** Spring animation typically needs ~600-800ms to settle */
+  val cleanupDelayMs: Int = 1000
+
+  /** Starts a swap animation between two topics based on their
+    * RoomSlots
+    */
+  def startAnimation(
+    topic1: TopicId,
+    slot1: RoomSlot,
+    topic2: TopicId,
+    slot2: RoomSlot,
+  ): Unit =
+    // Calculate pixel offsets based on grid layout
+    // The schedule grid has 4 rooms (columns) and multiple time slots (rows)
+    val cellWidth = 60.0 // Approximate cell width in pixels
+    val cellHeight =
+      64.0 // Approximate cell height (8vh on typical mobile)
+
+    // Calculate column difference (rooms are columns 0-3)
+    val col1 = slot1.room.id
+    val col2 = slot2.room.id
+    val colDiff = col2 - col1
+
+    // Calculate row difference based on time slots
+    val row1 = timeSlotToRow(slot1.timeSlot)
+    val row2 = timeSlotToRow(slot2.timeSlot)
+    val rowDiff = row2 - row1
+
+    val xOffset = colDiff * cellWidth
+    val yOffset = rowDiff * cellHeight
+
+    // After swap, topic1 is now at slot1 (rendered there in DOM)
+    // But topic1 WAS at slot2 before the swap
+    // Initial offset for topic1 = position difference (slot2 - slot1)
+    val topic1Offset = (xOffset, yOffset)
+    val topic2Offset = (-xOffset, -yOffset)
+
+    // Step 1: Set initial offsets (topics appear at their OLD positions)
+    initialOffsets.update(
+      _ + (topic1 -> topic1Offset) + (topic2 -> topic2Offset),
+    )
+
+    // Step 2: After a brief delay (to allow DOM to update), trigger animation to zero
+    // We use a tiny delay to ensure the component has rendered with the initial offset
+    window.setTimeout(
+      () => animatingToZero.update(_ + topic1 + topic2),
+      16, // ~1 animation frame (16ms)
+    )
+
+    // Step 3: Clean up after animation completes
+    window.setTimeout(
+      () => {
+        initialOffsets.update(_ - topic1 - topic2)
+        animatingToZero.update(_ - topic1 - topic2)
+      },
+      cleanupDelayMs,
+    )
+
+  /** Gets the animated offset signal for a topic. Returns the initial
+    * offset if not yet animating, or (0,0) if animating to final
+    * position. The spring will interpolate between these values.
+    */
+  def getOffsetSignal(
+    topicId: TopicId,
+  ): Signal[(Double, Double)] =
+    initialOffsets.signal.combineWith(animatingToZero.signal).map {
+      case (offsets, animating) =>
+        if (animating.contains(topicId)) {
+          // Target position: animate TO (0, 0)
+          (0.0, 0.0)
+        }
+        else {
+          // Initial position: offset from old position
+          offsets.getOrElse(topicId, (0.0, 0.0))
+        }
+    }
+
+  /** Helper to convert TimeSlot to a row index for offset calculation
+    */
+  private def timeSlotToRow(
+    timeSlot: TimeSlot,
+  ): Int =
+    val startTime = timeSlot.startTime
+    val dayOffset = startTime.getDayOfYear * 100
+    val timeOffset = startTime.getHour * 60 + startTime.getMinute
+    (dayOffset + timeOffset) / 50
+
 /** Centralized menu positioning - uses viewport dimensions only */
 object MenuPositioning:
   private val menuMargin = 10.0
@@ -217,6 +322,21 @@ object FrontEnd extends App:
                       Some(
                         "Move failed: That slot was just filled by another user. Please try again.",
                       ),
+                    )
+                  // Trigger swap animation before state update
+                  case DiscussionActionConfirmed.SwapTopics(
+                        topic1,
+                        newSlot1,
+                        topic2,
+                        newSlot2,
+                      ) =>
+                    // Start the swap animation - newSlot1 is where topic1 is going TO
+                    // So topic1 was at newSlot2 (they swapped), and topic2 was at newSlot1
+                    SwapAnimationState.startAnimation(
+                      topic1,
+                      newSlot1, // topic1's new position
+                      topic2,
+                      newSlot2, // topic2's new position
                     )
                   case _ => ()
 
@@ -579,7 +699,23 @@ def ScheduleSlotComponent(
               val isSwappable = discussionO.exists(active =>
                 active.id != value.id && active.roomSlot.isDefined,
               )
+
+              // Get the animated offset for this topic (if it's part of a swap)
+              val $offset =
+                SwapAnimationState.getOffsetSignal(value.id)
+              // Use spring animation for smooth movement
+              val $animatedX = $offset.map(_._1).spring
+              val $animatedY = $offset.map(_._2).spring
+
               span(
+                cls := "swap-topic-icon",
+                // Apply animated transform based on swap offset
+                transform <-- $animatedX.combineWith($animatedY).map {
+                  case (x, y) =>
+                    if (x != 0.0 || y != 0.0)
+                      s"translate(${x}px, ${y}px)"
+                    else "none"
+                },
                 onClick.stopPropagation.mapTo(value) --> showPopover,
                 // Long-press to show swap menu when there's an active discussion
                 if (isSwappable)
