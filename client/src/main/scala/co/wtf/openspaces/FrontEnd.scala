@@ -154,7 +154,7 @@ object FrontEnd extends App:
       // Swap action menu at top level
       child <-- swapMenuState.signal.map {
         case Some((selectedDiscussion, targetDiscussion)) =>
-          SwapActionMenu(
+          Menu(
             selectedDiscussion,
             targetDiscussion,
             topicUpdates.sendOne,
@@ -714,7 +714,7 @@ case class ErrorBanner(
         },
     )
 
-def SwapActionMenu(
+def Menu(
   selectedDiscussion: Discussion,
   targetDiscussion: Discussion,
   topicUpdates: DiscussionAction => Unit,
@@ -722,24 +722,22 @@ def SwapActionMenu(
 ) =
   val (x, y) = MenuPositioning.standardMenuPosition()
   div(
-    cls := "SwapActionMenu",
+    cls := "Menu",
     left := s"${x}px",
     top := s"${y}px",
     onClick.preventDefault.stopPropagation --> Observer(_ => ()),
-    div(cls := "SwapActionMenu-header", "Actions"),
+    div(cls := "Menu-header", "Actions"),
     // Selected topic (current selection)
     div(
-      cls := "SwapActionMenu-section",
-      div(cls := "SwapActionMenu-label", "Selected Topic:"),
+      cls := "Menu-section",
+      div(cls := "Menu-label", "Selected Topic:"),
       div(
-        cls := "SwapActionMenu-topic SwapActionMenu-topic--selected",
+        cls := "Menu-topic Menu-topic--selected",
         SvgIcon(selectedDiscussion.glyphicon),
         div(
-          div(cls := "SwapActionMenu-topicName",
-              selectedDiscussion.topicName,
-          ),
+          div(cls := "Menu-topicName", selectedDiscussion.topicName),
           div(
-            cls := "SwapActionMenu-roomSlot",
+            cls := "Menu-roomSlot",
             selectedDiscussion.roomSlot
               .map(_.displayString)
               .getOrElse("Unscheduled"),
@@ -749,17 +747,15 @@ def SwapActionMenu(
     ),
     // Target topic
     div(
-      cls := "SwapActionMenu-section SwapActionMenu-section--target",
-      div(cls := "SwapActionMenu-label", "Target Topic:"),
+      cls := "Menu-section Menu-section--target",
+      div(cls := "Menu-label", "Target Topic:"),
       div(
-        cls := "SwapActionMenu-topic SwapActionMenu-topic--target",
+        cls := "Menu-topic Menu-topic--target",
         SvgIcon(targetDiscussion.glyphicon),
         div(
-          div(cls := "SwapActionMenu-topicName",
-              targetDiscussion.topicName,
-          ),
+          div(cls := "Menu-topicName", targetDiscussion.topicName),
           div(
-            cls := "SwapActionMenu-roomSlot",
+            cls := "Menu-roomSlot",
             targetDiscussion.roomSlot
               .map(_.displayString)
               .getOrElse("Unscheduled"),
@@ -769,9 +765,9 @@ def SwapActionMenu(
     ),
     // Action buttons
     div(
-      cls := "SwapActionMenu-actions",
+      cls := "Menu-actions",
       button(
-        cls := "SwapActionMenu-swapButton",
+        cls := "Menu-swapButton",
         onClick --> Observer { _ =>
           // Both discussions must have room slots for swap to work
           (selectedDiscussion.roomSlot,
@@ -793,7 +789,7 @@ def SwapActionMenu(
         span("Swap Room Slots"),
       ),
       button(
-        cls := "SwapActionMenu-cancelButton",
+        cls := "Menu-cancelButton",
         onClick.mapToUnit --> dismissMenu,
         "Cancel",
       ),
@@ -842,28 +838,28 @@ def UnscheduledDiscussionsMenu(
         }
 
   div(
-    cls := "SwapActionMenu",
+    cls := "Menu",
     left := s"${x}px",
     top := s"${y}px",
     onClick.preventDefault.stopPropagation --> Observer(_ => ()),
-    div(cls := "SwapActionMenu-header", "Assign Discussion"),
+    div(cls := "Menu-header", "Assign Discussion"),
     div(
-      cls := "SwapActionMenu-section",
-      div(cls := "SwapActionMenu-label",
+      cls := "Menu-section",
+      div(cls := "Menu-label",
           s"Room Slot: ${targetRoomSlot.displayString}",
       ),
     ),
     div(
-      cls := "SwapActionMenu-section",
-      div(cls := "SwapActionMenu-label", "Add New Discussion:"),
+      cls := "Menu-section",
+      div(cls := "Menu-label", "Add New Discussion:"),
       textArea(
-        cls := "SwapActionMenu-textArea",
+        cls := "Menu-textArea",
         placeholder := "Describe the discussion to schedule...",
         value <-- textVar.signal,
         onInput.mapToValue --> textVar,
       ),
       button(
-        cls := "SwapActionMenu-swapButton",
+        cls := "Menu-swapButton",
         onClick --> Observer { _ =>
           submitNewDiscussion()
         },
@@ -872,19 +868,19 @@ def UnscheduledDiscussionsMenu(
       child <--
         errorVar.signal.map {
           case Some(errorMessage) =>
-            div(cls := "SwapActionMenu-error", errorMessage)
+            div(cls := "Menu-error", errorMessage)
           case None =>
             span()
         },
     ),
     div(
-      cls := "SwapActionMenu-section",
-      div(cls := "SwapActionMenu-label", "Available Discussions:"),
+      cls := "Menu-section",
+      div(cls := "Menu-label", "Available Discussions:"),
       if (unscheduledDiscussions.isEmpty) {
         div(
-          cls := "SwapActionMenu-topic",
+          cls := "Menu-topic",
           div(
-            div(cls := "SwapActionMenu-topicName",
+            div(cls := "Menu-topicName",
                 "No unscheduled discussions available",
             ),
           ),
@@ -892,10 +888,10 @@ def UnscheduledDiscussionsMenu(
       }
       else {
         div(
-          cls := "SwapActionMenu-actions",
+          cls := "Menu-actions",
           unscheduledDiscussions.map { discussion =>
             button(
-              cls := "SwapActionMenu-swapButton",
+              cls := "Menu-swapButton",
               onClick --> Observer { _ =>
                 topicUpdates(
                   DiscussionAction.UpdateRoomSlot(
@@ -911,7 +907,7 @@ def UnscheduledDiscussionsMenu(
               },
               SvgIcon(discussion.glyphicon),
               span(
-                cls := "SwapActionMenu-topicName",
+                cls := "Menu-topicName",
                 discussion.topicName,
               ),
             )
@@ -920,9 +916,9 @@ def UnscheduledDiscussionsMenu(
       },
     ),
     div(
-      cls := "SwapActionMenu-actions",
+      cls := "Menu-actions",
       button(
-        cls := "SwapActionMenu-cancelButton",
+        cls := "Menu-cancelButton",
         onClick.mapToUnit --> dismissMenu,
         "Cancel",
       ),
@@ -939,7 +935,7 @@ def ActiveDiscussionActionMenu(
 
   val cancelButton =
     button(
-      cls := "SwapActionMenu-cancelButton",
+      cls := "Menu-cancelButton",
       onClick.mapToUnit --> dismissMenu,
       "Close",
     )
@@ -948,7 +944,7 @@ def ActiveDiscussionActionMenu(
     if isScheduled then
       List(
         button(
-          cls := "SwapActionMenu-swapButton",
+          cls := "Menu-swapButton",
           onClick --> Observer { _ =>
             topicUpdates(
               DiscussionAction.Unschedule(discussion.id),
@@ -963,9 +959,9 @@ def ActiveDiscussionActionMenu(
     else
       List(
         div(
-          cls := "SwapActionMenu-topic SwapActionMenu-topic--selected",
+          cls := "Menu-topic Menu-topic--selected",
           span(
-            cls := "SwapActionMenu-topicName",
+            cls := "Menu-topicName",
             "This discussion is not scheduled yet.",
           ),
         ),
@@ -973,24 +969,24 @@ def ActiveDiscussionActionMenu(
       )
 
   val actionSection =
-    (cls := "SwapActionMenu-actions") :: actionElements
+    (cls := "Menu-actions") :: actionElements
 
   div(
-    cls := "SwapActionMenu",
+    cls := "Menu",
     left := s"${x}px",
     top := s"${y}px",
     onClick.preventDefault.stopPropagation --> Observer(_ => ()),
-    div(cls := "SwapActionMenu-header", "Discussion actions"),
+    div(cls := "Menu-header", "Discussion actions"),
     div(
-      cls := "SwapActionMenu-topic SwapActionMenu-topic--selected",
+      cls := "Menu-topic Menu-topic--selected",
       SvgIcon(discussion.glyphicon),
       div(
         div(
-          cls := "SwapActionMenu-topicName",
+          cls := "Menu-topicName",
           discussion.topicName,
         ),
         div(
-          cls := "SwapActionMenu-roomSlot",
+          cls := "Menu-roomSlot",
           discussion.roomSlot
             .map(_.displayString)
             .getOrElse("Unscheduled"),

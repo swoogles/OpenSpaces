@@ -207,8 +207,8 @@
     /* Enables vertical scrolling when content exceeds max-height */
 }
 
-/* Swap Action Menu */
-.SwapActionMenu {
+/* Menu */
+.Menu {
     position: fixed;
     background-color: #fff;
     border-radius: 8px;
@@ -223,36 +223,36 @@
     box-sizing: border-box;
 }
 
-/* Mobile-specific adjustments for SwapActionMenu */
+/* Menu - mobile adjustments */
 @media (max-width: 400px) {
-    .SwapActionMenu {
+    .Menu {
         padding: 12px;
         left: 10px !important;
         right: 10px !important;
         width: auto !important;
     }
 
-    .SwapActionMenu-header {
+    .Menu-header {
         font-size: 14px;
     }
 
-    .SwapActionMenu-topicName {
+    .Menu-topicName {
         font-size: 14px;
         word-break: break-word;
     }
 
-    .SwapActionMenu-topic {
+    .Menu-topic {
         padding: 8px;
         flex-wrap: wrap;
     }
 
-    .SwapActionMenu-swapButton,
-    .SwapActionMenu-cancelButton {
+    .Menu-swapButton,
+    .Menu-cancelButton {
         padding: 10px 12px;
     }
 }
 
-.SwapActionMenu-header {
+.Menu-header {
     font-weight: bold;
     font-size: 16px;
     margin-bottom: 12px;
@@ -260,21 +260,21 @@
     padding-bottom: 8px;
 }
 
-.SwapActionMenu-section {
+.Menu-section {
     margin-bottom: 12px;
 }
 
-.SwapActionMenu-section--target {
+.Menu-section--target {
     margin-bottom: 16px;
 }
 
-.SwapActionMenu-label {
+.Menu-label {
     font-size: 12px;
     color: #666;
     margin-bottom: 4px;
 }
 
-.SwapActionMenu-topic {
+.Menu-topic {
     padding: 10px;
     border-radius: 6px;
     display: flex;
@@ -284,39 +284,39 @@
     /* Allow flex children to shrink below content size */
 }
 
-.SwapActionMenu-topic>div {
+.Menu-topic>div {
     min-width: 0;
     /* Allow text container to shrink */
     flex: 1;
 }
 
-.SwapActionMenu-topic--selected {
+.Menu-topic--selected {
     background-color: #e8f4fc;
 }
 
-.SwapActionMenu-topic--target {
+.Menu-topic--target {
     background-color: #fcf4e8;
 }
 
-.SwapActionMenu-topicName {
+.Menu-topicName {
     font-weight: bold;
     word-wrap: break-word;
     overflow-wrap: break-word;
     max-width: 100%;
 }
 
-.SwapActionMenu-roomSlot {
+.Menu-roomSlot {
     font-size: 12px;
     color: #666;
 }
 
-.SwapActionMenu-actions {
+.Menu-actions {
     display: flex;
     flex-direction: column;
     gap: 8px;
 }
 
-.SwapActionMenu-swapButton {
+.Menu-swapButton {
     width: 100%;
     padding: 12px 16px;
     background-color: #4a90d9;
@@ -331,11 +331,11 @@
     gap: 8px;
 }
 
-.SwapActionMenu-swapButton:hover {
+.Menu-swapButton:hover {
     background-color: #3a7fc8;
 }
 
-.SwapActionMenu-cancelButton {
+.Menu-cancelButton {
     width: 100%;
     padding: 10px 16px;
     background-color: #f8f9fa;
@@ -345,7 +345,7 @@
     cursor: pointer;
 }
 
-.SwapActionMenu-cancelButton:hover {
+.Menu-cancelButton:hover {
     background-color: #e9ecef;
 }
 
