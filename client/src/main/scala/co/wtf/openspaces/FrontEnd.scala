@@ -45,8 +45,9 @@ object SwapAnimationState:
     // Calculate pixel offsets based on grid layout
     // The schedule grid has 4 rooms (columns) and multiple time slots (rows)
     val cellWidth = 60.0 // Approximate cell width in pixels
-    val cellHeight =
-      64.0 // Approximate cell height (8vh on typical mobile)
+    // Use a smaller vertical offset since row calculations can over-estimate
+    // the visual distance for adjacent time slots
+    val cellHeight = 40.0
 
     // Calculate column difference (rooms are columns 0-3)
     val col1 = slot1.room.id
