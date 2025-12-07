@@ -33,51 +33,75 @@ object SwapAnimationState:
   /** Spring animation typically needs ~600-800ms to settle */
   val cleanupDelayMs: Int = 1000
 
+  // Grid cell dimensions for offset calculations
+  private val cellWidth = 60.0 // Approximate cell width in pixels
+  // Use a smaller vertical offset since row calculations can over-estimate
+  // the visual distance for adjacent time slots
+  private val cellHeight = 40.0
+
+  /** Calculates the pixel offset between two room slots */
+  private def calculateOffset(
+    fromSlot: RoomSlot,
+    toSlot: RoomSlot,
+  ): (Double, Double) =
+    val colDiff = fromSlot.room.id - toSlot.room.id
+    val rowDiff = timeSlotToRow(fromSlot.timeSlot) - timeSlotToRow(
+      toSlot.timeSlot,
+    )
+    (colDiff * cellWidth, rowDiff * cellHeight)
+
+  /** Starts an animation for a single topic being moved from one slot
+    * to another
+    */
+  def startMoveAnimation(
+    topicId: TopicId,
+    fromSlot: RoomSlot,
+    toSlot: RoomSlot,
+  ): Unit =
+    // Calculate offset: topic is now at toSlot, but should appear to come FROM fromSlot
+    val offset = calculateOffset(fromSlot, toSlot)
+
+    // Step 1: Set initial offset (topic appears at its OLD position)
+    initialOffsets.update(_ + (topicId -> offset))
+
+    // Step 2: After a brief delay, trigger animation to zero
+    window.setTimeout(
+      () => animatingToZero.update(_ + topicId),
+      16, // ~1 animation frame
+    )
+
+    // Step 3: Clean up after animation completes
+    window.setTimeout(
+      () => {
+        initialOffsets.update(_ - topicId)
+        animatingToZero.update(_ - topicId)
+      },
+      cleanupDelayMs,
+    )
+
   /** Starts a swap animation between two topics based on their
     * RoomSlots
     */
-  def startAnimation(
+  def startSwapAnimation(
     topic1: TopicId,
     slot1: RoomSlot,
     topic2: TopicId,
     slot2: RoomSlot,
   ): Unit =
-    // Calculate pixel offsets based on grid layout
-    // The schedule grid has 4 rooms (columns) and multiple time slots (rows)
-    val cellWidth = 60.0 // Approximate cell width in pixels
-    // Use a smaller vertical offset since row calculations can over-estimate
-    // the visual distance for adjacent time slots
-    val cellHeight = 40.0
-
-    // Calculate column difference (rooms are columns 0-3)
-    val col1 = slot1.room.id
-    val col2 = slot2.room.id
-    val colDiff = col2 - col1
-
-    // Calculate row difference based on time slots
-    val row1 = timeSlotToRow(slot1.timeSlot)
-    val row2 = timeSlotToRow(slot2.timeSlot)
-    val rowDiff = row2 - row1
-
-    val xOffset = colDiff * cellWidth
-    val yOffset = rowDiff * cellHeight
-
-    // After swap, topic1 is now at slot1 (rendered there in DOM)
-    // But topic1 WAS at slot2 before the swap
-    // Initial offset for topic1 = position difference (slot2 - slot1)
-    val topic1Offset = (xOffset, yOffset)
-    val topic2Offset = (-xOffset, -yOffset)
+    // After swap, topic1 is now at slot1, but WAS at slot2 before
+    // So topic1 needs offset from slot2 to slot1
+    val topic1Offset = calculateOffset(slot2, slot1)
+    val topic2Offset = calculateOffset(slot1, slot2)
 
     // Step 1: Set initial offsets (topics appear at their OLD positions)
     initialOffsets.update(
       _ + (topic1 -> topic1Offset) + (topic2 -> topic2Offset),
     )
 
-    // Step 2: After a brief delay (to allow DOM to update), trigger animation to zero
-    // We use a tiny delay to ensure the component has rendered with the initial offset
+    // Step 2: After a brief delay, trigger animation to zero
     window.setTimeout(
       () => animatingToZero.update(_ + topic1 + topic2),
-      16, // ~1 animation frame (16ms)
+      16, // ~1 animation frame
     )
 
     // Step 3: Clean up after animation completes
@@ -331,14 +355,49 @@ object FrontEnd extends App:
                         topic2,
                         newSlot2,
                       ) =>
-                    // Start the swap animation - newSlot1 is where topic1 is going TO
-                    // So topic1 was at newSlot2 (they swapped), and topic2 was at newSlot1
-                    SwapAnimationState.startAnimation(
+                    // Start the swap animation
+                    SwapAnimationState.startSwapAnimation(
                       topic1,
-                      newSlot1, // topic1's new position
+                      newSlot1,
                       topic2,
-                      newSlot2, // topic2's new position
+                      newSlot2,
                     )
+                  // Trigger move animation for single topic moves
+                  case DiscussionActionConfirmed.MoveTopic(
+                        topicId,
+                        targetRoomSlot,
+                      ) =>
+                    // Get the topic's current (old) position before state updates
+                    discussionState
+                      .now()
+                      .data
+                      .get(topicId)
+                      .flatMap(_.roomSlot)
+                      .foreach { oldSlot =>
+                        SwapAnimationState.startMoveAnimation(
+                          topicId,
+                          oldSlot,
+                          targetRoomSlot,
+                        )
+                      }
+                  // Also animate UpdateRoomSlot (similar to MoveTopic)
+                  case DiscussionActionConfirmed.UpdateRoomSlot(
+                        topicId,
+                        newRoomSlot,
+                      ) =>
+                    // Get the topic's current (old) position before state updates
+                    discussionState
+                      .now()
+                      .data
+                      .get(topicId)
+                      .flatMap(_.roomSlot)
+                      .foreach { oldSlot =>
+                        SwapAnimationState.startMoveAnimation(
+                          topicId,
+                          oldSlot,
+                          newRoomSlot,
+                        )
+                      }
                   case _ => ()
 
                 discussionState
