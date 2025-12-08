@@ -56,6 +56,19 @@ lazy val client = (project in file("client"))
     ),
   )
 
+lazy val serviceworker = (project in file("serviceworker"))
+  .enablePlugins(ScalaJSPlugin)
+  .dependsOn(sharedCode.js)
+  .settings(
+    name := "serviceworker",
+    Compile / fastOptJS / artifactPath := baseDirectory.value.getParentFile / "server" / "src" / "main" / "resources" / "public" / "sw.js",
+    Compile / fullOptJS / artifactPath := baseDirectory.value.getParentFile / "server" / "src" / "main" / "resources" / "public" / "sw.js",
+    scalaJSUseMainModuleInitializer := true,
+    libraryDependencies ++= Seq(
+      "org.scala-js" %%% "scalajs-dom" % "2.8.0",
+    ),
+  )
+
 lazy val server = (project in file("server"))
   .enablePlugins(JavaAppPackaging, AshScriptPlugin)
   .dependsOn(sharedCode.jvm)
@@ -69,10 +82,10 @@ lazy val server = (project in file("server"))
     Compile / mainClass := Some("co.wtf.openspaces.Backend"),
 
     // Key fix: Make the stage task depend on client's fastOptJS
-    stage := (stage dependsOn (client / Compile / fullOptJS)).value,
+    stage := (stage dependsOn (client / Compile / fullOptJS) dependsOn (serviceworker / Compile / fullOptJS)).value,
 
     // Also ensure the JS is available during development
-    Compile / compile := ((Compile / compile) dependsOn (client / Compile / fastOptJS)).value,
+    Compile / compile := ((Compile / compile) dependsOn (client / Compile / fastOptJS) dependsOn (serviceworker / Compile / fastOptJS)).value,
 
     libraryDependencies ++= Seq(
       "dev.zio" %% "zio" % "2.1.16",
@@ -83,7 +96,7 @@ lazy val server = (project in file("server"))
   )
 
 lazy val root = (project in file("."))
-  .aggregate(client, server)
+  .aggregate(client, server, serviceworker)
   .settings(
     // Make root's stage task depend on server's stage task
     stage := (server / stage).value

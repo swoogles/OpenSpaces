@@ -1,0 +1,26 @@
+{
+  "short_name": "StickyIcky",
+  "name": "Sticky Icky",
+  "description": "Sticky Icky live schedule for conference participants.",
+  "scope": "/",
+  "start_url": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "theme_color": "#f4f8fc",
+  "background_color": "#f4f8fc",
+  "icons": [
+    {
+      "src": "images/BILLDING_LogoMark-256.png",
+      "sizes": "256x256",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "images/BILLDING_LogoMark-500.png",
+      "sizes": "500x500",
+      "type": "image/png"
+    }
+  ]
+}
+
+

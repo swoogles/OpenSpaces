@@ -270,6 +270,7 @@ object MenuPositioning:
     (x, y)
 
 object FrontEnd extends App:
+  ServiceWorkerClient.registerServiceWorker()
   lazy val container = dom.document.getElementById("app")
 
   val discussionState: Var[DiscussionState] =
