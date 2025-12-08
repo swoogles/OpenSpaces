@@ -74,6 +74,15 @@ case class ApplicationState(
 
   val initialRoutes =
     Routes(
+      Method.GET / "" -> handler(
+        Handler
+          .fromResource("public/index.html")
+          .map(_.addHeader(Header.ContentType(MediaType.text.html)))
+          .mapError(e =>
+            Response
+              .text(e.getMessage),
+          ),
+      ),
       // TODO Build this URL way sooner
       Method.GET / "auth" -> handler(
         Response.redirect(
@@ -113,9 +122,9 @@ case class ApplicationState(
               } yield Response
                 .redirect(
                   URL
-                    .decode("/index.html")
+                    .decode("/")
                     .getOrElse(
-                      throw new Exception("Bad url: /index.html"),
+                      throw new Exception("Bad url: /"),
                     ),
                 )
                 .addCookie(
