@@ -389,3 +389,66 @@
 .swap-topic-icon {
     display: inline-block;
 }
+
+/* Voting State Styling for Icons
+ * These classes indicate the user's voting relationship with a topic.
+ * Uses opacity, scale, and borders rather than color alone for accessibility.
+ */
+
+/* Voted FOR: Most visible - full opacity, slight scale up, solid border */
+.vote-state-for {
+    opacity: 1;
+    transform: scale(1.1);
+    border: 2px solid currentColor;
+    border-radius: 6px;
+    padding: 2px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+}
+
+/* Not voted: Neutral - slightly reduced opacity, normal scale */
+.vote-state-neutral {
+    opacity: 0.7;
+    transform: scale(1);
+}
+
+/* Voted AGAINST: Least visible - reduced opacity, scale down, dashed border */
+.vote-state-against {
+    opacity: 0.35;
+    transform: scale(0.85);
+    border: 1px dashed currentColor;
+    border-radius: 4px;
+    padding: 1px;
+}
+
+/* Ensure proper transitions for smooth state changes */
+.vote-state-for,
+.vote-state-neutral,
+.vote-state-against {
+    transition: opacity 0.2s ease, transform 0.2s ease;
+}
+
+/* Respect reduced motion preferences */
+@media (prefers-reduced-motion: reduce) {
+    .vote-state-for,
+    .vote-state-neutral,
+    .vote-state-against {
+        transition: none;
+    }
+}
+
+/* High contrast mode support */
+@media (prefers-contrast: more) {
+    .vote-state-for {
+        border-width: 3px;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+    }
+    
+    .vote-state-neutral {
+        opacity: 0.8;
+    }
+    
+    .vote-state-against {
+        opacity: 0.4;
+        border-width: 2px;
+    }
+}

@@ -834,6 +834,7 @@ def ScheduleSlotComponent(
   showSwapMenu: Observer[(Discussion, Discussion)],
   showUnscheduledMenu: Observer[RoomSlot],
   topicUpdates: DiscussionAction => Unit,
+  name: StrictSignal[Person],
 ) =
   val roomSlot = RoomSlot(room, timeSlot)
   // Keep unregister handle across mount/unmount
@@ -874,6 +875,10 @@ def ScheduleSlotComponent(
               val $animatedX = $offset.map(_._1).spring
               val $animatedY = $offset.map(_._2).spring
 
+              // Calculate voting state for styling
+              val votingState =
+                VotingState.forUser(value, name.now())
+
               span(
                 cls := "swap-topic-icon",
                 // Apply animated transform based on swap offset
@@ -897,8 +902,11 @@ def ScheduleSlotComponent(
                 onClick.mapTo(
                   value,
                 ) --> updateDiscussion, // TODO This is causing an unecesary update to be sent to server
-                SvgIcon(value.glyphicon,
-                        s"filledTopic $selectedTopicStyling",
+                SvgIcon.withVotingState(
+                  value.glyphicon,
+                  votingState,
+                  value.topicName,
+                  s"filledTopic $selectedTopicStyling",
                 ),
               )
             case None =>
@@ -965,6 +973,7 @@ def SlotSchedule(
   showSwapMenu: Observer[(Discussion, Discussion)],
   showUnscheduledMenu: Observer[RoomSlot],
   topicUpdates: DiscussionAction => Unit,
+  name: StrictSignal[Person],
 ) =
   div(
     child <--
@@ -985,6 +994,7 @@ def SlotSchedule(
                                       showSwapMenu,
                                       showUnscheduledMenu,
                                       topicUpdates,
+                                      name,
                 ),
               )
             },
@@ -1382,6 +1392,7 @@ def ScheduleView(
           showSwapMenu,
           showUnscheduledMenu,
           topicUpdates,
+          name,
         ),
       ),
     ),
@@ -1395,6 +1406,7 @@ def SlotSchedules(
   showSwapMenu: Observer[(Discussion, Discussion)],
   showUnscheduledMenu: Observer[RoomSlot],
   topicUpdates: DiscussionAction => Unit,
+  name: StrictSignal[Person],
 ) =
   div(
     children <--
@@ -1419,6 +1431,7 @@ def SlotSchedules(
                                             showSwapMenu,
                                             showUnscheduledMenu,
                                             topicUpdates,
+                                            name,
                       ),
                     )
                   },

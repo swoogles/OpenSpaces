@@ -13,4 +13,34 @@ object SvgIcon {
       src := s"/glyphicons/${glyphicon.name}",
     )
 
+  /** Creates an icon with voting state styling and accessibility attributes.
+    *
+    * @param glyphicon
+    *   The icon to display
+    * @param votingState
+    *   The user's voting state for the associated topic
+    * @param topicName
+    *   The topic name for screen reader context
+    * @param additionalClasses
+    *   Any additional CSS classes to apply
+    */
+  def withVotingState(
+    glyphicon: Glyphicon,
+    votingState: VotingState,
+    topicName: String,
+    additionalClasses: String = "",
+  ): HtmlElement =
+    val allClasses =
+      s"glyphicon ${votingState.cssClass} $additionalClasses".trim
+    img(
+      cls := allClasses,
+      src := s"/glyphicons/${glyphicon.name}",
+      // Accessible label combining topic name and voting state
+      aria.label := s"$topicName - ${votingState.ariaLabel}",
+      // Role for screen readers to treat as meaningful image
+      role := "img",
+      // Title for tooltip on hover (helpful for sighted users too)
+      title := votingState.ariaLabel,
+    )
+
 }
