@@ -891,12 +891,10 @@ def ScheduleSlotComponent(
                 onClick.stopPropagation.mapTo(value) --> showPopover,
                 // Long-press to show swap menu when there's an active discussion
                 if (isSwappable)
-                  onContextMenu.preventDefault --> Observer {
-                    (event: org.scalajs.dom.MouseEvent) =>
-                      event.stopPropagation()
-                      discussionO.foreach { activeDiscussion =>
-                        showSwapMenu.onNext((activeDiscussion, value))
-                      }
+                  LongPress.binderAllowClicks { () =>
+                    discussionO.foreach { activeDiscussion =>
+                      showSwapMenu.onNext((activeDiscussion, value))
+                    }
                   }
                 else emptyMod,
                 onClick.mapTo(
@@ -925,15 +923,13 @@ def ScheduleSlotComponent(
                         onClick.stopPropagation.mapTo(
                           roomSlot,
                         ) --> showUnscheduledMenu,
-                        onContextMenu.preventDefault --> Observer {
-                          (event: org.scalajs.dom.MouseEvent) =>
-                            event.stopPropagation()
-                            topicUpdates(
-                              DiscussionAction.MoveTopic(
-                                discussion.id,
-                                roomSlot,
-                              ),
-                            )
+                        LongPress.binderAllowClicks { () =>
+                          topicUpdates(
+                            DiscussionAction.MoveTopic(
+                              discussion.id,
+                              roomSlot,
+                            ),
+                          )
                         },
                       )
                     case None =>
@@ -950,13 +946,11 @@ def ScheduleSlotComponent(
                     onClick.stopPropagation.mapTo(
                       roomSlot,
                     ) --> showUnscheduledMenu,
-                    onContextMenu.preventDefault --> Observer {
-                      (event: org.scalajs.dom.MouseEvent) =>
-                        event.stopPropagation()
-                        // Placeholder for future behavior when no discussion is selected
-                        dom.console.log(
-                          "Long press on empty slot (no discussion selected) - placeholder for future behavior",
-                        )
+                    LongPress.binderAllowClicks { () =>
+                      // Placeholder for future behavior when no discussion is selected
+                      dom.console.log(
+                        "Long press on empty slot (no discussion selected) - placeholder for future behavior",
+                      )
                     },
                   )
         },
@@ -1309,15 +1303,13 @@ def ActiveDiscussionActionMenu(
 private def activeDiscussionLongPressBinder(
   activeDiscussionNow: () => Option[Discussion],
   showActiveDiscussionMenu: Observer[Discussion],
-): Binder[HtmlElement] =
-  onContextMenu.preventDefault --> Observer {
-    (event: org.scalajs.dom.MouseEvent) =>
-      event.stopPropagation()
-      activeDiscussionNow().foreach { discussion =>
-        if (discussion.roomSlot.isDefined) {
-          showActiveDiscussionMenu.onNext(discussion)
-        }
+): Modifier[HtmlElement] =
+  LongPress.binderAllowClicks { () =>
+    activeDiscussionNow().foreach { discussion =>
+      if (discussion.roomSlot.isDefined) {
+        showActiveDiscussionMenu.onNext(discussion)
       }
+    }
   }
 
 def ScheduleView(
