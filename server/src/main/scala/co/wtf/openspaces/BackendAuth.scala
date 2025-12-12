@@ -48,6 +48,13 @@ object AccessToken:
 
   }
 
+/** Represents the GitHub user profile response. We only need the login
+  * (username) field.
+  */
+case class GitHubUser(
+  login: String)
+    derives JsonCodec
+
 case class TicketRoutesApp(
   ticketService: AuthenticatedTicketService):
   val routes =
@@ -119,6 +126,21 @@ case class ApplicationState(
                   )
                   .get("/access_token")
                 data <- res.body.asString.map(AccessToken.parse)
+                // Fetch GitHub username using the access token
+                userRes <- client
+                  .addHeader(Header.Authorization.Bearer(data.accessToken))
+                  .addHeader(Header.Accept(MediaType.application.json))
+                  .addHeader(Header.Custom("User-Agent", "openspaces-app"))
+                  .url(
+                    URL
+                      .decode("https://api.github.com")
+                      .getOrElse(???),
+                  )
+                  .get("/user")
+                userBody <- userRes.body.asString
+                githubUser <- ZIO
+                  .fromEither(userBody.fromJson[GitHubUser])
+                  .mapError(e => new Exception(s"Failed to parse GitHub user: $e"))
               } yield Response
                 .redirect(
                   URL
@@ -129,6 +151,9 @@ case class ApplicationState(
                 )
                 .addCookie(
                   Cookie.Response("access_token", data.accessToken),
+                )
+                .addCookie(
+                  Cookie.Response("github_username", githubUser.login),
                 ),
             )
             .orDie,

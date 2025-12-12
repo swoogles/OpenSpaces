@@ -293,7 +293,7 @@ object FrontEnd extends App:
     case _ => ()
   }
 
-  val name = getOrCreatePersistedName()
+  val name = getGitHubUsername()
   def liveTopicSubmissionAndVoting(
     updateTargetDiscussion: Observer[Discussion],
   ) =
@@ -360,6 +360,7 @@ object FrontEnd extends App:
     button(
       onClick --> Observer { _ =>
         deleteCookie("access_token")
+        deleteCookie("github_username")
         window.location.reload()
       },
       "Logout",
@@ -569,21 +570,14 @@ def getCookie(
   }
 }
 
-private def getOrCreatePersistedName(): Var[Person] =
-  val name =
-    try {
-      val retrieved =
-        localStorage
-          .getItem("name")
-      Option.when(retrieved != null && !retrieved.isBlank)(
-        Person(retrieved),
-      )
-    }
-    catch {
-      case e: Exception =>
-        None
-    }
-  Var(name.getOrElse(Person("")))
+/** Gets the GitHub username from the cookie set during OAuth login. The name
+  * is immutable and comes directly from GitHub.
+  */
+private def getGitHubUsername(): Var[Person] =
+  val username = getCookie("github_username")
+    .map(Person(_))
+    .getOrElse(Person(""))
+  Var(username)
 
 private def BannerLogo() =
   div(width := "100%",
@@ -594,7 +588,7 @@ private def BannerLogo() =
   )
 
 private def NameBadge(
-  textVar: Var[Person],
+  name: Var[Person],
 ) =
   div(
     cls := "Banner",
@@ -603,14 +597,9 @@ private def NameBadge(
         role := "img",
     ),
     div(
-      span("Name:"),
-      input(
-        placeholder := "Enter your name",
-        value <-- textVar.signal.map(_.unwrap),
-        onInput.mapToValue.map(Person(_)) --> textVar,
-        textVar --> Observer { (value: Person) =>
-          localStorage.setItem("name", value.unwrap)
-        },
+      cls := "NameDisplay",
+      span(
+        child.text <-- name.signal.map(p => s"Logged in as: ${p.unwrap}"),
       ),
     ),
   )
