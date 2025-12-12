@@ -69,26 +69,34 @@
 }
 
 .activeTopicIcon {
-    /* border: solid black;
-    border-radius: 5px; */
-    animation: selectedTopicPulse 1.8s ease-in-out infinite;
+    animation: selectedTopicPulse 0.9s ease-in-out infinite;
     transform-origin: center;
+    border-radius: 8px;
 }
 
 @keyframes selectedTopicPulse {
     0% {
         transform: scale(1);
-        box-shadow: 0 0 0 rgba(0, 0, 0, 0.15);
+        box-shadow: 0 0 0 4px rgba(74, 144, 217, 0.3),
+                    0 0 0 0 rgba(74, 144, 217, 0);
+        outline: 3px solid rgba(74, 144, 217, 0.6);
+        outline-offset: 0px;
     }
 
     50% {
-        transform: scale(1.05);
-        box-shadow: 0 0 8px rgba(0, 0, 0, 0.2);
+        transform: scale(1.18);
+        box-shadow: 0 0 0 8px rgba(74, 144, 217, 0.5),
+                    0 0 20px 4px rgba(74, 144, 217, 0.4);
+        outline: 3px solid rgba(74, 144, 217, 1);
+        outline-offset: 4px;
     }
 
     100% {
         transform: scale(1);
-        box-shadow: 0 0 0 rgba(0, 0, 0, 0.15);
+        box-shadow: 0 0 0 4px rgba(74, 144, 217, 0.3),
+                    0 0 0 0 rgba(74, 144, 217, 0);
+        outline: 3px solid rgba(74, 144, 217, 0.6);
+        outline-offset: 0px;
     }
 }
 
