@@ -1167,6 +1167,7 @@ def UnscheduledDiscussionsMenu(
         placeholder := "Describe the discussion to schedule...",
         value <-- textVar.signal,
         onInput.mapToValue --> textVar,
+        onMountCallback(ctx => ctx.thisNode.ref.focus()),
       ),
       button(
         cls := "Menu-swapButton",
