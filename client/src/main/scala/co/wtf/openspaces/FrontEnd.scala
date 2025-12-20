@@ -330,6 +330,10 @@ object FrontEnd extends App:
   val activeDiscussionMenuState: Var[Option[Discussion]] =
     Var(None)
 
+  // Current app view (Schedule or Topics)
+  val currentAppView: Var[AppView] =
+    Var(AppView.Schedule)
+
   val updateTargetDiscussion: Observer[Discussion] =
     Observer[Discussion] { discussion =>
       dom.document
@@ -538,18 +542,24 @@ object FrontEnd extends App:
             },
             errorBanner.component,
             NameBadge(name),
-            ScheduleView(
-              discussionState,
-              activeDiscussion,
-              topicUpdates.sendOne,
-              name.signal,
-              setActiveDiscussion,
-              popoverState,
-              swapMenuState,
-              unscheduledMenuState,
-              activeDiscussionMenuState,
-            ),
-            liveTopicSubmissionAndVoting(updateTargetDiscussion),
+            ViewToggle(currentAppView),
+            // Conditional view rendering based on current app view
+            child <-- currentAppView.signal.map {
+              case AppView.Schedule =>
+                ScheduleView(
+                  discussionState,
+                  activeDiscussion,
+                  topicUpdates.sendOne,
+                  name.signal,
+                  setActiveDiscussion,
+                  popoverState,
+                  swapMenuState,
+                  unscheduledMenuState,
+                  activeDiscussionMenuState,
+                )
+              case AppView.Topics =>
+                liveTopicSubmissionAndVoting(updateTargetDiscussion)
+            },
           )
         case None =>
           div(
@@ -829,9 +839,34 @@ private def DiscussionSubview(
   )
 
 enum AppView:
-  case Home
-  case ScheduleView
-  case SubmitTopic
+  case Schedule
+  case Topics
+
+/** Segmented control for switching between views.
+  * Modern pill-style toggle that's obvious on mobile.
+  */
+def ViewToggle(
+  currentView: Var[AppView],
+) =
+  div(
+    cls := "ViewToggle",
+    button(
+      cls <-- currentView.signal.map { view =>
+        if (view == AppView.Schedule) "ViewToggle-button ViewToggle-button--active"
+        else "ViewToggle-button"
+      },
+      onClick --> Observer(_ => currentView.set(AppView.Schedule)),
+      "Schedule",
+    ),
+    button(
+      cls <-- currentView.signal.map { view =>
+        if (view == AppView.Topics) "ViewToggle-button ViewToggle-button--active"
+        else "ViewToggle-button"
+      },
+      onClick --> Observer(_ => currentView.set(AppView.Topics)),
+      "Topics",
+    ),
+  )
 
 def ScheduleSlotComponent(
   timeSlot: TimeSlot,
