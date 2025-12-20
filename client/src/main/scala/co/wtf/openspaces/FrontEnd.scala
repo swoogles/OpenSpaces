@@ -524,6 +524,13 @@ object FrontEnd extends App:
                       }
                     }
 
+                    // Auto-select newly created topics that are scheduled in a room slot
+                    event match
+                      case DiscussionActionConfirmed.AddResult(discussion)
+                          if discussion.roomSlot.isDefined =>
+                        activeDiscussion.set(Some(discussion))
+                      case _ => ()
+
                     state
                   }
             },
