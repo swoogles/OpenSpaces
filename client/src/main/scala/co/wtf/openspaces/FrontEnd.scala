@@ -402,9 +402,10 @@ object FrontEnd extends App:
       // Unscheduled discussions menu at top level
       child <-- unscheduledMenuState.signal
         .combineWith(discussionState.signal)
+        .combineWith(activeDiscussion.signal)
         .map {
-          case (Some(roomSlot), discussionState) =>
-            val unscheduledDiscussions = discussionState.data.values
+          case (Some(roomSlot), discState, activeDiscussionOpt) =>
+            val unscheduledDiscussions = discState.data.values
               .filter(_.roomSlot.isEmpty)
               .toList
             UnscheduledDiscussionsMenu(
@@ -414,6 +415,7 @@ object FrontEnd extends App:
               topicUpdates.sendOne,
               dismissUnscheduledMenu,
               setActiveDiscussion,
+              activeDiscussionOpt,
             )
           case _ =>
             div()
@@ -925,46 +927,31 @@ def ScheduleSlotComponent(
                       SvgIcon(discussion.glyphicon, "filledTopic")
                     case Some(_) =>
                       // Empty slot when active discussion is scheduled elsewhere
-                      // Quick click shows unscheduled menu, long-press moves the topic here
+                      // Click shows menu with options: move current topic, create new, or move unscheduled
                       span(
                         cls := "emptySlotWithActiveDiscussion",
                         SvgIcon(GlyphiconUtils.emptySlot),
                         onClick.stopPropagation.mapTo(
                           roomSlot,
                         ) --> showUnscheduledMenu,
-                        onContextMenu.preventDefault --> Observer {
-                          (event: org.scalajs.dom.MouseEvent) =>
-                            event.stopPropagation()
-                            topicUpdates(
-                              DiscussionAction.MoveTopic(
-                                discussion.id,
-                                roomSlot,
-                              ),
-                            )
-                        },
                       )
                     case None =>
+                      // Empty slot when active discussion is unscheduled
+                      // Click shows menu with options: move current topic, create new, or move unscheduled
                       span(
+                        cls := "emptySlotWithActiveDiscussion",
                         SvgIcon(GlyphiconUtils.plus),
-                        onClick.mapTo(
-                          discussion.copy(roomSlot = Some(roomSlot)),
-                        ) --> updateDiscussion,
+                        onClick.stopPropagation.mapTo(
+                          roomSlot,
+                        ) --> showUnscheduledMenu,
                       )
                 case None =>
-                  // Empty slot - show menu on short click, long press logs to console (placeholder)
+                  // Empty slot with no active discussion - show menu on click
                   span(
                     SvgIcon(GlyphiconUtils.emptySlot),
                     onClick.stopPropagation.mapTo(
                       roomSlot,
                     ) --> showUnscheduledMenu,
-                    onContextMenu.preventDefault --> Observer {
-                      (event: org.scalajs.dom.MouseEvent) =>
-                        event.stopPropagation()
-                        // Placeholder for future behavior when no discussion is selected
-                        dom.console.log(
-                          "Long press on empty slot (no discussion selected) - placeholder for future behavior",
-                        )
-                    },
                   )
         },
       )
@@ -1119,6 +1106,7 @@ def UnscheduledDiscussionsMenu(
   topicUpdates: DiscussionAction => Unit,
   dismissMenu: Observer[Unit],
   setActiveDiscussion: Observer[Discussion],
+  activeDiscussion: Option[Discussion],
 ) =
   val (x, y) = MenuPositioning.standardMenuPosition()
   val textVar = Var("")
@@ -1153,6 +1141,41 @@ def UnscheduledDiscussionsMenu(
           dismissMenu.onNext(())
         }
 
+  // Determine if we should show the "Move current topic here" option
+  // Only show if there's an active discussion that could be moved to this slot
+  val moveCurrentTopicOption: Option[HtmlElement] = activeDiscussion.flatMap {
+    discussion =>
+      // Only show if the active discussion is not already in this slot
+      if (discussion.roomSlot.contains(targetRoomSlot)) None
+      else
+        Some(
+          div(
+            cls := "Menu-section",
+            div(cls := "Menu-label", "Move Current Topic Here:"),
+            div(
+              cls := "Menu-actions",
+              button(
+                cls := "Menu-swapButton",
+                onClick --> Observer { _ =>
+                  topicUpdates(
+                    DiscussionAction.MoveTopic(
+                      discussion.id,
+                      targetRoomSlot,
+                    ),
+                  )
+                  dismissMenu.onNext(())
+                },
+                SvgIcon(discussion.glyphicon),
+                span(
+                  cls := "Menu-topicName",
+                  discussion.topicName,
+                ),
+              ),
+            ),
+          ),
+        )
+  }
+
   div(
     cls := "Menu",
     left := s"${x}px",
@@ -1165,9 +1188,11 @@ def UnscheduledDiscussionsMenu(
           s"Room Slot: ${targetRoomSlot.displayString}",
       ),
     ),
+    // Move current topic option (if applicable)
+    moveCurrentTopicOption.getOrElse(span()),
     div(
       cls := "Menu-section",
-      div(cls := "Menu-label", "Add New Discussion:"),
+      div(cls := "Menu-label", "Create New Discussion:"),
       textArea(
         cls := "Menu-textArea",
         placeholder := "Describe the discussion to schedule...",
@@ -1192,7 +1217,7 @@ def UnscheduledDiscussionsMenu(
     ),
     div(
       cls := "Menu-section",
-      div(cls := "Menu-label", "Available Discussions:"),
+      div(cls := "Menu-label", "Move Existing Unscheduled Topic:"),
       if (unscheduledDiscussions.isEmpty) {
         div(
           cls := "Menu-topic",
