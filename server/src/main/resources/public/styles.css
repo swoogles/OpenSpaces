@@ -43,23 +43,104 @@
     width: 100%;
 }
 
+/* Compact horizontal row layout for vote buttons */
+.VoteButtonRow {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    padding: 4px;
+}
+
 .VoteCount {
     font-weight: 600;
-    font-size: 1.25rem;
+    font-size: 1.1rem;
     color: #1f2933;
     line-height: 1;
+    min-width: 24px;
+    text-align: center;
 }
 
 .VoteButton {
     background-color: transparent;
-    border: none;
-    padding: 2px;
+    border: 2px solid transparent;
+    border-radius: 8px;
+    padding: 6px;
     cursor: pointer;
+    transition: all 0.15s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
 }
 
+.VoteButton:hover {
+    background-color: rgba(0, 0, 0, 0.05);
+}
+
+.VoteButton:active {
+    transform: scale(0.95);
+}
+
+/* Interested (heart) button */
+.VoteButton--interested {
+    color: #e74c3c;
+}
+
+.VoteButton--interested:hover {
+    background-color: rgba(231, 76, 60, 0.1);
+}
+
+.VoteButton--interested.VoteButton--active {
+    background-color: rgba(231, 76, 60, 0.15);
+    border-color: #e74c3c;
+    box-shadow: 0 0 0 2px rgba(231, 76, 60, 0.2);
+}
+
+.VoteButton--interested.VoteButton--active .VoteIcon {
+    filter: drop-shadow(0 0 2px rgba(231, 76, 60, 0.5));
+}
+
+/* Not interested (no symbol) button */
+.VoteButton--notinterested {
+    color: #7f8c8d;
+}
+
+.VoteButton--notinterested:hover {
+    background-color: rgba(127, 140, 141, 0.1);
+}
+
+.VoteButton--notinterested.VoteButton--active {
+    background-color: rgba(127, 140, 141, 0.15);
+    border-color: #7f8c8d;
+    box-shadow: 0 0 0 2px rgba(127, 140, 141, 0.2);
+}
+
+.VoteButton--notinterested.VoteButton--active .VoteIcon {
+    filter: drop-shadow(0 0 2px rgba(127, 140, 141, 0.5));
+}
+
+/* Vote icon sizing */
+.VoteIcon {
+    width: 24px;
+    height: 24px;
+    transition: filter 0.15s ease;
+}
+
+/* Legacy active state (fallback) */
 .VoteButton--active {
     background-color: rgba(0, 0, 0, 0.08);
-    border-radius: 6px;
+    border-radius: 8px;
+}
+
+/* Respect reduced motion preferences */
+@media (prefers-reduced-motion: reduce) {
+    .VoteButton {
+        transition: none;
+    }
+    .VoteIcon {
+        transition: none;
+    }
 }
 
 

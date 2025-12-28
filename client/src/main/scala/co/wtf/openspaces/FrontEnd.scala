@@ -766,12 +766,12 @@ private def SingleDiscussionComponent(
         div(
           cls := "VoteColumn",
           div(
-            cls := "VoteChevronStack",
+            cls := "VoteButtonRow",
             button(
               cls := (
                 if isInterested then
-                  "AddButton VoteButton VoteButton--active"
-                else "AddButton VoteButton"
+                  "VoteButton VoteButton--interested VoteButton--active"
+                else "VoteButton VoteButton--interested"
               ),
               onClick --> Observer { _ =>
                 handleVote(
@@ -779,7 +779,7 @@ private def SingleDiscussionComponent(
                   else Some(VotePosition.Interested),
                 )
               },
-              SvgIcon(GlyphiconUtils.chevronUp),
+              SvgIcon(GlyphiconUtils.heart, "VoteIcon"),
             ),
             span(
               cls := "VoteCount",
@@ -788,8 +788,8 @@ private def SingleDiscussionComponent(
             button(
               cls := (
                 if isNotInterested then
-                  "AddButton VoteButton VoteButton--active"
-                else "AddButton VoteButton"
+                  "VoteButton VoteButton--notinterested VoteButton--active"
+                else "VoteButton VoteButton--notinterested"
               ),
               onClick --> Observer { _ =>
                 handleVote(
@@ -797,7 +797,7 @@ private def SingleDiscussionComponent(
                   else Some(VotePosition.NotInterested),
                 )
               },
-              SvgIcon(GlyphiconUtils.chevronDown),
+              SvgIcon(GlyphiconUtils.noSymbol, "VoteIcon"),
             ),
           ),
         ),
