@@ -22,6 +22,18 @@ object GlyphiconUtils:
   // "Not interested" icon - universal "no" symbol
   val noSymbol = Glyphicon("glyphicons-basic-305-no-symbol.svg")
 
+  // Share icon
+  val share = Glyphicon("glyphicons-basic-578-share.svg")
+
+  // Save/bookmark icons
+  val save = Glyphicon("glyphicons-basic-73-bookmark.svg")
+  val folder = Glyphicon("glyphicons-basic-336-folder.svg")
+  val star = Glyphicon("glyphicons-basic-49-star.svg")
+  val starEmpty = Glyphicon("glyphicons-basic-50-star-empty.svg")
+
+  // Delete/remove icon
+  val trash = Glyphicon("glyphicons-basic-17-bin.svg")
+
   val emptySlot =
     emptyCircle // TODO Make sure empty circle is not available for created topics
 
