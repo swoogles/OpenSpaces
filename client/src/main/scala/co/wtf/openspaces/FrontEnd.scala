@@ -12,6 +12,61 @@ val localStorage = window.localStorage
 import org.scalajs.dom
 import scala.scalajs.js.URIUtils
 
+/** Handles saving and loading trips from localStorage.
+  * Uses versioning to handle breaking changes gracefully.
+  */
+object SavedTripsStorage:
+  private val storageKey = "openspaces_saved_trips"
+
+  /** Load saved trips from localStorage. Returns empty on any error. */
+  def load(): SavedTripsData =
+    try
+      val json = localStorage.getItem(storageKey)
+      if (json == null || json.isEmpty) SavedTripsData.empty
+      else
+        json.fromJson[SavedTripsData] match
+          case Right(data) if data.version == SavedTripsData.currentVersion =>
+            data
+          case Right(_) =>
+            // Version mismatch - clear and start fresh
+            println("Saved trips version mismatch, clearing data")
+            clear()
+            SavedTripsData.empty
+          case Left(error) =>
+            println(s"Failed to parse saved trips: $error")
+            clear()
+            SavedTripsData.empty
+    catch
+      case e: Exception =>
+        println(s"Error loading saved trips: ${e.getMessage}")
+        SavedTripsData.empty
+
+  /** Save trips to localStorage */
+  def save(data: SavedTripsData): Unit =
+    try
+      localStorage.setItem(storageKey, data.toJson)
+    catch
+      case e: Exception =>
+        println(s"Error saving trips: ${e.getMessage}")
+
+  /** Clear all saved trips */
+  def clear(): Unit =
+    localStorage.removeItem(storageKey)
+
+  /** Add a new trip and save */
+  def addTrip(trip: SavedTrip): SavedTripsData =
+    val current = load()
+    val updated = current.copy(trips = trip :: current.trips)
+    save(updated)
+    updated
+
+  /** Remove a trip by ID and save */
+  def removeTrip(tripId: String): SavedTripsData =
+    val current = load()
+    val updated = current.copy(trips = current.trips.filterNot(_.id == tripId))
+    save(updated)
+    updated
+
 /** Tracks the DOM positions of each schedule slot so animations can
   * start from the actual on-screen location rather than an estimated
   * grid slot.
@@ -334,6 +389,20 @@ object FrontEnd extends App:
   val currentAppView: Var[AppView] =
     Var(AppView.Schedule)
 
+  // Saved trips state
+  val savedTrips: Var[SavedTripsData] =
+    Var(SavedTripsStorage.load())
+
+  // Show saved trips list view
+  val showingSavedTrips: Var[Boolean] =
+    Var(false)
+
+  // Save trip dialog state
+  val saveTripDialogOpen: Var[Boolean] =
+    Var(false)
+  val saveTripName: Var[String] =
+    Var("")
+
   val updateTargetDiscussion: Observer[Discussion] =
     Observer[Discussion] { discussion =>
       dom.document
@@ -551,11 +620,16 @@ object FrontEnd extends App:
                   activeDiscussion,
                   topicUpdates.sendOne,
                   name.signal,
+                  name,
                   setActiveDiscussion,
                   popoverState,
                   swapMenuState,
                   unscheduledMenuState,
                   activeDiscussionMenuState,
+                  savedTrips,
+                  showingSavedTrips,
+                  saveTripDialogOpen,
+                  saveTripName,
                 )
               case AppView.Topics =>
                 liveTopicSubmissionAndVoting(updateTargetDiscussion)
@@ -1387,16 +1461,282 @@ private def activeDiscussionLongPressBinder(
       }
   }
 
+/** Dialog for saving the current trip with a custom name */
+def SaveTripDialog(
+  discussionState: Var[DiscussionState],
+  name: StrictSignal[Person],
+  savedTrips: Var[SavedTripsData],
+  dialogOpen: Var[Boolean],
+  tripName: Var[String],
+  userName: Var[Person],
+) =
+  val (x, y) = MenuPositioning.standardMenuPosition()
+
+  def saveTrip(): Unit =
+    val currentName = tripName.now().trim
+    if (currentName.nonEmpty) {
+      // Get discussions the user is interested in
+      val currentUser = userName.now()
+      val discussions = discussionState.now().data.values.toList
+        .filter(d =>
+          d.roomSlot.isDefined &&
+            d.interestedParties.exists(f =>
+              f.voter == currentUser && f.position == VotePosition.Interested,
+            ),
+        )
+      if (discussions.nonEmpty) {
+        val trip = SavedTrip.fromDiscussions(currentName, discussions)
+        val updated = SavedTripsStorage.addTrip(trip)
+        savedTrips.set(updated)
+        tripName.set("")
+        dialogOpen.set(false)
+      }
+    }
+
+  child <-- dialogOpen.signal.map { isOpen =>
+    if (!isOpen) span()
+    else
+      div(
+        cls := "Menu",
+        left := s"${x}px",
+        top := s"${y}px",
+        onClick.preventDefault.stopPropagation --> Observer(_ => ()),
+        div(cls := "Menu-header", "Save Trip"),
+        div(
+          cls := "Menu-section",
+          div(cls := "Menu-label", "Enter a name for this trip:"),
+          input(
+            cls := "Menu-input",
+            typ := "text",
+            placeholder := "My Conference Trip",
+            value <-- tripName.signal,
+            onInput.mapToValue --> tripName,
+            onMountCallback(ctx => ctx.thisNode.ref.focus()),
+            onKeyDown --> Observer { (e: org.scalajs.dom.KeyboardEvent) =>
+              if (e.key == "Enter") saveTrip()
+            },
+          ),
+        ),
+        div(
+          cls := "Menu-actions",
+          button(
+            cls := "Menu-swapButton",
+            onClick --> Observer(_ => saveTrip()),
+            SvgIcon(GlyphiconUtils.save),
+            span("Save Trip"),
+          ),
+          button(
+            cls := "Menu-cancelButton",
+            onClick --> Observer { _ =>
+              tripName.set("")
+              dialogOpen.set(false)
+            },
+            "Cancel",
+          ),
+        ),
+      )
+  }
+
+/** Displays a single saved trip with its segments */
+def SavedTripCard(
+  trip: SavedTrip,
+  onLoad: Observer[SavedTrip],
+  onDelete: Observer[String],
+  transition: Option[Transition],
+) =
+  div(
+    cls := "SavedTripCard",
+    transition match
+      case Some(t) => t.height
+      case None    => emptyMod
+    ,
+    div(
+      cls := "SavedTripCard-header",
+      div(
+        cls := "SavedTripCard-name",
+        SvgIcon(GlyphiconUtils.star),
+        span(trip.name),
+      ),
+      button(
+        cls := "SavedTripCard-deleteBtn",
+        onClick.stopPropagation.mapTo(trip.id) --> onDelete,
+        SvgIcon(GlyphiconUtils.trash),
+      ),
+    ),
+    div(
+      cls := "SavedTripCard-segments",
+      trip.segments.map { segment =>
+        div(
+          cls := "SavedTripCard-segment",
+          SvgIcon(segment.glyphicon),
+          div(
+            cls := "SavedTripCard-segmentInfo",
+            div(cls := "SavedTripCard-segmentTime", segment.roomSlot.displayString),
+            div(cls := "SavedTripCard-segmentTopic", segment.topicName),
+          ),
+        )
+      },
+    ),
+    button(
+      cls := "SavedTripCard-loadBtn",
+      onClick.mapTo(trip) --> onLoad,
+      "Load Trip",
+    ),
+  )
+
+/** List view for saved trips with animation */
+def SavedTripsListView(
+  savedTrips: Signal[SavedTripsData],
+  showingSavedTrips: Var[Boolean],
+  discussionState: Var[DiscussionState],
+  userName: Var[Person],
+  topicUpdates: DiscussionAction => Unit,
+) =
+  val onDelete: Observer[String] = Observer { tripId =>
+    val updated = SavedTripsStorage.removeTrip(tripId)
+    FrontEnd.savedTrips.set(updated)
+  }
+
+  val onLoad: Observer[SavedTrip] = Observer { trip =>
+    // When loading a trip, vote "Interested" on all sessions in the trip
+    val currentUser = userName.now()
+    val currentState = discussionState.now()
+
+    trip.segments.foreach { segment =>
+      // Find the discussion that matches this room slot
+      currentState.data.values.find(_.roomSlot.contains(segment.roomSlot)).foreach {
+        discussion =>
+          // Check if user hasn't already voted interested
+          val hasInterestedVote = discussion.interestedParties.exists(f =>
+            f.voter == currentUser && f.position == VotePosition.Interested,
+          )
+          if (!hasInterestedVote) {
+            // Remove any existing vote first
+            topicUpdates(
+              DiscussionAction.RemoveVote(discussion.id, currentUser),
+            )
+            // Add interested vote
+            topicUpdates(
+              DiscussionAction.Vote(
+                discussion.id,
+                Feedback(currentUser, VotePosition.Interested),
+              ),
+            )
+          }
+      }
+    }
+    showingSavedTrips.set(false)
+  }
+
+  div(
+    cls := "SavedTripsListView",
+    div(
+      cls := "SavedTripsListView-header",
+      button(
+        cls := "SavedTripsListView-backBtn",
+        onClick --> Observer(_ => showingSavedTrips.set(false)),
+        SvgIcon(GlyphiconUtils.chevronUp),
+        span("Back to Schedule"),
+      ),
+    ),
+    div(
+      cls := "SavedTripsListView-content",
+      children <--
+        savedTrips.map(_.trips).splitTransition(_.id)(
+          (
+            _: String,
+            trip: SavedTrip,
+            _: Signal[SavedTrip],
+            transition: Transition,
+          ) =>
+            SavedTripCard(trip, onLoad, onDelete, Some(transition)),
+        ),
+      child <-- savedTrips.map { data =>
+        if (data.trips.isEmpty)
+          div(
+            cls := "SavedTripsListView-empty",
+            SvgIcon(GlyphiconUtils.starEmpty),
+            div("No saved trips yet"),
+            div(cls := "SavedTripsListView-emptyHint",
+                "Save a trip from the schedule view when you have interested sessions.",
+            ),
+          )
+        else
+          span()
+      },
+    ),
+  )
+
+/** Trip action buttons (Share and Save) for the active discussion area */
+def TripActionButtons(
+  activeDiscussion: Signal[Option[Discussion]],
+  discussionState: Var[DiscussionState],
+  userName: Var[Person],
+  saveTripDialogOpen: Var[Boolean],
+) =
+  val hasInterestingTrip = discussionState.signal
+    .combineWith(userName.signal)
+    .map { case (state, user) =>
+      state.data.values.exists(d =>
+        d.roomSlot.isDefined &&
+          d.interestedParties.exists(f =>
+            f.voter == user && f.position == VotePosition.Interested,
+          ),
+      )
+    }
+
+  child <-- hasInterestingTrip.map { hasTripPlan =>
+    if (!hasTripPlan) span()
+    else
+      div(
+        cls := "TripActionButtons",
+        button(
+          cls := "TripActionButton",
+          onClick --> Observer { _ =>
+            // Share functionality - copy trip to clipboard
+            val state = discussionState.now()
+            val user = userName.now()
+            val interestedSessions = state.data.values.toList
+              .filter(d =>
+                d.roomSlot.isDefined &&
+                  d.interestedParties.exists(f =>
+                    f.voter == user && f.position == VotePosition.Interested,
+                  ),
+              )
+              .sortBy(_.roomSlot.get.timeSlot.startTime.toString)
+              .map(d => s"${d.roomSlot.get.displayString}: ${d.topicName}")
+              .mkString("\n")
+
+            val text = s"My OpenSpaces Schedule:\n$interestedSessions"
+            dom.window.navigator.clipboard.writeText(text)
+          },
+          SvgIcon(GlyphiconUtils.share),
+          span("Share"),
+        ),
+        button(
+          cls := "TripActionButton TripActionButton--primary",
+          onClick --> Observer(_ => saveTripDialogOpen.set(true)),
+          SvgIcon(GlyphiconUtils.save),
+          span("Save Trip"),
+        ),
+      )
+  }
+
 def ScheduleView(
   fullSchedule: Var[DiscussionState],
   activeDiscussion: Var[Option[Discussion]],
   topicUpdates: DiscussionAction => Unit,
   name: StrictSignal[Person],
+  userName: Var[Person],
   updateTargetDiscussion: Observer[Discussion],
   popoverState: Var[Option[Discussion]],
   swapMenuState: Var[Option[(Discussion, Discussion)]],
   unscheduledMenuState: Var[Option[RoomSlot]],
   activeDiscussionMenuState: Var[Option[Discussion]],
+  savedTrips: Var[SavedTripsData],
+  showingSavedTrips: Var[Boolean],
+  saveTripDialogOpen: Var[Boolean],
+  saveTripName: Var[String],
 ) =
   val showPopover: Observer[Discussion] =
     Observer { discussion =>
@@ -1424,45 +1764,90 @@ def ScheduleView(
     )
 
   div(
-    cls := "container",
-    div(
-      cls := "Targets",
-      div(
-        cls := "ActiveDiscussion Topic",
-        handleActiveDiscussionLongPress,
-        child <-- SingleDiscussionComponent(
-          name,
-          topicUpdates,
-          updateTargetDiscussion,
-          activeDiscussion.signal,
-          None,
-          iconModifiers = Seq(handleActiveDiscussionLongPress),
-        ),
-      ),
+    cls := "ScheduleViewContainer",
+    // Save Trip Dialog
+    SaveTripDialog(
+      fullSchedule,
+      name,
+      savedTrips,
+      saveTripDialogOpen,
+      saveTripName,
+      userName,
     ),
-    div(
-      cls := "Schedule",
-      div(
-        cls := "RoomHeaders",
-        div(cls := "Room1", "King"),
-        div(cls := "Room2", "Hawk"),
-        div(cls := "Room3", "Art"),
-        div(cls := "Room4", "Dance"),
-      ),
-      div(
-        cls := "TimeSlots",
-        SlotSchedules(
-          fullSchedule.signal,
-          updateTargetDiscussion,
-          activeDiscussion.signal,
-          showPopover,
-          showSwapMenu,
-          showUnscheduledMenu,
+    // Conditionally show saved trips list or schedule
+    child <-- showingSavedTrips.signal.map { showing =>
+      if (showing)
+        SavedTripsListView(
+          savedTrips.signal,
+          showingSavedTrips,
+          fullSchedule,
+          userName,
           topicUpdates,
-          name,
-        ),
-      ),
-    ),
+        )
+      else
+        div(
+          cls := "container",
+          // Saved trips toggle button (only show when there are saved trips)
+          child <-- savedTrips.signal.map { data =>
+            if (data.trips.isEmpty) span()
+            else
+              div(
+                cls := "SavedTripsToggle",
+                button(
+                  cls := "SavedTripsToggle-btn",
+                  onClick --> Observer(_ => showingSavedTrips.set(true)),
+                  SvgIcon(GlyphiconUtils.star),
+                  span(s"Load Saved Trip (${data.trips.length})"),
+                ),
+              )
+          },
+          div(
+            cls := "Targets",
+            // Trip action buttons (Share/Save)
+            TripActionButtons(
+              activeDiscussion.signal,
+              fullSchedule,
+              userName,
+              saveTripDialogOpen,
+            ),
+            div(
+              cls := "ActiveDiscussion Topic",
+              handleActiveDiscussionLongPress,
+              child <-- SingleDiscussionComponent(
+                name,
+                topicUpdates,
+                updateTargetDiscussion,
+                activeDiscussion.signal,
+                None,
+                iconModifiers = Seq(handleActiveDiscussionLongPress),
+              ),
+            ),
+          ),
+          div(
+            cls := "Schedule",
+            div(
+              cls := "RoomHeaders",
+              div(cls := "Room1", "King"),
+              div(cls := "Room2", "Hawk"),
+              div(cls := "Room3", "Art"),
+              div(cls := "Room4", "Dance"),
+            ),
+            div(
+              cls := "TimeSlots",
+              SlotSchedules(
+                fullSchedule.signal,
+                updateTargetDiscussion,
+                activeDiscussion.signal,
+                showPopover,
+                showSwapMenu,
+                showUnscheduledMenu,
+                topicUpdates,
+                name,
+              ),
+            ),
+          ),
+        )
+    },
   )
 
 def SlotSchedules(

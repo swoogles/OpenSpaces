@@ -578,3 +578,342 @@
         transition: none;
     }
 }
+
+/* ============================================
+   SAVED TRIPS FEATURE STYLES
+   ============================================ */
+
+/* Schedule View Container */
+.ScheduleViewContainer {
+    width: 100%;
+}
+
+/* Menu input field */
+.Menu-input {
+    width: 100%;
+    padding: 12px;
+    border: 2px solid #ddd;
+    border-radius: 8px;
+    font-size: 16px;
+    margin-bottom: 8px;
+    box-sizing: border-box;
+    transition: border-color 0.2s ease;
+}
+
+.Menu-input:focus {
+    outline: none;
+    border-color: #4a90d9;
+}
+
+/* Trip Action Buttons (Share/Save) */
+.TripActionButtons {
+    display: flex;
+    gap: 8px;
+    padding: 8px 12px;
+    justify-content: flex-end;
+}
+
+.TripActionButton {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 14px;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    background-color: #f8f9fa;
+    color: #333;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+
+.TripActionButton:hover {
+    background-color: #e9ecef;
+    border-color: #ccc;
+}
+
+.TripActionButton:active {
+    transform: scale(0.97);
+}
+
+.TripActionButton--primary {
+    background-color: #4a90d9;
+    color: #fff;
+    border-color: #4a90d9;
+}
+
+.TripActionButton--primary:hover {
+    background-color: #3a7fc8;
+    border-color: #3a7fc8;
+}
+
+.TripActionButton .glyphicon {
+    width: 18px;
+    height: 18px;
+}
+
+/* Saved Trips Toggle Button */
+.SavedTripsToggle {
+    padding: 8px 12px;
+}
+
+.SavedTripsToggle-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    width: 100%;
+    padding: 12px 16px;
+    background-color: #fff8e1;
+    border: 2px solid #ffc107;
+    border-radius: 10px;
+    color: #856404;
+    font-size: 15px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.SavedTripsToggle-btn:hover {
+    background-color: #fff3cd;
+    border-color: #e0a800;
+}
+
+.SavedTripsToggle-btn:active {
+    transform: scale(0.98);
+}
+
+.SavedTripsToggle-btn .glyphicon {
+    width: 20px;
+    height: 20px;
+}
+
+/* Saved Trips List View */
+.SavedTripsListView {
+    padding: 12px;
+    min-height: 50vh;
+}
+
+.SavedTripsListView-header {
+    margin-bottom: 16px;
+}
+
+.SavedTripsListView-backBtn {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 16px;
+    background-color: #f8f9fa;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    color: #333;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+
+.SavedTripsListView-backBtn:hover {
+    background-color: #e9ecef;
+}
+
+.SavedTripsListView-backBtn .glyphicon {
+    width: 16px;
+    height: 16px;
+    transform: rotate(180deg);
+}
+
+.SavedTripsListView-content {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.SavedTripsListView-empty {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 48px 24px;
+    text-align: center;
+    color: #666;
+}
+
+.SavedTripsListView-empty .glyphicon {
+    width: 48px;
+    height: 48px;
+    opacity: 0.4;
+    margin-bottom: 16px;
+}
+
+.SavedTripsListView-emptyHint {
+    font-size: 13px;
+    color: #999;
+    margin-top: 8px;
+    max-width: 280px;
+}
+
+/* Saved Trip Card */
+.SavedTripCard {
+    background-color: #fff;
+    border: 2px solid #e4e9f0;
+    border-radius: 12px;
+    overflow: hidden;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.SavedTripCard:hover {
+    border-color: #4a90d9;
+    box-shadow: 0 2px 8px rgba(74, 144, 217, 0.15);
+}
+
+.SavedTripCard-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 16px;
+    background-color: #f8f9fa;
+    border-bottom: 1px solid #e4e9f0;
+}
+
+.SavedTripCard-name {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-weight: 600;
+    font-size: 15px;
+    color: #1f2933;
+}
+
+.SavedTripCard-name .glyphicon {
+    width: 18px;
+    height: 18px;
+    color: #ffc107;
+}
+
+.SavedTripCard-deleteBtn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 6px;
+    background: none;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: background-color 0.15s ease;
+}
+
+.SavedTripCard-deleteBtn:hover {
+    background-color: #fee2e2;
+}
+
+.SavedTripCard-deleteBtn .glyphicon {
+    width: 16px;
+    height: 16px;
+    opacity: 0.6;
+}
+
+.SavedTripCard-deleteBtn:hover .glyphicon {
+    opacity: 1;
+}
+
+/* Trip Segments - condensed view */
+.SavedTripCard-segments {
+    padding: 8px 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    max-height: 150px;
+    overflow-y: auto;
+}
+
+.SavedTripCard-segment {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 10px;
+    background-color: #f4f8fc;
+    border-radius: 8px;
+}
+
+.SavedTripCard-segment .glyphicon {
+    width: 24px;
+    height: 24px;
+    flex-shrink: 0;
+}
+
+.SavedTripCard-segmentInfo {
+    flex: 1;
+    min-width: 0;
+}
+
+.SavedTripCard-segmentTime {
+    font-size: 11px;
+    color: #666;
+    font-weight: 500;
+}
+
+.SavedTripCard-segmentTopic {
+    font-size: 13px;
+    color: #1f2933;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.SavedTripCard-loadBtn {
+    width: 100%;
+    padding: 12px;
+    background-color: #4a90d9;
+    color: #fff;
+    border: none;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background-color 0.15s ease;
+}
+
+.SavedTripCard-loadBtn:hover {
+    background-color: #3a7fc8;
+}
+
+.SavedTripCard-loadBtn:active {
+    background-color: #2a6eb8;
+}
+
+/* Respect reduced motion preferences */
+@media (prefers-reduced-motion: reduce) {
+    .TripActionButton,
+    .SavedTripsToggle-btn,
+    .SavedTripsListView-backBtn,
+    .SavedTripCard,
+    .SavedTripCard-deleteBtn,
+    .SavedTripCard-loadBtn {
+        transition: none;
+    }
+}
+
+/* Mobile adjustments for trip features */
+@media (max-width: 400px) {
+    .TripActionButtons {
+        padding: 6px 8px;
+    }
+
+    .TripActionButton {
+        padding: 6px 10px;
+        font-size: 13px;
+    }
+
+    .TripActionButton span {
+        display: none;
+    }
+
+    .SavedTripCard-segments {
+        max-height: 120px;
+    }
+
+    .SavedTripCard-segmentTopic {
+        font-size: 12px;
+    }
+}

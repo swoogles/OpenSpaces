@@ -203,3 +203,60 @@ case class DaySlots(
   date: LocalDate,
   slots: List[TimeSlotForAllRooms])
     derives JsonCodec
+
+/** A segment in a saved trip - represents one session to attend */
+case class TripSegment(
+  roomSlot: RoomSlot,
+  topicName: String,
+  facilitatorName: String,
+  glyphicon: Glyphicon)
+    derives JsonCodec
+
+/** A saved trip containing multiple session segments */
+case class SavedTrip(
+  id: String,
+  name: String,
+  segments: List[TripSegment],
+  createdAt: Long)
+    derives JsonCodec
+
+object SavedTrip:
+  /** Generate a simple unique ID suitable for client-side use.
+    * Uses timestamp + random component for uniqueness.
+    */
+  private def generateId(): String =
+    val timestamp = System.currentTimeMillis()
+    val random = scala.util.Random.nextInt(1000000)
+    s"trip_${timestamp}_$random"
+
+  def fromDiscussions(
+    name: String,
+    discussions: List[Discussion],
+  ): SavedTrip =
+    val segments = discussions
+      .filter(_.roomSlot.isDefined)
+      .sortBy(d => d.roomSlot.get.timeSlot.startTime.toString)
+      .map(d =>
+        TripSegment(
+          d.roomSlot.get,
+          d.topicName,
+          d.facilitatorName,
+          d.glyphicon,
+        ),
+      )
+    SavedTrip(
+      id = generateId(),
+      name = name,
+      segments = segments,
+      createdAt = System.currentTimeMillis(),
+    )
+
+/** Container for saved trips with version for migration handling */
+case class SavedTripsData(
+  version: Int,
+  trips: List[SavedTrip])
+    derives JsonCodec
+
+object SavedTripsData:
+  val currentVersion = 1
+  val empty: SavedTripsData = SavedTripsData(currentVersion, List.empty)
