@@ -4,6 +4,7 @@ import zio.*
 import zio.direct.*
 import zio.json.*
 import zio.http.*
+import java.time.Instant
 
 case class ClientId(
   value: String):
@@ -33,20 +34,71 @@ object AccessToken:
         queryParams.queryParam("access_token").getOrElse("Not found"),
       expiresIn = queryParams
         .queryParam("expires_in")
-        .getOrElse("Not found")
+        .getOrElse("28800") // Default 8 hours if not provided
         .toInt,
       refreshToken = queryParams
         .queryParam("refresh_token")
         .getOrElse("Not found"),
       refreshTokenExpiresIn = queryParams
         .queryParam("refresh_token_expires_in")
-        .getOrElse("Not found")
+        .getOrElse("15811200") // Default ~6 months if not provided
         .toInt,
       tokenType =
         queryParams.queryParam("token_type").getOrElse("Not found"),
     )
-
   }
+
+  /** Parse JSON response from GitHub token refresh endpoint */
+  def parseJson(json: String): Either[String, AccessToken] =
+    json.fromJson[AccessTokenJson].map(_.toAccessToken)
+
+/** JSON codec for GitHub OAuth token response */
+case class AccessTokenJson(
+  access_token: String,
+  expires_in: Option[Int],
+  refresh_token: String,
+  refresh_token_expires_in: Option[Int],
+  token_type: Option[String]
+) derives JsonCodec:
+  def toAccessToken: AccessToken = AccessToken(
+    accessToken = access_token,
+    expiresIn = expires_in.getOrElse(28800),
+    refreshToken = refresh_token,
+    refreshTokenExpiresIn = refresh_token_expires_in.getOrElse(15811200),
+    tokenType = token_type.getOrElse("bearer")
+  )
+
+/** Helper to create auth cookies with proper expiration */
+object AuthCookies:
+  /** Create a response cookie with proper settings for auth tokens */
+  def create(
+    name: String,
+    value: String,
+    maxAgeSeconds: Int,
+    httpOnly: Boolean = false
+  ): Cookie.Response =
+    Cookie.Response(
+      name = name,
+      content = value,
+      maxAge = Some(java.time.Duration.ofSeconds(maxAgeSeconds.toLong)),
+      path = Some(Path.root),
+      isHttpOnly = httpOnly,
+      // In production, set isSecure = true for HTTPS
+    )
+
+  /** Create all auth cookies from token data */
+  def fromToken(
+    token: AccessToken,
+    username: String
+  ): Seq[Cookie.Response] = Seq(
+    create("access_token", token.accessToken, token.expiresIn),
+    create("refresh_token", token.refreshToken, token.refreshTokenExpiresIn, httpOnly = true),
+    create("github_username", username, token.refreshTokenExpiresIn),
+    // Store expiry timestamp so client/server can check if refresh is needed
+    create("access_token_expires_at", 
+      (Instant.now().getEpochSecond + token.expiresIn).toString, 
+      token.refreshTokenExpiresIn)
+  )
 
 /** Represents the GitHub user profile response. We only need the login
   * (username) field.
@@ -141,23 +193,70 @@ case class ApplicationState(
                 githubUser <- ZIO
                   .fromEither(userBody.fromJson[GitHubUser])
                   .mapError(e => new Exception(s"Failed to parse GitHub user: $e"))
-              } yield Response
-                .redirect(
-                  URL
-                    .decode("/")
-                    .getOrElse(
-                      throw new Exception("Bad url: /"),
-                    ),
-                )
-                .addCookie(
-                  Cookie.Response("access_token", data.accessToken),
-                )
-                .addCookie(
-                  Cookie.Response("github_username", githubUser.login),
-                ),
+              } yield {
+                val cookies = AuthCookies.fromToken(data, githubUser.login)
+                cookies.foldLeft(
+                  Response.redirect(
+                    URL.decode("/").getOrElse(throw new Exception("Bad url: /"))
+                  )
+                )((response, cookie) => response.addCookie(cookie))
+              },
             )
             .orDie,
-        ), // TODO Make sure we handle the code
+        ),
+      Method.GET / "refresh" ->
+        handler((req: Request) =>
+          ZIO
+            .scoped(
+              for {
+                refreshToken <- ZIO
+                  .succeed(req.cookie("refresh_token").map(_.content))
+                  .someOrFail(
+                    new Exception("No refresh token found in cookies"),
+                  )
+                // Request new tokens using refresh_token grant
+                res <- client
+                  .addHeader(Header.Accept(MediaType.application.json))
+                  .url(
+                    URL
+                      .decode("https://github.com/login/oauth/access_token")
+                      .getOrElse(???)
+                  )
+                  .post("/")( 
+                    Body.fromURLEncodedForm(Form(
+                      FormField.simpleField("client_id", clientId.value),
+                      FormField.simpleField("client_secret", clientSecret.value),
+                      FormField.simpleField("grant_type", "refresh_token"),
+                      FormField.simpleField("refresh_token", refreshToken),
+                    ))
+                  )
+                body <- res.body.asString
+                data <- ZIO
+                  .fromEither(AccessToken.parseJson(body))
+                  .mapError(e => new Exception(s"Failed to parse token response: $e - body: $body"))
+                // Preserve the existing username from cookie
+                username <- ZIO
+                  .succeed(req.cookie("github_username").map(_.content))
+                  .someOrFail(new Exception("No github_username cookie found"))
+              } yield {
+                val cookies = AuthCookies.fromToken(data, username)
+                cookies.foldLeft(
+                  Response.json("""{"status":"refreshed"}""")
+                )((response, cookie) => response.addCookie(cookie))
+              },
+            )
+            .catchAll { error =>
+              // If refresh fails, clear cookies and redirect to login
+              ZIO.succeed(
+                Response
+                  .redirect(URL.decode("/auth").getOrElse(???))
+                  .addCookie(Cookie.Response("access_token", "", maxAge = Some(java.time.Duration.ZERO), path = Some(Path.root)))
+                  .addCookie(Cookie.Response("refresh_token", "", maxAge = Some(java.time.Duration.ZERO), path = Some(Path.root)))
+                  .addCookie(Cookie.Response("github_username", "", maxAge = Some(java.time.Duration.ZERO), path = Some(Path.root)))
+                  .addCookie(Cookie.Response("access_token_expires_at", "", maxAge = Some(java.time.Duration.ZERO), path = Some(Path.root)))
+              )
+            },
+        ),
     )
 
   val authRoutes = initialRoutes ++ ticketRoutesApp.routes
