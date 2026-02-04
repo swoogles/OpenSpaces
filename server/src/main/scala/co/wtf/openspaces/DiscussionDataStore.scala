@@ -201,6 +201,7 @@ class DiscussionDataStore(
       TopicId(randomId),
       randomIcon,
       roomSlot,
+      None,
     )
 
 object DiscussionDataStore:

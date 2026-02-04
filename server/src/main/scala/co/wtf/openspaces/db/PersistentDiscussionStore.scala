@@ -174,17 +174,20 @@ class PersistentDiscussionStore(
     topic: Topic,
     facilitator: Person,
     roomSlot: Option[RoomSlot]
-  ): UIO[Discussion] =
+  ): Task[Discussion] =
     for
       randomIcon <- glyphiconService.getRandomIcon
       randomId   <- Random.nextLong
+      userRow    <- userRepo.findByUsername(facilitator.unwrap)
+      displayName = userRow.flatMap(_.displayName)
     yield Discussion(
       topic,
       facilitator,
       Set(Feedback(facilitator, VotePosition.Interested)),
       TopicId(randomId),
       randomIcon,
-      roomSlot
+      roomSlot,
+      displayName
     )
 
   private def persistEvent(
@@ -257,9 +260,14 @@ class PersistentDiscussionStore(
 
 object PersistentDiscussionStore:
   /** Load initial state from database */
-  def loadInitialState(discussionRepo: DiscussionRepository): Task[DiscussionState] =
+  def loadInitialState(discussionRepo: DiscussionRepository, userRepo: UserRepository): Task[DiscussionState] =
     for
       rows <- discussionRepo.findAllActive
+      // Get all unique facilitators
+      facilitators = rows.map(_.facilitator).distinct
+      // Fetch user info for all facilitators
+      userRows <- ZIO.foreach(facilitators)(username => userRepo.findByUsername(username))
+      userMap = userRows.flatten.map(u => u.githubUsername -> u.displayName).toMap
       discussions = rows.flatMap { row =>
         for
           topic <- Topic.make(row.topic).toOption
@@ -273,7 +281,8 @@ object PersistentDiscussionStore:
           parties,
           TopicId(row.id),
           glyphicon,
-          roomSlot
+          roomSlot,
+          userMap.get(row.facilitator).flatten
         )
       }
     yield DiscussionState(
@@ -292,7 +301,7 @@ object PersistentDiscussionStore:
         discussionRepo <- ZIO.service[DiscussionRepository]
         userRepo       <- ZIO.service[UserRepository]
         glyphiconSvc   <- ZIO.service[GlyphiconService]
-        initialState   <- loadInitialState(discussionRepo)
+        initialState   <- loadInitialState(discussionRepo, userRepo)
         stateRef       <- Ref.make(initialState)
         _              <- ZIO.logInfo(s"Loaded ${initialState.data.size} discussions from database")
       yield PersistentDiscussionStore(

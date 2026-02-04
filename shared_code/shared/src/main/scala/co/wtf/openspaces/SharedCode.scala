@@ -61,11 +61,12 @@ case class Discussion(
   interestedParties: Set[Feedback],
   id: TopicId,
   glyphicon: Glyphicon,
-  roomSlot: Option[RoomSlot])
+  roomSlot: Option[RoomSlot],
+  facilitatorDisplayName: Option[String])
     derives JsonCodec:
 
   val votes: Int = interestedParties.count(_.position == Interested)
-  val facilitatorName = facilitator.unwrap
+  val facilitatorName = facilitatorDisplayName.getOrElse(facilitator.unwrap)
   val topicName = topic.unwrap
 
 object Discussion:
@@ -75,6 +76,7 @@ object Discussion:
     id: TopicId,
     glyphicon: Glyphicon,
     roomSlot: Option[RoomSlot] = None,
+    facilitatorDisplayName: Option[String] = None,
   ): Discussion =
     Discussion(
       topic,
@@ -83,6 +85,7 @@ object Discussion:
       id,
       glyphicon,
       roomSlot,
+      facilitatorDisplayName,
     )
 
   val example1 = Discussion(
@@ -141,6 +144,7 @@ object Discussion:
       TopicId(4),
       GlyphiconUtils.names(4),
       None,
+      None,
     )
 
   val example5 =
@@ -151,6 +155,7 @@ object Discussion:
       TopicId(5),
       GlyphiconUtils.names(5),
       None,
+      None,
     )
 
   val example6 =
@@ -160,6 +165,7 @@ object Discussion:
       Set.empty,
       TopicId(5),
       GlyphiconUtils.names(6),
+      None,
       None,
     )
 
