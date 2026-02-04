@@ -108,7 +108,7 @@ lazy val server = (project in file("server"))
 lazy val root = (project in file("."))
   .aggregate(client, server, serviceworker)
   .settings(
-    // Make root's stage task depend on server's stage task
+    // Make root's stage task depend on server's stage task.
     stage := (server / stage).value
   )
 
