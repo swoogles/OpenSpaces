@@ -1,5 +1,6 @@
 package co.wtf.openspaces
 
+import co.wtf.openspaces.db.*
 import zio.*
 import zio.direct.*
 import zio.http.*
@@ -30,10 +31,17 @@ object Backend extends ZIOAppDefault {
       BackendSocketApp.layer,
       DiscussionService.layer,
       RandomActionSpawner.layer(active = false),
-      DiscussionDataStore.layer(useSampleData = true),
       GlyphiconService.layer,
       Client.default,
       AuthenticatedTicketService.layer,
       TicketRoutesApp.layer,
+      // Database layers
+      DbConfig.layer,
+      DataSourceLive.layer,
+      FlywayMigration.layer,
+      UserRepository.layer,
+      EventRepository.layer,
+      DiscussionRepository.layer,
+      PersistentDiscussionStore.layer,
     )
 }

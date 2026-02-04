@@ -1,5 +1,6 @@
 package co.wtf.openspaces
 
+import co.wtf.openspaces.db.UserRepository
 import zio.*
 import zio.direct.*
 import zio.json.*
@@ -95,16 +96,18 @@ object AuthCookies:
     create("refresh_token", token.refreshToken, token.refreshTokenExpiresIn, httpOnly = true),
     create("github_username", username, token.refreshTokenExpiresIn),
     // Store expiry timestamp so client/server can check if refresh is needed
-    create("access_token_expires_at", 
-      (Instant.now().getEpochSecond + token.expiresIn).toString, 
+    create("access_token_expires_at",
+      (Instant.now().getEpochSecond + token.expiresIn).toString,
       token.refreshTokenExpiresIn)
   )
 
-/** Represents the GitHub user profile response. We only need the login
-  * (username) field.
+/** Represents the GitHub user profile response.
+  * - login: GitHub username (always present)
+  * - name: Display name (optional, user can leave blank)
   */
 case class GitHubUser(
-  login: String)
+  login: String,
+  name: Option[String] = None)
     derives JsonCodec
 
 case class TicketRoutesApp(
@@ -129,7 +132,8 @@ case class ApplicationState(
   clientId: ClientId,
   clientSecret: ClientSecret,
   client: Client,
-  ticketRoutesApp: TicketRoutesApp):
+  ticketRoutesApp: TicketRoutesApp,
+  userRepository: UserRepository):
 
   val initialRoutes =
     Routes(
@@ -193,15 +197,22 @@ case class ApplicationState(
                 githubUser <- ZIO
                   .fromEither(userBody.fromJson[GitHubUser])
                   .mapError(e => new Exception(s"Failed to parse GitHub user: $e"))
+                // Upsert user to database (creates if new, updates display name if changed)
+                _ <- userRepository.upsert(githubUser.login, githubUser.name)
               } yield {
-                val cookies = AuthCookies.fromToken(data, githubUser.login)
-                cookies.foldLeft(
-                  Response.redirect(
-                    URL.decode("/").getOrElse(throw new Exception("Bad url: /"))
-                  )
-                )((response, cookie) => response.addCookie(cookie))
-              },
-            )
+                              val cookies = AuthCookies.fromToken(data, githubUser.login)
+                              cookies.foldLeft(
+                                Response.redirect(
+                                  URL.decode("/").getOrElse(throw new Exception("Bad url: /"))
+                                )
+                              )((response, cookie) => response.addCookie(cookie))
+                              .addCookie(
+                                Cookie.Response("access_token", data.accessToken),
+                              )
+                              .addCookie(
+                                Cookie.Response("github_username", githubUser.login),
+                              )
+                            }            )
             .orDie,
         ),
       Method.GET / "refresh" ->
@@ -222,7 +233,7 @@ case class ApplicationState(
                       .decode("https://github.com/login/oauth/access_token")
                       .getOrElse(???)
                   )
-                  .post("/")( 
+                  .post("/")(
                     Body.fromURLEncodedForm(Form(
                       FormField.simpleField("client_id", clientId.value),
                       FormField.simpleField("client_secret", clientSecret.value),
@@ -288,4 +299,5 @@ object ApplicationState:
             .run,
           ZIO.service[Client].run,
           ZIO.service[TicketRoutesApp].run,
+          ZIO.service[UserRepository].run,
         )

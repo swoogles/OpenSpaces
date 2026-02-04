@@ -7,7 +7,7 @@ import zio.json.*
 
 case class DiscussionService(
   connectedUsers: Ref[List[OpenSpacesServerChannel]],
-  discussionDataStore: DiscussionDataStore,
+  discussionStore: DiscussionStore,
   authenticatedTicketService: AuthenticatedTicketService):
 
   def handleMessage(
@@ -28,7 +28,7 @@ case class DiscussionService(
 
   def randomDiscussionAction
     : ZIO[Any, Throwable, DiscussionActionConfirmed] =
-    discussionDataStore.randomDiscussionAction
+    discussionStore.randomDiscussionAction
 
   private def handleTicket(
     ticket: Ticket,
@@ -42,7 +42,7 @@ case class DiscussionService(
       connectedUsers
         .updateAndGet(_ :+ channel)
         .run
-      val discussions = discussionDataStore.snapshot.run
+      val discussions = discussionStore.snapshot.run
       ZIO
         .foreachDiscard(discussions.data.values)(discussion =>
           channel
@@ -59,7 +59,7 @@ case class DiscussionService(
     discussionAction: DiscussionAction,
   ): ZIO[Any, Throwable, Unit] =
     defer:
-      val actionResult = discussionDataStore
+      val actionResult = discussionStore
         .applyAction(discussionAction)
         .run
       defer:
@@ -93,6 +93,6 @@ object DiscussionService:
       defer:
         DiscussionService(
           Ref.make(List.empty[OpenSpacesServerChannel]).run,
-          ZIO.service[DiscussionDataStore].run,
+          ZIO.service[DiscussionStore].run,
           ZIO.service[AuthenticatedTicketService].run,
         )

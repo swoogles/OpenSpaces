@@ -81,6 +81,10 @@ lazy val server = (project in file("server"))
     dockerUsername := Some("swoogles"),
     Compile / mainClass := Some("co.wtf.openspaces.Backend"),
 
+    // Load env vars from ../.env for forked runs (reStart uses a forked JVM)
+    // This avoids sbt-dotenv plugins that use reflection hacks incompatible with modern JDKs.
+    reStart / envVars := Dotenv.load(baseDirectory.value.getParentFile / ".env", streams.value.log),
+
     // Key fix: Make the stage task depend on client's fastOptJS
     stage := (stage dependsOn (client / Compile / fullOptJS) dependsOn (serviceworker / Compile / fullOptJS)).value,
 
@@ -91,7 +95,13 @@ lazy val server = (project in file("server"))
       "dev.zio" %% "zio" % "2.1.16",
       "dev.zio" %% "zio-http" % "3.0.1",
       "dev.zio" %% "zio-http-testkit" % "3.0.1",
-      "dev.zio" %% "zio-direct" % "1.0.0-RC7"
+      "dev.zio" %% "zio-direct" % "1.0.0-RC7",
+      // Database
+      "com.augustnagro" %% "magnum" % "1.3.0",
+      "org.postgresql" % "postgresql" % "42.7.4",
+      "com.zaxxer" % "HikariCP" % "6.2.1",
+      "org.flywaydb" % "flyway-core" % "10.21.0",
+      "org.flywaydb" % "flyway-database-postgresql" % "10.21.0",
     ),
   )
 

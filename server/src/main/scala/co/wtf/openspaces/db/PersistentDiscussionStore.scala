@@ -1,0 +1,304 @@
+package co.wtf.openspaces.db
+
+import co.wtf.openspaces.*
+import neotype.unwrap
+import zio.*
+import zio.json.*
+
+/** Persistent discussion storage using event sourcing.
+  * 
+  * Flow:
+  * 1. Action comes in → record event → update materialized state → return confirmed action
+  * 2. On startup → load state from discussions table
+  */
+class PersistentDiscussionStore(
+  eventRepo: EventRepository,
+  discussionRepo: DiscussionRepository,
+  userRepo: UserRepository,
+  glyphiconService: GlyphiconService,
+  state: Ref[DiscussionState]
+) extends DiscussionStore:
+
+  def snapshot: UIO[DiscussionState] = state.get
+
+  /** Process an action: persist event, update materialized view, return confirmed action */
+  def applyAction(action: DiscussionAction): Task[DiscussionActionConfirmed] =
+    val actor = extractActor(action)
+    applyActionWithActor(action, actor)
+
+  def randomDiscussionAction: Task[DiscussionActionConfirmed] =
+    for
+      currentState <- state.get
+      noCurrentItems = currentState.data.keys.toList.isEmpty
+      action <- if noCurrentItems then
+        for
+          topicStr <- ZIO.succeed("Random generated topic " + java.util.UUID.randomUUID().toString.take(8))
+          topic <- ZIO.fromEither(Topic.make(topicStr)).mapError(e => new Exception(e))
+          person = Person("system")
+        yield DiscussionAction.Add(topic, person)
+      else
+        for
+          idx <- Random.nextIntBounded(currentState.data.keys.size)
+          topicId = currentState.data.keys.toList(idx)
+          person = Person("system")
+        yield DiscussionAction.Vote(topicId, Feedback(person, VotePosition.Interested))
+      result <- applyAction(action)
+    yield result
+
+  private def applyActionWithActor(
+    action: DiscussionAction,
+    actor: String
+  ): Task[DiscussionActionConfirmed] =
+    action match
+      case DiscussionAction.Add(topic, facilitator) =>
+        for
+          _          <- ensureUserExists(actor)
+          discussion <- createDiscussion(topic, facilitator, None)
+          _          <- persistEvent("Add", discussion.id.unwrap, action.toJson, actor)
+          _          <- persistDiscussion(discussion)
+          _          <- state.update(_.apply(discussion))
+        yield DiscussionActionConfirmed.AddResult(discussion)
+
+      case DiscussionAction.AddWithRoomSlot(topic, facilitator, roomSlot) =>
+        for
+          _            <- ensureUserExists(actor)
+          currentState <- state.get
+          slotOccupied = currentState.data.values.exists(_.roomSlot.contains(roomSlot))
+          result <- if slotOccupied then
+            ZIO.succeed(DiscussionActionConfirmed.Rejected(action))
+          else
+            for
+              discussion <- createDiscussion(topic, facilitator, Some(roomSlot))
+              _          <- persistEvent("AddWithRoomSlot", discussion.id.unwrap, action.toJson, actor)
+              _          <- persistDiscussion(discussion)
+              _          <- state.update(_.apply(discussion))
+            yield DiscussionActionConfirmed.AddResult(discussion)
+        yield result
+
+      case swap @ DiscussionAction.SwapTopics(topic1, expectedSlot1, topic2, expectedSlot2) =>
+        for
+          _            <- ensureUserExists(actor)
+          currentState <- state.get
+          actualSlot1 = currentState.data.get(topic1).flatMap(_.roomSlot)
+          actualSlot2 = currentState.data.get(topic2).flatMap(_.roomSlot)
+          slotsMatch = actualSlot1.contains(expectedSlot1) && actualSlot2.contains(expectedSlot2)
+          result <- if !slotsMatch then
+            ZIO.succeed(DiscussionActionConfirmed.Rejected(swap))
+          else
+            val confirmed = DiscussionActionConfirmed.fromDiscussionAction(swap)
+            for
+              _ <- persistEvent("SwapTopics", topic1.unwrap, action.toJson, actor)
+              _ <- updateDiscussionRoomSlot(topic1, Some(expectedSlot2))
+              _ <- updateDiscussionRoomSlot(topic2, Some(expectedSlot1))
+              _ <- state.update(_.apply(confirmed))
+            yield confirmed
+        yield result
+
+      case move @ DiscussionAction.MoveTopic(topicId, targetRoomSlot) =>
+        for
+          _            <- ensureUserExists(actor)
+          currentState <- state.get
+          targetOccupied = currentState.data.values.exists(d =>
+            d.id != topicId && d.roomSlot.contains(targetRoomSlot)
+          )
+          result <- if targetOccupied then
+            ZIO.succeed(DiscussionActionConfirmed.Rejected(move))
+          else
+            val confirmed = DiscussionActionConfirmed.fromDiscussionAction(move)
+            for
+              _ <- persistEvent("MoveTopic", topicId.unwrap, action.toJson, actor)
+              _ <- updateDiscussionRoomSlot(topicId, Some(targetRoomSlot))
+              _ <- state.update(_.apply(confirmed))
+            yield confirmed
+        yield result
+
+      case DiscussionAction.Vote(topicId, feedback) =>
+        for
+          _ <- ensureUserExists(actor)
+          confirmed = DiscussionActionConfirmed.fromDiscussionAction(action)
+          _ <- persistEvent("Vote", topicId.unwrap, action.toJson, actor)
+          _ <- updateDiscussionParties(topicId, parties => parties + feedback)
+          _ <- state.update(_.apply(confirmed))
+        yield confirmed
+
+      case DiscussionAction.RemoveVote(topicId, voter) =>
+        for
+          _ <- ensureUserExists(actor)
+          confirmed = DiscussionActionConfirmed.fromDiscussionAction(action)
+          _ <- persistEvent("RemoveVote", topicId.unwrap, action.toJson, actor)
+          _ <- updateDiscussionParties(topicId, parties => parties.filterNot(_.voter == voter))
+          _ <- state.update(_.apply(confirmed))
+        yield confirmed
+
+      case DiscussionAction.Rename(topicId, newTopic) =>
+        for
+          _ <- ensureUserExists(actor)
+          confirmed = DiscussionActionConfirmed.fromDiscussionAction(action)
+          _ <- persistEvent("Rename", topicId.unwrap, action.toJson, actor)
+          _ <- updateDiscussionTopic(topicId, newTopic)
+          _ <- state.update(_.apply(confirmed))
+        yield confirmed
+
+      case DiscussionAction.UpdateRoomSlot(topicId, roomSlot) =>
+        for
+          _ <- ensureUserExists(actor)
+          confirmed = DiscussionActionConfirmed.fromDiscussionAction(action)
+          _ <- persistEvent("UpdateRoomSlot", topicId.unwrap, action.toJson, actor)
+          _ <- updateDiscussionRoomSlot(topicId, Some(roomSlot))
+          _ <- state.update(_.apply(confirmed))
+        yield confirmed
+
+      case DiscussionAction.Unschedule(topicId) =>
+        for
+          _ <- ensureUserExists(actor)
+          confirmed = DiscussionActionConfirmed.fromDiscussionAction(action)
+          _ <- persistEvent("Unschedule", topicId.unwrap, action.toJson, actor)
+          _ <- updateDiscussionRoomSlot(topicId, None)
+          _ <- state.update(_.apply(confirmed))
+        yield confirmed
+
+      case DiscussionAction.Delete(topicId) =>
+        for
+          _ <- ensureUserExists(actor)
+          confirmed = DiscussionActionConfirmed.fromDiscussionAction(action)
+          _ <- persistEvent("Delete", topicId.unwrap, action.toJson, actor)
+          _ <- discussionRepo.softDelete(topicId.unwrap)
+          _ <- state.update(_.apply(confirmed))
+        yield confirmed
+
+  /** Ensure user exists in DB (auto-create if needed for system/anonymous actions) */
+  private def ensureUserExists(username: String): Task[Unit] =
+    userRepo.upsert(username, None).unit
+
+  private def createDiscussion(
+    topic: Topic,
+    facilitator: Person,
+    roomSlot: Option[RoomSlot]
+  ): UIO[Discussion] =
+    for
+      randomIcon <- glyphiconService.getRandomIcon
+      randomId   <- Random.nextLong
+    yield Discussion(
+      topic,
+      facilitator,
+      Set(Feedback(facilitator, VotePosition.Interested)),
+      TopicId(randomId),
+      randomIcon,
+      roomSlot
+    )
+
+  private def persistEvent(
+    eventType: String,
+    topicId: Long,
+    payload: String,
+    actor: String
+  ): Task[Unit] =
+    eventRepo.append(eventType, topicId, payload, actor).unit
+
+  private def persistDiscussion(discussion: Discussion): Task[Unit] =
+    val row = DiscussionRow.create(
+      id = discussion.id.unwrap,
+      topic = discussion.topic.unwrap,
+      facilitator = discussion.facilitator.unwrap,
+      glyphicon = discussion.glyphicon.name,
+      roomSlot = discussion.roomSlot.map(_.toJson),
+      interestedParties = discussion.interestedParties.toJson
+    )
+    discussionRepo.insert(row)
+
+  private def updateDiscussionRoomSlot(topicId: TopicId, roomSlot: Option[RoomSlot]): Task[Unit] =
+    for
+      existing <- discussionRepo.findById(topicId.unwrap)
+      _ <- existing match
+        case Some(row) =>
+          discussionRepo.update(row.copy(roomSlot = roomSlot.map(_.toJson)))
+        case None =>
+          ZIO.unit
+    yield ()
+
+  private def updateDiscussionParties(
+    topicId: TopicId,
+    f: Set[Feedback] => Set[Feedback]
+  ): Task[Unit] =
+    for
+      existing <- discussionRepo.findById(topicId.unwrap)
+      _ <- existing match
+        case Some(row) =>
+          val parties = row.interestedParties.fromJson[Set[Feedback]].getOrElse(Set.empty)
+          val updated = f(parties)
+          discussionRepo.update(row.copy(interestedParties = updated.toJson))
+        case None =>
+          ZIO.unit
+    yield ()
+
+  private def updateDiscussionTopic(topicId: TopicId, newTopic: Topic): Task[Unit] =
+    for
+      existing <- discussionRepo.findById(topicId.unwrap)
+      _ <- existing match
+        case Some(row) =>
+          discussionRepo.update(row.copy(topic = newTopic.unwrap))
+        case None =>
+          ZIO.unit
+    yield ()
+
+  /** Extract actor (GitHub username) from the action */
+  private def extractActor(action: DiscussionAction): String =
+    action match
+      case DiscussionAction.Add(_, facilitator)              => facilitator.unwrap
+      case DiscussionAction.AddWithRoomSlot(_, facilitator, _) => facilitator.unwrap
+      case DiscussionAction.Delete(_)                        => "system" // TODO: track who deleted
+      case DiscussionAction.Vote(_, feedback)                => feedback.voter.unwrap
+      case DiscussionAction.RemoveVote(_, voter)             => voter.unwrap
+      case DiscussionAction.Rename(_, _)                     => "system" // TODO: track who renamed
+      case DiscussionAction.UpdateRoomSlot(_, _)             => "system" // TODO: track who scheduled
+      case DiscussionAction.Unschedule(_)                    => "system"
+      case DiscussionAction.MoveTopic(_, _)                  => "system"
+      case DiscussionAction.SwapTopics(_, _, _, _)           => "system"
+
+object PersistentDiscussionStore:
+  /** Load initial state from database */
+  def loadInitialState(discussionRepo: DiscussionRepository): Task[DiscussionState] =
+    for
+      rows <- discussionRepo.findAllActive
+      discussions = rows.flatMap { row =>
+        for
+          topic <- Topic.make(row.topic).toOption
+          facilitator = Person(row.facilitator)
+          glyphicon = Glyphicon(row.glyphicon)
+          roomSlot = row.roomSlot.flatMap(_.fromJson[RoomSlot].toOption)
+          parties = row.interestedParties.fromJson[Set[Feedback]].getOrElse(Set.empty)
+        yield Discussion(
+          topic,
+          facilitator,
+          parties,
+          TopicId(row.id),
+          glyphicon,
+          roomSlot
+        )
+      }
+    yield DiscussionState(
+      DiscussionState.timeSlotExamples,
+      discussions.map(d => d.id -> d).toMap
+    )
+
+  val layer: ZLayer[
+    EventRepository & DiscussionRepository & UserRepository & GlyphiconService,
+    Throwable,
+    DiscussionStore
+  ] =
+    ZLayer.fromZIO:
+      for
+        eventRepo      <- ZIO.service[EventRepository]
+        discussionRepo <- ZIO.service[DiscussionRepository]
+        userRepo       <- ZIO.service[UserRepository]
+        glyphiconSvc   <- ZIO.service[GlyphiconService]
+        initialState   <- loadInitialState(discussionRepo)
+        stateRef       <- Ref.make(initialState)
+        _              <- ZIO.logInfo(s"Loaded ${initialState.data.size} discussions from database")
+      yield PersistentDiscussionStore(
+        eventRepo,
+        discussionRepo,
+        userRepo,
+        glyphiconSvc,
+        stateRef
+      )

@@ -5,7 +5,7 @@ import zio.direct.*
 
 class DiscussionDataStore(
   discussionDatabase: Ref[DiscussionState],
-  glyphiconService: GlyphiconService):
+  glyphiconService: GlyphiconService) extends DiscussionStore:
   def snapshot = discussionDatabase.get
 
   def applyAction(

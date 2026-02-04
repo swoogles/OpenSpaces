@@ -1,7 +1,0 @@
-{
-  "mcpServers": {
-    "StickyIcky-metals": {
-      "url": "http://localhost:63633/sse"
-    }
-  }
-}
