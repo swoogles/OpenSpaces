@@ -91,7 +91,7 @@ object AuthCookies:
     token: AccessToken,
     username: String
   ): Seq[Cookie.Response] = Seq(
-    create("access_token", token.accessToken, token.expiresIn),
+    create("access_token", token.accessToken, token.refreshTokenExpiresIn),
     create("refresh_token", token.refreshToken, token.refreshTokenExpiresIn, httpOnly = true),
     create("github_username", username, token.refreshTokenExpiresIn),
     // Store expiry timestamp so client/server can check if refresh is needed

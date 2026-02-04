@@ -364,6 +364,7 @@ object FrontEnd extends App:
     button(
       onClick --> Observer { _ =>
         deleteCookie("access_token")
+        deleteCookie("access_token_expires_at")
         deleteCookie("github_username")
         window.location.reload()
       },
@@ -385,6 +386,10 @@ object FrontEnd extends App:
     Observer { _ =>
       activeDiscussionMenuState.set(None)
     }
+
+  val hasAuthCookies =
+    getCookie("access_token").isDefined ||
+      getCookie("access_token_expires_at").isDefined
 
   val app =
     div(
@@ -435,141 +440,139 @@ object FrontEnd extends App:
         case None =>
           div()
       },
-      getCookie("access_token") match {
-        case Some(accessToken) =>
-          div(
-            logoutButton,
-            ticketCenter(topicUpdates),
-            topicUpdates.received --> Observer {
-              (event: DiscussionActionConfirmed) =>
-                // Handle rejection feedback
-                event match
-                  case DiscussionActionConfirmed.Rejected(
-                        _: DiscussionAction.SwapTopics,
-                      ) =>
-                    errorBanner.error.set(
-                      Some(
-                        "Swap failed: One or both topics were moved by another user. Please try again.",
-                      ),
-                    )
-                  case DiscussionActionConfirmed.Rejected(
-                        _: DiscussionAction.MoveTopic,
-                      ) =>
-                    errorBanner.error.set(
-                      Some(
-                        "Move failed: That slot was just filled by another user. Please try again.",
-                      ),
-                    )
-                  // Trigger swap animation before state update
-                  case DiscussionActionConfirmed.SwapTopics(
-                        topic1,
-                        newSlot1,
-                        topic2,
-                        newSlot2,
-                      ) =>
-                    // Start the swap animation
-                    SwapAnimationState.startSwapAnimation(
+      if (hasAuthCookies) {
+        div(
+          logoutButton,
+          ticketCenter(topicUpdates),
+          topicUpdates.received --> Observer {
+            (event: DiscussionActionConfirmed) =>
+              // Handle rejection feedback
+              event match
+                case DiscussionActionConfirmed.Rejected(
+                      _: DiscussionAction.SwapTopics,
+                    ) =>
+                  errorBanner.error.set(
+                    Some(
+                      "Swap failed: One or both topics were moved by another user. Please try again.",
+                    ),
+                  )
+                case DiscussionActionConfirmed.Rejected(
+                      _: DiscussionAction.MoveTopic,
+                    ) =>
+                  errorBanner.error.set(
+                    Some(
+                      "Move failed: That slot was just filled by another user. Please try again.",
+                    ),
+                  )
+                // Trigger swap animation before state update
+                case DiscussionActionConfirmed.SwapTopics(
                       topic1,
                       newSlot1,
                       topic2,
                       newSlot2,
-                    )
-                  // Trigger move animation for single topic moves
-                  case DiscussionActionConfirmed.MoveTopic(
+                    ) =>
+                  // Start the swap animation
+                  SwapAnimationState.startSwapAnimation(
+                    topic1,
+                    newSlot1,
+                    topic2,
+                    newSlot2,
+                  )
+                // Trigger move animation for single topic moves
+                case DiscussionActionConfirmed.MoveTopic(
+                      topicId,
+                      targetRoomSlot,
+                    ) =>
+                  // Get the topic's current (old) position before state updates
+                  discussionState
+                    .now()
+                    .data
+                    .get(topicId)
+                    .flatMap(_.roomSlot)
+                    .foreach { oldSlot =>
+                      SwapAnimationState.startMoveAnimation(
                         topicId,
+                        oldSlot,
                         targetRoomSlot,
-                      ) =>
-                    // Get the topic's current (old) position before state updates
-                    discussionState
-                      .now()
-                      .data
-                      .get(topicId)
-                      .flatMap(_.roomSlot)
-                      .foreach { oldSlot =>
-                        SwapAnimationState.startMoveAnimation(
-                          topicId,
-                          oldSlot,
-                          targetRoomSlot,
-                        )
-                      }
-                  // Also animate UpdateRoomSlot (similar to MoveTopic)
-                  case DiscussionActionConfirmed.UpdateRoomSlot(
+                      )
+                    }
+                // Also animate UpdateRoomSlot (similar to MoveTopic)
+                case DiscussionActionConfirmed.UpdateRoomSlot(
+                      topicId,
+                      newRoomSlot,
+                    ) =>
+                  // Get the topic's current (old) position before state updates
+                  discussionState
+                    .now()
+                    .data
+                    .get(topicId)
+                    .flatMap(_.roomSlot)
+                    .foreach { oldSlot =>
+                      SwapAnimationState.startMoveAnimation(
                         topicId,
+                        oldSlot,
                         newRoomSlot,
-                      ) =>
-                    // Get the topic's current (old) position before state updates
-                    discussionState
-                      .now()
-                      .data
-                      .get(topicId)
-                      .flatMap(_.roomSlot)
-                      .foreach { oldSlot =>
-                        SwapAnimationState.startMoveAnimation(
-                          topicId,
-                          oldSlot,
-                          newRoomSlot,
-                        )
-                      }
-                  case _ => ()
-
-                discussionState
-                  .update { existing =>
-                    val state = existing(event)
-                    val (topicId, shouldClearActive) =
-                      handleDiscussionActionConfirmed(event)
-
-                    if (shouldClearActive) {
-                      activeDiscussion.set(None)
+                      )
                     }
+                case _ => ()
 
-                    topicId.foreach { id =>
-                      if (
-                        activeDiscussion.now().map(_.id).contains(id)
-                      ) {
-                        activeDiscussion.set(state.data.get(id))
-                      }
-                    }
+              discussionState
+                .update { existing =>
+                  val state = existing(event)
+                  val (topicId, shouldClearActive) =
+                    handleDiscussionActionConfirmed(event)
 
-                    // Auto-select newly created topics that are scheduled in a room slot
-                    event match
-                      case DiscussionActionConfirmed.AddResult(discussion)
-                          if discussion.roomSlot.isDefined =>
-                        activeDiscussion.set(Some(discussion))
-                      case _ => ()
-
-                    state
+                  if (shouldClearActive) {
+                    activeDiscussion.set(None)
                   }
-            },
-            errorBanner.component,
-            NameBadge(name),
-            ViewToggle(currentAppView),
-            // Conditional view rendering based on current app view
-            child <-- currentAppView.signal.map {
-              case AppView.Schedule =>
-                ScheduleView(
-                  discussionState,
-                  activeDiscussion,
-                  topicUpdates.sendOne,
-                  name.signal,
-                  setActiveDiscussion,
-                  popoverState,
-                  swapMenuState,
-                  unscheduledMenuState,
-                  activeDiscussionMenuState,
-                )
-              case AppView.Topics =>
-                liveTopicSubmissionAndVoting(updateTargetDiscussion)
-            },
-          )
-        case None =>
-          div(
-            span("No access token found. Please log in."),
-            a(
-              href := "/auth",
-              "Login",
-            ),
-          )
 
+                  topicId.foreach { id =>
+                    if (
+                      activeDiscussion.now().map(_.id).contains(id)
+                    ) {
+                      activeDiscussion.set(state.data.get(id))
+                    }
+                  }
+
+                  // Auto-select newly created topics that are scheduled in a room slot
+                  event match
+                    case DiscussionActionConfirmed.AddResult(discussion)
+                        if discussion.roomSlot.isDefined =>
+                      activeDiscussion.set(Some(discussion))
+                    case _ => ()
+
+                  state
+                }
+          },
+          errorBanner.component,
+          NameBadge(name),
+          ViewToggle(currentAppView),
+          // Conditional view rendering based on current app view
+          child <-- currentAppView.signal.map {
+            case AppView.Schedule =>
+              ScheduleView(
+                discussionState,
+                activeDiscussion,
+                topicUpdates.sendOne,
+                name.signal,
+                setActiveDiscussion,
+                popoverState,
+                swapMenuState,
+                unscheduledMenuState,
+                activeDiscussionMenuState,
+              )
+            case AppView.Topics =>
+              liveTopicSubmissionAndVoting(updateTargetDiscussion)
+          },
+        )
+      } else {
+        div(
+          span("No session found. Please log in."),
+          a(
+            href := "/auth",
+            "Login",
+          ),
+        )
       },
     )
 
@@ -591,15 +594,20 @@ def getCookie(
 
 /** Check if the access token is expired or about to expire (within 5 minutes) */
 def isAccessTokenExpired: Boolean = {
-  getCookie("access_token_expires_at") match {
-    case Some(expiresAt) =>
-      val expiryTime = expiresAt.toLongOption.getOrElse(0L)
-      val now = (System.currentTimeMillis() / 1000)
-      val bufferSeconds = 300 // 5 minute buffer
-      now >= (expiryTime - bufferSeconds)
-    case None => 
-      // No expiry cookie means old session - treat as expired to trigger refresh
-      getCookie("access_token").isDefined && getCookie("refresh_token").isDefined
+  val accessToken = getCookie("access_token")
+  if (accessToken.isEmpty) {
+    true
+  } else {
+    getCookie("access_token_expires_at") match {
+      case Some(expiresAt) =>
+        val expiryTime = expiresAt.toLongOption.getOrElse(0L)
+        val now = (System.currentTimeMillis() / 1000)
+        val bufferSeconds = 300 // 5 minute buffer
+        now >= (expiryTime - bufferSeconds)
+      case None =>
+        // No expiry cookie means old session - treat as expired to trigger refresh
+        true
+    }
   }
 }
 
