@@ -91,7 +91,10 @@ object AuthCookies:
     token: AccessToken,
     username: String
   ): Seq[Cookie.Response] = Seq(
-    create("access_token", token.accessToken, token.expiresIn),
+    // Use refreshTokenExpiresIn for maxAge so the cookie persists for months.
+    // The actual token validity is tracked via access_token_expires_at cookie,
+    // and the frontend refresh logic will refresh the token when it expires.
+    create("access_token", token.accessToken, token.refreshTokenExpiresIn),
     create("refresh_token", token.refreshToken, token.refreshTokenExpiresIn, httpOnly = true),
     create("github_username", username, token.refreshTokenExpiresIn),
     // Store expiry timestamp so client/server can check if refresh is needed

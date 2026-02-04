@@ -435,8 +435,13 @@ object FrontEnd extends App:
         case None =>
           div()
       },
-      getCookie("access_token") match {
-        case Some(accessToken) =>
+      // Check for either access_token OR refresh capability (refresh_token + expiry tracking)
+      // This ensures returning users with expired tokens can still trigger the refresh flow
+      {
+        val hasSession = getCookie("access_token").isDefined || 
+          (getCookie("refresh_token").isDefined && getCookie("access_token_expires_at").isDefined)
+        
+        if (hasSession)
           div(
             logoutButton,
             ticketCenter(topicUpdates),
@@ -561,7 +566,7 @@ object FrontEnd extends App:
                 liveTopicSubmissionAndVoting(updateTargetDiscussion)
             },
           )
-        case None =>
+        else
           div(
             span("No access token found. Please log in."),
             a(
@@ -569,7 +574,6 @@ object FrontEnd extends App:
               "Login",
             ),
           )
-
       },
     )
 
