@@ -111,6 +111,17 @@ object DiscussionState:
         LocalDate.of(2026, 3, 2), // Monday
         List(
           TimeSlotForAllRooms(
+            TimeSlot("9:50-10:40",
+                     LocalDateTime.parse("2026-03-02T09:50:00"),
+                     LocalDateTime.parse("2026-03-02T10:40:00"),
+            ),
+            List(Room.king,
+                 Room.hawk,
+                 Room.artGallery,
+                 Room.danceHall,
+            ),
+          ),
+          TimeSlotForAllRooms(
             TimeSlot("11:10-12:00",
                      LocalDateTime.parse("2026-03-02T11:10:00"),
                      LocalDateTime.parse("2026-03-02T12:00:00"),
