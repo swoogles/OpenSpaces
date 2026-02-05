@@ -250,10 +250,55 @@
 
 .MainActive {
     grid-area: MainActive;
+    font-weight: 600;
+    font-size: 1rem;
+    line-height: 1.3;
+    padding: 8px 10px 4px 10px;
+    color: #1a202c;
 }
 
 .SecondaryActive {
     grid-area: SecondaryActive;
+    padding: 4px 10px 8px 10px;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+}
+
+.SecondaryActive > span {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+/* Facilitator name styling */
+.FacilitatorName {
+    font-size: 0.85rem;
+    color: #4a5568;
+    font-weight: 500;
+    background-color: rgba(255, 255, 255, 0.6);
+    padding: 2px 8px;
+    border-radius: 4px;
+    border: 1px solid rgba(0, 0, 0, 0.1);
+}
+
+/* Room slot styling */
+.RoomSlot {
+    font-size: 0.8rem;
+    color: #2d3748;
+    font-weight: 600;
+    background-color: rgba(74, 144, 217, 0.15);
+    padding: 2px 8px;
+    border-radius: 4px;
+    border: 1px solid rgba(74, 144, 217, 0.3);
+}
+
+.RoomSlot--unscheduled {
+    background-color: rgba(203, 213, 224, 0.4);
+    border-color: rgba(160, 174, 192, 0.4);
+    color: #718096;
+    font-style: italic;
 }
 
 .ControlsActive {

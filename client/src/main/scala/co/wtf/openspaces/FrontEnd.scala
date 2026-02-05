@@ -790,20 +790,27 @@ private def SingleDiscussionComponent(
             )
           else span(),
         ),
-        span(
+        div(
           cls := "SecondaryActive",
           span(
             SvgIcon(topic.glyphicon).amend(iconModifiers*),
-            span(topic.facilitatorName),
-            topic.roomSlot match {
-              case Some(roomSlot) =>
-                span(
-                  roomSlot.displayString,
-                )
-              case None =>
-                span("Unscheduled")
-            },
           ),
+          span(
+            cls := "FacilitatorName",
+            topic.facilitatorName,
+          ),
+          topic.roomSlot match {
+            case Some(roomSlot) =>
+              span(
+                cls := "RoomSlot",
+                roomSlot.displayString,
+              )
+            case None =>
+              span(
+                cls := "RoomSlot RoomSlot--unscheduled",
+                "Unscheduled",
+              )
+          },
         ),
         div(
           cls := "VoteColumn",
