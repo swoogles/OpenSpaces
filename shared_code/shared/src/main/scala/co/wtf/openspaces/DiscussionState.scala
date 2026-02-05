@@ -98,37 +98,22 @@ object DiscussionState:
       startingState,
     )
 
+  // Winter Tech Forum 2026: March 2-6, 2026
+  // https://www.wintertechforum.com/schedule/
+  // Monday: Intro + Session 2
+  // Tuesday: Sessions 3-5
+  // Wednesday: Hackathon (no Open Spaces)
+  // Thursday: Sessions 6-8
+  // Friday: Sessions 9-10 + Closing
   val timeSlotExamples =
     List(
       DaySlots(
-        LocalDate.of(2025, 6, 24),
+        LocalDate.of(2026, 3, 2), // Monday
         List(
           TimeSlotForAllRooms(
-            TimeSlot("8:00-8:50",
-                     LocalDateTime.parse("2025-06-24T08:00:00"),
-                     LocalDateTime.parse("2025-06-24T08:50:00"),
-            ),
-            List(Room.king,
-                 Room.hawk,
-                 Room.artGallery,
-                 Room.danceHall,
-            ),
-          ),
-          TimeSlotForAllRooms(
-            TimeSlot("9:20-10:10",
-                     LocalDateTime.parse("2025-06-24T09:20:00"),
-                     LocalDateTime.parse("2025-06-24T10:10:00"),
-            ),
-            List(Room.king,
-                 Room.hawk,
-                 Room.artGallery,
-                 Room.danceHall,
-            ),
-          ),
-          TimeSlotForAllRooms(
-            TimeSlot("10:30-11:20",
-                     LocalDateTime.parse("2025-06-24T10:30:00"),
-                     LocalDateTime.parse("2025-06-24T11:20:00"),
+            TimeSlot("11:10-12:00",
+                     LocalDateTime.parse("2026-03-02T11:10:00"),
+                     LocalDateTime.parse("2026-03-02T12:00:00"),
             ),
             List(Room.king,
                  Room.hawk,
@@ -139,12 +124,12 @@ object DiscussionState:
         ),
       ),
       DaySlots(
-        LocalDate.of(2025, 6, 25),
+        LocalDate.of(2026, 3, 3), // Tuesday
         List(
           TimeSlotForAllRooms(
-            TimeSlot("8:00-8:50",
-                     LocalDateTime.parse("2025-06-25T08:00:00"),
-                     LocalDateTime.parse("2025-06-25T08:50:00"),
+            TimeSlot("9:00-9:50",
+                     LocalDateTime.parse("2026-03-03T09:00:00"),
+                     LocalDateTime.parse("2026-03-03T09:50:00"),
             ),
             List(Room.king,
                  Room.hawk,
@@ -153,9 +138,9 @@ object DiscussionState:
             ),
           ),
           TimeSlotForAllRooms(
-            TimeSlot("9:20-10:10",
-                     LocalDateTime.parse("2025-06-25T09:20:00"),
-                     LocalDateTime.parse("2025-06-25T10:10:00"),
+            TimeSlot("10:20-11:10",
+                     LocalDateTime.parse("2026-03-03T10:20:00"),
+                     LocalDateTime.parse("2026-03-03T11:10:00"),
             ),
             List(Room.king,
                  Room.hawk,
@@ -164,9 +149,9 @@ object DiscussionState:
             ),
           ),
           TimeSlotForAllRooms(
-            TimeSlot("10:30-11:20",
-                     LocalDateTime.parse("2025-06-25T10:30:00"),
-                     LocalDateTime.parse("2025-06-25T11:20:00"),
+            TimeSlot("11:40-12:30",
+                     LocalDateTime.parse("2026-03-03T11:40:00"),
+                     LocalDateTime.parse("2026-03-03T12:30:00"),
             ),
             List(Room.king,
                  Room.hawk,
@@ -177,12 +162,12 @@ object DiscussionState:
         ),
       ),
       DaySlots(
-        LocalDate.of(2025, 6, 27),
+        LocalDate.of(2026, 3, 5), // Thursday (Wednesday is Hackathon)
         List(
           TimeSlotForAllRooms(
-            TimeSlot("8:00-8:50",
-                     LocalDateTime.parse("2025-06-27T08:00:00"),
-                     LocalDateTime.parse("2025-06-27T08:50:00"),
+            TimeSlot("9:00-9:50",
+                     LocalDateTime.parse("2026-03-05T09:00:00"),
+                     LocalDateTime.parse("2026-03-05T09:50:00"),
             ),
             List(Room.king,
                  Room.hawk,
@@ -191,9 +176,9 @@ object DiscussionState:
             ),
           ),
           TimeSlotForAllRooms(
-            TimeSlot("9:20-10:10",
-                     LocalDateTime.parse("2025-06-27T09:20:00"),
-                     LocalDateTime.parse("2025-06-27T10:10:00"),
+            TimeSlot("10:20-11:10",
+                     LocalDateTime.parse("2026-03-05T10:20:00"),
+                     LocalDateTime.parse("2026-03-05T11:10:00"),
             ),
             List(Room.king,
                  Room.hawk,
@@ -202,9 +187,36 @@ object DiscussionState:
             ),
           ),
           TimeSlotForAllRooms(
-            TimeSlot("10:30-11:20",
-                     LocalDateTime.parse("2025-06-27T10:30:00"),
-                     LocalDateTime.parse("2025-06-27T11:20:00"),
+            TimeSlot("11:40-12:30",
+                     LocalDateTime.parse("2026-03-05T11:40:00"),
+                     LocalDateTime.parse("2026-03-05T12:30:00"),
+            ),
+            List(Room.king,
+                 Room.hawk,
+                 Room.artGallery,
+                 Room.danceHall,
+            ),
+          ),
+        ),
+      ),
+      DaySlots(
+        LocalDate.of(2026, 3, 6), // Friday
+        List(
+          TimeSlotForAllRooms(
+            TimeSlot("9:00-9:50",
+                     LocalDateTime.parse("2026-03-06T09:00:00"),
+                     LocalDateTime.parse("2026-03-06T09:50:00"),
+            ),
+            List(Room.king,
+                 Room.hawk,
+                 Room.artGallery,
+                 Room.danceHall,
+            ),
+          ),
+          TimeSlotForAllRooms(
+            TimeSlot("10:20-11:10",
+                     LocalDateTime.parse("2026-03-06T10:20:00"),
+                     LocalDateTime.parse("2026-03-06T11:10:00"),
             ),
             List(Room.king,
                  Room.hawk,
