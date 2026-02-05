@@ -3,7 +3,7 @@
 ## Usability Enhancements
 
 ### Interest & Voting
-- [ ] **Interest heat map** — Visually indicate popularity of sessions (color intensity, size, or badge count)
+- [x] **Interest heat map** — Visually indicate popularity of sessions (color intensity, size, or badge count)
 - [ ] **Room capacity display** — Show capacity per room so attendees know if a session might be packed
 - [ ] **"My Schedule" view** — Filter to only show sessions I've voted interested in
 - [ ] **Conflict detection** — Warn when interested in overlapping sessions
