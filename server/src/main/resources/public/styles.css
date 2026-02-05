@@ -62,6 +62,66 @@
     text-align: center;
 }
 
+/* Interest Heat Map - Accessible design using color + borders + icons + text */
+
+/* Cold: No votes - minimal styling */
+.TopicCard.heat-cold {
+    border-left: 3px solid #cbd5e0;
+}
+.VoteCount.heat-cold {
+    color: #718096;
+}
+
+/* Mild: 1-2 votes - slight warmth */
+.TopicCard.heat-mild {
+    border-left: 4px solid #68d391;
+}
+.VoteCount.heat-mild {
+    color: #276749;
+    font-weight: 600;
+}
+
+/* Warm: 3-4 votes - visible interest */
+.TopicCard.heat-warm {
+    border-left: 5px solid #f6ad55;
+    background-color: #faf5e6 !important;
+}
+.VoteCount.heat-warm {
+    color: #c05621;
+    font-weight: 700;
+    font-size: 1.2rem;
+}
+
+/* Hot: 5+ votes - high interest */
+.TopicCard.heat-hot {
+    border-left: 6px solid #fc8181;
+    background-color: #fff5f5 !important;
+    box-shadow: 0 2px 8px rgba(252, 129, 129, 0.3);
+}
+.VoteCount.heat-hot {
+    color: #c53030;
+    font-weight: 800;
+    font-size: 1.3rem;
+}
+
+/* High contrast mode support for heat levels */
+@media (prefers-contrast: more) {
+    .TopicCard.heat-cold {
+        border-left-width: 4px;
+    }
+    .TopicCard.heat-mild {
+        border-left-width: 5px;
+    }
+    .TopicCard.heat-warm {
+        border-left-width: 6px;
+        border-left-style: double;
+    }
+    .TopicCard.heat-hot {
+        border-left-width: 8px;
+        border-left-style: double;
+    }
+}
+
 .VoteButton {
     background-color: transparent;
     border: 2px solid transparent;

@@ -720,6 +720,14 @@ private def SingleDiscussionComponent(
     case Some(topic) =>
       val currentFeedback =
         topic.interestedParties.find(_.voter == name.now())
+      // Heat level based on votes (accessible: uses color + border + icon)
+      val votes = topic.votes
+      val heatLevel = 
+        if (votes >= 5) "heat-hot"
+        else if (votes >= 3) "heat-warm"  
+        else if (votes >= 1) "heat-mild"
+        else "heat-cold"
+      
       val backgroundColorByPosition = "#C6DAD7"
 
       val $characters: List[(String, Int)] =
@@ -749,7 +757,7 @@ private def SingleDiscussionComponent(
 
       // import neotype.unwrap
       div(
-        cls := "TopicCard", // TODO Make this a component than can be used in the schedule view!
+        cls := s"TopicCard $heatLevel", // Heat level class for visual indicator
         backgroundColor := backgroundColorByPosition,
         transition match
           case Some(value) => value.height
@@ -831,7 +839,9 @@ private def SingleDiscussionComponent(
               SvgIcon(GlyphiconUtils.heart, "VoteIcon"),
             ),
             span(
-              cls := "VoteCount",
+              cls := s"VoteCount $heatLevel",
+              // Heat icon for accessibility (visible indicator beyond color)
+              if (votes >= 5) "🔥 " else if (votes >= 3) "♨️ " else "",
               topic.votes.toString,
             ),
             button(
