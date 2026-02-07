@@ -282,6 +282,12 @@ object FrontEnd extends App:
   val syncState: Var[SyncState] =
     Var(SyncState.Idle)
 
+  // Tracks the ID of the topic the user most recently voted on.
+  // Used to ensure the just-voted topic appears immediately after
+  // the next unjudged topic (for visual continuity).
+  val lastVotedTopicId: Var[Option[TopicId]] =
+    Var(None)
+
   val errorBanner =
     ErrorBanner()
 
@@ -307,20 +313,32 @@ object FrontEnd extends App:
                       errorBanner.error.toObserver,
       ),
       DiscussionSubview(
-        discussionState.signal.combineWith(name.signal).map {
-          case (state, currentUser) =>
-            val allTopics = state.data.values.toList
+        Signal.combine(
+          discussionState.signal,
+          name.signal,
+          lastVotedTopicId.signal,
+        ).map { case (state, currentUser, lastVotedId) =>
+          val allTopics = state.data.values.toList
 
-            // Partition into judged (user has voted) and unjudged (user hasn't voted)
-            val (judged, unjudged) = allTopics.partition { topic =>
-              topic.interestedParties.exists(_.voter == currentUser)
-            }
+          // Partition into judged (user has voted) and unjudged (user hasn't voted)
+          val (judged, unjudged) = allTopics.partition { topic =>
+            topic.interestedParties.exists(_.voter == currentUser)
+          }
 
-            // Take only the first unjudged topic (if any)
-            val firstUnjudged = unjudged.headOption.toList
+          // Take only the first unjudged topic (if any)
+          val firstUnjudged = unjudged.headOption.toList
 
-            // Combine: first unjudged topic + all judged topics
-            firstUnjudged ++ judged
+          // Order judged topics: last-voted topic first, then rest
+          // This ensures the just-voted topic appears right after the unjudged one
+          val (lastVoted, otherJudged) = lastVotedId match
+            case Some(id) =>
+              val (matching, rest) = judged.partition(_.id == id)
+              (matching, rest)
+            case None =>
+              (Nil, judged)
+
+          // Combine: first unjudged + just-voted topic + other judged topics
+          firstUnjudged ++ lastVoted ++ otherJudged
         },
         None,
         name.signal,
@@ -524,6 +542,12 @@ object FrontEnd extends App:
                         targetRoomSlot,
                       )
                     }
+                // Track the user's most recent vote for topic ordering
+                case DiscussionActionConfirmed.Vote(topicId, feedback) =>
+                  // Only track if this is the current user's vote
+                  if feedback.voter == name.now() then
+                    lastVotedTopicId.set(Some(topicId))
+
                 // Also animate UpdateRoomSlot (similar to MoveTopic)
                 case DiscussionActionConfirmed.UpdateRoomSlot(
                       topicId,
