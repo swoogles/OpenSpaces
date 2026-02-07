@@ -635,13 +635,33 @@
     transform: scale(1);
 }
 
-/* Voted AGAINST: Least visible - reduced opacity, scale down, dashed border */
+/* Voted AGAINST: X overlay to indicate not interested */
 .vote-state-against {
-    opacity: 0.35;
-    transform: scale(0.85);
-    border: 1px dashed currentColor;
-    border-radius: 4px;
-    padding: 1px;
+    opacity: 0.5;
+    transform: scale(0.9);
+    position: relative;
+}
+
+/* Create X using two diagonal lines */
+.vote-state-against::before,
+.vote-state-against::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 90%;
+    height: 3px;
+    background-color: rgba(220, 38, 38, 0.8); /* Red with some transparency */
+    border-radius: 2px;
+    pointer-events: none; /* Don't interfere with clicks */
+}
+
+.vote-state-against::before {
+    transform: translate(-50%, -50%) rotate(45deg);
+}
+
+.vote-state-against::after {
+    transform: translate(-50%, -50%) rotate(-45deg);
 }
 
 /* Ensure proper transitions for smooth state changes */
@@ -672,8 +692,13 @@
     }
     
     .vote-state-against {
-        opacity: 0.4;
-        border-width: 2px;
+        opacity: 0.5;
+    }
+    
+    .vote-state-against::before,
+    .vote-state-against::after {
+        height: 4px;
+        background-color: rgba(185, 28, 28, 0.95); /* Darker red for contrast */
     }
 }
 
