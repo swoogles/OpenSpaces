@@ -285,6 +285,16 @@
         "Room1 Room2 Room3 Room4";
 }
 
+/* Individual room header styling - shared emphasis pattern */
+.Room1, .Room2, .Room3, .Room4 {
+    font-weight: 700;
+    font-size: 1.1rem;
+    text-align: center;
+    padding: 8px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
 .Targets {
     grid-area: Targets;
 }
@@ -400,6 +410,25 @@
     max-height: 40vh;
     overflow-y: auto;
     /* Enables vertical scrolling when content exceeds max-height */
+}
+
+/* Time slot labels - emphasized for easy scanning */
+.TimeOfSlot {
+    font-weight: 600;
+    font-size: 1rem;
+    padding: 8px 12px;
+    display: flex;
+    align-items: center;
+}
+
+/* Day header - uses same emphasis pattern as room headers */
+.DayHeader {
+    font-weight: 700;
+    font-size: 1.1rem;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    padding: 12px 8px 8px 8px;
+    margin-top: 16px;
 }
 
 /* Menu */
