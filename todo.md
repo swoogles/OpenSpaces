@@ -28,4 +28,9 @@
 ## Technical Debt
 
 - [ ] **Configurable schedule** — Move dates/rooms/time slots to config file instead of code
-- [ ] **Better error handling** — Surface WebSocket disconnects and reconnection status to users
+- [x] **Better error handling** — Surface WebSocket disconnects and reconnection status to users
+  - [x] Connection status indicator (dot in header)
+  - [x] Disconnect/reconnecting banner with retry button
+  - [x] Offline detection (navigator.onLine + events)
+  - [ ] State sync on reconnect (re-fetch full state when reconnecting)
+  - [ ] Optimistic update rollback (queue pending actions, retry or rollback)
