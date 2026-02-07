@@ -382,6 +382,15 @@
     horiz-align: center;
 }
 
+.github-avatar {
+    height: 32px;
+    width: 32px;
+    vertical-align: middle;
+    horiz-align: center;
+    border-radius: 50%;
+    object-fit: cover;
+}
+
 .disabled {
     opacity: 20%;
 }

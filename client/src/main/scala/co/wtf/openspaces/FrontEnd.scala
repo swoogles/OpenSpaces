@@ -801,7 +801,7 @@ private def SingleDiscussionComponent(
         div(
           cls := "SecondaryActive",
           span(
-            SvgIcon(topic.glyphicon).amend(iconModifiers*),
+            GitHubAvatar(topic.facilitator).amend(iconModifiers*),
           ),
           span(
             cls := "FacilitatorName",
@@ -1005,8 +1005,8 @@ def ScheduleSlotComponent(
                 onClick.mapTo(
                   value,
                 ) --> updateDiscussion, // TODO This is causing an unecesary update to be sent to server
-                SvgIcon.withVotingState(
-                  value.glyphicon,
+                GitHubAvatar.withVotingState(
+                  value.facilitator,
                   votingState,
                   value.topicName,
                   s"filledTopic $selectedTopicStyling",
@@ -1018,7 +1018,7 @@ def ScheduleSlotComponent(
                   discussion.roomSlot match
                     case Some(value)
                         if roomSlot == value => // TODO Make this impossible
-                      SvgIcon(discussion.glyphicon, "filledTopic")
+                      GitHubAvatar(discussion.facilitator, "filledTopic")
                     case Some(_) =>
                       // Empty slot when active discussion is scheduled elsewhere
                       // Click shows menu with options: move current topic, create new, or move unscheduled
@@ -1130,7 +1130,7 @@ def Menu(
       div(cls := "Menu-label", "Selected Topic:"),
       div(
         cls := "Menu-topic Menu-topic--selected",
-        SvgIcon(selectedDiscussion.glyphicon),
+        GitHubAvatar(selectedDiscussion.facilitator),
         div(
           div(cls := "Menu-topicName", selectedDiscussion.topicName),
           div(
@@ -1148,7 +1148,7 @@ def Menu(
       div(cls := "Menu-label", "Target Topic:"),
       div(
         cls := "Menu-topic Menu-topic--target",
-        SvgIcon(targetDiscussion.glyphicon),
+        GitHubAvatar(targetDiscussion.facilitator),
         div(
           div(cls := "Menu-topicName", targetDiscussion.topicName),
           div(
@@ -1259,7 +1259,7 @@ def UnscheduledDiscussionsMenu(
                   )
                   dismissMenu.onNext(())
                 },
-                SvgIcon(discussion.glyphicon),
+                GitHubAvatar(discussion.facilitator),
                 span(
                   cls := "Menu-topicName",
                   discussion.topicName,
@@ -1341,7 +1341,7 @@ def UnscheduledDiscussionsMenu(
                 )
                 dismissMenu.onNext(())
               },
-              SvgIcon(discussion.glyphicon),
+              GitHubAvatar(discussion.facilitator),
               span(
                 cls := "Menu-topicName",
                 discussion.topicName,
@@ -1415,7 +1415,7 @@ def ActiveDiscussionActionMenu(
     div(cls := "Menu-header", "Discussion actions"),
     div(
       cls := "Menu-topic Menu-topic--selected",
-      SvgIcon(discussion.glyphicon),
+      GitHubAvatar(discussion.facilitator),
       div(
         div(
           cls := "Menu-topicName",
