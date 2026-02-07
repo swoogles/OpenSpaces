@@ -105,12 +105,14 @@ trait DiscussionRepository:
   def update(row: DiscussionRow): Task[Unit]
   def softDelete(id: Long): Task[Unit]
   def truncate: Task[Unit]
+  def updateSlackThread(topicId: Long, channelId: String, threadTs: String, permalink: String): Task[Unit]
 
 class DiscussionRepositoryLive(ds: DataSource) extends DiscussionRepository:
   def findById(id: Long): Task[Option[DiscussionRow]] =
     transactZIO(ds):
-      sql"""SELECT id, topic, facilitator, glyphicon, room_slot::text, interested_parties::text, 
-                   created_at, updated_at, deleted_at 
+      sql"""SELECT id, topic, facilitator, glyphicon, room_slot::text, interested_parties::text,
+                   created_at, updated_at, deleted_at,
+                   slack_channel_id, slack_thread_ts, slack_permalink
             FROM discussions WHERE id = $id"""
         .query[DiscussionRow]
         .run()
@@ -118,27 +120,29 @@ class DiscussionRepositoryLive(ds: DataSource) extends DiscussionRepository:
 
   def findAllActive: Task[Vector[DiscussionRow]] =
     transactZIO(ds):
-      sql"""SELECT id, topic, facilitator, glyphicon, room_slot::text, interested_parties::text, 
-                   created_at, updated_at, deleted_at 
+      sql"""SELECT id, topic, facilitator, glyphicon, room_slot::text, interested_parties::text,
+                   created_at, updated_at, deleted_at,
+                   slack_channel_id, slack_thread_ts, slack_permalink
             FROM discussions WHERE deleted_at IS NULL"""
         .query[DiscussionRow]
         .run()
 
   def insert(row: DiscussionRow): Task[Unit] =
     transactZIO(ds):
-      sql"""INSERT INTO discussions (id, topic, facilitator, glyphicon, room_slot, interested_parties, created_at, updated_at, deleted_at)
-            VALUES (${row.id}, ${row.topic}, ${row.facilitator}, ${row.glyphicon}, 
-                    ${row.roomSlot}::jsonb, ${row.interestedParties}::jsonb, 
-                    ${row.createdAt}, ${row.updatedAt}, ${row.deletedAt})""".update.run()
+      sql"""INSERT INTO discussions (id, topic, facilitator, glyphicon, room_slot, interested_parties, created_at, updated_at, deleted_at, slack_channel_id, slack_thread_ts, slack_permalink)
+            VALUES (${row.id}, ${row.topic}, ${row.facilitator}, ${row.glyphicon},
+                    ${row.roomSlot}::jsonb, ${row.interestedParties}::jsonb,
+                    ${row.createdAt}, ${row.updatedAt}, ${row.deletedAt},
+                    ${row.slackChannelId}, ${row.slackThreadTs}, ${row.slackPermalink})""".update.run()
       ()
 
   def update(row: DiscussionRow): Task[Unit] =
     transactZIO(ds):
-      sql"""UPDATE discussions SET 
-              topic = ${row.topic}, 
-              facilitator = ${row.facilitator}, 
-              glyphicon = ${row.glyphicon}, 
-              room_slot = ${row.roomSlot}::jsonb, 
+      sql"""UPDATE discussions SET
+              topic = ${row.topic},
+              facilitator = ${row.facilitator},
+              glyphicon = ${row.glyphicon},
+              room_slot = ${row.roomSlot}::jsonb,
               interested_parties = ${row.interestedParties}::jsonb,
               deleted_at = ${row.deletedAt}
             WHERE id = ${row.id}""".update.run()
@@ -152,6 +156,15 @@ class DiscussionRepositoryLive(ds: DataSource) extends DiscussionRepository:
   def truncate: Task[Unit] =
     transactZIO(ds):
       sql"TRUNCATE discussions".update.run()
+      ()
+
+  def updateSlackThread(topicId: Long, channelId: String, threadTs: String, permalink: String): Task[Unit] =
+    transactZIO(ds):
+      sql"""UPDATE discussions SET
+              slack_channel_id = $channelId,
+              slack_thread_ts = $threadTs,
+              slack_permalink = $permalink
+            WHERE id = $topicId""".update.run()
       ()
 
 object DiscussionRepository:

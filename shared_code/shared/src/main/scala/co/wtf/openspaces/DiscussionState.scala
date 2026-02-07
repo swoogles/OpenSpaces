@@ -81,7 +81,12 @@ case class DiscussionState(
           )
 
       case DiscussionActionConfirmed.AddResult(discussion) =>
-        data + (discussion.id -> discussion),
+        data + (discussion.id -> discussion)
+
+      case DiscussionActionConfirmed.SlackThreadLinked(topicId, slackThreadUrl) =>
+        data.updatedWith(topicId) {
+          _.map(value => value.copy(slackThreadUrl = Some(slackThreadUrl)))
+        },
     )
 
 object DiscussionState:

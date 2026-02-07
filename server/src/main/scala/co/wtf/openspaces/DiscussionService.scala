@@ -1,5 +1,6 @@
 package co.wtf.openspaces
 
+import co.wtf.openspaces.slack.SlackNotifier
 import zio.*
 import zio.direct.*
 import zio.http.*
@@ -8,7 +9,8 @@ import zio.json.*
 case class DiscussionService(
   connectedUsers: Ref[List[OpenSpacesServerChannel]],
   discussionStore: DiscussionStore,
-  authenticatedTicketService: AuthenticatedTicketService):
+  authenticatedTicketService: AuthenticatedTicketService,
+  slackNotifier: SlackNotifier):
 
   def handleMessage(
     message: WebSocketMessage,
@@ -54,6 +56,15 @@ case class DiscussionService(
         )
         .run
 
+  private def broadcastToAll(message: DiscussionActionConfirmed): Task[Unit] =
+    defer:
+      val channels = connectedUsers.get.run
+      ZIO
+        .foreachParDiscard(channels)(channel =>
+          channel.send(message).ignore,
+        )
+        .run
+
   private def handleTicketedAction(
     channel: OpenSpacesServerChannel,
     discussionAction: DiscussionAction,
@@ -62,18 +73,8 @@ case class DiscussionService(
       val actionResult = discussionStore
         .applyAction(discussionAction)
         .run
-      defer:
-        val channels = connectedUsers.get.run
-        ZIO
-          .foreachParDiscard(channels)(channel =>
-            channel
-              .send(
-                actionResult,
-              )
-              .ignore,
-          )
-          .run
-      .run
+      broadcastToAll(actionResult).run
+      slackNotifier.notify(actionResult, broadcastToAll).run
 
   private def handleUnticketedAction(
     channel: OpenSpacesServerChannel,
@@ -95,4 +96,5 @@ object DiscussionService:
           Ref.make(List.empty[OpenSpacesServerChannel]).run,
           ZIO.service[DiscussionStore].run,
           ZIO.service[AuthenticatedTicketService].run,
+          ZIO.service[SlackNotifier].run,
         )

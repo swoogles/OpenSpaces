@@ -1,6 +1,7 @@
 package co.wtf.openspaces
 
 import co.wtf.openspaces.db.*
+import co.wtf.openspaces.slack.*
 import zio.*
 import zio.direct.*
 import zio.http.*
@@ -43,5 +44,8 @@ object Backend extends ZIOAppDefault {
       EventRepository.layer,
       DiscussionRepository.layer,
       PersistentDiscussionStore.layer,
+      // Slack integration
+      SlackConfig.layer,
+      SlackNotifier.layer,
     )
 }

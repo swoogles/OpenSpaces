@@ -40,7 +40,10 @@ case class DiscussionRow(
   interestedParties: String,      // JSON array string
   createdAt: OffsetDateTime,
   updatedAt: OffsetDateTime,
-  deletedAt: Option[OffsetDateTime]
+  deletedAt: Option[OffsetDateTime],
+  slackChannelId: Option[String],
+  slackThreadTs: Option[String],
+  slackPermalink: Option[String]
 ) derives DbCodec
 
 object DiscussionRow:
@@ -53,4 +56,4 @@ object DiscussionRow:
     interestedParties: String
   ): DiscussionRow =
     val now = OffsetDateTime.now()
-    DiscussionRow(id, topic, facilitator, glyphicon, roomSlot, interestedParties, now, now, None)
+    DiscussionRow(id, topic, facilitator, glyphicon, roomSlot, interestedParties, now, now, None, None, None, None)

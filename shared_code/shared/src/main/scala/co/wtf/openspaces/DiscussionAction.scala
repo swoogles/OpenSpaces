@@ -77,6 +77,9 @@ enum DiscussionActionConfirmed derives JsonCodec:
     newRoomSlot2: RoomSlot)
   case AddResult(
     discussion: Discussion)
+  case SlackThreadLinked(
+    topicId: TopicId,
+    slackThreadUrl: String)
   case Rejected(
     discussionAction: DiscussionAction)
 

@@ -202,6 +202,7 @@ class DiscussionDataStore(
       randomIcon,
       roomSlot,
       None,
+      None,
     )
 
 object DiscussionDataStore:

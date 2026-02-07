@@ -833,6 +833,17 @@ private def SingleDiscussionComponent(
                 "Unscheduled",
               )
           },
+          topic.slackThreadUrl match {
+            case Some(url) =>
+              a(
+                href := url,
+                target := "_blank",
+                cls := "SlackThreadLink",
+                title := "Discuss in Slack",
+                img(src := "/icons/slack.svg", cls := "SlackIcon"),
+              )
+            case None => span()
+          },
         ),
         div(
           cls := "VoteColumn",
@@ -1614,6 +1625,8 @@ private def handleDiscussionActionConfirmed(
       (Some(topic1), false)
     case DiscussionActionConfirmed.AddResult(_) =>
       (None, false)
+    case DiscussionActionConfirmed.SlackThreadLinked(topicId, _) =>
+      (Some(topicId), false)
     case DiscussionActionConfirmed.Rejected(_) =>
       (None, false)
   }

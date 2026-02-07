@@ -715,6 +715,25 @@
     background-color: #ffffff;
 }
 
+/* Slack thread link */
+.SlackThreadLink {
+    display: inline-flex;
+    align-items: center;
+    margin-left: 6px;
+    text-decoration: none;
+    opacity: 0.7;
+    transition: opacity 0.15s ease;
+}
+
+.SlackThreadLink:hover {
+    opacity: 1;
+}
+
+.SlackIcon {
+    width: 16px;
+    height: 16px;
+}
+
 /* Respect reduced motion preferences */
 @media (prefers-reduced-motion: reduce) {
     .ViewToggle-button {

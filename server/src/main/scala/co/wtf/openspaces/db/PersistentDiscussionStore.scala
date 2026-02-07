@@ -187,7 +187,8 @@ class PersistentDiscussionStore(
       TopicId(randomId),
       randomIcon,
       roomSlot,
-      displayName
+      displayName,
+      None
     )
 
   private def persistEvent(
@@ -282,7 +283,8 @@ object PersistentDiscussionStore:
           TopicId(row.id),
           glyphicon,
           roomSlot,
-          userMap.get(row.facilitator).flatten
+          userMap.get(row.facilitator).flatten,
+          row.slackPermalink
         )
       }
     yield DiscussionState(

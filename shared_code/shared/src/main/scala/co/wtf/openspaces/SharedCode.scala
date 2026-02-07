@@ -62,7 +62,8 @@ case class Discussion(
   id: TopicId,
   glyphicon: Glyphicon,
   roomSlot: Option[RoomSlot],
-  facilitatorDisplayName: Option[String])
+  facilitatorDisplayName: Option[String],
+  slackThreadUrl: Option[String])
     derives JsonCodec:
 
   val votes: Int = interestedParties.count(_.position == Interested)
@@ -86,6 +87,7 @@ object Discussion:
       glyphicon,
       roomSlot,
       facilitatorDisplayName,
+      None,
     )
 
   val example1 = Discussion(
@@ -145,6 +147,7 @@ object Discussion:
       GlyphiconUtils.names(4),
       None,
       None,
+      None,
     )
 
   val example5 =
@@ -156,6 +159,7 @@ object Discussion:
       GlyphiconUtils.names(5),
       None,
       None,
+      None,
     )
 
   val example6 =
@@ -165,6 +169,7 @@ object Discussion:
       Set.empty,
       TopicId(5),
       GlyphiconUtils.names(6),
+      None,
       None,
       None,
     )
