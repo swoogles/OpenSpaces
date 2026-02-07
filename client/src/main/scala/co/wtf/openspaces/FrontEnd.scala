@@ -1729,6 +1729,42 @@ enum SyncState:
   /** Whether sync is in progress */
   def isSyncing: Boolean = this == Syncing
 
+/** Triggers state sync by clearing state and fetching a fresh ticket.
+  * Called on initial connection and reconnects.
+  */
+def triggerStateSync(
+  topicUpdates: WebSocket[DiscussionActionConfirmed, WebSocketMessage],
+  discussionState: Var[DiscussionState],
+  syncState: Var[SyncState],
+): Unit =
+  import scala.concurrent.ExecutionContext.Implicits.global
+  
+  // Mark as syncing and clear stale data
+  syncState.set(SyncState.Syncing)
+  discussionState.update(state => 
+    DiscussionState(state.slots, Map.empty)
+  )
+  println("Triggering state sync...")
+  
+  // Fetch fresh ticket
+  val fetchPromise = dom.fetch("/ticket", new dom.RequestInit {
+    method = dom.HttpMethod.GET
+    headers = new dom.Headers(scalajs.js.Array(
+      scalajs.js.Array("Authorization", s"Bearer ${getCookie("access_token").getOrElse("")}")
+    ))
+  })
+  
+  fetchPromise.toFuture.flatMap(_.text().toFuture).foreach { responseText =>
+    responseText.fromJson[Ticket] match
+      case Right(ticket) =>
+        println("Ticket received, sending to server for state sync")
+        topicUpdates.sendOne(ticket)
+        syncState.set(SyncState.Synced)
+      case Left(parseError) =>
+        println(s"Failed to parse ticket: $parseError")
+        syncState.set(SyncState.Error("Invalid ticket response"))
+  }
+
 /** Handles state synchronization on WebSocket (re)connection.
   *
   * When the WebSocket connects (initial or reconnect), this:
@@ -1744,27 +1780,20 @@ def ticketCenter(
   syncState: Var[SyncState],
 ) =
   div(
+    // Check if already connected on mount (handles race condition where
+    // WebSocket connects before this component mounts)
+    onMountCallback { ctx =>
+      // Sample the signals using the mount context owner
+      val isConnected = topicUpdates.isConnected.observe(ctx.owner).now()
+      val currentSyncState = syncState.now()
+      if isConnected && currentSyncState == SyncState.Idle then
+        println("WebSocket already connected on mount - triggering sync")
+        triggerStateSync(topicUpdates, discussionState, syncState)
+    },
     // Sync state on every connection (initial + reconnects)
     topicUpdates.connected --> Observer { (_: dom.WebSocket) =>
-      // Mark as syncing and clear stale data
-      syncState.set(SyncState.Syncing)
-      discussionState.update(state => 
-        DiscussionState(state.slots, Map.empty)
-      )
-      println("WebSocket connected - syncing state...")
-    },
-    // Fetch ticket after connection is established
-    topicUpdates.connected.flatMapSwitch { _ =>
-      fetchTicketWithRefresh()
-    } --> { (responseText: String) =>
-      responseText.fromJson[Ticket] match
-        case Right(ticket) =>
-          println("Ticket received, sending to server for state sync")
-          topicUpdates.sendOne(ticket)
-          syncState.set(SyncState.Synced)
-        case Left(parseError) =>
-          println(s"Failed to parse ticket: $parseError")
-          syncState.set(SyncState.Error("Invalid ticket response"))
+      println("WebSocket connected event - triggering sync")
+      triggerStateSync(topicUpdates, discussionState, syncState)
     },
     // Handle rejected actions by re-authenticating and retrying
     topicUpdates.received.flatMapSwitch {
