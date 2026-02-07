@@ -409,6 +409,15 @@ object FrontEnd extends App:
     div(
       cls := "PageContainer",
       topicUpdates.connect,
+      // Connection status monitoring
+      connectionStatus.bind,
+      topicUpdates.closed --> connectionStatus.closeObserver,
+      topicUpdates.connected --> connectionStatus.connectedObserver,
+      // Connection status banner (shows when disconnected/reconnecting)
+      ConnectionStatusBanner(
+        connectionStatus.state,
+        Observer(_ => topicUpdates.reconnectNow()),
+      ),
       // Popover component at top level
       // Swap action menu at top level
       child <-- swapMenuState.signal.map {
@@ -559,7 +568,7 @@ object FrontEnd extends App:
                 }
           },
           errorBanner.component,
-          NameBadge(name),
+          NameBadge(name, connectionStatus.state),
           ViewToggle(currentAppView),
           // Conditional view rendering based on current app view
           child <-- currentAppView.signal.map {
@@ -664,6 +673,7 @@ private def BannerLogo() =
 
 private def NameBadge(
   name: Var[Person],
+  connectionState: Signal[ConnectionState],
 ) =
   div(
     cls := "Banner",
@@ -676,6 +686,8 @@ private def NameBadge(
       span(
         child.text <-- name.signal.map(p => s"Logged in as: ${p.unwrap}"),
       ),
+      // Connection status indicator dot
+      ConnectionStatusIndicator.dot(connectionState),
     ),
   )
 
@@ -1632,6 +1644,9 @@ private def handleDiscussionActionConfirmed(
   }
 
 import io.laminext.websocket.*
+// WebSocket configuration constants
+private val MaxReconnectRetries = 10
+
 val topicUpdates
   : WebSocket[DiscussionActionConfirmed, WebSocketMessage] = {
   // If I don't confine the scope of it, it clashes with laminar's `span`. Weird.
@@ -1645,10 +1660,15 @@ val topicUpdates
     .build(autoReconnect = true,
            reconnectDelay = 1.second,
            reconnectDelayOffline = 20.seconds,
-           reconnectRetries = 10,
+           reconnectRetries = MaxReconnectRetries,
     )
-
 }
+
+// Connection status manager for monitoring WebSocket health
+val connectionStatus = new ConnectionStatusManager(
+  topicUpdates,
+  MaxReconnectRetries,
+)
 
 /** Fetch a ticket, automatically refreshing the access token if needed */
 def fetchTicketWithRefresh(): EventStream[String] = {

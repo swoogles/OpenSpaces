@@ -740,3 +740,150 @@
         transition: none;
     }
 }
+
+/* ============================================
+   Connection Status Indicator & Banner
+   ============================================ */
+
+/* Indicator dot (for header/nav) */
+.connection-indicator-dot {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 20px;
+    height: 20px;
+    font-size: 12px;
+    margin-left: 8px;
+    border-radius: 50%;
+    transition: color 0.3s ease, background-color 0.3s ease;
+}
+
+.connection-indicator-dot.connection-connected {
+    color: #22c55e; /* Green */
+}
+
+.connection-indicator-dot.connection-connecting,
+.connection-indicator-dot.connection-reconnecting {
+    color: #f59e0b; /* Amber */
+    animation: connection-pulse 1.5s ease-in-out infinite;
+}
+
+.connection-indicator-dot.connection-disconnected {
+    color: #ef4444; /* Red */
+}
+
+.connection-indicator-dot.connection-offline {
+    color: #6b7280; /* Gray */
+}
+
+/* Full indicator (icon + message) */
+.connection-indicator-full {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 12px;
+}
+
+.connection-indicator-full.connection-connected {
+    color: #22c55e;
+}
+
+.connection-indicator-full.connection-connecting,
+.connection-indicator-full.connection-reconnecting {
+    color: #f59e0b;
+}
+
+.connection-indicator-full.connection-disconnected {
+    color: #ef4444;
+}
+
+.connection-indicator-full.connection-offline {
+    color: #6b7280;
+}
+
+/* Connection banner (warning bar at top) */
+.connection-banner {
+    display: none; /* Hidden by default, controlled via display property */
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    padding: 10px 16px;
+    width: 100%;
+    font-size: 14px;
+    font-weight: 500;
+    box-sizing: border-box;
+}
+
+.connection-banner.connection-reconnecting {
+    background-color: #fef3c7; /* Amber-100 */
+    color: #92400e; /* Amber-800 */
+    border-bottom: 2px solid #f59e0b;
+}
+
+.connection-banner.connection-disconnected {
+    background-color: #fee2e2; /* Red-100 */
+    color: #991b1b; /* Red-800 */
+    border-bottom: 2px solid #ef4444;
+}
+
+.connection-banner.connection-offline {
+    background-color: #f3f4f6; /* Gray-100 */
+    color: #374151; /* Gray-700 */
+    border-bottom: 2px solid #6b7280;
+}
+
+.connection-banner-content {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.connection-banner-icon {
+    font-size: 16px;
+    animation: connection-pulse 1.5s ease-in-out infinite;
+}
+
+.connection-banner.connection-disconnected .connection-banner-icon,
+.connection-banner.connection-offline .connection-banner-icon {
+    animation: none;
+}
+
+.connection-banner-message {
+    flex: 1;
+}
+
+.connection-banner-retry {
+    padding: 6px 12px;
+    border: none;
+    border-radius: 4px;
+    background-color: #ef4444;
+    color: white;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background-color 0.2s ease;
+}
+
+.connection-banner-retry:hover {
+    background-color: #dc2626;
+}
+
+/* Pulse animation for connecting/reconnecting states */
+@keyframes connection-pulse {
+    0%, 100% {
+        opacity: 1;
+    }
+    50% {
+        opacity: 0.4;
+    }
+}
+
+/* Respect reduced motion preferences */
+@media (prefers-reduced-motion: reduce) {
+    .connection-indicator-dot,
+    .connection-banner-icon {
+        animation: none;
+    }
+}
