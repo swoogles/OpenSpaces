@@ -838,12 +838,16 @@ private def SingleDiscussionComponent(
               },
               SvgIcon(GlyphiconUtils.heart, "VoteIcon"),
             ),
-            span(
-              cls := s"VoteCount $heatLevel",
-              // Heat icon for accessibility (visible indicator beyond color)
-              if (votes >= 5) "🔥 " else if (votes >= 3) "♨️ " else "",
-              topic.votes.toString,
-            ),
+            if (currentFeedback.isDefined) {
+              span(
+                cls := s"VoteCount $heatLevel",
+                // Heat icon for accessibility (visible indicator beyond color)
+                if (votes >= 5) "🔥 " else if (votes >= 3) "♨️ " else "",
+                topic.votes.toString,
+              )
+            } else {
+              span(cls := "VoteCount VoteCount--hidden", "?")
+            },
             button(
               cls := (
                 if isNotInterested then
