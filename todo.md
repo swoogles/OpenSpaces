@@ -22,6 +22,8 @@
 - [ ] **Push notifications** — Alert when a session you're interested in gets scheduled
 - [ ] **Room details/maps** — Show where rooms are located (directions, floor, etc.)
 - [ ] **Facilitator contact** — Optional way to reach session facilitator
+- [ ] **Show topic creator soft limit length** — Indicate to them how much of their title will be shown by default on a card without needing to expand it. But then let them enter a longer title if they choose.
+
 
 ## Technical Debt
 

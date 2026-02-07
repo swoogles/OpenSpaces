@@ -303,7 +303,21 @@ object FrontEnd extends App:
                       errorBanner.error.toObserver,
       ),
       DiscussionSubview(
-        discussionState.signal.map(_.data.values.toList),
+        discussionState.signal.combineWith(name.signal).map {
+          case (state, currentUser) =>
+            val allTopics = state.data.values.toList
+
+            // Partition into judged (user has voted) and unjudged (user hasn't voted)
+            val (judged, unjudged) = allTopics.partition { topic =>
+              topic.interestedParties.exists(_.voter == currentUser)
+            }
+
+            // Take only the first unjudged topic (if any)
+            val firstUnjudged = unjudged.headOption.toList
+
+            // Combine: first unjudged topic + all judged topics
+            firstUnjudged ++ judged
+        },
         None,
         name.signal,
         topicUpdates.sendOne,
