@@ -14,22 +14,42 @@ Integrate OpenSpaces with Slack so that each topic automatically gets a dedicate
 | Topic schedule | Update the original Slack message with room/time. |
 | Topic delete | Post a "This topic has been cancelled" reply in the thread. |
 | Initial message content | Topic name, facilitator name, facilitator avatar, link back to app. No vote count. |
+| Schema approach | Add Slack columns directly to `discussions` table (nullable). |
+| Failure handling | Create topic immediately, queue Slack post for background retry via ZIO. |
+| Channel strategy | Single `#topic-discussion` channel for all events. |
+| Thread link visibility | Always show the link, even if no replies yet -- steer people toward Slack. |
+| Creation latency | Zero-latency: broadcast `AddResult` immediately, then send `SlackThreadLinked` once Slack responds. |
 
 ## Architecture
 
 ### Where Slack calls hook in
 
-The natural integration point is `PersistentDiscussionStore.applyAction` (or a wrapper around it). After the existing persist-and-broadcast logic succeeds, a `SlackNotifier` service fires the corresponding Slack API call. This keeps Slack as a side-effect that doesn't block or fail the core action.
+The natural integration point is `DiscussionService.handleTicketedAction`. After `applyAction` succeeds and the `AddResult` is broadcast to all WebSocket clients, a `SlackNotifier` fires the Slack API call on a background ZIO fiber. When the Slack call succeeds, a `SlackThreadLinked` message is broadcast to all clients so the link appears on topic cards.
 
 ```
-DiscussionAction
-  -> PersistentDiscussionStore.applyAction  (persist + WebSocket broadcast)
-  -> SlackNotifier.notify                   (fire-and-forget Slack API call)
+DiscussionAction.Add
+  -> PersistentDiscussionStore.applyAction   (persist + return confirmed)
+  -> broadcast AddResult to all clients      (immediate, no Slack link yet)
+  -> SlackNotifier.notify (forked fiber)
+       -> Slack API: chat.postMessage
+       -> Slack API: chat.getPermalink
+       -> persist slack_channel_id, slack_thread_ts, slack_permalink on discussions row
+       -> broadcast SlackThreadLinked(topicId, permalink) to all clients
 ```
 
-The `SlackNotifier` should be called from `DiscussionService.handleTicketedAction`, after `applyAction` succeeds and after WebSocket broadcast. This way:
-- Core logic is unaffected if Slack is down
-- The `SlackNotifier` has access to the `DiscussionActionConfirmed` result (which includes the full `Discussion` for `AddResult`)
+For other actions (rename, schedule, delete), the Slack update is purely fire-and-forget -- no new WebSocket message type needed since the Slack thread URL doesn't change.
+
+### New WebSocket message type
+
+**File:** `shared_code/shared/src/main/scala/co/wtf/openspaces/DiscussionAction.scala`
+
+Add to `DiscussionActionConfirmed`:
+
+```scala
+case SlackThreadLinked(topicId: TopicId, slackThreadUrl: String)
+```
+
+The frontend handles this by updating the `Discussion` in its local state to set `slackThreadUrl`. This means the link appears on the topic card a moment after creation, without any page reload.
 
 ### New components
 
@@ -57,14 +77,14 @@ case class SlackMessageRef(channel: String, ts: String)
 
 #### 2. `SlackNotifier` (server-side)
 
-Orchestrates which Slack action to take based on the `DiscussionActionConfirmed`. Runs as a fire-and-forget fiber so it doesn't block WebSocket broadcast.
+Orchestrates which Slack action to take based on the `DiscussionActionConfirmed`. For `AddResult`, it runs on a forked fiber and broadcasts `SlackThreadLinked` on success. For other actions, it's fire-and-forget.
 
 **File:** `server/src/main/scala/co/wtf/openspaces/slack/SlackNotifier.scala`
 
 **Handles these confirmed actions:**
 | Action | Slack behavior |
 |---|---|
-| `AddResult(discussion)` | Post new message to channel. Store resulting `ts`. Fetch permalink, store it. |
+| `AddResult(discussion)` | Post new message to channel. Store resulting `ts` + permalink on `discussions` row. Broadcast `SlackThreadLinked` to all WebSocket clients. |
 | `Rename(topicId, newTopic)` | Look up stored `ts`, call `chat.update` with new topic name. |
 | `UpdateRoomSlot(topicId, roomSlot)` | Look up stored `ts`, call `chat.update` adding room/time info. |
 | `Unschedule(topicId)` | Look up stored `ts`, call `chat.update` removing room/time info. |
@@ -73,40 +93,46 @@ Orchestrates which Slack action to take based on the `DiscussionActionConfirmed`
 
 All other actions (Vote, RemoveVote) are no-ops for Slack.
 
-#### 3. `SlackThreadRepository` (server-side)
-
-Persistence layer for the Slack thread mapping.
-
-**File:** `server/src/main/scala/co/wtf/openspaces/slack/SlackThreadRepository.scala`
-
-```scala
-trait SlackThreadRepository:
-  def save(topicId: Long, channelId: String, threadTs: String, permalink: String): Task[Unit]
-  def findByTopicId(topicId: Long): Task[Option[SlackThreadRef]]
-
-case class SlackThreadRef(channelId: String, threadTs: String, permalink: String)
-```
+The `SlackNotifier` needs access to:
+- `SlackClient` for API calls
+- `DiscussionRepository` to read/write `slack_*` columns
+- `Ref[List[OpenSpacesServerChannel]]` (the connected users ref from `DiscussionService`) to broadcast `SlackThreadLinked`
 
 ### Database changes
 
-**New migration: `V2__slack_threads.sql`**
+**New migration: `V2__slack_thread_columns.sql`**
 
 ```sql
-CREATE TABLE slack_threads (
-    topic_id BIGINT PRIMARY KEY REFERENCES discussions(id),
-    channel_id TEXT NOT NULL,
-    thread_ts TEXT NOT NULL,       -- Slack's message timestamp (unique ID)
-    permalink TEXT NOT NULL,       -- Pre-fetched deep link URL
-    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-);
-
-CREATE INDEX idx_slack_threads_topic ON slack_threads(topic_id);
+-- Add Slack thread tracking columns to discussions table.
+-- Nullable because Slack integration is optional and because
+-- the Slack post happens asynchronously after topic creation.
+ALTER TABLE discussions
+    ADD COLUMN slack_channel_id TEXT,
+    ADD COLUMN slack_thread_ts TEXT,
+    ADD COLUMN slack_permalink TEXT;
 ```
 
-Separate table rather than adding columns to `discussions` because:
-- Slack is optional -- the app should work fine without it
-- Clean separation of concerns
-- Easy to drop/rebuild without touching core data
+These columns are nullable because:
+- Slack integration is optional (local dev, tests, or environments without Slack configured)
+- The Slack post happens asynchronously -- the row exists before the Slack API responds
+- Existing rows from before the migration won't have Slack data
+
+**Update `DiscussionRepository`** to read/write these columns. Add a method:
+
+```scala
+def updateSlackThread(topicId: Long, channelId: String, threadTs: String, permalink: String): Task[Unit]
+```
+
+**Update `DiscussionRow`** to include the new fields:
+
+```scala
+case class DiscussionRow(
+  // ... existing fields ...
+  slackChannelId: Option[String],
+  slackThreadTs: Option[String],
+  slackPermalink: Option[String]
+)
+```
 
 ### Shared model changes
 
@@ -127,18 +153,17 @@ case class Discussion(
 ) derives JsonCodec
 ```
 
-This is populated when loading discussions from the database (join with `slack_threads` table). It flows to the client via WebSocket as part of `DiscussionActionConfirmed.AddResult`.
+This is populated when loading discussions from the database (from the `slack_permalink` column). It flows to the client via WebSocket as part of `DiscussionActionConfirmed.AddResult`.
 
-**Important:** Since the Slack API call is async (fire-and-forget), the `slackThreadUrl` won't be available in the initial `AddResult` broadcast. Options:
-- **Option A:** Wait for the Slack API response before broadcasting (adds latency, ~200-500ms). The Slack link appears immediately on all clients.
-- **Option B:** Broadcast `AddResult` immediately without the link. After the Slack call completes, broadcast a new `SlackThreadLinked(topicId, url)` action to all clients. The link appears after a brief delay.
-- **Recommended: Option A.** The latency is acceptable for topic creation (it's not a frequent action), and it keeps the protocol simpler. If Slack is unreachable, fall back to broadcasting without the link and retry in the background.
+On initial load, discussions that already have Slack threads will have the URL populated. For newly created topics, the URL arrives via a separate `SlackThreadLinked` message moments later.
 
 ### Frontend changes
 
 **File:** `client/src/main/scala/co/wtf/openspaces/FrontEnd.scala`
 
-In `SingleDiscussionComponent`, add a Slack link icon/button in the `SecondaryActive` area (alongside facilitator name and room slot):
+**Handle `SlackThreadLinked`:** In the WebSocket message handler, when a `SlackThreadLinked(topicId, url)` arrives, update the corresponding `Discussion` in client-side state to set its `slackThreadUrl`.
+
+**Render the link in `SingleDiscussionComponent`:** Add a Slack link icon/button in the `SecondaryActive` area (alongside facilitator name and room slot):
 
 ```scala
 // Inside the SecondaryActive div
@@ -195,12 +220,12 @@ On **rename**, the section text block is updated with the new topic name.
 
 On **schedule**, a new context element is appended:
 ```
-📍 King · 9:00-9:50
+:round_pushpin: King · 9:00-9:50
 ```
 
 On **delete**, a threaded reply is posted:
 ```
-🚫 This topic has been cancelled.
+:no_entry_sign: This topic has been cancelled.
 ```
 
 ### Configuration
@@ -230,11 +255,30 @@ When `SlackConfig` is `None`, the `SlackNotifier` becomes a no-op. This keeps th
 
 ### Error handling & retry
 
-- Slack API calls are fire-and-forget ZIO fibers
-- On failure, log a warning and schedule a retry (up to 3 attempts with exponential backoff: 1s, 5s, 15s)
-- If all retries fail, log an error but do not fail the topic action
-- The `slack_threads` row is only written after a successful Slack API response
-- If the app restarts and a discussion has no `slack_threads` row, the Slack link simply won't appear on that card (acceptable degradation)
+Slack API calls run on background ZIO fibers, completely decoupled from the topic action pipeline:
+
+- **Topic creation flow:** `applyAction` persists and broadcasts `AddResult` immediately. A ZIO fiber is forked to handle the Slack post. If it fails, ZIO's `Schedule.exponential` handles retries (up to 3 attempts: 1s, 5s, 15s backoff).
+- **On success:** The fiber writes `slack_channel_id`, `slack_thread_ts`, and `slack_permalink` to the `discussions` row, then broadcasts `SlackThreadLinked` to all connected clients.
+- **On final failure:** Log an error. The topic exists in the app without a Slack link. No user-facing error. An admin can investigate and manually retry or create the thread.
+- **On app restart:** Discussions loaded from the database will have `slackThreadUrl = None` if the Slack post never succeeded. The link simply won't appear on that card (acceptable degradation). A future enhancement could detect these orphaned rows and retry on startup.
+
+```scala
+// Pseudocode for the retry logic in SlackNotifier
+val retryPolicy = Schedule.exponential(1.second) && Schedule.recurs(2) // 1s, 2s, 4s (3 attempts total)
+
+slackClient.postMessage(channelId, blocks)
+  .retry(retryPolicy)
+  .flatMap { ref =>
+    slackClient.getPermalink(channelId, ref.ts)
+      .retry(retryPolicy)
+      .flatMap { permalink =>
+        discussionRepo.updateSlackThread(topicId, channelId, ref.ts, permalink) *>
+        broadcastSlackThreadLinked(topicId, permalink)
+      }
+  }
+  .catchAll(err => ZIO.logError(s"Slack integration failed for topic $topicId: $err"))
+  .fork // fire-and-forget
+```
 
 ### Channel lockdown
 
@@ -249,31 +293,37 @@ Document this in a setup guide. No code needed.
 
 ## Implementation order
 
-### Step 1: Database & config
-- [ ] Add `V2__slack_threads.sql` migration
+### Step 1: Shared model + WebSocket protocol
+- [ ] Add `slackThreadUrl: Option[String]` to `Discussion` (with `None` default for backward compat)
+- [ ] Add `SlackThreadLinked(topicId, slackThreadUrl)` to `DiscussionActionConfirmed`
+- [ ] Update `Discussion` companion object constructors to include `slackThreadUrl = None`
+
+### Step 2: Database & config
+- [ ] Add `V2__slack_thread_columns.sql` migration
+- [ ] Update `DiscussionRow` with nullable `slack_channel_id`, `slack_thread_ts`, `slack_permalink`
+- [ ] Add `updateSlackThread` method to `DiscussionRepository`
+- [ ] Update `PersistentDiscussionStore.loadInitialState` to populate `slackThreadUrl` from `slack_permalink`
 - [ ] Create `SlackConfig` with env var loading
 - [ ] Wire `SlackConfig` into the ZIO dependency graph as optional
 
-### Step 2: Slack client
+### Step 3: Slack client
 - [ ] Implement `SlackClient` using `zio-http` Client
 - [ ] Handle auth header (`Authorization: Bearer xoxb-...`)
 - [ ] Parse Slack API responses (they return `{"ok": true/false, ...}`)
-- [ ] Add retry logic
+- [ ] Implement Block Kit message formatting for topic creation, rename, schedule, and delete
 
-### Step 3: Slack notifier
+### Step 4: Slack notifier
 - [ ] Implement `SlackNotifier` with handlers for each action type
-- [ ] Implement `SlackThreadRepository` for persistence
-- [ ] Wire into `DiscussionService.handleTicketedAction`
-
-### Step 4: Shared model
-- [ ] Add `slackThreadUrl: Option[String]` to `Discussion`
-- [ ] Update `PersistentDiscussionStore.loadInitialState` to join with `slack_threads`
-- [ ] Update `createDiscussion` flow to call Slack before broadcasting
+- [ ] Wire retry logic using `ZIO.retry` with `Schedule.exponential`
+- [ ] On successful `AddResult` Slack post: persist Slack columns, broadcast `SlackThreadLinked`
+- [ ] Wire into `DiscussionService.handleTicketedAction` (fork after broadcast)
+- [ ] Implement no-op behavior when `SlackConfig` is `None`
 
 ### Step 5: Frontend
-- [ ] Add Slack icon asset
-- [ ] Add Slack link to `SingleDiscussionComponent`
-- [ ] Style the link
+- [ ] Add Slack icon asset (`/icons/slack.svg`)
+- [ ] Handle `SlackThreadLinked` in WebSocket message handler (update discussion state)
+- [ ] Add Slack link to `SingleDiscussionComponent` in the `SecondaryActive` area
+- [ ] Style the link (subtle icon, hover tooltip)
 
 ### Step 6: Documentation & deployment
 - [ ] Document Slack App creation steps (scopes, bot token, channel setup)
