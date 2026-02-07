@@ -639,28 +639,39 @@
 .vote-state-against {
     opacity: 0.5;
     transform: scale(0.9);
-    position: relative;
 }
 
-/* Create X using two diagonal lines */
-.vote-state-against::before,
-.vote-state-against::after {
+/* Avatar wrapper for voting state - enables pseudo-element overlays */
+.avatar-wrapper {
+    display: inline-block;
+    position: relative;
+    line-height: 0; /* Prevent extra space below img */
+}
+
+.avatar-wrapper .github-avatar {
+    display: block;
+}
+
+/* Create X using two diagonal lines on the wrapper */
+.avatar-wrapper.vote-state-against::before,
+.avatar-wrapper.vote-state-against::after {
     content: '';
     position: absolute;
     top: 50%;
     left: 50%;
     width: 90%;
     height: 3px;
-    background-color: rgba(220, 38, 38, 0.8); /* Red with some transparency */
+    background-color: rgba(220, 38, 38, 0.85); /* Red with some transparency */
     border-radius: 2px;
     pointer-events: none; /* Don't interfere with clicks */
+    z-index: 1;
 }
 
-.vote-state-against::before {
+.avatar-wrapper.vote-state-against::before {
     transform: translate(-50%, -50%) rotate(45deg);
 }
 
-.vote-state-against::after {
+.avatar-wrapper.vote-state-against::after {
     transform: translate(-50%, -50%) rotate(-45deg);
 }
 
@@ -695,8 +706,8 @@
         opacity: 0.5;
     }
     
-    .vote-state-against::before,
-    .vote-state-against::after {
+    .avatar-wrapper.vote-state-against::before,
+    .avatar-wrapper.vote-state-against::after {
         height: 4px;
         background-color: rgba(185, 28, 28, 0.95); /* Darker red for contrast */
     }

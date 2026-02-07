@@ -18,6 +18,8 @@ object GitHubAvatar {
 
   /** Creates a GitHub avatar with voting state styling and accessibility attributes.
     *
+    * Wraps the img in a span so CSS pseudo-elements (like X overlay) can be applied.
+    *
     * @param facilitator
     *   The GitHub username of the topic facilitator
     * @param votingState
@@ -33,18 +35,17 @@ object GitHubAvatar {
     topicName: String,
     additionalClasses: String = "",
   ): HtmlElement =
-    val allClasses =
-      s"github-avatar ${votingState.cssClass} $additionalClasses".trim
-    img(
-      cls := allClasses,
-      src := s"https://github.com/${facilitator.unwrap}.png?size=100",
-      alt := s"${facilitator.unwrap}'s GitHub avatar for $topicName",
-      // Accessible label combining topic name and voting state
-      aria.label := s"$topicName - ${votingState.ariaLabel}",
-      // Role for screen readers to treat as meaningful image
-      role := "img",
-      // Title for tooltip on hover (helpful for sighted users too)
-      title := s"${facilitator.unwrap} - ${votingState.ariaLabel}",
+    // Wrap in span so ::before/::after pseudo-elements work for X overlay
+    span(
+      cls := s"avatar-wrapper ${votingState.cssClass} $additionalClasses".trim,
+      img(
+        cls := "github-avatar",
+        src := s"https://github.com/${facilitator.unwrap}.png?size=100",
+        alt := s"${facilitator.unwrap}'s GitHub avatar for $topicName",
+        aria.label := s"$topicName - ${votingState.ariaLabel}",
+        role := "img",
+        title := s"${facilitator.unwrap} - ${votingState.ariaLabel}",
+      ),
     )
 
 }
