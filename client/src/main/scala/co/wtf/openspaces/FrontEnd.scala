@@ -276,7 +276,11 @@ object FrontEnd extends App:
   val discussionState: Var[DiscussionState] =
     Var(
       DiscussionState(DiscussionState.timeSlotExamples, Map.empty),
-    ) //
+    )
+
+  // Tracks state synchronization status (for reconnect handling)
+  val syncState: Var[SyncState] =
+    Var(SyncState.Idle)
 
   val errorBanner =
     ErrorBanner()
@@ -413,9 +417,10 @@ object FrontEnd extends App:
       connectionStatus.bind,
       topicUpdates.closed --> connectionStatus.closeObserver,
       topicUpdates.connected --> connectionStatus.connectedObserver,
-      // Connection status banner (shows when disconnected/reconnecting)
-      ConnectionStatusBanner(
+      // Connection status banner (shows when disconnected/reconnecting/syncing)
+      ConnectionStatusBanner.withSyncStatus(
         connectionStatus.state,
+        syncState.signal.map(_.message),
         Observer(_ => topicUpdates.reconnectNow()),
       ),
       // Popover component at top level
@@ -466,7 +471,7 @@ object FrontEnd extends App:
       if (hasAuthCookies) {
         div(
           logoutButton,
-          ticketCenter(topicUpdates),
+          ticketCenter(topicUpdates, discussionState, syncState),
           topicUpdates.received --> Observer {
             (event: DiscussionActionConfirmed) =>
               // Handle rejection feedback
@@ -1705,21 +1710,63 @@ def fetchTicketWithRefresh(): EventStream[String] = {
   }
 }
 
+/** Tracks whether state sync is in progress.
+  * Used to show UI feedback during reconnection sync.
+  */
+enum SyncState:
+  case Idle
+  case Syncing
+  case Synced
+  case Error(errorMsg: String)
+
+  /** Human-readable status message */
+  def message: String = this match
+    case Idle              => ""
+    case Syncing           => "Syncing data..."
+    case Synced            => ""
+    case Error(msg)        => s"Sync failed: $msg"
+
+  /** Whether sync is in progress */
+  def isSyncing: Boolean = this == Syncing
+
+/** Handles state synchronization on WebSocket (re)connection.
+  *
+  * When the WebSocket connects (initial or reconnect), this:
+  * 1. Clears local state to avoid stale data
+  * 2. Fetches a fresh auth ticket
+  * 3. Sends ticket to server, which responds with all current discussions
+  *
+  * This ensures the client is always in sync after any disconnection.
+  */
 def ticketCenter(
   topicUpdates: WebSocket[DiscussionActionConfirmed, WebSocketMessage],
+  discussionState: Var[DiscussionState],
+  syncState: Var[SyncState],
 ) =
   div(
-    fetchTicketWithRefresh() --> { (responseText: String) =>
-      val ticket = responseText
-        .fromJson[Ticket]
-        .getOrElse(
-          throw new Exception(
-            "Failed to parse ticket: " + responseText,
-          ),
-        )
-      println("Ticket received: " + ticket)
-      topicUpdates.sendOne(ticket)
+    // Sync state on every connection (initial + reconnects)
+    topicUpdates.connected --> Observer { (_: dom.WebSocket) =>
+      // Mark as syncing and clear stale data
+      syncState.set(SyncState.Syncing)
+      discussionState.update(state => 
+        DiscussionState(state.slots, Map.empty)
+      )
+      println("WebSocket connected - syncing state...")
     },
+    // Fetch ticket after connection is established
+    topicUpdates.connected.flatMapSwitch { _ =>
+      fetchTicketWithRefresh()
+    } --> { (responseText: String) =>
+      responseText.fromJson[Ticket] match
+        case Right(ticket) =>
+          println("Ticket received, sending to server for state sync")
+          topicUpdates.sendOne(ticket)
+          syncState.set(SyncState.Synced)
+        case Left(parseError) =>
+          println(s"Failed to parse ticket: $parseError")
+          syncState.set(SyncState.Error("Invalid ticket response"))
+    },
+    // Handle rejected actions by re-authenticating and retrying
     topicUpdates.received.flatMapSwitch {
       (event: DiscussionActionConfirmed) =>
         event match

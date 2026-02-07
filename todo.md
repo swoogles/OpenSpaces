@@ -32,5 +32,5 @@
   - [x] Connection status indicator (dot in header)
   - [x] Disconnect/reconnecting banner with retry button
   - [x] Offline detection (navigator.onLine + events)
-  - [ ] State sync on reconnect (re-fetch full state when reconnecting)
+  - [x] State sync on reconnect (re-fetch full state when reconnecting)
   - [ ] Optimistic update rollback (queue pending actions, retry or rollback)

@@ -166,7 +166,7 @@ object ConnectionStatusIndicator:
       span(cls := "connection-message", child.text <-- state.map(_.message)),
     )
 
-/** Banner component shown when connection is unhealthy */
+/** Banner component shown when connection is unhealthy or syncing */
 object ConnectionStatusBanner:
 
   /** Renders a warning banner when disconnected/reconnecting
@@ -201,5 +201,62 @@ object ConnectionStatusBanner:
           )
         case _ =>
           span()  // Empty placeholder
+      },
+    )
+
+  /** Renders a banner that shows both connection and sync status.
+    * Shows sync message when connected but syncing data.
+    *
+    * @param connectionState
+    *   Reactive signal of connection state
+    * @param syncMessage
+    *   Reactive signal of sync status message (empty when not syncing)
+    * @param onManualReconnect
+    *   Observer to trigger manual reconnection attempt
+    */
+  def withSyncStatus(
+    connectionState: Signal[ConnectionState],
+    syncMessage: Signal[String],
+    onManualReconnect: Observer[Unit],
+  ): HtmlElement =
+    val combinedMessage: Signal[String] = connectionState
+      .combineWith(syncMessage)
+      .map {
+        case (ConnectionState.Connected, sync) if sync.nonEmpty => sync
+        case (connState, _) => connState.message
+      }
+    
+    val shouldShow: Signal[Boolean] = connectionState
+      .combineWith(syncMessage)
+      .map {
+        case (connState, sync) =>
+          connState.shouldShowBanner || sync.nonEmpty
+      }
+    
+    div(
+      cls := "connection-banner",
+      cls <-- connectionState.map(_.cssClass),
+      // Also add syncing class when connected but syncing
+      cls <-- connectionState.combineWith(syncMessage).map {
+        case (ConnectionState.Connected, sync) if sync.nonEmpty => "connection-syncing"
+        case _ => ""
+      },
+      display <-- shouldShow.map(show => if show then "flex" else "none"),
+      aria.live := "assertive",
+      role := "alert",
+      div(
+        cls := "connection-banner-content",
+        span(cls := "connection-banner-icon", child.text <-- connectionState.map(_.icon)),
+        span(cls := "connection-banner-message", child.text <-- combinedMessage),
+      ),
+      child <-- connectionState.map {
+        case ConnectionState.Disconnected =>
+          button(
+            cls := "connection-banner-retry",
+            onClick.mapToUnit --> onManualReconnect,
+            "Retry",
+          )
+        case _ =>
+          span()
       },
     )

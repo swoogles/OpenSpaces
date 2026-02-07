@@ -880,6 +880,17 @@
     }
 }
 
+/* Syncing state (connected but loading data) */
+.connection-banner.connection-syncing {
+    background-color: #dbeafe; /* Blue-100 */
+    color: #1e40af; /* Blue-800 */
+    border-bottom: 2px solid #3b82f6;
+}
+
+.connection-banner.connection-syncing .connection-banner-icon {
+    animation: connection-pulse 1s ease-in-out infinite;
+}
+
 /* Respect reduced motion preferences */
 @media (prefers-reduced-motion: reduce) {
     .connection-indicator-dot,
