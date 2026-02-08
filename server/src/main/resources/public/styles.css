@@ -304,8 +304,10 @@
     border-radius: 4px;
     display: grid;
     grid-template-columns: 1fr auto;
-    grid-template-rows: auto 1fr auto;
+    grid-template-rows: auto auto auto;
     min-height: 15vh;
+    max-height: 25vh;
+    overflow: hidden;
     grid-template-areas:
         "MainActive MainActive"
         "SecondaryActive VoteColumn"
@@ -328,6 +330,11 @@
     min-width: 0;
     overflow-wrap: break-word;
     word-wrap: break-word;
+    /* Limit to ~4 lines for very long titles */
+    display: -webkit-box;
+    -webkit-line-clamp: 4;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
 }
 
 .SecondaryActive {
