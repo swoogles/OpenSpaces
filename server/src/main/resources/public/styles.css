@@ -242,7 +242,7 @@
 .container {
     display: grid;
     grid-template-columns: 1fr;
-    grid-template-rows: 28vh 1fr;
+    grid-template-rows: 25vh 1fr;
     grid-template-areas:
         "Targets"
         "Schedule";
@@ -298,7 +298,7 @@
 
 .Targets {
     grid-area: Targets;
-    height: 28vh;
+    height: 25vh;
 }
 
 .TopicCard {
@@ -306,7 +306,7 @@
     display: grid;
     grid-template-columns: 1fr auto;
     grid-template-rows: auto auto auto;
-    height: 28vh;
+    height: 25vh;
     grid-template-areas:
         "MainActive MainActive"
         "SecondaryActive VoteColumn"

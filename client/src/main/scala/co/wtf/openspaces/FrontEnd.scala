@@ -649,6 +649,12 @@ object FrontEnd extends App:
               )
             case AppView.Topics =>
               liveTopicSubmissionAndVoting(updateTargetDiscussion)
+            case AppView.More =>
+              div(
+                cls := "MoreView",
+                h2("More"),
+                p("TODO: Additional features coming soon"),
+              )
           },
         )
       } else {
@@ -1004,6 +1010,7 @@ private def DiscussionSubview(
 enum AppView:
   case Schedule
   case Topics
+  case More
 
 /** Segmented control for switching between views.
   * Modern pill-style toggle that's obvious on mobile.
@@ -1028,6 +1035,14 @@ def ViewToggle(
       },
       onClick --> Observer(_ => currentView.set(AppView.Topics)),
       "Topics",
+    ),
+    button(
+      cls <-- currentView.signal.map { view =>
+        if (view == AppView.More) "ViewToggle-button ViewToggle-button--active"
+        else "ViewToggle-button"
+      },
+      onClick --> Observer(_ => currentView.set(AppView.More)),
+      "More",
     ),
   )
 
