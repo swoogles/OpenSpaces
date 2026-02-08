@@ -870,7 +870,7 @@ private def SingleDiscussionComponent(
 //                }
           ,
           if (
-            List("bill", "emma").exists(admin =>
+            List("swoogles", "emma").exists(admin =>
               name.now().unwrap.toLowerCase().contains(admin),
             )
           )

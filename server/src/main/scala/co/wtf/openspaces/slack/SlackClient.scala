@@ -9,6 +9,7 @@ case class SlackMessageRef(channel: String, ts: String)
 trait SlackClient:
   def postMessage(channel: String, blocks: String): Task[SlackMessageRef]
   def updateMessage(channel: String, ts: String, blocks: String): Task[Unit]
+  def deleteMessage(channel: String, ts: String): Task[Unit]
   def postReply(channel: String, threadTs: String, text: String): Task[Unit]
   def getPermalink(channel: String, messageTs: String): Task[String]
 
@@ -46,6 +47,15 @@ class SlackClientLive(client: Client, config: SlackConfig) extends SlackClient:
       for
         payload <- ZIO.succeed(s"""{"channel":"$channel","ts":"$ts","blocks":$blocks}""")
         res     <- slackRequest.post("/chat.update")(Body.fromString(payload))
+        body    <- res.body.asString
+        _       <- parseSlackResponse(body)
+      yield ()
+
+  def deleteMessage(channel: String, ts: String): Task[Unit] =
+    ZIO.scoped:
+      for
+        payload <- ZIO.succeed(s"""{"channel":"$channel","ts":"$ts"}""")
+        res     <- slackRequest.post("/chat.delete")(Body.fromString(payload))
         body    <- res.body.asString
         _       <- parseSlackResponse(body)
       yield ()

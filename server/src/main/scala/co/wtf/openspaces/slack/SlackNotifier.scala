@@ -80,10 +80,10 @@ class SlackNotifierLive(
     val effect = for
       row <- discussionRepo.findById(topicId.unwrap).someOrFail(new Exception(s"Discussion $topicId not found"))
       ts  <- ZIO.fromOption(row.slackThreadTs).orElseFail(new Exception(s"No Slack thread for topic $topicId"))
-      _   <- slackClient.postReply(config.channelId, ts, ":no_entry_sign: This topic has been cancelled.")
+      _   <- slackClient.deleteMessage(config.channelId, ts)
     yield ()
 
-    effect.catchAll(err => ZIO.logError(s"Slack delete notification failed for topic $topicId: $err"))
+    effect.catchAll(err => ZIO.logError(s"Slack delete failed for topic $topicId: $err"))
 
   private def buildCreateBlocks(discussion: Discussion): String =
     val topicName = discussion.topicName.replace("\"", "\\\"")
