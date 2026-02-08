@@ -242,7 +242,7 @@
 .container {
     display: grid;
     grid-template-columns: 1fr;
-    grid-template-rows: 2fr 4fr;
+    grid-template-rows: auto 1fr;
     grid-template-areas:
         "Targets"
         "Schedule";
@@ -297,6 +297,7 @@
 
 .Targets {
     grid-area: Targets;
+    min-height: 0;
 }
 
 .TopicCard {
