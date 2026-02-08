@@ -1067,4 +1067,21 @@
     color: #a0aec0;
     text-align: center;
     font-style: italic;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    transition: all 0.2s ease;
+}
+
+.LinearEmptySlot:hover {
+    background-color: #edf2f7;
+    border-color: #4299e1;
+    color: #4299e1;
+}
+
+.LinearEmptySlot svg {
+    width: 20px;
+    height: 20px;
+    fill: currentColor;
 }

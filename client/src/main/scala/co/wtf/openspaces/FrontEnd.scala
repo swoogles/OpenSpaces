@@ -654,6 +654,7 @@ object FrontEnd extends App:
                 discussionState.signal,
                 topicUpdates.sendOne,
                 name.signal,
+                unscheduledMenuState,
               )
           },
         )
@@ -813,8 +814,6 @@ private def SingleDiscussionComponent(
 ) = {
   signal.map {
     case Some(topic) =>
-      val currentFeedback =
-        topic.interestedParties.find(_.voter == name.now())
       // Heat level based on votes (accessible: uses color + border + icon)
       val votes = topic.votes
       val heatLevel = 
@@ -825,32 +824,6 @@ private def SingleDiscussionComponent(
       
       val backgroundColorByPosition = "#C6DAD7"
 
-      val $characters: List[(String, Int)] =
-        topic.topic.unwrap.split("").zipWithIndex.toList
-
-      val isInterested =
-        currentFeedback.exists(_.position == VotePosition.Interested)
-      val isNotInterested =
-        currentFeedback.exists(
-          _.position == VotePosition.NotInterested,
-        )
-      def handleVote(
-        target: Option[VotePosition],
-      ) =
-        val voter = name.now()
-        topicUpdates(
-          DiscussionAction.RemoveVote(topic.id, voter),
-        )
-        target.foreach { position =>
-          topicUpdates(
-            DiscussionAction.Vote(
-              topic.id,
-              Feedback(voter, position),
-            ),
-          )
-        }
-
-      // import neotype.unwrap
       div(
         cls := s"TopicCard $heatLevel", // Heat level class for visual indicator
         backgroundColor := backgroundColorByPosition,
@@ -860,21 +833,7 @@ private def SingleDiscussionComponent(
         ,
         div(
           cls := "MainActive",
-          div(topic.topicName)
-
-//                children <-- $characters.splitTransition(identity) {
-//                  case (_, (character, _), _, transition) =>
-//                    val newCharacter = character match
-//                      case " " => '\u00A0'
-//                      case _ => character.charAt(0)
-//                    div(
-//                      newCharacter,
-//                      display.inlineFlex,
-//                      transition.width,
-//                      //                              transition.height
-//                    )
-//                }
-          ,
+          div(topic.topicName),
           if (
             List("swoogles", "emma").exists(admin =>
               name.now().unwrap.toLowerCase().contains(admin),
@@ -928,47 +887,7 @@ private def SingleDiscussionComponent(
         ),
         div(
           cls := "VoteColumn",
-          div(
-            cls := "VoteButtonRow",
-            button(
-              cls := (
-                if isInterested then
-                  "VoteButton VoteButton--interested VoteButton--active"
-                else "VoteButton VoteButton--interested"
-              ),
-              onClick --> Observer { _ =>
-                handleVote(
-                  if isInterested then None
-                  else Some(VotePosition.Interested),
-                )
-              },
-              SvgIcon(GlyphiconUtils.heart, "VoteIcon"),
-            ),
-            if (currentFeedback.isDefined) {
-              span(
-                cls := s"VoteCount $heatLevel",
-                // Heat icon for accessibility (visible indicator beyond color)
-                if (votes >= 5) "🔥 " else if (votes >= 3) "♨️ " else "",
-                topic.votes.toString,
-              )
-            } else {
-              span(cls := "VoteCount VoteCount--hidden", "?")
-            },
-            button(
-              cls := (
-                if isNotInterested then
-                  "VoteButton VoteButton--notinterested VoteButton--active"
-                else "VoteButton VoteButton--notinterested"
-              ),
-              onClick --> Observer { _ =>
-                handleVote(
-                  if isNotInterested then None
-                  else Some(VotePosition.NotInterested),
-                )
-              },
-              SvgIcon(GlyphiconUtils.noSymbol, "VoteIcon"),
-            ),
-          ),
+          VoteButtons(topic, name, topicUpdates),
         ),
       )
     case None =>
@@ -1014,7 +933,13 @@ def LinearScheduleView(
   $discussionState: Signal[DiscussionState],
   topicUpdates: DiscussionAction => Unit,
   name: StrictSignal[Person],
+  unscheduledMenuState: Var[Option[RoomSlot]],
 ) =
+  val showUnscheduledMenu: Observer[RoomSlot] =
+    Observer { roomSlot =>
+      unscheduledMenuState.set(Some(roomSlot))
+    }
+
   div(
     cls := "LinearScheduleView",
     children <-- $discussionState.map { state =>
@@ -1038,7 +963,10 @@ def LinearScheduleView(
                     case None =>
                       div(
                         cls := "LinearEmptySlot",
-                        "Empty slot",
+                        cursor := "pointer",
+                        onClick.stopPropagation.mapTo(roomSlot) --> showUnscheduledMenu,
+                        SvgIcon(GlyphiconUtils.plus),
+                        span("Add topic"),
                       )
                   },
                 )
@@ -1050,15 +978,73 @@ def LinearScheduleView(
     },
   )
 
+/** Reusable voting buttons component - matches the Topics view styling */
+def VoteButtons(
+  discussion: Discussion,
+  name: StrictSignal[Person],
+  topicUpdates: DiscussionAction => Unit,
+) =
+  val currentFeedback =
+    discussion.interestedParties.find(_.voter == name.now())
+  val isInterested =
+    currentFeedback.exists(_.position == VotePosition.Interested)
+  val isNotInterested =
+    currentFeedback.exists(_.position == VotePosition.NotInterested)
+  val votes = discussion.votes
+  val heatLevel = 
+    if (votes >= 5) "heat-hot"
+    else if (votes >= 3) "heat-warm"  
+    else if (votes >= 1) "heat-mild"
+    else "heat-cold"
+  
+  def handleVote(target: Option[VotePosition]) =
+    val voter = name.now()
+    topicUpdates(DiscussionAction.RemoveVote(discussion.id, voter))
+    target.foreach { position =>
+      topicUpdates(
+        DiscussionAction.Vote(discussion.id, Feedback(voter, position)),
+      )
+    }
+
+  div(
+    cls := "VoteButtonRow",
+    button(
+      cls := (
+        if isInterested then "VoteButton VoteButton--interested VoteButton--active"
+        else "VoteButton VoteButton--interested"
+      ),
+      onClick --> Observer { _ =>
+        handleVote(if isInterested then None else Some(VotePosition.Interested))
+      },
+      SvgIcon(GlyphiconUtils.heart, "VoteIcon"),
+    ),
+    if (currentFeedback.isDefined) {
+      span(
+        cls := s"VoteCount $heatLevel",
+        if (votes >= 5) "🔥 " else if (votes >= 3) "♨️ " else "",
+        votes.toString,
+      )
+    } else {
+      span(cls := "VoteCount VoteCount--hidden", "?")
+    },
+    button(
+      cls := (
+        if isNotInterested then "VoteButton VoteButton--notinterested VoteButton--active"
+        else "VoteButton VoteButton--notinterested"
+      ),
+      onClick --> Observer { _ =>
+        handleVote(if isNotInterested then None else Some(VotePosition.NotInterested))
+      },
+      SvgIcon(GlyphiconUtils.noSymbol, "VoteIcon"),
+    ),
+  )
+
 /** Simplified topic card for linear schedule view */
 def LinearTopicCard(
   discussion: Discussion,
   name: StrictSignal[Person],
   topicUpdates: DiscussionAction => Unit,
 ) =
-  val isInterested = discussion.interestedParties.exists { f =>
-    f.voter == name.now() && f.position == VotePosition.Interested
-  }
   div(
     cls := "LinearTopicCard",
     div(cls := "LinearTopicTitle", discussion.topicName),
@@ -1066,7 +1052,6 @@ def LinearTopicCard(
       cls := "LinearTopicMeta",
       GitHubAvatar(discussion.facilitator),
       span(cls := "LinearFacilitator", discussion.facilitatorName),
-      span(cls := "LinearVotes", s"${discussion.votes} votes"),
       discussion.slackThreadUrl.map { url =>
         a(href := url, target := "_blank", cls := "LinearSlackLink",
           img(src := "/icons/slack.svg", cls := "SlackIcon"))
@@ -1074,16 +1059,7 @@ def LinearTopicCard(
     ),
     div(
       cls := "LinearTopicActions",
-      button(
-        cls := (if isInterested then "LinearVoteBtn LinearVoteBtn--active" else "LinearVoteBtn"),
-        onClick --> Observer { _ =>
-          if isInterested then
-            topicUpdates(DiscussionAction.RemoveVote(discussion.id, name.now()))
-          else
-            topicUpdates(DiscussionAction.Vote(discussion.id, Feedback(name.now(), VotePosition.Interested)))
-        },
-        if isInterested then "♥" else "♡",
-      ),
+      VoteButtons(discussion, name, topicUpdates),
     ),
   )
 
