@@ -306,7 +306,7 @@
     grid-template-rows: auto auto auto;
     height: 15vh;
     grid-template-areas:
-        "MainActive VoteColumn"
+        "MainActive MainActive"
         "SecondaryActive VoteColumn"
         "ControlsActive VoteColumn";
 }
