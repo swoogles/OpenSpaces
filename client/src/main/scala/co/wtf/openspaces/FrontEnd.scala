@@ -1721,10 +1721,13 @@ val topicUpdates
       _.toJson,
       _.fromJson[DiscussionActionConfirmed].left.map(Exception(_)),
     )
-    .build(autoReconnect = true,
-           reconnectDelay = 1.second,
-           reconnectDelayOffline = 20.seconds,
-           reconnectRetries = MaxReconnectRetries,
+    .build(
+      autoReconnect = true,
+      reconnectDelay = 1.second,
+      reconnectDelayOffline = 20.seconds,
+      reconnectRetries = MaxReconnectRetries,
+      bufferWhenDisconnected = true,  // Buffer messages during brief disconnects
+      bufferSize = 10,                // Keep up to 10 pending messages
     )
 }
 
@@ -1818,6 +1821,7 @@ def triggerStateSync(
       case Right(ticket) =>
         println("Ticket received, sending to server for state sync")
         topicUpdates.sendOne(ticket)
+        // Note: Synced state is set optimistically; actual data comes via received events
         syncState.set(SyncState.Synced)
       case Left(parseError) =>
         println(s"Failed to parse ticket: $parseError")
@@ -1839,20 +1843,22 @@ def ticketCenter(
   syncState: Var[SyncState],
 ) =
   div(
-    // Check if already connected on mount (handles race condition where
-    // WebSocket connects before this component mounts)
+    // Use isConnected Signal for reliable connection detection
+    // This handles both "already connected" and "just connected" cases
+    // without race conditions from event timing
+    topicUpdates.isConnected.changes.filter(identity) --> Observer { _ =>
+      val currentSyncState = syncState.now()
+      if currentSyncState != SyncState.Syncing then
+        println("WebSocket connected (via isConnected signal) - triggering sync")
+        triggerStateSync(topicUpdates, discussionState, syncState)
+    },
+    // Also check on mount in case isConnected was already true before subscription
     onMountCallback { ctx =>
-      // Sample the signals using the mount context owner
       val isConnected = topicUpdates.isConnected.observe(ctx.owner).now()
       val currentSyncState = syncState.now()
       if isConnected && currentSyncState == SyncState.Idle then
         println("WebSocket already connected on mount - triggering sync")
         triggerStateSync(topicUpdates, discussionState, syncState)
-    },
-    // Sync state on every connection (initial + reconnects)
-    topicUpdates.connected --> Observer { (_: dom.WebSocket) =>
-      println("WebSocket connected event - triggering sync")
-      triggerStateSync(topicUpdates, discussionState, syncState)
     },
     // Handle rejected actions by re-authenticating and retrying
     topicUpdates.received.flatMapSwitch {
