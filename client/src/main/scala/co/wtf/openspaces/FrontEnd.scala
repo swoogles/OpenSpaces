@@ -650,10 +650,10 @@ object FrontEnd extends App:
             case AppView.Topics =>
               liveTopicSubmissionAndVoting(updateTargetDiscussion)
             case AppView.More =>
-              div(
-                cls := "MoreView",
-                h2("More"),
-                p("TODO: Additional features coming soon"),
+              LinearScheduleView(
+                discussionState.signal,
+                topicUpdates.sendOne,
+                name.signal,
               )
           },
         )
@@ -1005,6 +1005,86 @@ private def DiscussionSubview(
               ),
             ),
         ),
+  )
+
+/** Linear schedule view - shows full topic cards in a vertical list
+  * organized by day, time slot, and room.
+  */
+def LinearScheduleView(
+  $discussionState: Signal[DiscussionState],
+  topicUpdates: DiscussionAction => Unit,
+  name: StrictSignal[Person],
+) =
+  div(
+    cls := "LinearScheduleView",
+    children <-- $discussionState.map { state =>
+      state.slots.map { daySlot =>
+        div(
+          cls := "LinearDay",
+          div(cls := "LinearDayHeader", daySlot.date.getDayOfWeek.toString),
+          daySlot.slots.map { timeSlotForAllRooms =>
+            div(
+              cls := "LinearTimeSlot",
+              div(cls := "LinearTimeHeader", timeSlotForAllRooms.time.s),
+              timeSlotForAllRooms.rooms.map { room =>
+                val roomSlot = RoomSlot(room, timeSlotForAllRooms.time)
+                val discussion = state.roomSlotContent(roomSlot)
+                div(
+                  cls := "LinearRoomSlot",
+                  div(cls := "LinearRoomName", room.name),
+                  discussion match {
+                    case Some(disc) =>
+                      LinearTopicCard(disc, name, topicUpdates)
+                    case None =>
+                      div(
+                        cls := "LinearEmptySlot",
+                        "Empty slot",
+                      )
+                  },
+                )
+              },
+            )
+          },
+        )
+      }
+    },
+  )
+
+/** Simplified topic card for linear schedule view */
+def LinearTopicCard(
+  discussion: Discussion,
+  name: StrictSignal[Person],
+  topicUpdates: DiscussionAction => Unit,
+) =
+  val isInterested = discussion.interestedParties.exists { f =>
+    f.voter == name.now() && f.position == VotePosition.Interested
+  }
+  div(
+    cls := "LinearTopicCard",
+    div(cls := "LinearTopicTitle", discussion.topicName),
+    div(
+      cls := "LinearTopicMeta",
+      GitHubAvatar(discussion.facilitator),
+      span(cls := "LinearFacilitator", discussion.facilitatorName),
+      span(cls := "LinearVotes", s"${discussion.votes} votes"),
+      discussion.slackThreadUrl.map { url =>
+        a(href := url, target := "_blank", cls := "LinearSlackLink",
+          img(src := "/icons/slack.svg", cls := "SlackIcon"))
+      },
+    ),
+    div(
+      cls := "LinearTopicActions",
+      button(
+        cls := (if isInterested then "LinearVoteBtn LinearVoteBtn--active" else "LinearVoteBtn"),
+        onClick --> Observer { _ =>
+          if isInterested then
+            topicUpdates(DiscussionAction.RemoveVote(discussion.id, name.now()))
+          else
+            topicUpdates(DiscussionAction.Vote(discussion.id, Feedback(name.now(), VotePosition.Interested)))
+        },
+        if isInterested then "♥" else "♡",
+      ),
+    ),
   )
 
 enum AppView:
