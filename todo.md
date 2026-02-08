@@ -24,7 +24,6 @@
 - [ ] **Facilitator contact** — Optional way to reach session facilitator
 - [ ] **Show topic creator soft limit length** — Indicate to them how much of their title will be shown by default on a card without needing to expand it. But then let them enter a longer title if they choose.
 
-
 ## Technical Debt
 
 - [ ] **Configurable schedule** — Move dates/rooms/time slots to config file instead of code
@@ -34,3 +33,5 @@
   - [x] Offline detection (navigator.onLine + events)
   - [x] State sync on reconnect (re-fetch full state when reconnecting)
   - [ ] Optimistic update rollback (queue pending actions, retry or rollback)
+
+  - [ ] I have given the Slack app the channels:manage Permission. I want it to Create the channel that it plans to use. For the time being- add a `-test` to the channel name and account for that everywhere. 
