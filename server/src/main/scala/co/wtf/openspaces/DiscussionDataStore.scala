@@ -8,6 +8,9 @@ class DiscussionDataStore(
   glyphiconService: GlyphiconService) extends DiscussionStore:
   def snapshot = discussionDatabase.get
 
+  def applyConfirmed(action: DiscussionActionConfirmed): UIO[Unit] =
+    discussionDatabase.update(_.apply(action))
+
   def applyAction(
     discussionAction: DiscussionAction,
   ): UIO[DiscussionActionConfirmed] =

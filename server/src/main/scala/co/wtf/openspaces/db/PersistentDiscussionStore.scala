@@ -21,6 +21,10 @@ class PersistentDiscussionStore(
 
   def snapshot: UIO[DiscussionState] = state.get
 
+  /** Apply a confirmed action to the in-memory state (e.g., SlackThreadLinked) */
+  def applyConfirmed(action: DiscussionActionConfirmed): UIO[Unit] =
+    state.update(_.apply(action))
+
   /** Process an action: persist event, update materialized view, return confirmed action */
   def applyAction(action: DiscussionAction): Task[DiscussionActionConfirmed] =
     val actor = extractActor(action)

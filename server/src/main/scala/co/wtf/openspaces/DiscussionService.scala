@@ -58,6 +58,8 @@ case class DiscussionService(
 
   private def broadcastToAll(message: DiscussionActionConfirmed): Task[Unit] =
     defer:
+      // Update server's in-memory state (important for SlackThreadLinked)
+      discussionStore.applyConfirmed(message).run
       val channels = connectedUsers.get.run
       ZIO
         .foreachParDiscard(channels)(channel =>
