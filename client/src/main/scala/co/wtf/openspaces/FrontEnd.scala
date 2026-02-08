@@ -269,6 +269,34 @@ object MenuPositioning:
 
     (x, y)
 
+/** Preserves scroll position of the TimeSlots container across state updates.
+  * Captures scroll position before updates and restores it after DOM settles.
+  */
+object ScrollPreserver:
+  private val timeSlotsId = "time-slots-container"
+  
+  def getTimeSlotsElement: Option[dom.html.Element] =
+    Option(dom.document.getElementById(timeSlotsId))
+      .map(_.asInstanceOf[dom.html.Element])
+  
+  /** Captures current scroll position and returns a restore function */
+  def captureScrollPosition(): () => Unit =
+    getTimeSlotsElement match
+      case Some(element) =>
+        val scrollTop = element.scrollTop
+        () => {
+          // Use setTimeout to restore after DOM updates
+          window.setTimeout(
+            () => getTimeSlotsElement.foreach(_.scrollTop = scrollTop),
+            0
+          )
+        }
+      case None =>
+        () => () // No-op if element not found
+
+  /** The id attribute to add to the TimeSlots container */
+  val timeSlotsIdAttr: Modifier[HtmlElement] = idAttr := timeSlotsId
+
 object FrontEnd extends App:
   ServiceWorkerClient.registerServiceWorker()
   lazy val container = dom.document.getElementById("app")
@@ -568,6 +596,9 @@ object FrontEnd extends App:
                     }
                 case _ => ()
 
+              // Capture scroll position before state update
+              val restoreScroll = ScrollPreserver.captureScrollPosition()
+              
               discussionState
                 .update { existing =>
                   val state = existing(event)
@@ -595,6 +626,9 @@ object FrontEnd extends App:
 
                   state
                 }
+              
+              // Restore scroll position after DOM updates
+              restoreScroll()
           },
           errorBanner.component,
           NameBadge(name, connectionStatus.state),
@@ -1580,6 +1614,7 @@ def ScheduleView(
       ),
       div(
         cls := "TimeSlots",
+        ScrollPreserver.timeSlotsIdAttr,
         SlotSchedules(
           fullSchedule.signal,
           updateTargetDiscussion,
