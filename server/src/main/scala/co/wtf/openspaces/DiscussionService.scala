@@ -32,6 +32,19 @@ case class DiscussionService(
     : ZIO[Any, Throwable, DiscussionActionConfirmed] =
     discussionStore.randomDiscussionAction
 
+  /** Delete all topics using the standard delete logic (broadcasts to all clients) */
+  def deleteAllTopics: Task[Int] =
+    for
+      state <- discussionStore.snapshot
+      topicIds = state.data.keys.toList
+      _ <- ZIO.foreachDiscard(topicIds) { topicId =>
+        for
+          result <- discussionStore.applyAction(DiscussionAction.Delete(topicId))
+          _ <- broadcastToAll(result)
+        yield ()
+      }
+    yield topicIds.size
+
   private def handleTicket(
     ticket: Ticket,
     channel: OpenSpacesServerChannel,

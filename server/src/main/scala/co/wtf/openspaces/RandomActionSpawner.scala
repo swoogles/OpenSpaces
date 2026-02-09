@@ -56,6 +56,11 @@ case class RandomActionSpawner(
           _ <- setActive(false)
         yield Response.json("""{"active":false}""")
       },
+      Method.POST / "api" / "admin" / "topics" / "delete-all" -> handler {
+        discussionService.deleteAllTopics
+          .map(count => Response.json(s"""{"deleted":$count}"""))
+          .orElse(ZIO.succeed(Response.status(Status.InternalServerError)))
+      },
     )
 
 object RandomActionSpawner:

@@ -765,11 +765,12 @@ private def NameBadge(
   )
 
 /** Admin toggle for random action stream */
-private def RandomActionToggle() =
+private def AdminControls() =
   import scala.concurrent.ExecutionContext.Implicits.global
   
   val isActive: Var[Boolean] = Var(false)
-  val isLoading: Var[Boolean] = Var(false)
+  val chaosLoading: Var[Boolean] = Var(false)
+  val deleteLoading: Var[Boolean] = Var(false)
   
   // Fetch initial state on mount
   def fetchStatus(): Unit =
@@ -782,8 +783,8 @@ private def RandomActionToggle() =
           case Left(_) => ()
       }
   
-  def toggle(): Unit =
-    isLoading.set(true)
+  def toggleChaos(): Unit =
+    chaosLoading.set(true)
     dom.fetch("/api/admin/random-actions/toggle", new dom.RequestInit {
       method = dom.HttpMethod.POST
     }).toFuture
@@ -792,29 +793,55 @@ private def RandomActionToggle() =
         text.fromJson[RandomActionStatus] match
           case Right(status) => 
             isActive.set(status.active)
-            isLoading.set(false)
+            chaosLoading.set(false)
           case Left(_) => 
-            isLoading.set(false)
+            chaosLoading.set(false)
       }
+
+  def deleteAll(): Unit =
+    if dom.window.confirm("Delete ALL topics? This cannot be undone.") then
+      deleteLoading.set(true)
+      dom.fetch("/api/admin/topics/delete-all", new dom.RequestInit {
+        method = dom.HttpMethod.POST
+      }).toFuture
+        .flatMap(_.text().toFuture)
+        .foreach { _ =>
+          deleteLoading.set(false)
+        }
   
   div(
-    cls := "RandomActionToggle",
+    cls := "AdminControls",
     onMountCallback(_ => fetchStatus()),
     button(
-      cls <-- Signal.combine(isActive.signal, isLoading.signal).map { 
-        case (_, true) => "RandomActionToggle-button RandomActionToggle-button--loading"
-        case (true, _) => "RandomActionToggle-button RandomActionToggle-button--active"
-        case (false, _) => "RandomActionToggle-button"
+      cls <-- Signal.combine(isActive.signal, chaosLoading.signal).map { 
+        case (_, true) => "AdminControls-button AdminControls-button--loading"
+        case (true, _) => "AdminControls-button AdminControls-button--active"
+        case (false, _) => "AdminControls-button"
       },
-      disabled <-- isLoading.signal,
-      onClick --> { _ => toggle() },
-      child.text <-- Signal.combine(isActive.signal, isLoading.signal).map {
+      disabled <-- chaosLoading.signal,
+      onClick --> { _ => toggleChaos() },
+      child.text <-- Signal.combine(isActive.signal, chaosLoading.signal).map {
         case (_, true) => "⏳"
         case (true, _) => "🎲 Stop Chaos"
         case (false, _) => "🎲 Start Chaos"
       },
     ),
+    button(
+      cls <-- deleteLoading.signal.map { loading =>
+        if loading then "AdminControls-button AdminControls-button--danger AdminControls-button--loading"
+        else "AdminControls-button AdminControls-button--danger"
+      },
+      disabled <-- deleteLoading.signal,
+      onClick --> { _ => deleteAll() },
+      child.text <-- deleteLoading.signal.map {
+        case true => "⏳"
+        case false => "🗑️ Delete All"
+      },
+    ),
   )
+
+// Backwards compatibility alias
+private def RandomActionToggle() = AdminControls()
 
 case class RandomActionStatus(active: Boolean) derives JsonCodec
 

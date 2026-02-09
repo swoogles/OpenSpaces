@@ -719,14 +719,15 @@
     }
 }
 
-/* Random Action Toggle - Admin Control */
-.RandomActionToggle {
+/* Admin Controls */
+.AdminControls {
     display: flex;
     justify-content: center;
+    gap: 8px;
     margin: 8px 16px;
 }
 
-.RandomActionToggle-button {
+.AdminControls-button {
     padding: 8px 16px;
     border: 2px solid #cbd5e0;
     border-radius: 8px;
@@ -738,27 +739,36 @@
     transition: all 0.2s ease;
 }
 
-.RandomActionToggle-button:hover {
+.AdminControls-button:hover {
     background-color: #edf2f7;
     border-color: #a0aec0;
 }
 
-.RandomActionToggle-button--active {
-    background-color: #fed7d7;
+.AdminControls-button--active {
+    background-color: #c6f6d5;
+    border-color: #68d391;
+    color: #276749;
+}
+
+.AdminControls-button--active:hover {
+    background-color: #9ae6b4;
+}
+
+.AdminControls-button--danger {
     border-color: #fc8181;
     color: #c53030;
 }
 
-.RandomActionToggle-button--active:hover {
-    background-color: #feb2b2;
+.AdminControls-button--danger:hover {
+    background-color: #fed7d7;
 }
 
-.RandomActionToggle-button--loading {
+.AdminControls-button--loading {
     opacity: 0.6;
     cursor: wait;
 }
 
-.RandomActionToggle-button:disabled {
+.AdminControls-button:disabled {
     cursor: not-allowed;
 }
 
