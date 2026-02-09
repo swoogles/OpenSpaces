@@ -886,7 +886,7 @@ private def SingleDiscussionComponent(
         backgroundColor := backgroundColorByPosition,
         transition match
           case Some(value) => value.height
-          case None        => height("15vh")
+          case None        => cls:="not-animating-anymore"
         ,
         div(
           cls := "MainActive",
