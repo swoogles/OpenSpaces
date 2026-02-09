@@ -335,10 +335,29 @@ object FrontEnd extends App:
   def liveTopicSubmissionAndVoting(
     updateTargetDiscussion: Observer[Discussion],
   ) =
+    // Signal for counting unjudged topics
+    val $unjudgedCount = Signal.combine(
+      discussionState.signal,
+      name.signal,
+    ).map { case (state, currentUser) =>
+      state.data.values.count { topic =>
+        !topic.interestedParties.exists(_.voter == currentUser)
+      }
+    }
+
     div(
       TopicSubmission(submitNewTopic,
                       name.signal,
                       errorBanner.error.toObserver,
+      ),
+      // Counter showing remaining topics to vote on
+      div(
+        cls := "UnjudgedCounter",
+        child.text <-- $unjudgedCount.map { count =>
+          if count == 0 then "✓ You've voted on all topics!"
+          else if count == 1 then "1 topic left to vote on"
+          else s"$count topics left to vote on"
+        },
       ),
       DiscussionSubview(
         Signal.combine(

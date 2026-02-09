@@ -27,6 +27,17 @@
     gap: 10px;
 }
 
+.UnjudgedCounter {
+    text-align: center;
+    padding: 8px 16px;
+    margin: 8px 16px;
+    background-color: #e8f4f8;
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: 500;
+    color: #2c5282;
+}
+
 .TopicBody {}
 
 .AddButton {
