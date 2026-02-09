@@ -16,16 +16,11 @@ case class RandomActionSpawner(
 
   def toggle: UIO[Boolean] = activeRef.updateAndGet(!_)
 
-  def startSpawningRandomActions(
-    channel: WebSocketChannel,
-  ) =
+  def startSpawningRandomActions =
     val loop = activeRef.get.flatMap { active =>
       if active then
-        discussionService.randomDiscussionAction
+        discussionService.randomDiscussionActionBroadcast
           .debug("Random action")
-          .flatMap { action =>
-            channel.send(Read(WebSocketFrame.text(action.toJson)))
-          }
           .ignore
       else
         ZIO.unit

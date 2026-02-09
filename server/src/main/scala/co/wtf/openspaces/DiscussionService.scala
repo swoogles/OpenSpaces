@@ -32,6 +32,13 @@ case class DiscussionService(
     : ZIO[Any, Throwable, DiscussionActionConfirmed] =
     discussionStore.randomDiscussionAction
 
+  /** Generate a random action and broadcast to all connected clients */
+  def randomDiscussionActionBroadcast: Task[DiscussionActionConfirmed] =
+    for
+      action <- discussionStore.randomDiscussionAction
+      _ <- broadcastToAll(action)
+    yield action
+
   /** Delete all topics using the standard delete logic (broadcasts to all clients) */
   def deleteAllTopics: Task[Int] =
     for

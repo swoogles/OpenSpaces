@@ -24,6 +24,9 @@ object Backend extends ZIOAppDefault {
         ZIO.serviceWith[RandomActionSpawner](_.routes).run
       val allRoutes = statefulRoutes ++ socketRoutes ++ randomActionRoutes
 
+      // Start the random action spawner (runs in background, controlled via admin API)
+      ZIO.serviceWithZIO[RandomActionSpawner](_.startSpawningRandomActions).run
+
       Server
         .serve(allRoutes @@ Middleware.serveResources(Path.empty))
         .as("Just working around zio-direct limitation")
