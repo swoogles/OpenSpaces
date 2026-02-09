@@ -1051,17 +1051,20 @@ def LinearTopicCard(
     cls := "LinearTopicCard",
     div(cls := "LinearTopicTitle", discussion.topicName),
     div(
-      cls := "LinearTopicMeta",
-      GitHubAvatar(discussion.facilitator),
-      span(cls := "LinearFacilitator", discussion.facilitatorName),
-      discussion.slackThreadUrl.map { url =>
-        a(href := url, target := "_blank", cls := "LinearSlackLink",
-          img(src := "/icons/slack.svg", cls := "SlackIcon"))
-      },
-    ),
-    div(
-      cls := "LinearTopicActions",
-      VoteButtons(discussion, name, topicUpdates),
+      cls := "LinearTopicRow",
+      div(
+        cls := "LinearTopicMeta",
+        GitHubAvatar(discussion.facilitator),
+        span(cls := "LinearFacilitator", discussion.facilitatorName),
+        discussion.slackThreadUrl.map { url =>
+          a(href := url, target := "_blank", cls := "LinearSlackLink",
+            img(src := "/icons/slack.svg", cls := "SlackIcon"))
+        },
+      ),
+      div(
+        cls := "LinearTopicActions",
+        VoteButtons(discussion, name, topicUpdates),
+      ),
     ),
   )
 

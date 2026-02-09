@@ -1004,6 +1004,13 @@
     line-height: 1.3;
 }
 
+.LinearTopicRow {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+}
+
 .LinearTopicMeta {
     display: flex;
     flex-wrap: wrap;
