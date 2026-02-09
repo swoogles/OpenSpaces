@@ -21,7 +21,9 @@ case class RandomActionSpawner(
       .when(active):
         defer:
           val action =
-            discussionService.randomDiscussionAction.run
+            discussionService.randomDiscussionAction
+            .debug("Random action")
+            .run
           channel
             .send(
               Read(WebSocketFrame.text(action.toJson)),

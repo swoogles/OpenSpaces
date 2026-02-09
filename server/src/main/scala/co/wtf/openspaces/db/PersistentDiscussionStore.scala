@@ -33,21 +33,91 @@ class PersistentDiscussionStore(
   def randomDiscussionAction: Task[DiscussionActionConfirmed] =
     for
       currentState <- state.get
-      noCurrentItems = currentState.data.keys.toList.isEmpty
+      noCurrentItems = currentState.data.isEmpty
       action <- if noCurrentItems then
-        for
-          topicStr <- ZIO.succeed("Random generated topic " + java.util.UUID.randomUUID().toString.take(8))
-          topic <- ZIO.fromEither(Topic.make(topicStr)).mapError(e => new Exception(e))
-          person = Person("system")
-        yield DiscussionAction.Add(topic, person)
+        randomAddAction
       else
         for
-          idx <- Random.nextIntBounded(currentState.data.keys.size)
-          topicId = currentState.data.keys.toList(idx)
-          person = Person("system")
-        yield DiscussionAction.Vote(topicId, Feedback(person, VotePosition.Interested))
+          actionIdx <- Random.nextIntBounded(10)
+          action <- actionIdx match
+            case 0 => randomAddAction
+            // case 1 => randomDeleteAction(currentState)
+            case 1 | 2 | 3 | 4 => randomVoteAction(currentState)
+            case 5 | 6 | 7 => randomRemoveVoteAction(currentState)
+            // case 8 => randomRenameAction(currentState)
+            case 8 | 9 => randomScheduleAction(currentState)
+        yield action
       result <- applyAction(action)
     yield result
+
+  // Pool of real GitHub users for random action generation
+  private val randomUserPool: List[Person] = List(
+    Person("kitlangton"),
+    Person("jamesward"),
+    Person("BruceEckel"),
+  )
+
+  private def randomPerson: Task[Person] =
+    for
+      idx <- Random.nextIntBounded(randomUserPool.size)
+    yield randomUserPool(idx)
+
+  private def randomAddAction: Task[DiscussionAction] =
+    for
+      person <- randomPerson
+      topic <- DiscussionTopics.randomTopic
+    yield DiscussionAction.Add(topic, person)
+
+  private def randomDeleteAction(currentState: DiscussionState): Task[DiscussionAction] =
+    for
+      topicId <- randomExistingTopicId(currentState)
+    yield DiscussionAction.Delete(topicId)
+
+  private def randomVoteAction(currentState: DiscussionState): Task[DiscussionAction] =
+    for
+      topicId <- randomExistingTopicId(currentState)
+      person <- randomPerson
+    yield DiscussionAction.Vote(topicId, Feedback(person, VotePosition.Interested))
+
+  private def randomRemoveVoteAction(currentState: DiscussionState): Task[DiscussionAction] =
+    for
+      topicId <- randomExistingTopicId(currentState)
+      person <- randomPerson
+    yield DiscussionAction.RemoveVote(topicId, person)
+
+  private def randomRenameAction(currentState: DiscussionState): Task[DiscussionAction] =
+    for
+      topicId <- randomExistingTopicId(currentState)
+      newTopic <- DiscussionTopics.randomTopic
+    yield DiscussionAction.Rename(topicId, newTopic)
+
+  private def randomScheduleAction(currentState: DiscussionState): Task[DiscussionAction] =
+    for
+      topicId <- randomExistingTopicId(currentState)
+      slots = currentState.slots
+      // Find an available slot
+      availableSlot = slots
+        .flatMap(daySlot =>
+          daySlot.slots.flatMap(timeSlotForAllRooms =>
+            timeSlotForAllRooms.rooms
+              .find(room =>
+                !currentState.data.values.exists(discussion =>
+                  discussion.roomSlot.contains(RoomSlot(room, timeSlotForAllRooms.time))
+                )
+              )
+              .map(room => RoomSlot(room, timeSlotForAllRooms.time))
+          )
+        )
+        .headOption
+    yield availableSlot match
+      case Some(roomSlot) => DiscussionAction.UpdateRoomSlot(topicId, roomSlot)
+      case None => DiscussionAction.Delete(topicId) // No slots available, fall back to delete
+
+  private def randomExistingTopicId(currentState: DiscussionState): Task[TopicId] =
+    for
+      idx <- Random.nextIntBounded(currentState.data.size)
+      topicId = currentState.data.keys.toList(idx)
+    yield topicId
 
   private def applyActionWithActor(
     action: DiscussionAction,
