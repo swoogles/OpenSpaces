@@ -1190,9 +1190,8 @@ def ViewToggle(
   )
 
 def ScheduleSlotComponent(
-  timeSlot: TimeSlot,
-  room: Room,
-  $discussionState: Signal[DiscussionState],
+  roomSlot: RoomSlot,
+  $slotContent: Signal[Option[Discussion]],
   updateDiscussion: Observer[Discussion],
   $activeDiscussion: StrictSignal[Option[Discussion]],
   showPopover: Observer[Discussion],
@@ -1201,7 +1200,6 @@ def ScheduleSlotComponent(
   topicUpdates: DiscussionAction => Unit,
   name: StrictSignal[Person],
 ) =
-  val roomSlot = RoomSlot(room, timeSlot)
   // Keep unregister handle across mount/unmount
   var unregisterSlot: () => Unit = () => ()
   span(
@@ -1215,108 +1213,86 @@ def ScheduleSlotComponent(
       ,
       _ => unregisterSlot(),
     ),
-    child <-- $discussionState.map { discussionState =>
-      span(
-        child <-- $activeDiscussion.map { discussionO =>
-          discussionState.roomSlotContent(
-            roomSlot,
-          ) match
-            case Some(value) =>
-              val selectedTopicStyling =
-                if (
-                  $activeDiscussion.now().map(_.id).contains(value.id)
-                )
-                  "activeTopicIcon"
-                else ""
-              // Check if there's an active discussion that's different from this slot's topic
-              val isSwappable = discussionO.exists(active =>
-                active.id != value.id && active.roomSlot.isDefined,
-              )
+    // Combine slot content with active discussion to render appropriately
+    child <-- $slotContent.combineWith($activeDiscussion).map { case (slotContentOpt, discussionO) =>
+      slotContentOpt match
+        case Some(value) =>
+          val selectedTopicStyling =
+            if ($activeDiscussion.now().map(_.id).contains(value.id))
+              "activeTopicIcon"
+            else ""
+          // Check if there's an active discussion that's different from this slot's topic
+          val isSwappable = discussionO.exists(active =>
+            active.id != value.id && active.roomSlot.isDefined,
+          )
 
-              // Get the animated offset for this topic (if it's part of a swap)
-              val $offset =
-                SwapAnimationState.getOffsetSignal(value.id)
-              // Use spring animation for smooth movement
-              val $animatedX = $offset.map(_._1).spring
-              val $animatedY = $offset.map(_._2).spring
+          // Get the animated offset for this topic (if it's part of a swap)
+          val $offset = SwapAnimationState.getOffsetSignal(value.id)
+          // Use spring animation for smooth movement
+          val $animatedX = $offset.map(_._1).spring
+          val $animatedY = $offset.map(_._2).spring
 
-              // Calculate voting state for styling
-              val votingState =
-                VotingState.forUser(value, name.now())
+          // Calculate voting state for styling
+          val votingState = VotingState.forUser(value, name.now())
 
-              span(
-                cls := "swap-topic-icon",
-                // Apply animated transform based on swap offset
-                transform <-- $animatedX.combineWith($animatedY).map {
-                  case (x, y) =>
-                    if (x != 0.0 || y != 0.0)
-                      s"translate(${x}px, ${y}px)"
-                    else "none"
-                },
-                onClick.stopPropagation.mapTo(value) --> showPopover,
-                // Long-press to show swap menu when there's an active discussion
-                if (isSwappable)
-                  onContextMenu.preventDefault --> Observer {
-                    (event: org.scalajs.dom.MouseEvent) =>
-                      event.stopPropagation()
-                      discussionO.foreach { activeDiscussion =>
-                        showSwapMenu.onNext((activeDiscussion, value))
-                      }
-                  }
-                else emptyMod,
-                onClick.mapTo(
-                  value,
-                ) --> updateDiscussion, // TODO This is causing an unecesary update to be sent to server
-                GitHubAvatar.withVotingState(
-                  value.facilitator,
-                  votingState,
-                  value.topicName,
-                  s"filledTopic $selectedTopicStyling",
-                ),
-              )
-            case None =>
-              discussionO match
-                case Some(discussion) =>
-                  discussion.roomSlot match
-                    case Some(value)
-                        if roomSlot == value => // TODO Make this impossible
-                      GitHubAvatar(discussion.facilitator, "filledTopic")
-                    case Some(_) =>
-                      // Empty slot when active discussion is scheduled elsewhere
-                      // Click shows menu with options: move current topic, create new, or move unscheduled
-                      span(
-                        cls := "emptySlotWithActiveDiscussion",
-                        SvgIcon(GlyphiconUtils.emptySlot),
-                        onClick.stopPropagation.mapTo(
-                          roomSlot,
-                        ) --> showUnscheduledMenu,
-                      )
-                    case None =>
-                      // Empty slot when active discussion is unscheduled
-                      // Click shows menu with options: move current topic, create new, or move unscheduled
-                      span(
-                        cls := "emptySlotWithActiveDiscussion",
-                        SvgIcon(GlyphiconUtils.plus),
-                        onClick.stopPropagation.mapTo(
-                          roomSlot,
-                        ) --> showUnscheduledMenu,
-                      )
-                case None =>
-                  // Empty slot with no active discussion - show menu on click
+          span(
+            cls := "swap-topic-icon",
+            // Apply animated transform based on swap offset
+            transform <-- $animatedX.combineWith($animatedY).map {
+              case (x, y) =>
+                if (x != 0.0 || y != 0.0) s"translate(${x}px, ${y}px)"
+                else "none"
+            },
+            onClick.stopPropagation.mapTo(value) --> showPopover,
+            // Long-press to show swap menu when there's an active discussion
+            if (isSwappable)
+              onContextMenu.preventDefault --> Observer { (event: org.scalajs.dom.MouseEvent) =>
+                event.stopPropagation()
+                discussionO.foreach { activeDiscussion =>
+                  showSwapMenu.onNext((activeDiscussion, value))
+                }
+              }
+            else emptyMod,
+            onClick.mapTo(value) --> updateDiscussion,
+            GitHubAvatar.withVotingState(
+              value.facilitator,
+              votingState,
+              value.topicName,
+              s"filledTopic $selectedTopicStyling",
+            ),
+          )
+        case None =>
+          discussionO match
+            case Some(discussion) =>
+              discussion.roomSlot match
+                case Some(value) if roomSlot == value =>
+                  GitHubAvatar(discussion.facilitator, "filledTopic")
+                case Some(_) =>
+                  // Empty slot when active discussion is scheduled elsewhere
                   span(
+                    cls := "emptySlotWithActiveDiscussion",
                     SvgIcon(GlyphiconUtils.emptySlot),
-                    onClick.stopPropagation.mapTo(
-                      roomSlot,
-                    ) --> showUnscheduledMenu,
+                    onClick.stopPropagation.mapTo(roomSlot) --> showUnscheduledMenu,
                   )
-        },
-      )
+                case None =>
+                  // Empty slot when active discussion is unscheduled
+                  span(
+                    cls := "emptySlotWithActiveDiscussion",
+                    SvgIcon(GlyphiconUtils.plus),
+                    onClick.stopPropagation.mapTo(roomSlot) --> showUnscheduledMenu,
+                  )
+            case None =>
+              // Empty slot with no active discussion - show menu on click
+              span(
+                SvgIcon(GlyphiconUtils.emptySlot),
+                onClick.stopPropagation.mapTo(roomSlot) --> showUnscheduledMenu,
+              )
     },
   )
 
 def SlotSchedule(
   $discussionState: Signal[DiscussionState],
-  $timeSlotsForAllRooms: Signal[TimeSlotForAllRooms],
+  timeSlotsForAllRooms: TimeSlotForAllRooms,
   updateDiscussion: Observer[Discussion],
   activeDiscussion: StrictSignal[Option[Discussion]],
   showPopover: Observer[Discussion],
@@ -1326,30 +1302,26 @@ def SlotSchedule(
   name: StrictSignal[Person],
 ) =
   div(
-    child <--
-      $timeSlotsForAllRooms.map { timeSlotsForAllRooms =>
-        div(
-          cls := "SlotRow",
-          div(cls := "TimeOfSlot", timeSlotsForAllRooms.time.s),
-          timeSlotsForAllRooms.rooms
-            .map { room =>
-              div(
-                cls := "Cell",
-                ScheduleSlotComponent(timeSlotsForAllRooms.time,
-                                      room,
-                                      $discussionState,
-                                      updateDiscussion,
-                                      activeDiscussion,
-                                      showPopover,
-                                      showSwapMenu,
-                                      showUnscheduledMenu,
-                                      topicUpdates,
-                                      name,
-                ),
-              )
-            },
-        )
-      },
+    cls := "SlotRow",
+    div(cls := "TimeOfSlot", timeSlotsForAllRooms.time.s),
+    timeSlotsForAllRooms.rooms.map { room =>
+      val roomSlot = RoomSlot(room, timeSlotsForAllRooms.time)
+      val $slotContent = $discussionState.map(_.roomSlotContent(roomSlot))
+      div(
+        cls := "Cell",
+        ScheduleSlotComponent(
+          roomSlot,
+          $slotContent,
+          updateDiscussion,
+          activeDiscussion,
+          showPopover,
+          showSwapMenu,
+          showUnscheduledMenu,
+          topicUpdates,
+          name,
+        ),
+      )
+    },
   )
 
 case class ErrorBanner(
@@ -1801,38 +1773,39 @@ def SlotSchedules(
   topicUpdates: DiscussionAction => Unit,
   name: StrictSignal[Person],
 ) =
+  // Build the grid structure statically - slots don't change, only their content does
+  val slots = DiscussionState.timeSlotExamples
   div(
-    children <--
-      $discussionState.map(discussionState =>
-        discussionState.slots.map(daySlot =>
+    slots.map { daySlot =>
+      div(
+        div(cls := "DayHeader", daySlot.date.getDayOfWeek.toString().take(3)),
+        daySlot.slots.map { timeSlotsForAllRooms =>
           div(
-            div(cls := "DayHeader", daySlot.date.getDayOfWeek.toString().take(3)),
-            daySlot.slots.map(timeSlotsForAllRooms =>
+            cls := "SlotRow",
+            div(cls := "TimeOfSlot", timeSlotsForAllRooms.time.s),
+            timeSlotsForAllRooms.rooms.map { room =>
+              val roomSlot = RoomSlot(room, timeSlotsForAllRooms.time)
+              // Derive a signal that only emits when THIS slot's content changes
+              val $slotContent = $discussionState.map(_.roomSlotContent(roomSlot))
               div(
-                cls := "SlotRow",
-                div(cls := "TimeOfSlot", timeSlotsForAllRooms.time.s),
-                timeSlotsForAllRooms.rooms
-                  .map { room =>
-                    div(
-                      cls := "Cell",
-                      ScheduleSlotComponent(timeSlotsForAllRooms.time,
-                                            room,
-                                            $discussionState,
-                                            updateDiscussion,
-                                            activeDiscussion,
-                                            showPopover,
-                                            showSwapMenu,
-                                            showUnscheduledMenu,
-                                            topicUpdates,
-                                            name,
-                      ),
-                    )
-                  },
-              ),
-            ),
-          ),
-        ),
-      ),
+                cls := "Cell",
+                ScheduleSlotComponent(
+                  roomSlot,
+                  $slotContent,
+                  updateDiscussion,
+                  activeDiscussion,
+                  showPopover,
+                  showSwapMenu,
+                  showUnscheduledMenu,
+                  topicUpdates,
+                  name,
+                ),
+              )
+            },
+          )
+        },
+      )
+    },
   )
 
 def deleteCookie(
