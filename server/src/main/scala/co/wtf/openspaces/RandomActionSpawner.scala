@@ -19,7 +19,7 @@ case class RandomActionSpawner(
   def startSpawningRandomActions =
     val loop = activeRef.get.flatMap { active =>
       if active then
-        discussionService.randomDiscussionActionBroadcast
+        discussionService.randomDiscussionAction
           .debug("Random action")
           .ignore
       else

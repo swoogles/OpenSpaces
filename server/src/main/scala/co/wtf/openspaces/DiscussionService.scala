@@ -28,12 +28,8 @@ case class DiscussionService(
             handleUnticketedAction(channel, discussionAction).run
           }
 
-  def randomDiscussionAction
-    : ZIO[Any, Throwable, DiscussionActionConfirmed] =
-    discussionStore.randomDiscussionAction
-
   /** Generate a random action and broadcast to all connected clients */
-  def randomDiscussionActionBroadcast: Task[DiscussionActionConfirmed] =
+  def randomDiscussionAction: Task[DiscussionActionConfirmed] =
     for
       action <- discussionStore.randomDiscussionAction
       _ <- broadcastToAll(action)
