@@ -634,6 +634,7 @@ object FrontEnd extends App:
           },
           errorBanner.component,
           NameBadge(name, connectionStatus.state),
+          RandomActionToggle(),
           ViewToggle(currentAppView),
           // Conditional view rendering based on current app view
           child <-- currentAppView.signal.map {
@@ -762,6 +763,60 @@ private def NameBadge(
       ConnectionStatusIndicator.dot(connectionState),
     ),
   )
+
+/** Admin toggle for random action stream */
+private def RandomActionToggle() =
+  import scala.concurrent.ExecutionContext.Implicits.global
+  
+  val isActive: Var[Boolean] = Var(false)
+  val isLoading: Var[Boolean] = Var(false)
+  
+  // Fetch initial state on mount
+  def fetchStatus(): Unit =
+    dom.fetch("/api/admin/random-actions")
+      .toFuture
+      .flatMap(_.text().toFuture)
+      .foreach { text =>
+        text.fromJson[RandomActionStatus] match
+          case Right(status) => isActive.set(status.active)
+          case Left(_) => ()
+      }
+  
+  def toggle(): Unit =
+    isLoading.set(true)
+    dom.fetch("/api/admin/random-actions/toggle", new dom.RequestInit {
+      method = dom.HttpMethod.POST
+    }).toFuture
+      .flatMap(_.text().toFuture)
+      .foreach { text =>
+        text.fromJson[RandomActionStatus] match
+          case Right(status) => 
+            isActive.set(status.active)
+            isLoading.set(false)
+          case Left(_) => 
+            isLoading.set(false)
+      }
+  
+  div(
+    cls := "RandomActionToggle",
+    onMountCallback(_ => fetchStatus()),
+    button(
+      cls <-- Signal.combine(isActive.signal, isLoading.signal).map { 
+        case (_, true) => "RandomActionToggle-button RandomActionToggle-button--loading"
+        case (true, _) => "RandomActionToggle-button RandomActionToggle-button--active"
+        case (false, _) => "RandomActionToggle-button"
+      },
+      disabled <-- isLoading.signal,
+      onClick --> { _ => toggle() },
+      child.text <-- Signal.combine(isActive.signal, isLoading.signal).map {
+        case (_, true) => "⏳"
+        case (true, _) => "🎲 Stop Chaos"
+        case (false, _) => "🎲 Start Chaos"
+      },
+    ),
+  )
+
+case class RandomActionStatus(active: Boolean) derives JsonCodec
 
 private def TopicSubmission(
   submitEffect: Observer[DiscussionAction],

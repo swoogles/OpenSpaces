@@ -20,7 +20,9 @@ object Backend extends ZIOAppDefault {
         ZIO.serviceWith[ApplicationState](_.authRoutes).run
       val socketRoutes =
         ZIO.serviceWith[BackendSocketApp](_.socketRoutes).run
-      val allRoutes = statefulRoutes ++ socketRoutes
+      val randomActionRoutes =
+        ZIO.serviceWith[RandomActionSpawner](_.routes).run
+      val allRoutes = statefulRoutes ++ socketRoutes ++ randomActionRoutes
 
       Server
         .serve(allRoutes @@ Middleware.serveResources(Path.empty))
@@ -31,7 +33,7 @@ object Backend extends ZIOAppDefault {
       ApplicationState.layer,
       BackendSocketApp.layer,
       DiscussionService.layer,
-      RandomActionSpawner.layer(active = true),
+      RandomActionSpawner.layer(initialActive = false),
       GlyphiconService.layer,
       Client.default,
       AuthenticatedTicketService.layer,

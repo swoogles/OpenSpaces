@@ -719,6 +719,49 @@
     }
 }
 
+/* Random Action Toggle - Admin Control */
+.RandomActionToggle {
+    display: flex;
+    justify-content: center;
+    margin: 8px 16px;
+}
+
+.RandomActionToggle-button {
+    padding: 8px 16px;
+    border: 2px solid #cbd5e0;
+    border-radius: 8px;
+    background-color: #f7fafc;
+    color: #4a5568;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.RandomActionToggle-button:hover {
+    background-color: #edf2f7;
+    border-color: #a0aec0;
+}
+
+.RandomActionToggle-button--active {
+    background-color: #fed7d7;
+    border-color: #fc8181;
+    color: #c53030;
+}
+
+.RandomActionToggle-button--active:hover {
+    background-color: #feb2b2;
+}
+
+.RandomActionToggle-button--loading {
+    opacity: 0.6;
+    cursor: wait;
+}
+
+.RandomActionToggle-button:disabled {
+    cursor: not-allowed;
+}
+
 /* View Toggle - Segmented Control */
 .ViewToggle {
     display: flex;
