@@ -80,7 +80,9 @@ class SlackClientLive(client: Client, config: SlackConfig) extends SlackClient:
         body <- res.body.asString
         json <- parseSlackResponse(body)
         permalink <- extractPermalink(json)
-      yield permalink
+        // Append thread params so the link opens the thread expanded in reply mode
+        threadUrl = s"$permalink?thread_ts=$messageTs&cid=$channel"
+      yield threadUrl
 
   private def extractMessageRef(json: zio.json.ast.Json): Task[SlackMessageRef] =
     json match
