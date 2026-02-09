@@ -486,8 +486,9 @@ object FrontEnd extends App:
       child <-- unscheduledMenuState.signal
         .combineWith(discussionState.signal)
         .combineWith(activeDiscussion.signal)
+        .combineWith(currentAppView.signal)
         .map {
-          case (Some(roomSlot), discState, activeDiscussionOpt) =>
+          case (Some(roomSlot), discState, activeDiscussionOpt, view) =>
             val unscheduledDiscussions = discState.data.values
               .filter(_.roomSlot.isEmpty)
               .toList
@@ -499,6 +500,7 @@ object FrontEnd extends App:
               dismissUnscheduledMenu,
               setActiveDiscussion,
               activeDiscussionOpt,
+              view,
             )
           case _ =>
             div()
@@ -1376,6 +1378,7 @@ def UnscheduledDiscussionsMenu(
   dismissMenu: Observer[Unit],
   setActiveDiscussion: Observer[Discussion],
   activeDiscussion: Option[Discussion],
+  currentView: AppView,
 ) =
   val (x, y) = MenuPositioning.standardMenuPosition()
   val textVar = Var("")
@@ -1411,9 +1414,12 @@ def UnscheduledDiscussionsMenu(
         }
 
   // Determine if we should show the "Move current topic here" option
-  // Only show if there's an active discussion that could be moved to this slot
-  val moveCurrentTopicOption: Option[HtmlElement] = activeDiscussion.flatMap {
-    discussion =>
+  // Only show if:
+  // 1. We're on the Schedule view (where the selected topic is visible)
+  // 2. There's an active discussion that could be moved to this slot
+  val moveCurrentTopicOption: Option[HtmlElement] = 
+    if (currentView != AppView.Schedule) None
+    else activeDiscussion.flatMap { discussion =>
       // Only show if the active discussion is not already in this slot
       if (discussion.roomSlot.contains(targetRoomSlot)) None
       else
