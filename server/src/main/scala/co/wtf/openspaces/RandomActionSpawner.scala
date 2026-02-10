@@ -26,7 +26,7 @@ case class RandomActionSpawner(
         ZIO.unit
     }
     loop
-      .repeat(Schedule.spaced(500.millis) && Schedule.forever)
+      .repeat(Schedule.spaced(100.millis) && Schedule.forever)
       .forkDaemon
 
   val routes: Routes[Any, Response] =
