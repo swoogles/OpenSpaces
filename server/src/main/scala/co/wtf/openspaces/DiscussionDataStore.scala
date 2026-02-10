@@ -97,95 +97,119 @@ class DiscussionDataStore(
           discussionDatabase.updateAndGet(s => s(confirmedAction)).run
           confirmedAction
 
-  private def randomExistingTopicId =
+  /** Minimum number of topics to maintain during chaos mode.
+    * Prevents death spiral where deletions outpace creations.
+    */
+  private val MinTopicCount = 5
+
+  private def randomExistingTopicId: UIO[Option[TopicId]] =
     defer:
       val data = snapshot.run
-      val idx =
-        Random.nextIntBounded(data.data.keys.toList.length).run
-      data.data.keys.toList(idx)
+      val keys = data.data.keys.toList
+      if keys.isEmpty then
+        None
+      else
+        val idx = Random.nextIntBounded(keys.length).run
+        Some(keys(idx))
+
+  private def makeAddAction: UIO[DiscussionAction.Add] =
+    defer:
+      val person = Person("RandomPerson - " + Random.nextIntBounded(20).run)
+      DiscussionAction.Add(DiscussionTopics.randomTopic.run, person)
 
   def randomDiscussionAction =
     defer:
       val actionIdx = Random.nextIntBounded(10).run
-      val noCurrentItems = snapshot.run.data.keys.toList.isEmpty
-      val addNewDiscussion =
-        val person =
-          Person("RandomPerson - " + Random.nextIntBounded(20).run)
-        DiscussionAction.Add(
-          DiscussionTopics.randomTopic.run,
-          person,
-        )
+      val currentState = snapshot.run
+      val topicCount = currentState.data.size
+      val noCurrentItems = topicCount == 0
+      val belowMinimum = topicCount < MinTopicCount
 
-      val action =
-        if (noCurrentItems)
-          addNewDiscussion
+      val action: DiscussionAction =
+        if (noCurrentItems || belowMinimum)
+          // Always add when below minimum to prevent death spiral
+          makeAddAction.run
         else
           actionIdx match {
             case 0 =>
-              addNewDiscussion
+              makeAddAction.run
             case 1 =>
-              val id = randomExistingTopicId.run
-              DiscussionAction.Delete(id)
+              randomExistingTopicId.run match
+                case Some(id) => DiscussionAction.Delete(id)
+                case None => makeAddAction.run
             case 2 | 3 | 4 =>
-              val id = randomExistingTopicId.run
-              val person = Person(
-                "RandomPerson - " + Random.nextIntBounded(20).run,
-              )
-              DiscussionAction.Vote(
-                id,
-                Feedback(person, VotePosition.Interested),
-              )
+              randomExistingTopicId.run match
+                case Some(id) =>
+                  val person = Person(
+                    "RandomPerson - " + Random.nextIntBounded(20).run,
+                  )
+                  DiscussionAction.Vote(
+                    id,
+                    Feedback(person, VotePosition.Interested),
+                  )
+                case None => makeAddAction.run
 
             case 5 | 6 | 7 =>
-              val id = randomExistingTopicId.run
-              // TODO Ensure existing person that has voted for topic, unless it's got 0 votes
-              val person = Person(
-                "RandomPerson - " + Random.nextIntBounded(20).run,
-              )
-              DiscussionAction.RemoveVote(id, person)
+              randomExistingTopicId.run match
+                case Some(id) =>
+                  // TODO Ensure existing person that has voted for topic, unless it's got 0 votes
+                  val person = Person(
+                    "RandomPerson - " + Random.nextIntBounded(20).run,
+                  )
+                  DiscussionAction.RemoveVote(id, person)
+                case None => makeAddAction.run
             case 8 =>
-              val id = randomExistingTopicId.run
-              val newTopic = DiscussionTopics.randomTopic.run
-              DiscussionAction.Rename(id, newTopic)
+              randomExistingTopicId.run match
+                case Some(id) =>
+                  val newTopic = DiscussionTopics.randomTopic.run
+                  DiscussionAction.Rename(id, newTopic)
+                case None => makeAddAction.run
             case 9 =>
-              defer:
-                val id = randomExistingTopicId.run
-                val state = discussionDatabase.get.run
-                val slots = state.slots
-                // Find an available slot through some truly gory inline logic
-                val availableSlot =
-                  slots
-                    .flatMap(slot =>
-                      slot.slots.flatMap(timeSlotForAllRooms =>
-                        timeSlotForAllRooms.rooms
-                          .find(room =>
-                            !state.data.values.exists(discussion =>
-                              discussion.roomSlot.contains(
-                                RoomSlot(room,
-                                         timeSlotForAllRooms.time,
+              randomExistingTopicId.run match
+                case None => makeAddAction.run
+                case Some(id) =>
+                  val state = discussionDatabase.get.run
+                  val slots = state.slots
+                  // Find an available slot through some truly gory inline logic
+                  val availableSlot =
+                    slots
+                      .flatMap(slot =>
+                        slot.slots.flatMap(timeSlotForAllRooms =>
+                          timeSlotForAllRooms.rooms
+                            .find(room =>
+                              !state.data.values.exists(discussion =>
+                                discussion.roomSlot.contains(
+                                  RoomSlot(room,
+                                           timeSlotForAllRooms.time,
+                                  ),
                                 ),
                               ),
+                            )
+                            .map(room =>
+                              RoomSlot(
+                                room,
+                                timeSlotForAllRooms.time,
+                              ),
                             ),
-                          )
-                          .map(room =>
-                            RoomSlot(
-                              room,
-                              timeSlotForAllRooms.time,
-                            ),
-                          ),
-                      ),
-                    )
-                    .headOption
-                availableSlot match {
-                  case None =>
-                    DiscussionAction.Delete(id)
-                  case Some(roomSlot) =>
-                    DiscussionAction.UpdateRoomSlot(
-                      id,
-                      roomSlot,
-                    )
-                }
-              .run
+                        ),
+                      )
+                      .headOption
+                  availableSlot match {
+                    case None =>
+                      // All slots full - vote instead of deleting to avoid death spiral
+                      val person = Person(
+                        "RandomPerson - " + Random.nextIntBounded(20).run,
+                      )
+                      DiscussionAction.Vote(
+                        id,
+                        Feedback(person, VotePosition.Interested),
+                      )
+                    case Some(roomSlot) =>
+                      DiscussionAction.UpdateRoomSlot(
+                        id,
+                        roomSlot,
+                      )
+                  }
           }
       applyAction(action).run
 

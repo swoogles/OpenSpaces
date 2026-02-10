@@ -27,6 +27,10 @@ object SlotPositionTracker:
     Var(
       Map.empty,
     )
+  
+  // Timestamp of last bulk position update to throttle reflows
+  private var lastBulkUpdateMs: Double = 0
+  private val BulkUpdateThrottleMs: Double = 100 // Only refresh positions every 100ms max
 
   /** Register a slot element so we can compute its live center
     * position.
@@ -39,23 +43,37 @@ object SlotPositionTracker:
     element: dom.Element,
   ): () => Unit =
     slotElements.update(_ + (slot -> element))
-    // Capture an initial center right away
-    updateCenter(slot, element)
+    // Capture an initial center right away (only on registration, not every access)
+    updateCenterNoThrottle(slot, element)
     () =>
       slotElements.update(_ - slot)
       () // keep lastKnownCenters for fallback
 
-  /** Current center point for a slot, if its element is mounted. */
+  /** Current center point for a slot, if its element is mounted.
+    * Uses cached positions to avoid layout thrashing.
+    */
   def center(
     slot: RoomSlot,
   ): Option[(Double, Double)] =
-    slotElements
-      .now()
-      .get(slot)
-      .flatMap(el => updateCenter(slot, el))
-      .orElse(lastKnownCenters.now().get(slot))
+    // First try cached position (no reflow)
+    lastKnownCenters.now().get(slot).orElse {
+      // Only compute fresh if not cached
+      slotElements
+        .now()
+        .get(slot)
+        .flatMap(el => updateCenterNoThrottle(slot, el))
+    }
 
-  private def updateCenter(
+  /** Force refresh all slot positions. Call this sparingly (e.g., on resize). */
+  def refreshAllPositions(): Unit =
+    val now = System.currentTimeMillis().toDouble
+    if now - lastBulkUpdateMs > BulkUpdateThrottleMs then
+      lastBulkUpdateMs = now
+      slotElements.now().foreach { case (slot, element) =>
+        updateCenterNoThrottle(slot, element)
+      }
+
+  private def updateCenterNoThrottle(
     slot: RoomSlot,
     element: dom.Element,
   ): Option[(Double, Double)] =
@@ -102,6 +120,14 @@ object SwapAnimationState:
   private val animationGeneration: Var[Map[TopicId, Int]] = Var(
     Map.empty,
   )
+
+  /** Immediately clean up all animation state for a topic.
+    * Call this when a topic is deleted to prevent memory leaks.
+    */
+  def cleanupTopic(topicId: TopicId): Unit =
+    initialOffsets.update(_ - topicId)
+    animatingToZero.update(_ - topicId)
+    animationGeneration.update(_ - topicId)
 
   /** Spring animation typically needs ~600-800ms to settle */
   val cleanupDelayMs: Int = 1000
@@ -615,6 +641,9 @@ object FrontEnd extends App:
                         newRoomSlot,
                       )
                     }
+                // Clean up animation state when topics are deleted to prevent memory leaks
+                case DiscussionActionConfirmed.Delete(topicId) =>
+                  SwapAnimationState.cleanupTopic(topicId)
                 case _ => ()
 
               // Capture scroll position before state update
