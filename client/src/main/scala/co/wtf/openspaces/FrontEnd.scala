@@ -500,10 +500,26 @@ object FrontEnd extends App:
     getCookie("access_token").isDefined ||
       getCookie("access_token_expires_at").isDefined
 
+  // Used to force WebSocket reconnection by toggling the connect binder off/on.
+  // laminext's reconnectNow() only works in unmanaged mode, so we need this workaround.
+  val connectionEnabled: Var[Boolean] = Var(true)
+  
+  def forceReconnect(): Unit =
+    // Toggle connection off then on to force laminext to reinitialize
+    // with fresh retry counters
+    connectionEnabled.set(false)
+    window.setTimeout(() => connectionEnabled.set(true), 100)
+
   val app =
     div(
       cls := "PageContainer",
-      topicUpdates.connect,
+      // Conditional connect binder - toggles off/on to force reconnection
+      child <-- connectionEnabled.signal.map { enabled =>
+        if enabled then
+          div(topicUpdates.connect)
+        else
+          div() // Disconnected state - binder unmounted
+      },
       // Connection status monitoring
       connectionStatus.bind,
       topicUpdates.closed --> connectionStatus.closeObserver,
@@ -512,7 +528,7 @@ object FrontEnd extends App:
       ConnectionStatusBanner.withSyncStatus(
         connectionStatus.state,
         syncState.signal.map(_.message),
-        Observer(_ => topicUpdates.reconnectNow()),
+        Observer(_ => forceReconnect()),
       ),
       // Popover component at top level
       // Swap action menu at top level
