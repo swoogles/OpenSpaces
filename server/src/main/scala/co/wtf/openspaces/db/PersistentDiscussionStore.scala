@@ -19,6 +19,12 @@ class PersistentDiscussionStore(
   state: Ref[DiscussionState]
 ) extends DiscussionStore:
 
+  /** Maximum number of topics allowed. Protects against runaway topic creation. */
+  private val MaxTopicCount = 200
+  
+  /** Minimum number of topics to maintain during chaos mode. */
+  private val MinTopicCount = 5
+
   def snapshot: UIO[DiscussionState] = state.get
 
   /** Apply a confirmed action to the in-memory state (e.g., SlackThreadLinked) */
@@ -33,9 +39,22 @@ class PersistentDiscussionStore(
   def randomDiscussionAction: Task[DiscussionActionConfirmed] =
     for
       currentState <- state.get
-      noCurrentItems = currentState.data.isEmpty
-      action <- if noCurrentItems then
+      topicCount = currentState.data.size
+      noCurrentItems = topicCount == 0
+      belowMinimum = topicCount < MinTopicCount
+      atCapacity = topicCount >= MaxTopicCount
+      action <- if noCurrentItems || belowMinimum then
+        // Always add when below minimum to prevent death spiral
         randomAddAction
+      else if atCapacity then
+        // At capacity - only do non-add actions
+        for
+          actionIdx <- Random.nextIntBounded(8)
+          action <- actionIdx match
+            case 0 | 1 | 2 | 3 => randomVoteAction(currentState)
+            case 4 | 5 | 6 => randomRemoveVoteAction(currentState)
+            case 7 => randomScheduleAction(currentState)
+        yield action
       else
         for
           actionIdx <- Random.nextIntBounded(10)
@@ -70,30 +89,45 @@ class PersistentDiscussionStore(
 
   private def randomDeleteAction(currentState: DiscussionState): Task[DiscussionAction] =
     for
-      topicId <- randomExistingTopicId(currentState)
-    yield DiscussionAction.Delete(topicId)
+      topicIdOpt <- randomExistingTopicId(currentState)
+      person <- randomPerson
+      topic <- DiscussionTopics.randomTopic
+    yield topicIdOpt match
+      case Some(topicId) => DiscussionAction.Delete(topicId)
+      case None => DiscussionAction.Add(topic, person)
 
   private def randomVoteAction(currentState: DiscussionState): Task[DiscussionAction] =
     for
-      topicId <- randomExistingTopicId(currentState)
+      topicIdOpt <- randomExistingTopicId(currentState)
       person <- randomPerson
-    yield DiscussionAction.Vote(topicId, Feedback(person, VotePosition.Interested))
+      topic <- DiscussionTopics.randomTopic
+    yield topicIdOpt match
+      case Some(topicId) => DiscussionAction.Vote(topicId, Feedback(person, VotePosition.Interested))
+      case None => DiscussionAction.Add(topic, person)
 
   private def randomRemoveVoteAction(currentState: DiscussionState): Task[DiscussionAction] =
     for
-      topicId <- randomExistingTopicId(currentState)
+      topicIdOpt <- randomExistingTopicId(currentState)
       person <- randomPerson
-    yield DiscussionAction.RemoveVote(topicId, person)
+      topic <- DiscussionTopics.randomTopic
+    yield topicIdOpt match
+      case Some(topicId) => DiscussionAction.RemoveVote(topicId, person)
+      case None => DiscussionAction.Add(topic, person)
 
   private def randomRenameAction(currentState: DiscussionState): Task[DiscussionAction] =
     for
-      topicId <- randomExistingTopicId(currentState)
+      topicIdOpt <- randomExistingTopicId(currentState)
       newTopic <- DiscussionTopics.randomTopic
-    yield DiscussionAction.Rename(topicId, newTopic)
+      person <- randomPerson
+    yield topicIdOpt match
+      case Some(topicId) => DiscussionAction.Rename(topicId, newTopic)
+      case None => DiscussionAction.Add(newTopic, person)
 
   private def randomScheduleAction(currentState: DiscussionState): Task[DiscussionAction] =
     for
-      topicId <- randomExistingTopicId(currentState)
+      topicIdOpt <- randomExistingTopicId(currentState)
+      person <- randomPerson
+      topic <- DiscussionTopics.randomTopic
       slots = currentState.slots
       // Find an available slot
       availableSlot = slots
@@ -109,37 +143,54 @@ class PersistentDiscussionStore(
           )
         )
         .headOption
-    yield availableSlot match
-      case Some(roomSlot) => DiscussionAction.UpdateRoomSlot(topicId, roomSlot)
-      case None => DiscussionAction.Delete(topicId) // No slots available, fall back to delete
+    yield topicIdOpt match
+      case None => 
+        // No topics exist, create one
+        DiscussionAction.Add(topic, person)
+      case Some(topicId) =>
+        availableSlot match
+          case Some(roomSlot) => DiscussionAction.UpdateRoomSlot(topicId, roomSlot)
+          // No slots available - vote instead of deleting to avoid death spiral
+          case None => DiscussionAction.Vote(topicId, Feedback(person, VotePosition.Interested))
 
-  private def randomExistingTopicId(currentState: DiscussionState): Task[TopicId] =
-    for
-      idx <- Random.nextIntBounded(currentState.data.size)
-      topicId = currentState.data.keys.toList(idx)
-    yield topicId
+  private def randomExistingTopicId(currentState: DiscussionState): Task[Option[TopicId]] =
+    val keys = currentState.data.keys.toList
+    if keys.isEmpty then
+      ZIO.succeed(None)
+    else
+      for
+        idx <- Random.nextIntBounded(keys.size)
+      yield Some(keys(idx))
 
   private def applyActionWithActor(
     action: DiscussionAction,
     actor: String
   ): Task[DiscussionActionConfirmed] =
     action match
-      case DiscussionAction.Add(topic, facilitator) =>
-        for
-          _          <- ensureUserExists(actor)
-          discussion <- createDiscussion(topic, facilitator, None)
-          _          <- persistEvent("Add", discussion.id.unwrap, action.toJson, actor)
-          _          <- persistDiscussion(discussion)
-          _          <- state.update(_.apply(discussion))
-        yield DiscussionActionConfirmed.AddResult(discussion)
-
-      case DiscussionAction.AddWithRoomSlot(topic, facilitator, roomSlot) =>
+      case add @ DiscussionAction.Add(topic, facilitator) =>
         for
           _            <- ensureUserExists(actor)
           currentState <- state.get
+          atCapacity = currentState.data.size >= MaxTopicCount
+          result <- if atCapacity then
+            ZIO.succeed(DiscussionActionConfirmed.Rejected(add))
+          else
+            for
+              discussion <- createDiscussion(topic, facilitator, None)
+              _          <- persistEvent("Add", discussion.id.unwrap, action.toJson, actor)
+              _          <- persistDiscussion(discussion)
+              _          <- state.update(_.apply(discussion))
+            yield DiscussionActionConfirmed.AddResult(discussion)
+        yield result
+
+      case addWithRoom @ DiscussionAction.AddWithRoomSlot(topic, facilitator, roomSlot) =>
+        for
+          _            <- ensureUserExists(actor)
+          currentState <- state.get
+          atCapacity = currentState.data.size >= MaxTopicCount
           slotOccupied = currentState.data.values.exists(_.roomSlot.contains(roomSlot))
-          result <- if slotOccupied then
-            ZIO.succeed(DiscussionActionConfirmed.Rejected(action))
+          result <- if atCapacity || slotOccupied then
+            ZIO.succeed(DiscussionActionConfirmed.Rejected(addWithRoom))
           else
             for
               discussion <- createDiscussion(topic, facilitator, Some(roomSlot))

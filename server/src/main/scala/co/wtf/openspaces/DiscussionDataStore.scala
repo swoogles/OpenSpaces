@@ -6,6 +6,10 @@ import zio.direct.*
 class DiscussionDataStore(
   discussionDatabase: Ref[DiscussionState],
   glyphiconService: GlyphiconService) extends DiscussionStore:
+  
+  /** Maximum number of topics allowed. Protects against runaway topic creation. */
+  private val MaxTopicCount = 200
+
   def snapshot = discussionDatabase.get
 
   def applyConfirmed(action: DiscussionActionConfirmed): UIO[Unit] =
@@ -15,24 +19,28 @@ class DiscussionDataStore(
     discussionAction: DiscussionAction,
   ): UIO[DiscussionActionConfirmed] =
     discussionAction match
-      case DiscussionAction.Add(topic, facilitator) =>
-        for {
-          discussion <- createDiscussion(topic,
-                                         facilitator,
-                                         None,
-                               )
-          _ <- discussionDatabase.updateAndGet(s => s(discussion))
-        } yield DiscussionActionConfirmed.AddResult(discussion)
+      case add @ DiscussionAction.Add(topic, facilitator) =>
+        defer:
+          val currentState = discussionDatabase.get.run
+          if currentState.data.size >= MaxTopicCount then
+            DiscussionActionConfirmed.Rejected(add)
+          else
+            val discussion = createDiscussion(topic, facilitator, None).run
+            discussionDatabase.updateAndGet(s => s(discussion)).run
+            DiscussionActionConfirmed.AddResult(discussion)
+            
       case addWithRoom @ DiscussionAction.AddWithRoomSlot(topic,
                                                           facilitator,
                                                           roomSlot,
           ) =>
         defer:
           val currentState = discussionDatabase.get.run
+          val atCapacity = currentState.data.size >= MaxTopicCount
           val slotOccupied = currentState.data.values.exists(
             _.roomSlot.contains(roomSlot),
           )
-          if slotOccupied then DiscussionActionConfirmed.Rejected(addWithRoom)
+          if atCapacity || slotOccupied then 
+            DiscussionActionConfirmed.Rejected(addWithRoom)
           else
             val discussion =
               createDiscussion(topic,
