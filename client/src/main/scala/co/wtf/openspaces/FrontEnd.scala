@@ -342,6 +342,11 @@ object FrontEnd extends App:
   val lastVotedTopicId: Var[Option[TopicId]] =
     Var(None)
 
+  // Tracks all topics the user has ever voted on (monotonically grows).
+  // Used to distinguish first votes from vote changes.
+  val everVotedTopics: Var[Set[TopicId]] =
+    Var(Set.empty)
+
   val errorBanner =
     ErrorBanner()
 
@@ -645,9 +650,14 @@ object FrontEnd extends App:
                     }
                 // Track the user's most recent vote for topic ordering
                 case DiscussionActionConfirmed.Vote(topicId, feedback) =>
-                  // Only track if this is the current user's vote
-                  if feedback.voter == name.now() then
-                    lastVotedTopicId.set(Some(topicId))
+                  // Only track if this is the current user's FIRST vote on this topic
+                  // (not when changing an existing vote)
+                  val currentUser = name.now()
+                  if feedback.voter == currentUser then
+                    val isFirstVote = !everVotedTopics.now().contains(topicId)
+                    everVotedTopics.update(_ + topicId)
+                    if isFirstVote then
+                      lastVotedTopicId.set(Some(topicId))
 
                 // Also animate UpdateRoomSlot (similar to MoveTopic)
                 case DiscussionActionConfirmed.UpdateRoomSlot(
