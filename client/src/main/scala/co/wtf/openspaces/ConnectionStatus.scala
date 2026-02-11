@@ -65,10 +65,13 @@ enum ConnectionState:
   *   The laminext WebSocket instance to monitor
   * @param maxReconnectRetries
   *   Maximum number of reconnection attempts (should match WebSocket config)
+  * @param staleThresholdMs
+  *   Time in milliseconds after which a return to the page triggers reconnection (default: 1 hour)
   */
 class ConnectionStatusManager[Receive, Send](
   ws: WebSocket[Receive, Send],
   maxReconnectRetries: Int = 10,
+  staleThresholdMs: Double = 60 * 60 * 1000, // 1 hour default
 ):
   // Track reconnection attempts
   private val reconnectAttemptVar: Var[Int] = Var(0)
@@ -76,21 +79,54 @@ class ConnectionStatusManager[Receive, Send](
   // Track if device is online
   private val isOnlineVar: Var[Boolean] = Var(dom.window.navigator.onLine)
 
+  // Track when page was last hidden (for stale detection)
+  private var lastHiddenTime: Option[Double] = None
+  
+  // Callback for when user returns after being away too long
+  private var onStaleReturnCallback: Option[() => Unit] = None
+  
+  /** Set a callback to be invoked when user returns after stale threshold */
+  def onStaleReturn(callback: => Unit): Unit =
+    onStaleReturnCallback = Some(() => callback)
+
   // Set up online/offline event listeners
   private val onlineHandler: scalajs.js.Function1[dom.Event, Unit] = _ => isOnlineVar.set(true)
   private val offlineHandler: scalajs.js.Function1[dom.Event, Unit] = _ => isOnlineVar.set(false)
+  
+  // Visibility change handler - detect stale returns
+  private val visibilityHandler: scalajs.js.Function1[dom.Event, Unit] = _ =>
+    if dom.document.visibilityState == "hidden" then
+      lastHiddenTime = Some(System.currentTimeMillis().toDouble)
+    else if dom.document.visibilityState == "visible" then
+      lastHiddenTime.foreach { hiddenTime =>
+        val awayDuration = System.currentTimeMillis().toDouble - hiddenTime
+        if awayDuration > staleThresholdMs then
+          println(s"User returned after ${(awayDuration / 1000 / 60).toInt} minutes - triggering reconnect")
+          onStaleReturnCallback.foreach(_())
+      }
+      lastHiddenTime = None
+  
+  // Handle bfcache restoration (page was frozen/restored)
+  private val pageshowHandler: scalajs.js.Function1[dom.PageTransitionEvent, Unit] = event =>
+    if event.persisted then
+      println("Page restored from bfcache - triggering reconnect")
+      onStaleReturnCallback.foreach(_())
 
-  /** Binder to attach online/offline listeners to the DOM lifecycle */
+  /** Binder to attach online/offline/visibility listeners to the DOM lifecycle */
   def bind[El <: ReactiveElement.Base]: Binder[El] =
     (element: El) =>
       ReactiveElement.bindSubscriptionUnsafe(element) { ctx =>
         dom.window.addEventListener("online", onlineHandler)
         dom.window.addEventListener("offline", offlineHandler)
+        dom.document.addEventListener("visibilitychange", visibilityHandler)
+        dom.window.addEventListener("pageshow", pageshowHandler)
         new com.raquo.airstream.ownership.Subscription(
           ctx.owner,
           cleanup = () => {
             dom.window.removeEventListener("online", onlineHandler)
             dom.window.removeEventListener("offline", offlineHandler)
+            dom.document.removeEventListener("visibilitychange", visibilityHandler)
+            dom.window.removeEventListener("pageshow", pageshowHandler)
           }
         )
       }

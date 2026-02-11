@@ -509,6 +509,9 @@ object FrontEnd extends App:
     // with fresh retry counters
     connectionEnabled.set(false)
     window.setTimeout(() => connectionEnabled.set(true), 100)
+  
+  // Trigger reconnect when user returns after being away for a while
+  connectionStatus.onStaleReturn(forceReconnect())
 
   val app =
     div(
