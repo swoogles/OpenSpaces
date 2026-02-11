@@ -1015,9 +1015,8 @@ private def TopicSubmission(
 private def SingleDiscussionComponent(
   name: StrictSignal[Person],
   topicUpdates: DiscussionAction => Unit,
-  updateTargetDiscussion: Observer[Discussion],
   signal: Signal[Option[Discussion]],
-  transition: Option[Transition],
+  transition: Option[Transition] = None,
   iconModifiers: Seq[Modifier[HtmlElement]] = Seq.empty,
 ) = {
   signal.map {
@@ -1131,7 +1130,6 @@ private def DiscussionSubview(
               child <-- SingleDiscussionComponent(
                 name,
                 topicUpdates,
-                updateTargetDiscussion,
                 signal.map(Some(_)),
                 Some(transition),
               ),
@@ -1172,7 +1170,13 @@ def LinearScheduleView(
                   div(cls := "LinearRoomName", room.name),
                   discussion match {
                     case Some(disc) =>
-                      LinearTopicCard(disc, name, topicUpdates)
+                      div(
+                        child <-- SingleDiscussionComponent(
+                          name,
+                          topicUpdates,
+                          Signal.fromValue(Some(disc)),
+                        ),
+                      )
                     case None =>
                       div(
                         cls := "LinearEmptySlot",
@@ -1247,41 +1251,6 @@ def VoteButtons(
         handleVote(VotePosition.NotInterested)
       },
       SvgIcon(GlyphiconUtils.noSymbol, "VoteIcon"),
-    ),
-  )
-
-/** Simplified topic card for linear schedule view */
-def LinearTopicCard(
-  discussion: Discussion,
-  name: StrictSignal[Person],
-  topicUpdates: DiscussionAction => Unit,
-) =
-  // Background color based on the user's personal vote
-  val currentUserFeedback = discussion.interestedParties.find(_.voter == name.now())
-  val backgroundColorByPosition = currentUserFeedback match
-    case Some(feedback) if feedback.position == VotePosition.Interested => "#d4edda"    // green - interested
-    case Some(feedback) if feedback.position == VotePosition.NotInterested => "#e2e3e5" // gray - not interested
-    case _ => "#f8f9fa"                                                                  // neutral - no vote
-
-  div(
-    cls := "LinearTopicCard",
-    backgroundColor := backgroundColorByPosition,
-    div(cls := "LinearTopicTitle", discussion.topicName),
-    div(
-      cls := "LinearTopicRow",
-      div(
-        cls := "LinearTopicMeta",
-        GitHubAvatar(discussion.facilitator),
-        span(cls := "LinearFacilitator", discussion.facilitatorName),
-        discussion.slackThreadUrl.map { url =>
-          a(href := url, target := "_blank", cls := "LinearSlackLink",
-            img(src := "/icons/slack.svg", cls := "SlackIcon"))
-        },
-      ),
-      div(
-        cls := "LinearTopicActions",
-        VoteButtons(discussion, name, topicUpdates),
-      ),
     ),
   )
 
@@ -1872,9 +1841,7 @@ def ScheduleView(
         child <-- SingleDiscussionComponent(
           name,
           topicUpdates,
-          updateTargetDiscussion,
           activeDiscussion.signal,
-          None,
           iconModifiers = Seq(handleActiveDiscussionLongPress),
         ),
       ),
