@@ -1213,3 +1213,117 @@
     height: 20px;
     fill: currentColor;
 }
+
+/* ========================================
+   Swipe-to-Vote Components
+   ======================================== */
+
+.SwipeableCardContainer {
+    position: relative;
+    overflow: hidden;
+    border-radius: 4px;
+    touch-action: pan-y; /* Allow vertical scroll, capture horizontal */
+}
+
+.SwipeableCardContent {
+    position: relative;
+    z-index: 2;
+    user-select: none;
+    cursor: grab;
+}
+
+.SwipeableCardContent:active {
+    cursor: grabbing;
+}
+
+.SwipeableCardContent--animating {
+    transition: transform 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+}
+
+/* Reveal backgrounds that show during swipe */
+.SwipeReveal {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    pointer-events: none;
+    z-index: 1;
+    transition: opacity 0.1s ease;
+}
+
+.SwipeReveal--left {
+    left: 0;
+    background: linear-gradient(90deg, #e2e8f0 0%, #edf2f7 100%);
+    justify-content: flex-end;
+    padding-right: 20px;
+}
+
+.SwipeReveal--right {
+    right: 0;
+    background: linear-gradient(270deg, #c6f6d5 0%, #d4edda 100%);
+    justify-content: flex-start;
+    padding-left: 20px;
+}
+
+.SwipeRevealIcon {
+    font-size: 2.5rem;
+    opacity: 0.9;
+    transition: transform 0.15s ease;
+}
+
+.SwipeReveal--left .SwipeRevealIcon {
+    color: #718096;
+}
+
+.SwipeReveal--right .SwipeRevealIcon {
+    color: #38a169;
+}
+
+/* Threshold indicators - subtle lines that appear near commit point */
+.SwipeThresholdIndicator {
+    position: absolute;
+    top: 8px;
+    bottom: 8px;
+    width: 3px;
+    border-radius: 2px;
+    pointer-events: none;
+    z-index: 3;
+    transition: opacity 0.1s ease;
+}
+
+.SwipeThresholdIndicator--left {
+    left: 35%;
+    background-color: #a0aec0;
+}
+
+.SwipeThresholdIndicator--right {
+    right: 35%;
+    background-color: #68d391;
+}
+
+/* Visual feedback when past threshold */
+.SwipeableCardContainer[data-past-threshold="true"] .SwipeableCardContent {
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+/* Prevent text selection during swipe */
+.SwipeableCardContainer * {
+    -webkit-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
+    user-select: none;
+}
+
+/* Re-enable text selection for actual text content */
+.SwipeableCardContainer .MainActive,
+.SwipeableCardContainer .FacilitatorName,
+.SwipeableCardContainer .RoomSlot {
+    -webkit-user-select: text;
+    -moz-user-select: text;
+    -ms-user-select: text;
+    user-select: text;
+    pointer-events: none; /* But don't let it interfere with swipe */
+}
