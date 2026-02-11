@@ -724,10 +724,10 @@ object FrontEnd extends App:
           NameBadge(name, connectionStatus.state),
           // Admin controls (only visible when admin AND admin mode enabled)
           AdminControls(isAdmin.combineWith(adminModeEnabled.signal).map { case (admin, enabled) => admin && enabled }),
-          ViewToggle(currentAppView, isAdmin),
+          ViewToggle(currentAppView, adminModeEnabled.signal),
           // Conditional view rendering based on current app view
           child <-- currentAppView.signal.map {
-            case AppView.Schedule =>
+            case AppView.Admin =>
               ScheduleView(
                 discussionState,
                 activeDiscussion,
@@ -741,7 +741,7 @@ object FrontEnd extends App:
               )
             case AppView.Topics =>
               liveTopicSubmissionAndVoting(updateTargetDiscussion)
-            case AppView.More =>
+            case AppView.Schedule =>
               LinearScheduleView(
                 discussionState.signal,
                 topicUpdates.sendOne,
@@ -1286,30 +1286,30 @@ def LinearTopicCard(
   )
 
 enum AppView:
-  case Schedule
+  case Admin
   case Topics
-  case More
+  case Schedule
 
 /** Segmented control for switching between views.
   * Modern pill-style toggle that's obvious on mobile.
-  * Schedule tab is only visible to admins.
+  * Admin tab is only visible when admin mode is enabled.
   */
 def ViewToggle(
   currentView: Var[AppView],
-  isAdmin: Signal[Boolean],
+  adminModeEnabled: Signal[Boolean],
 ) =
   div(
     cls := "ViewToggle",
-    // Schedule button - admin only
-    child.maybe <-- isAdmin.map { admin =>
-      Option.when(admin)(
+    // Admin button - only when admin mode is enabled
+    child.maybe <-- adminModeEnabled.map { enabled =>
+      Option.when(enabled)(
         button(
           cls <-- currentView.signal.map { view =>
-            if (view == AppView.Schedule) "ViewToggle-button ViewToggle-button--active"
+            if (view == AppView.Admin) "ViewToggle-button ViewToggle-button--active"
             else "ViewToggle-button"
           },
-          onClick --> Observer(_ => currentView.set(AppView.Schedule)),
-          "Schedule",
+          onClick --> Observer(_ => currentView.set(AppView.Admin)),
+          "Admin",
         )
       )
     },
@@ -1323,11 +1323,11 @@ def ViewToggle(
     ),
     button(
       cls <-- currentView.signal.map { view =>
-        if (view == AppView.More) "ViewToggle-button ViewToggle-button--active"
+        if (view == AppView.Schedule) "ViewToggle-button ViewToggle-button--active"
         else "ViewToggle-button"
       },
-      onClick --> Observer(_ => currentView.set(AppView.More)),
-      "More",
+      onClick --> Observer(_ => currentView.set(AppView.Schedule)),
+      "Schedule",
     ),
   )
 
@@ -1614,10 +1614,10 @@ def UnscheduledDiscussionsMenu(
 
   // Determine if we should show the "Move current topic here" option
   // Only show if:
-  // 1. We're on the Schedule view (where the selected topic is visible)
+  // 1. We're on the Admin view (where the selected topic is visible)
   // 2. There's an active discussion that could be moved to this slot
   val moveCurrentTopicOption: Option[HtmlElement] = 
-    if (currentView != AppView.Schedule) None
+    if (currentView != AppView.Admin) None
     else activeDiscussion.flatMap { discussion =>
       // Only show if the active discussion is not already in this slot
       if (discussion.roomSlot.contains(targetRoomSlot)) None
