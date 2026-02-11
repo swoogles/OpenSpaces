@@ -17,6 +17,31 @@
     border-radius: 50%;
 }
 
+/* User profile section in banner */
+.UserProfileSection {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding-right: 12px;
+}
+
+.ProfileIconButton {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    padding: 2px;
+    transition: box-shadow 0.2s ease, transform 0.1s ease;
+}
+
+.ProfileIconButton:hover {
+    box-shadow: 0 0 0 3px rgba(74, 144, 217, 0.3);
+}
+
+.ProfileIconButton:active {
+    transform: scale(0.95);
+}
+
 .Flex {
     display: flex;
     gap: 20px;

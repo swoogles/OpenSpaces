@@ -491,18 +491,6 @@ object FrontEnd extends App:
       activeDiscussion.set(Some(discussion))
   }
 
-  val logoutButton = div(
-    button(
-      onClick --> Observer { _ =>
-        deleteCookie("access_token")
-        deleteCookie("access_token_expires_at")
-        deleteCookie("github_username")
-        window.location.reload()
-      },
-      "Logout",
-    ),
-  )
-
   val dismissSwapMenu: Observer[Unit] =
     Observer { _ =>
       swapMenuState.set(None)
@@ -604,7 +592,6 @@ object FrontEnd extends App:
       },
       if (hasAuthCookies) {
         div(
-          logoutButton,
           ticketCenter(topicUpdates, discussionState, syncState),
           topicUpdates.received --> Observer {
             (event: DiscussionActionConfirmed) =>
@@ -857,12 +844,26 @@ private def NameBadge(
         role := "img",
     ),
     div(
-      cls := "NameDisplay",
-      span(
-        child.text <-- name.signal.map(p => s"Logged in as: ${p.unwrap}"),
-      ),
+      cls := "UserProfileSection",
       // Connection status indicator dot
       ConnectionStatusIndicator.dot(connectionState),
+      // Profile icon - click to logout
+      span(
+        cls := "ProfileIconButton",
+        title := "Click to logout",
+        cursor := "pointer",
+        child <-- name.signal.map { person =>
+          GitHubAvatar(person, "github-avatar")
+        },
+        onClick --> Observer { _ =>
+          if (dom.window.confirm("Log out?")) {
+            deleteCookie("access_token")
+            deleteCookie("access_token_expires_at")
+            deleteCookie("github_username")
+            dom.window.location.reload()
+          }
+        },
+      ),
     ),
   )
 
