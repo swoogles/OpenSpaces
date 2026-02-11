@@ -970,7 +970,12 @@ private def SingleDiscussionComponent(
         else if (votes >= 1) "heat-mild"
         else "heat-cold"
       
-      val backgroundColorByPosition = "#C6DAD7"
+      // Background color based on the user's personal vote
+      val currentUserFeedback = topic.interestedParties.find(_.voter == name.now())
+      val backgroundColorByPosition = currentUserFeedback match
+        case Some(feedback) if feedback.position == VotePosition.Interested => "#d4edda"    // green - interested
+        case Some(feedback) if feedback.position == VotePosition.NotInterested => "#e2e3e5" // gray - not interested
+        case _ => "#f8f9fa"                                                                  // neutral - no vote
 
       div(
         cls := s"TopicCard $heatLevel", // Heat level class for visual indicator
