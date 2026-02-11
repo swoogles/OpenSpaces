@@ -441,7 +441,14 @@ object FrontEnd extends App:
 
   // Current app view (Schedule or Topics)
   val currentAppView: Var[AppView] =
-    Var(AppView.Schedule)
+    Var(AppView.Topics)
+  
+  // Admin check - only admins can see Schedule view
+  val isAdmin: Signal[Boolean] = name.signal.map { person =>
+    List("swoogles", "emma").exists(admin =>
+      person.unwrap.toLowerCase().contains(admin)
+    )
+  }
 
   val updateTargetDiscussion: Observer[Discussion] =
     Observer[Discussion] { discussion =>
@@ -702,7 +709,7 @@ object FrontEnd extends App:
           errorBanner.component,
           NameBadge(name, connectionStatus.state),
           RandomActionToggle(),
-          ViewToggle(currentAppView),
+          ViewToggle(currentAppView, isAdmin),
           // Conditional view rendering based on current app view
           child <-- currentAppView.signal.map {
             case AppView.Schedule =>
@@ -1237,20 +1244,27 @@ enum AppView:
 
 /** Segmented control for switching between views.
   * Modern pill-style toggle that's obvious on mobile.
+  * Schedule tab is only visible to admins.
   */
 def ViewToggle(
   currentView: Var[AppView],
+  isAdmin: Signal[Boolean],
 ) =
   div(
     cls := "ViewToggle",
-    button(
-      cls <-- currentView.signal.map { view =>
-        if (view == AppView.Schedule) "ViewToggle-button ViewToggle-button--active"
-        else "ViewToggle-button"
-      },
-      onClick --> Observer(_ => currentView.set(AppView.Schedule)),
-      "Schedule",
-    ),
+    // Schedule button - admin only
+    child.maybe <-- isAdmin.map { admin =>
+      Option.when(admin)(
+        button(
+          cls <-- currentView.signal.map { view =>
+            if (view == AppView.Schedule) "ViewToggle-button ViewToggle-button--active"
+            else "ViewToggle-button"
+          },
+          onClick --> Observer(_ => currentView.set(AppView.Schedule)),
+          "Schedule",
+        )
+      )
+    },
     button(
       cls <-- currentView.signal.map { view =>
         if (view == AppView.Topics) "ViewToggle-button ViewToggle-button--active"
