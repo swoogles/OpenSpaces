@@ -781,6 +781,29 @@
     cursor: not-allowed;
 }
 
+/* Admin Mode Toggle */
+.AdminModeToggle {
+    display: flex;
+    justify-content: flex-end;
+    padding: 4px 16px;
+    background-color: #fef3c7;
+    border-bottom: 1px solid #f59e0b;
+}
+
+.AdminModeToggle-label {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 12px;
+    font-weight: 600;
+    color: #92400e;
+    cursor: pointer;
+}
+
+.AdminModeToggle-label input {
+    cursor: pointer;
+}
+
 /* View Toggle - Segmented Control */
 .ViewToggle {
     display: flex;

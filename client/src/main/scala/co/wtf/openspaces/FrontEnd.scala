@@ -448,12 +448,22 @@ object FrontEnd extends App:
   val currentAppView: Var[AppView] =
     Var(AppView.Topics)
   
-  // Admin check - only admins can see Schedule view
+  // Admin check - only admins can see admin controls
   val isAdmin: Signal[Boolean] = name.signal.map { person =>
     List("swoogles", "emma").exists(admin =>
       person.unwrap.toLowerCase().contains(admin)
     )
   }
+
+  // Admin mode toggle - when false, admins see the normal user view
+  val adminModeEnabled: Var[Boolean] = Var(
+    localStorage.getItem("adminModeEnabled") == "true"
+  )
+  
+  // Persist admin mode preference
+  adminModeEnabled.signal.foreach { enabled =>
+    localStorage.setItem("adminModeEnabled", enabled.toString)
+  }(unsafeWindowOwner)
 
   val updateTargetDiscussion: Observer[Discussion] =
     Observer[Discussion] { discussion =>
@@ -722,8 +732,11 @@ object FrontEnd extends App:
               restoreScroll()
           },
           errorBanner.component,
+          // Admin mode toggle at the very top (only visible to admins)
+          AdminModeToggle(isAdmin, adminModeEnabled),
           NameBadge(name, connectionStatus.state),
-          RandomActionToggle(),
+          // Admin controls (only visible when admin AND admin mode enabled)
+          AdminControls(isAdmin.combineWith(adminModeEnabled.signal).map { case (admin, enabled) => admin && enabled }),
           ViewToggle(currentAppView, isAdmin),
           // Conditional view rendering based on current app view
           child <-- currentAppView.signal.map {
@@ -853,8 +866,30 @@ private def NameBadge(
     ),
   )
 
-/** Admin toggle for random action stream */
-private def AdminControls() =
+/** Admin mode toggle - shows at very top, only for admins */
+private def AdminModeToggle(
+  $isAdmin: Signal[Boolean],
+  adminModeEnabled: Var[Boolean],
+) =
+  div(
+    cls := "AdminModeToggle",
+    // Only show for admins
+    display <-- $isAdmin.map(if _ then "flex" else "none"),
+    label(
+      cls := "AdminModeToggle-label",
+      input(
+        typ := "checkbox",
+        checked <-- adminModeEnabled.signal,
+        onChange.mapToChecked --> adminModeEnabled,
+      ),
+      span("Admin Mode"),
+    ),
+  )
+
+/** Admin controls - chaos button and delete all */
+private def AdminControls(
+  $showAdminControls: Signal[Boolean],
+) =
   import scala.concurrent.ExecutionContext.Implicits.global
   
   val isActive: Var[Boolean] = Var(false)
@@ -900,6 +935,8 @@ private def AdminControls() =
   
   div(
     cls := "AdminControls",
+    // Only show when admin mode is active
+    display <-- $showAdminControls.map(if _ then "flex" else "none"),
     onMountCallback(_ => fetchStatus()),
     button(
       cls <-- Signal.combine(isActive.signal, chaosLoading.signal).map { 
@@ -928,9 +965,6 @@ private def AdminControls() =
       },
     ),
   )
-
-// Backwards compatibility alias
-private def RandomActionToggle() = AdminControls()
 
 case class RandomActionStatus(active: Boolean) derives JsonCodec
 
