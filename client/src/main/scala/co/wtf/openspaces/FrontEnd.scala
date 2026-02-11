@@ -1201,8 +1201,16 @@ def LinearTopicCard(
   name: StrictSignal[Person],
   topicUpdates: DiscussionAction => Unit,
 ) =
+  // Background color based on the user's personal vote
+  val currentUserFeedback = discussion.interestedParties.find(_.voter == name.now())
+  val backgroundColorByPosition = currentUserFeedback match
+    case Some(feedback) if feedback.position == VotePosition.Interested => "#d4edda"    // green - interested
+    case Some(feedback) if feedback.position == VotePosition.NotInterested => "#e2e3e5" // gray - not interested
+    case _ => "#f8f9fa"                                                                  // neutral - no vote
+
   div(
     cls := "LinearTopicCard",
+    backgroundColor := backgroundColorByPosition,
     div(cls := "LinearTopicTitle", discussion.topicName),
     div(
       cls := "LinearTopicRow",
