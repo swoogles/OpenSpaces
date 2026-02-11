@@ -39,11 +39,12 @@ case class DiscussionState(
         }
       case DiscussionActionConfirmed.Delete(topicId) =>
         data.filterNot(_._2.id == topicId)
-      case DiscussionActionConfirmed.Vote(topicId, voter) =>
+      case DiscussionActionConfirmed.Vote(topicId, newFeedback) =>
+        // Upsert: remove any existing vote from this voter, then add the new vote
         data.updatedWith(topicId) {
           _.map(value =>
             value.copy(interestedParties =
-              value.interestedParties + voter,
+              value.interestedParties.filterNot(_.voter == newFeedback.voter) + newFeedback,
             ),
           )
         }
