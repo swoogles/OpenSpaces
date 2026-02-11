@@ -680,6 +680,11 @@ object FrontEnd extends App:
                 // Clean up animation state when topics are deleted to prevent memory leaks
                 case DiscussionActionConfirmed.Delete(topicId) =>
                   SwapAnimationState.cleanupTopic(topicId)
+                // Initialize everVotedTopics from loaded discussions (on page load/reconnect)
+                case DiscussionActionConfirmed.AddResult(discussion) =>
+                  val currentUser = name.now()
+                  if discussion.interestedParties.exists(_.voter == currentUser) then
+                    everVotedTopics.update(_ + discussion.id)
                 case _ => ()
 
               // Capture scroll position before state update
