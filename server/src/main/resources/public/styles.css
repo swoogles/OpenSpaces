@@ -1054,8 +1054,7 @@
 .LinearScheduleView {
     padding: 16px;
     padding-top: 0;
-    overflow-y: auto;
-    max-height: calc(100vh - 200px);
+    /* No overflow/max-height - let page scroll naturally so sticky headers stick to viewport top */
 }
 
 .LinearDay {
