@@ -410,8 +410,8 @@ object FrontEnd extends App:
             case None =>
               (Nil, judged)
 
-          // Combine: first unjudged + just-voted topic + other judged topics
-          firstUnjudged ++ lastVoted ++ otherJudged
+          // Combine: first unjudged + just-voted topic + other judged topics (sorted by ID for stability)
+          firstUnjudged ++ lastVoted ++ otherJudged.sortBy(_.id.unwrap)
         },
         None,
         name.signal,
@@ -1160,14 +1160,13 @@ def VoteButtons(
     else if (votes >= 1) "heat-mild"
     else "heat-cold"
   
-  def handleVote(target: Option[VotePosition]) =
+  def handleVote(target: VotePosition) =
     val voter = name.now()
-    topicUpdates(DiscussionAction.RemoveVote(discussion.id, voter))
-    target.foreach { position =>
-      topicUpdates(
-        DiscussionAction.Vote(discussion.id, Feedback(voter, position)),
-      )
-    }
+    val currentPosition = currentFeedback.map(_.position)
+    // Only update if switching to a different position (no going back to neutral)
+    if !currentPosition.contains(target) then
+      topicUpdates(DiscussionAction.RemoveVote(discussion.id, voter))
+      topicUpdates(DiscussionAction.Vote(discussion.id, Feedback(voter, target)))
 
   div(
     cls := "VoteButtonRow",
@@ -1177,7 +1176,7 @@ def VoteButtons(
         else "VoteButton VoteButton--interested"
       ),
       onClick --> Observer { _ =>
-        handleVote(if isInterested then None else Some(VotePosition.Interested))
+        handleVote(VotePosition.Interested)
       },
       SvgIcon(GlyphiconUtils.heart, "VoteIcon"),
     ),
@@ -1196,7 +1195,7 @@ def VoteButtons(
         else "VoteButton VoteButton--notinterested"
       ),
       onClick --> Observer { _ =>
-        handleVote(if isNotInterested then None else Some(VotePosition.NotInterested))
+        handleVote(VotePosition.NotInterested)
       },
       SvgIcon(GlyphiconUtils.noSymbol, "VoteIcon"),
     ),
