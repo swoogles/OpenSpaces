@@ -41,7 +41,7 @@ class SlackNotifierLive(
       case DiscussionActionConfirmed.SwapTopics(topic1, newSlot1, topic2, newSlot2) =>
         (handleUpdateRoomSlot(topic1, Some(newSlot1)) *> handleUpdateRoomSlot(topic2, Some(newSlot2))).fork.unit
 
-      case _ => ZIO.unit // Vote, RemoveVote, SlackThreadLinked, Rejected are no-ops
+      case _ => ZIO.unit // Vote, SlackThreadLinked, Rejected are no-ops
 
   private def handleAdd(discussion: Discussion, broadcast: DiscussionActionConfirmed => Task[Unit]): Task[Unit] =
     val blocks = buildCreateBlocks(discussion)

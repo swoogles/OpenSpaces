@@ -160,11 +160,13 @@ class DiscussionDataStore(
             case 5 | 6 | 7 =>
               randomExistingTopicId.run match
                 case Some(id) =>
-                  // TODO Ensure existing person that has voted for topic, unless it's got 0 votes
                   val person = Person(
                     "RandomPerson - " + Random.nextIntBounded(20).run,
                   )
-                  DiscussionAction.RemoveVote(id, person)
+                  DiscussionAction.Vote(
+                    id,
+                    Feedback(person, VotePosition.NotInterested),
+                  )
                 case None => makeAddAction.run
             case 8 =>
               randomExistingTopicId.run match

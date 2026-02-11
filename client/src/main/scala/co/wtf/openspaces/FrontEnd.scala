@@ -1174,7 +1174,6 @@ def VoteButtons(
     val voter = name.now()
     val currentPosition = currentFeedback.map(_.position)
     // Only update if switching to a different position (no going back to neutral)
-    // Vote now handles upsert - no need to send RemoveVote first
     if !currentPosition.contains(target) then
       topicUpdates(DiscussionAction.Vote(discussion.id, Feedback(voter, target)))
 
@@ -1924,8 +1923,6 @@ private def handleDiscussionActionConfirmed(
     case DiscussionActionConfirmed.Delete(topic) =>
       (Some(topic), true)
     case DiscussionActionConfirmed.Vote(topic, _) =>
-      (Some(topic), false)
-    case DiscussionActionConfirmed.RemoveVote(topic, _) =>
       (Some(topic), false)
     case DiscussionActionConfirmed.Rename(topicId, _) =>
       (Some(topicId), false)

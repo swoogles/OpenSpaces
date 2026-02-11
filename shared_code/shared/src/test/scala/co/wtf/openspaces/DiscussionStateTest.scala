@@ -52,31 +52,6 @@ object DiscussionStateTest extends ZIOSpecDefault:
           )
           assertTrue(res == expected),
       ),
-      suite("RemoveVote")(
-        test("existing vote"):
-          val res =
-            originalState(
-              DiscussionAction.RemoveVote(discussion.id, testUser1),
-            )
-          val expected = DiscussionState(
-            discussion.copy(
-              interestedParties = Set(),
-            ),
-          )
-          assertTrue(res == expected)
-        ,
-        test("non-existent vote"):
-          val res =
-            originalState(
-              DiscussionAction.RemoveVote(discussion.id, testUser2),
-            )
-          val expected = DiscussionState(
-            discussion.copy(
-              interestedParties = Set(testUser1),
-            ),
-          )
-          assertTrue(res == expected),
-      ),
       suite("Add discussion")(
         test("new discussion"):
           val newDiscussion =

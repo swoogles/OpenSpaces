@@ -52,7 +52,7 @@ class PersistentDiscussionStore(
           actionIdx <- Random.nextIntBounded(8)
           action <- actionIdx match
             case 0 | 1 | 2 | 3 => randomVoteAction(currentState)
-            case 4 | 5 | 6 => randomRemoveVoteAction(currentState)
+            case 4 | 5 | 6 => randomNotInterestedVoteAction(currentState)
             case 7 => randomScheduleAction(currentState)
         yield action
       else
@@ -62,7 +62,7 @@ class PersistentDiscussionStore(
             case 0 => randomAddAction
             // case 1 => randomDeleteAction(currentState)
             case 1 | 2 | 3 | 4 => randomVoteAction(currentState)
-            case 5 | 6 | 7 => randomRemoveVoteAction(currentState)
+            case 5 | 6 | 7 => randomNotInterestedVoteAction(currentState)
             // case 8 => randomRenameAction(currentState)
             case 8 | 9 => randomScheduleAction(currentState)
         yield action
@@ -105,13 +105,13 @@ class PersistentDiscussionStore(
       case Some(topicId) => DiscussionAction.Vote(topicId, Feedback(person, VotePosition.Interested))
       case None => DiscussionAction.Add(topic, person)
 
-  private def randomRemoveVoteAction(currentState: DiscussionState): Task[DiscussionAction] =
+  private def randomNotInterestedVoteAction(currentState: DiscussionState): Task[DiscussionAction] =
     for
       topicIdOpt <- randomExistingTopicId(currentState)
       person <- randomPerson
       topic <- DiscussionTopics.randomTopic
     yield topicIdOpt match
-      case Some(topicId) => DiscussionAction.RemoveVote(topicId, person)
+      case Some(topicId) => DiscussionAction.Vote(topicId, Feedback(person, VotePosition.NotInterested))
       case None => DiscussionAction.Add(topic, person)
 
   private def randomRenameAction(currentState: DiscussionState): Task[DiscussionAction] =
@@ -242,16 +242,9 @@ class PersistentDiscussionStore(
           _ <- ensureUserExists(actor)
           confirmed = DiscussionActionConfirmed.fromDiscussionAction(action)
           _ <- persistEvent("Vote", topicId.unwrap, action.toJson, actor)
-          _ <- updateDiscussionParties(topicId, parties => parties + feedback)
-          _ <- state.update(_.apply(confirmed))
-        yield confirmed
-
-      case DiscussionAction.RemoveVote(topicId, voter) =>
-        for
-          _ <- ensureUserExists(actor)
-          confirmed = DiscussionActionConfirmed.fromDiscussionAction(action)
-          _ <- persistEvent("RemoveVote", topicId.unwrap, action.toJson, actor)
-          _ <- updateDiscussionParties(topicId, parties => parties.filterNot(_.voter == voter))
+          // Upsert: remove any existing vote from this voter, then add the new vote
+          _ <- updateDiscussionParties(topicId, parties => 
+            parties.filterNot(_.voter == feedback.voter) + feedback)
           _ <- state.update(_.apply(confirmed))
         yield confirmed
 
@@ -377,7 +370,6 @@ class PersistentDiscussionStore(
       case DiscussionAction.AddWithRoomSlot(_, facilitator, _) => facilitator.unwrap
       case DiscussionAction.Delete(_)                        => "system" // TODO: track who deleted
       case DiscussionAction.Vote(_, feedback)                => feedback.voter.unwrap
-      case DiscussionAction.RemoveVote(_, voter)             => voter.unwrap
       case DiscussionAction.Rename(_, _)                     => "system" // TODO: track who renamed
       case DiscussionAction.UpdateRoomSlot(_, _)             => "system" // TODO: track who scheduled
       case DiscussionAction.Unschedule(_)                    => "system"

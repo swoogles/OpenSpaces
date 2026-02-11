@@ -48,14 +48,6 @@ case class DiscussionState(
             ),
           )
         }
-      case DiscussionActionConfirmed.RemoveVote(topicId, voter) =>
-        data.updatedWith(topicId) {
-          _.map(value =>
-            value.copy(interestedParties =
-              value.interestedParties.filterNot(_.voter == voter),
-            ),
-          )
-        }
       case DiscussionActionConfirmed.Rename(topicId, newTopic) =>
         data.updatedWith(topicId) {
           _.map(value => value.copy(topic = newTopic))
