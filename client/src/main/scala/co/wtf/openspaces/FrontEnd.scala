@@ -1296,10 +1296,6 @@ private def SingleDiscussionComponent(
             case None => span()
           },
         ),
-        div(
-          cls := "VoteColumn",
-          VoteButtons(topic, name, topicUpdates),
-        ),
       )
       
       // Wrap with swipe functionality if enabled
