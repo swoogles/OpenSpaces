@@ -2277,12 +2277,11 @@ def triggerStateSync(
     println("Sync already in progress, skipping")
     return
   
-  // Mark as syncing and clear stale data (only on first attempt)
+  // Mark as syncing but keep existing data visible
+  // Data will be updated/added via AddResult messages
+  // Note: Deleted topics may briefly persist until full state is received
   if retryCount == 0 then
     syncState.set(SyncState.Syncing)
-    discussionState.update(state => 
-      DiscussionState(state.slots, Map.empty)
-    )
   println(s"Triggering state sync (attempt ${retryCount + 1}/$MaxRetries)...")
   
   // Check if WebSocket is actually connected
