@@ -1327,3 +1327,47 @@
     user-select: text;
     pointer-events: none; /* But don't let it interfere with swipe */
 }
+
+/* ========================================
+   Persistent Vote Indicator (left edge of card)
+   ======================================== */
+
+.VoteIndicator {
+    position: absolute;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    width: 28px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.1rem;
+    border-radius: 4px 0 0 4px;
+    transition: opacity 0.3s ease, background-color 0.3s ease;
+}
+
+.VoteIndicator--interested {
+    background-color: rgba(56, 161, 105, 0.15);
+    color: #38a169;
+}
+
+.VoteIndicator--notinterested {
+    background-color: rgba(113, 128, 150, 0.15);
+    color: #718096;
+}
+
+.VoteIndicator--none {
+    opacity: 0;
+    pointer-events: none;
+}
+
+/* Adjust TopicCard to make room for the indicator */
+.TopicCard {
+    position: relative;
+    padding-left: 32px !important;
+}
+
+/* When inside swipeable container, let it handle positioning */
+.SwipeableCardContent .TopicCard {
+    padding-left: 32px !important;
+}

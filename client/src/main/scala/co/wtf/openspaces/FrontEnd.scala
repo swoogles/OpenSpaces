@@ -1218,6 +1218,12 @@ private def SingleDiscussionComponent(
         case Some(feedback) if feedback.position == VotePosition.Interested => "#d4edda"    // green - interested
         case Some(feedback) if feedback.position == VotePosition.NotInterested => "#e2e3e5" // gray - not interested
         case _ => "#f8f9fa"                                                                  // neutral - no vote
+      
+      // Persistent vote indicator icon class
+      val voteIndicatorClass = currentUserFeedback match
+        case Some(feedback) if feedback.position == VotePosition.Interested => "VoteIndicator VoteIndicator--interested"
+        case Some(feedback) if feedback.position == VotePosition.NotInterested => "VoteIndicator VoteIndicator--notinterested"
+        case _ => "VoteIndicator VoteIndicator--none"
 
       val cardContent = div(
         cls := s"TopicCard $heatLevel", // Heat level class for visual indicator
@@ -1226,6 +1232,14 @@ private def SingleDiscussionComponent(
           case Some(value) => value.height
           case None        => cls:="not-animating-anymore"
         ,
+        // Persistent vote indicator on left edge
+        div(
+          cls := voteIndicatorClass,
+          currentUserFeedback match
+            case Some(feedback) if feedback.position == VotePosition.Interested => "♥"
+            case Some(feedback) if feedback.position == VotePosition.NotInterested => "✗"
+            case _ => ""
+        ),
         div(
           cls := "MainActive",
           div(topic.topicName),
