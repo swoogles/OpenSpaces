@@ -1219,11 +1219,9 @@ private def SingleDiscussionComponent(
         case Some(feedback) if feedback.position == VotePosition.NotInterested => "#e2e3e5" // gray - not interested
         case _ => "#f8f9fa"                                                                  // neutral - no vote
       
-      // Persistent vote indicator icon class
-      val voteIndicatorClass = currentUserFeedback match
-        case Some(feedback) if feedback.position == VotePosition.Interested => "VoteIndicator VoteIndicator--interested"
-        case Some(feedback) if feedback.position == VotePosition.NotInterested => "VoteIndicator VoteIndicator--notinterested"
-        case _ => "VoteIndicator VoteIndicator--none"
+      // Determine which vote indicators to show (left for interested, right for not interested)
+      val showLeftIndicator = currentUserFeedback.exists(_.position == VotePosition.Interested)
+      val showRightIndicator = currentUserFeedback.exists(_.position == VotePosition.NotInterested)
 
       val cardContent = div(
         cls := s"TopicCard $heatLevel", // Heat level class for visual indicator
@@ -1232,13 +1230,17 @@ private def SingleDiscussionComponent(
           case Some(value) => value.height
           case None        => cls:="not-animating-anymore"
         ,
-        // Persistent vote indicator on left edge
+        // Left indicator (heart) - shows when Interested
         div(
-          cls := voteIndicatorClass,
-          currentUserFeedback match
-            case Some(feedback) if feedback.position == VotePosition.Interested => "♥"
-            case Some(feedback) if feedback.position == VotePosition.NotInterested => "✗"
-            case _ => ""
+          cls := (if showLeftIndicator then "VoteIndicator VoteIndicator--left VoteIndicator--visible" 
+                  else "VoteIndicator VoteIndicator--left"),
+          "♥"
+        ),
+        // Right indicator (X) - shows when Not Interested  
+        div(
+          cls := (if showRightIndicator then "VoteIndicator VoteIndicator--right VoteIndicator--visible"
+                  else "VoteIndicator VoteIndicator--right"),
+          "✗"
         ),
         div(
           cls := "MainActive",
