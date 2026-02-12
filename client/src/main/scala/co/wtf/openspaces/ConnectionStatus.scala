@@ -66,12 +66,15 @@ enum ConnectionState:
   * @param maxReconnectRetries
   *   Maximum number of reconnection attempts (should match WebSocket config)
   * @param staleThresholdMs
-  *   Time in milliseconds after which a return to the page triggers reconnection (default: 1 hour)
+  *   Time in milliseconds after which a return to the page triggers reconnection (default: 2 minutes)
+  * @param healthCheckIntervalMs
+  *   Interval for periodic health checks (default: 30 seconds)
   */
 class ConnectionStatusManager[Receive, Send](
   ws: WebSocket[Receive, Send],
   maxReconnectRetries: Int = 10,
-  staleThresholdMs: Double = 60 * 60 * 1000, // 1 hour default
+  staleThresholdMs: Double = 2 * 60 * 1000, // 2 minutes - aggressive reconnect on return
+  healthCheckIntervalMs: Int = 30 * 1000,  // 30 second health checks
 ):
   // Track reconnection attempts
   private val reconnectAttemptVar: Var[Int] = Var(0)
@@ -82,27 +85,61 @@ class ConnectionStatusManager[Receive, Send](
   // Track when page was last hidden (for stale detection)
   private var lastHiddenTime: Option[Double] = None
   
+  // Track when we last received any message (for zombie detection)
+  private var lastMessageTime: Double = System.currentTimeMillis().toDouble
+  
+  // Health check interval handle
+  private var healthCheckHandle: Option[Int] = None
+  
   // Callback for when user returns after being away too long
   private var onStaleReturnCallback: Option[() => Unit] = None
+  
+  // Callback for when connection needs refresh (visibility return or health check failure)
+  private var onNeedsSyncCallback: Option[() => Unit] = None
   
   /** Set a callback to be invoked when user returns after stale threshold */
   def onStaleReturn(callback: => Unit): Unit =
     onStaleReturnCallback = Some(() => callback)
+  
+  /** Set a callback to be invoked when sync is needed (visibility return, health check) */
+  def onNeedsSync(callback: => Unit): Unit =
+    onNeedsSyncCallback = Some(() => callback)
+  
+  /** Record that a message was received (call this from received handler) */
+  def recordMessageReceived(): Unit =
+    lastMessageTime = System.currentTimeMillis().toDouble
 
   // Set up online/offline event listeners
-  private val onlineHandler: scalajs.js.Function1[dom.Event, Unit] = _ => isOnlineVar.set(true)
+  private val onlineHandler: scalajs.js.Function1[dom.Event, Unit] = _ => 
+    isOnlineVar.set(true)
+    // Coming back online - trigger reconnect
+    println("Network online - triggering reconnect")
+    onStaleReturnCallback.foreach(_())
+    
   private val offlineHandler: scalajs.js.Function1[dom.Event, Unit] = _ => isOnlineVar.set(false)
   
-  // Visibility change handler - detect stale returns
+  // Visibility change handler - always trigger sync on return for reliability
   private val visibilityHandler: scalajs.js.Function1[dom.Event, Unit] = _ =>
     if dom.document.visibilityState == "hidden" then
       lastHiddenTime = Some(System.currentTimeMillis().toDouble)
+      // Stop health checks while hidden to save resources
+      healthCheckHandle.foreach(dom.window.clearInterval(_))
+      healthCheckHandle = None
     else if dom.document.visibilityState == "visible" then
+      // Restart health checks
+      startHealthChecks()
       lastHiddenTime.foreach { hiddenTime =>
         val awayDuration = System.currentTimeMillis().toDouble - hiddenTime
+        val awayMinutes = (awayDuration / 1000 / 60).toInt
+        
         if awayDuration > staleThresholdMs then
-          println(s"User returned after ${(awayDuration / 1000 / 60).toInt} minutes - triggering reconnect")
+          // Been away a while - force full reconnect
+          println(s"User returned after $awayMinutes minutes - forcing reconnect")
           onStaleReturnCallback.foreach(_())
+        else if awayDuration > 10000 then // More than 10 seconds
+          // Brief absence - just re-sync to be safe
+          println(s"User returned after ${(awayDuration / 1000).toInt} seconds - re-syncing")
+          onNeedsSyncCallback.foreach(_())
       }
       lastHiddenTime = None
   
@@ -110,6 +147,35 @@ class ConnectionStatusManager[Receive, Send](
   private val pageshowHandler: scalajs.js.Function1[dom.PageTransitionEvent, Unit] = event =>
     if event.persisted then
       println("Page restored from bfcache - triggering reconnect")
+      onStaleReturnCallback.foreach(_())
+  
+  // Track connection state via our own Var (updated by external observers)
+  private val isConnectedVar: Var[Boolean] = Var(false)
+  
+  /** Update tracked connection state - call from connected/closed observers */
+  def setConnected(connected: Boolean): Unit =
+    isConnectedVar.set(connected)
+  
+  // Periodic health check to detect zombie connections
+  private def startHealthChecks(): Unit =
+    if healthCheckHandle.isEmpty then
+      healthCheckHandle = Some(dom.window.setInterval(
+        () => checkConnectionHealth(),
+        healthCheckIntervalMs
+      ))
+  
+  private def checkConnectionHealth(): Unit =
+    val timeSinceLastMessage = System.currentTimeMillis().toDouble - lastMessageTime
+    val isConnected = isConnectedVar.now()
+    
+    // If "connected" but no message in 2 minutes, connection might be zombie
+    if isConnected && timeSinceLastMessage > 2 * 60 * 1000 then
+      println(s"No messages received in ${(timeSinceLastMessage / 1000 / 60).toInt} minutes - connection may be stale, triggering reconnect")
+      onStaleReturnCallback.foreach(_())
+    // If disconnected and retries exhausted, try to reconnect
+    else if !isConnected && reconnectAttemptVar.now() >= maxReconnectRetries then
+      println("Retries exhausted but still disconnected - attempting reconnect")
+      reconnectAttemptVar.set(0) // Reset counter
       onStaleReturnCallback.foreach(_())
 
   /** Binder to attach online/offline/visibility listeners to the DOM lifecycle */
@@ -120,6 +186,8 @@ class ConnectionStatusManager[Receive, Send](
         dom.window.addEventListener("offline", offlineHandler)
         dom.document.addEventListener("visibilitychange", visibilityHandler)
         dom.window.addEventListener("pageshow", pageshowHandler)
+        // Start periodic health checks
+        startHealthChecks()
         new com.raquo.airstream.ownership.Subscription(
           ctx.owner,
           cleanup = () => {
@@ -127,6 +195,9 @@ class ConnectionStatusManager[Receive, Send](
             dom.window.removeEventListener("offline", offlineHandler)
             dom.document.removeEventListener("visibilitychange", visibilityHandler)
             dom.window.removeEventListener("pageshow", pageshowHandler)
+            // Stop health checks
+            healthCheckHandle.foreach(dom.window.clearInterval(_))
+            healthCheckHandle = None
           }
         )
       }
