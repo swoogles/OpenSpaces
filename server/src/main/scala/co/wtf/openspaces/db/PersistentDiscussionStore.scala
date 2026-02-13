@@ -248,6 +248,17 @@ class PersistentDiscussionStore(
           _ <- state.update(_.apply(confirmed))
         yield confirmed
 
+      case DiscussionAction.RemoveVote(topicId, voter) =>
+        for
+          _ <- ensureUserExists(actor)
+          confirmed = DiscussionActionConfirmed.fromDiscussionAction(action)
+          _ <- persistEvent("RemoveVote", topicId.unwrap, action.toJson, actor)
+          // Remove the voter's feedback from the topic
+          _ <- updateDiscussionParties(topicId, parties => 
+            parties.filterNot(_.voter == voter))
+          _ <- state.update(_.apply(confirmed))
+        yield confirmed
+
       case DiscussionAction.Rename(topicId, newTopic) =>
         for
           _ <- ensureUserExists(actor)
@@ -370,6 +381,7 @@ class PersistentDiscussionStore(
       case DiscussionAction.AddWithRoomSlot(_, facilitator, _) => facilitator.unwrap
       case DiscussionAction.Delete(_)                        => "system" // TODO: track who deleted
       case DiscussionAction.Vote(_, feedback)                => feedback.voter.unwrap
+      case DiscussionAction.RemoveVote(_, voter)             => voter.unwrap
       case DiscussionAction.Rename(_, _)                     => "system" // TODO: track who renamed
       case DiscussionAction.UpdateRoomSlot(_, _)             => "system" // TODO: track who scheduled
       case DiscussionAction.Unschedule(_)                    => "system"
