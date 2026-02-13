@@ -797,6 +797,15 @@
     background-color: #fed7d7;
 }
 
+.AdminControls-button--warning {
+    border-color: #f6ad55;
+    color: #c05621;
+}
+
+.AdminControls-button--warning:hover {
+    background-color: #feebc8;
+}
+
 .AdminControls-button--loading {
     opacity: 0.6;
     cursor: wait;

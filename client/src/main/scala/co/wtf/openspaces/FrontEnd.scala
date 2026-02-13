@@ -846,7 +846,10 @@ object FrontEnd extends App:
           AdminModeToggle(isAdmin, adminModeEnabled),
           NameBadge(name, connectionStatus.state, soundMuted),
           // Admin controls (only visible when admin AND admin mode enabled)
-          AdminControls(isAdmin.combineWith(adminModeEnabled.signal).map { case (admin, enabled) => admin && enabled }),
+          AdminControls(
+            isAdmin.combineWith(adminModeEnabled.signal).map { case (admin, enabled) => admin && enabled },
+            topicUpdates.sendOne,
+          ),
           ViewToggle(currentAppView, adminModeEnabled.signal),
           // Conditional view rendering based on current app view
           child <-- currentAppView.signal.map {
@@ -1032,15 +1035,17 @@ private def AdminModeToggle(
     ),
   )
 
-/** Admin controls - chaos button and delete all */
+/** Admin controls - chaos button, delete all, and reset user */
 private def AdminControls(
   $showAdminControls: Signal[Boolean],
+  topicUpdates: DiscussionAction => Unit,
 ) =
   import scala.concurrent.ExecutionContext.Implicits.global
   
   val isActive: Var[Boolean] = Var(false)
   val chaosLoading: Var[Boolean] = Var(false)
   val deleteLoading: Var[Boolean] = Var(false)
+  val resetLoading: Var[Boolean] = Var(false)
   
   // Fetch initial state on mount
   def fetchStatus(): Unit =
@@ -1078,6 +1083,28 @@ private def AdminControls(
         .foreach { _ =>
           deleteLoading.set(false)
         }
+
+  def resetUser(): Unit =
+    if dom.window.confirm("Reset your user? This will delete your topics and reset your swipe hint.") then
+      resetLoading.set(true)
+      // Access FrontEnd's state directly since Signals don't expose .now()
+      val user = FrontEnd.name.now()
+      val state = FrontEnd.discussionState.now()
+      
+      // Find and delete all topics created by this user
+      val userTopics = state.data.values.filter(_.facilitator == user)
+      userTopics.foreach { topic =>
+        topicUpdates(DiscussionAction.Delete(topic.id))
+      }
+      
+      // Reset client-side state
+      FrontEnd.everVotedTopics.set(Set.empty)
+      FrontEnd.votedTopicOrder.set(Nil)
+      FrontEnd.showSwipeHint.set(true)
+      FrontEnd.hasSeenSwipeHint.set(false)
+      localStorage.setItem("hasSeenSwipeHint", "false")
+      
+      resetLoading.set(false)
   
   div(
     cls := "AdminControls",
@@ -1108,6 +1135,18 @@ private def AdminControls(
       child.text <-- deleteLoading.signal.map {
         case true => "⏳"
         case false => "🗑️ Delete All"
+      },
+    ),
+    button(
+      cls <-- resetLoading.signal.map { loading =>
+        if loading then "AdminControls-button AdminControls-button--warning AdminControls-button--loading"
+        else "AdminControls-button AdminControls-button--warning"
+      },
+      disabled <-- resetLoading.signal,
+      onClick --> { _ => resetUser() },
+      child.text <-- resetLoading.signal.map {
+        case true => "⏳"
+        case false => "🔄 Reset User"
       },
     ),
   )
