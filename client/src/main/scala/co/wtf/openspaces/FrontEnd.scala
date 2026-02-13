@@ -339,11 +339,10 @@ object FrontEnd extends App:
   // Tracks WebSocket connection state (mirrors isConnected signal but accessible anywhere)
   val isConnectedVar: Var[Boolean] = Var(false)
 
-  // Tracks the ID of the topic the user most recently voted on.
-  // Used to ensure the just-voted topic appears immediately after
-  // the next unjudged topic (for visual continuity).
-  val lastVotedTopicId: Var[Option[TopicId]] =
-    Var(None)
+  // Tracks the order of topics the user has voted on / created.
+  // Most recent first. Used to maintain stable ordering of judged topics.
+  val votedTopicOrder: Var[List[TopicId]] =
+    Var(Nil)
 
   // Tracks all topics the user has ever voted on (monotonically grows).
   // Used to distinguish first votes from vote changes.
@@ -458,8 +457,8 @@ object FrontEnd extends App:
         Signal.combine(
           discussionState.signal,
           name.signal,
-          lastVotedTopicId.signal,
-        ).map { case (state, currentUser, lastVotedId) =>
+          votedTopicOrder.signal,
+        ).map { case (state, currentUser, voteOrder) =>
           val allTopics = state.data.values.toList
 
           // Partition into judged (user has voted) and unjudged (user hasn't voted)
@@ -470,17 +469,15 @@ object FrontEnd extends App:
           // Take only the first unjudged topic (if any)
           val firstUnjudged = unjudged.headOption.toList
 
-          // Order judged topics: last-voted topic first, then rest
-          // This ensures the just-voted topic appears right after the unjudged one
-          val (lastVoted, otherJudged) = lastVotedId match
-            case Some(id) =>
-              val (matching, rest) = judged.partition(_.id == id)
-              (matching, rest)
-            case None =>
-              (Nil, judged)
+          // Sort judged topics by vote order (most recent first)
+          // Topics not in voteOrder go to the end, sorted by ID for stability
+          val orderIndex = voteOrder.zipWithIndex.toMap
+          val sortedJudged = judged.sortBy { topic =>
+            orderIndex.getOrElse(topic.id, Int.MaxValue)
+          }
 
-          // Combine: first unjudged + just-voted topic + other judged topics (sorted by ID for stability)
-          firstUnjudged ++ lastVoted ++ otherJudged.sortBy(_.id.unwrap)
+          // Combine: first unjudged + judged topics in vote order
+          firstUnjudged ++ sortedJudged
         },
         None,
         name.signal,
@@ -729,16 +726,15 @@ object FrontEnd extends App:
                         targetRoomSlot,
                       )
                     }
-                // Track the user's most recent vote for topic ordering
+                // Track the user's vote for topic ordering
                 case DiscussionActionConfirmed.Vote(topicId, feedback) =>
-                  // Only track if this is the current user's FIRST vote on this topic
-                  // (not when changing an existing vote)
                   val currentUser = name.now()
                   if feedback.voter == currentUser then
                     val isFirstVote = !everVotedTopics.now().contains(topicId)
                     everVotedTopics.update(_ + topicId)
+                    // Move to front of vote order (prepend, removing any existing entry)
                     if isFirstVote then
-                      lastVotedTopicId.set(Some(topicId))
+                      votedTopicOrder.update(order => topicId :: order.filterNot(_ == topicId))
                     // Celebrate the vote! (sound + animation)
                     celebrateVote(topicId, feedback.position)
 
@@ -763,16 +759,16 @@ object FrontEnd extends App:
                 // Clean up animation state when topics are deleted to prevent memory leaks
                 case DiscussionActionConfirmed.Delete(topicId) =>
                   SwapAnimationState.cleanupTopic(topicId)
-                // Initialize everVotedTopics from loaded discussions (on page load/reconnect)
-                // Also track as "last voted" if current user created this topic
-                // (creating a topic = auto-voting Interested on it)
+                // Track topics the user has voted on (for everVotedTopics set)
+                // Also add newly created topics to vote order
                 case DiscussionActionConfirmed.AddResult(discussion) =>
                   val currentUser = name.now()
                   if discussion.interestedParties.exists(_.voter == currentUser) then
                     everVotedTopics.update(_ + discussion.id)
-                  // If user just created this topic, treat it as their most recent vote
+                  // If user just created this topic, add to front of vote order
+                  // (creating a topic = auto-voting Interested on it)
                   if discussion.facilitator == currentUser then
-                    lastVotedTopicId.set(Some(discussion.id))
+                    votedTopicOrder.update(order => discussion.id :: order.filterNot(_ == discussion.id))
                 case _ => ()
 
               // Capture scroll position before state update
