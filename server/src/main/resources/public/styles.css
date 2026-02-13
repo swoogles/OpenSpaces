@@ -1376,3 +1376,153 @@
     padding-left: 32px !important;
     padding-right: 32px !important;
 }
+
+/* ============================================
+   Vote Celebration Animation (Poof/Pop)
+   ============================================ */
+
+/* The poof animation - a satisfying pop with particles */
+@keyframes vote-poof {
+    0% {
+        transform: scale(1);
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    }
+    15% {
+        transform: scale(1.03);
+    }
+    30% {
+        transform: scale(0.98);
+        box-shadow: 0 4px 20px rgba(74, 144, 217, 0.3);
+    }
+    50% {
+        transform: scale(1.02);
+    }
+    70% {
+        transform: scale(0.995);
+    }
+    100% {
+        transform: scale(1);
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    }
+}
+
+/* Particle burst effect using pseudo-elements */
+@keyframes vote-particles {
+    0% {
+        opacity: 1;
+        transform: scale(0.5);
+    }
+    100% {
+        opacity: 0;
+        transform: scale(2);
+    }
+}
+
+/* Applied when vote is confirmed */
+.TopicCard.vote-celebrating {
+    animation: vote-poof 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+    z-index: 10;
+}
+
+/* Particle container - appears over the card */
+.vote-particles {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+    z-index: 100;
+}
+
+.vote-particle {
+    position: absolute;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    animation: particle-fly 0.5s ease-out forwards;
+}
+
+@keyframes particle-fly {
+    0% {
+        opacity: 1;
+        transform: translate(0, 0) scale(1);
+    }
+    100% {
+        opacity: 0;
+        transform: var(--particle-end) scale(0);
+    }
+}
+
+/* Individual particle positions - CSS custom properties set by JS */
+.vote-particle:nth-child(1) { --particle-end: translate(-30px, -30px); background: #f59e0b; }
+.vote-particle:nth-child(2) { --particle-end: translate(30px, -30px); background: #10b981; }
+.vote-particle:nth-child(3) { --particle-end: translate(-35px, 0px); background: #3b82f6; }
+.vote-particle:nth-child(4) { --particle-end: translate(35px, 0px); background: #ef4444; }
+.vote-particle:nth-child(5) { --particle-end: translate(-25px, 25px); background: #8b5cf6; }
+.vote-particle:nth-child(6) { --particle-end: translate(25px, 25px); background: #ec4899; }
+
+/* Interested vote - warmer/happy particles */
+.TopicCard.vote-celebrating--interested .vote-particle:nth-child(1) { background: #f87171; }
+.TopicCard.vote-celebrating--interested .vote-particle:nth-child(2) { background: #fb923c; }
+.TopicCard.vote-celebrating--interested .vote-particle:nth-child(3) { background: #fbbf24; }
+.TopicCard.vote-celebrating--interested .vote-particle:nth-child(4) { background: #f87171; }
+.TopicCard.vote-celebrating--interested .vote-particle:nth-child(5) { background: #fb923c; }
+.TopicCard.vote-celebrating--interested .vote-particle:nth-child(6) { background: #fbbf24; }
+
+/* Not interested - cooler/neutral particles */
+.TopicCard.vote-celebrating--notinterested .vote-particle:nth-child(1) { background: #94a3b8; }
+.TopicCard.vote-celebrating--notinterested .vote-particle:nth-child(2) { background: #64748b; }
+.TopicCard.vote-celebrating--notinterested .vote-particle:nth-child(3) { background: #475569; }
+.TopicCard.vote-celebrating--notinterested .vote-particle:nth-child(4) { background: #94a3b8; }
+.TopicCard.vote-celebrating--notinterested .vote-particle:nth-child(5) { background: #64748b; }
+.TopicCard.vote-celebrating--notinterested .vote-particle:nth-child(6) { background: #475569; }
+
+/* Respect reduced motion preferences */
+@media (prefers-reduced-motion: reduce) {
+    .TopicCard.vote-celebrating {
+        animation: none;
+    }
+    .vote-particle {
+        animation: none;
+        display: none;
+    }
+}
+
+/* ============================================
+   Sound Toggle Button
+   ============================================ */
+
+.sound-toggle {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 24px;
+    height: 24px;
+    padding: 0;
+    border: none;
+    background: transparent;
+    cursor: pointer;
+    font-size: 14px;
+    opacity: 0.7;
+    transition: opacity 0.2s ease, transform 0.1s ease;
+    border-radius: 4px;
+}
+
+.sound-toggle:hover {
+    opacity: 1;
+    background-color: rgba(0, 0, 0, 0.05);
+}
+
+.sound-toggle:active {
+    transform: scale(0.9);
+}
+
+.sound-toggle--muted {
+    opacity: 0.4;
+}
+
+.sound-toggle--muted:hover {
+    opacity: 0.7;
+}

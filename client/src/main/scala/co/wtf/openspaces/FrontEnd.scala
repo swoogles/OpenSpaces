@@ -350,6 +350,67 @@ object FrontEnd extends App:
   val everVotedTopics: Var[Set[TopicId]] =
     Var(Set.empty)
 
+  // ============================================
+  // Vote Celebration (Sound + Visual Effects)
+  // ============================================
+  
+  // Sound muted state - persisted to localStorage
+  val soundMuted: Var[Boolean] = Var {
+    Option(localStorage.getItem("soundMuted")).contains("true")
+  }
+  
+  // Persist sound muted state to localStorage
+  soundMuted.signal.foreach { muted =>
+    localStorage.setItem("soundMuted", muted.toString)
+  }(unsafeWindowOwner)
+  
+  // Topics currently showing celebration animation (cleared after animation ends)
+  val celebratingTopics: Var[Map[TopicId, VotePosition]] = Var(Map.empty)
+  
+  /** Play a satisfying pop/click sound using Web Audio API */
+  def playVoteSound(position: VotePosition): Unit =
+    if !soundMuted.now() then
+      try
+        val audioContext = new dom.AudioContext()
+        val oscillator = audioContext.createOscillator()
+        val gainNode = audioContext.createGain()
+        
+        // Different sounds for interested vs not interested
+        val (startFreq, endFreq) = position match
+          case VotePosition.Interested => (600.0, 800.0)  // Rising pop - happy
+          case VotePosition.NotInterested => (400.0, 300.0) // Falling thud - muted
+        
+        oscillator.`type` = "sine"
+        oscillator.frequency.setValueAtTime(startFreq, audioContext.currentTime)
+        oscillator.frequency.exponentialRampToValueAtTime(endFreq, audioContext.currentTime + 0.08)
+        
+        gainNode.gain.setValueAtTime(0.15, audioContext.currentTime)
+        gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.12)
+        
+        oscillator.connect(gainNode)
+        gainNode.connect(audioContext.destination)
+        
+        oscillator.start(audioContext.currentTime)
+        oscillator.stop(audioContext.currentTime + 0.12)
+        
+        // Clean up after sound completes
+        dom.window.setTimeout(() => audioContext.close(), 200)
+      catch
+        case _: Throwable => () // Silently fail if audio not available
+  
+  /** Trigger celebration for a topic (animation + sound) */
+  def celebrateVote(topicId: TopicId, position: VotePosition): Unit =
+    // Add to celebrating set
+    celebratingTopics.update(_ + (topicId -> position))
+    
+    // Play sound
+    playVoteSound(position)
+    
+    // Remove from celebrating after animation completes (400ms)
+    dom.window.setTimeout(() => {
+      celebratingTopics.update(_ - topicId)
+    }, 450)
+
   val errorBanner =
     ErrorBanner()
 
@@ -678,6 +739,8 @@ object FrontEnd extends App:
                     everVotedTopics.update(_ + topicId)
                     if isFirstVote then
                       lastVotedTopicId.set(Some(topicId))
+                    // Celebrate the vote! (sound + animation)
+                    celebrateVote(topicId, feedback.position)
 
                 // Also animate UpdateRoomSlot (similar to MoveTopic)
                 case DiscussionActionConfirmed.UpdateRoomSlot(
@@ -744,7 +807,7 @@ object FrontEnd extends App:
           errorBanner.component,
           // Admin mode toggle at the very top (only visible to admins)
           AdminModeToggle(isAdmin, adminModeEnabled),
-          NameBadge(name, connectionStatus.state),
+          NameBadge(name, connectionStatus.state, soundMuted),
           // Admin controls (only visible when admin AND admin mode enabled)
           AdminControls(isAdmin.combineWith(adminModeEnabled.signal).map { case (admin, enabled) => admin && enabled }),
           ViewToggle(currentAppView, adminModeEnabled.signal),
@@ -859,6 +922,7 @@ private def BannerLogo() =
 private def NameBadge(
   name: Var[Person],
   connectionState: Signal[ConnectionState],
+  soundMuted: Var[Boolean],
 ) =
   div(
     cls := "Banner",
@@ -868,6 +932,27 @@ private def NameBadge(
     ),
     div(
       cls := "UserProfileSection",
+      // Sound toggle button
+      button(
+        cls <-- soundMuted.signal.map { muted =>
+          if muted then "sound-toggle sound-toggle--muted"
+          else "sound-toggle"
+        },
+        title <-- soundMuted.signal.map { muted =>
+          if muted then "Sound off - click to enable"
+          else "Sound on - click to mute"
+        },
+        aria.label <-- soundMuted.signal.map { muted =>
+          if muted then "Enable sound effects"
+          else "Mute sound effects"
+        },
+        child.text <-- soundMuted.signal.map { muted =>
+          if muted then "🔇" else "🔊"
+        },
+        onClick --> Observer { _ =>
+          soundMuted.update(!_)
+        },
+      ),
       // Connection status indicator dot
       ConnectionStatusIndicator.dot(connectionState),
       // Profile icon - click to logout
@@ -1248,11 +1333,29 @@ private def SingleDiscussionComponent(
 
       val cardContent = div(
         cls := s"TopicCard $heatLevel", // Heat level class for visual indicator
+        // Celebration animation class when vote is confirmed
+        cls <-- FrontEnd.celebratingTopics.signal.map { celebrating =>
+          celebrating.get(topic.id) match
+            case Some(VotePosition.Interested) => "vote-celebrating vote-celebrating--interested"
+            case Some(VotePosition.NotInterested) => "vote-celebrating vote-celebrating--notinterested"
+            case None => ""
+        },
         backgroundColor := backgroundColorByPosition,
         transition match
           case Some(value) => value.height
           case None        => cls:="not-animating-anymore"
         ,
+        // Particle elements for celebration effect
+        children <-- FrontEnd.celebratingTopics.signal.map { celebrating =>
+          if celebrating.contains(topic.id) then
+            Seq(
+              div(
+                cls := "vote-particles",
+                (1 to 6).map(_ => div(cls := "vote-particle")),
+              )
+            )
+          else Seq.empty
+        },
         // Left indicator (heart) - shows when Interested
         div(
           cls := (if showLeftIndicator then "VoteIndicator VoteIndicator--left VoteIndicator--visible" 
