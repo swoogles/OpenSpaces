@@ -223,7 +223,9 @@ class DiscussionDataStore(
           }
       applyAction(action).run
 
-  /** Random schedule-only action for schedule chaos mode */
+  /** Random schedule-only action for schedule chaos mode.
+    * Heavily biased towards scheduling and swapping (95%), unscheduling rare (5%).
+    */
   def randomScheduleAction: Task[DiscussionActionConfirmed] =
     defer:
       val currentState = snapshot.run
@@ -231,25 +233,18 @@ class DiscussionDataStore(
       if topics.isEmpty then
         DiscussionActionConfirmed.Rejected(DiscussionAction.Unschedule(TopicId(0L)))
       else
-        val actionType = Random.nextIntBounded(4).run
+        // 0-99: 0-44 = move to slot (45%), 45-94 = swap (50%), 95-99 = unschedule (5%)
+        val actionType = Random.nextIntBounded(100).run
         val action: DiscussionAction = actionType match
-          case 0 =>
-            // Move to slot
+          case n if n < 45 =>
+            // Move to slot (45%)
             val topicIdx = Random.nextIntBounded(topics.size).run
             val topic = topics(topicIdx)
             findAvailableSlot(currentState) match
               case Some(slot) => DiscussionAction.UpdateRoomSlot(topic.id, slot)
               case None => DiscussionAction.Unschedule(topic.id)
-          case 1 =>
-            // Unschedule
-            val scheduled = topics.filter(_.roomSlot.isDefined)
-            if scheduled.isEmpty then
-              DiscussionAction.Unschedule(TopicId(0L))
-            else
-              val idx = Random.nextIntBounded(scheduled.size).run
-              DiscussionAction.Unschedule(scheduled(idx).id)
-          case _ =>
-            // Swap
+          case n if n < 95 =>
+            // Swap (50%)
             val scheduled = topics.filter(_.roomSlot.isDefined)
             if scheduled.size < 2 then
               DiscussionAction.Unschedule(TopicId(0L))
@@ -262,6 +257,14 @@ class DiscussionDataStore(
                 DiscussionAction.SwapTopics(t1.id, t1.roomSlot.get, t2.id, t2.roomSlot.get)
               else
                 DiscussionAction.Unschedule(TopicId(0L))
+          case _ =>
+            // Unschedule (5%)
+            val scheduled = topics.filter(_.roomSlot.isDefined)
+            if scheduled.isEmpty then
+              DiscussionAction.Unschedule(TopicId(0L))
+            else
+              val idx = Random.nextIntBounded(scheduled.size).run
+              DiscussionAction.Unschedule(scheduled(idx).id)
         applyAction(action).run
 
   private def findAvailableSlot(state: DiscussionState): Option[RoomSlot] =

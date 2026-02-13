@@ -32,7 +32,7 @@ case class RandomActionSpawner(
         ZIO.unit
     }
     
-    // Schedule chaos loop - slower (5 seconds)
+    // Schedule chaos loop - 2 second cadence
     val scheduleChaosLoop = scheduleChaosActiveRef.get.flatMap { active =>
       if active then
         discussionService.randomScheduleAction
@@ -47,7 +47,7 @@ case class RandomActionSpawner(
       .forkDaemon
       
     val scheduleChaosFiber = scheduleChaosLoop
-      .repeat(Schedule.spaced(5.seconds) && Schedule.forever)
+      .repeat(Schedule.spaced(2.seconds) && Schedule.forever)
       .forkDaemon
     
     fullChaosFiber *> scheduleChaosFiber

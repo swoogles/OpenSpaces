@@ -155,21 +155,23 @@ class PersistentDiscussionStore(
 
   /** Random schedule-only action: move to slot, unschedule, or swap.
     * Does not create/delete topics or change votes.
+    * Heavily biased towards scheduling and swapping (95%), unscheduling rare (5%).
     */
   def randomScheduleAction: Task[DiscussionActionConfirmed] =
     for
       currentState <- state.get
       topics = currentState.data.values.toList
       result <- if topics.isEmpty then
-        // No topics to schedule - return a no-op by voting on nothing (will be rejected gracefully)
+        // No topics to schedule - return a no-op (will be rejected gracefully)
         ZIO.succeed(DiscussionActionConfirmed.Rejected(DiscussionAction.Unschedule(TopicId(0L))))
       else
         for
-          actionType <- Random.nextIntBounded(4)
+          // 0-99: 0-44 = move to slot (45%), 45-94 = swap (50%), 95-99 = unschedule (5%)
+          actionType <- Random.nextIntBounded(100)
           action <- actionType match
-            case 0 => randomMoveToSlotAction(currentState)
-            case 1 => randomUnscheduleAction(currentState)
-            case 2 | 3 => randomSwapAction(currentState)
+            case n if n < 45 => randomMoveToSlotAction(currentState)
+            case n if n < 95 => randomSwapAction(currentState)
+            case _ => randomUnscheduleAction(currentState)
           result <- applyAction(action)
         yield result
     yield result
