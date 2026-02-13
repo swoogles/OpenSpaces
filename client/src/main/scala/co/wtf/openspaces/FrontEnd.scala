@@ -1493,15 +1493,6 @@ private def DiscussionSubview(
 ) =
   div(
     cls := "TopicsContainer",
-    // Swipe hint tooltip (shows above cards)
-    div(
-      cls := "SwipeHintTooltip",
-      display <-- showSwipeHint.map(if _ then "flex" else "none"),
-      span(cls := "SwipeHintArrow SwipeHintArrow--left", "←"),
-      span(cls := "SwipeHintText", "Swipe to vote"),
-      span(cls := "SwipeHintArrow SwipeHintArrow--right", "→"),
-      onClick --> Observer { _ => FrontEnd.dismissSwipeHint() },
-    ),
     children <--
       topicsOfInterest
         .splitTransition(_.id)(
