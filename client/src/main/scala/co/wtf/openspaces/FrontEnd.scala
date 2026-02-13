@@ -1365,9 +1365,9 @@ def SwipeableCard(
       transform <-- $transform,
       // Touch events
       onTouchStart --> { (e: dom.TouchEvent) =>
-        // Don't start drag if touching an editable element
+        // Don't start drag if touching an editable element (button, input)
         val target = e.target.asInstanceOf[dom.Element]
-        val isEditable = target.closest(".InlineEditableTitle-text, .InlineEditableTitle-input, input, button") != null
+        val isEditable = target.closest("input, button, .InlineEditableTitle-editBtn, .InlineEditableTitle-cancelBtn") != null
         if !isEditable then
           val touch = e.touches(0)
           handleDragStart(touch.clientX, e.currentTarget.asInstanceOf[dom.Element])
@@ -1389,16 +1389,12 @@ def SwipeableCard(
       },
       // Mouse events for desktop
       onMouseDown --> { (e: dom.MouseEvent) =>
-        // Don't start drag if clicking on an editable element
+        // Don't start drag if clicking on an editable element (button, input)
         val target = e.target.asInstanceOf[dom.Element]
-        val closestEditable = target.closest(".InlineEditableTitle-text, .InlineEditableTitle-input, input, button")
-        val isEditable = closestEditable != null
-        println(s"SwipeableCard mousedown - target: ${target.tagName}, classList: ${target.classList}, isEditable: $isEditable")
+        val isEditable = target.closest("input, button, .InlineEditableTitle-editBtn, .InlineEditableTitle-cancelBtn") != null
         if !isEditable then
           e.preventDefault()
           handleDragStart(e.clientX, e.currentTarget.asInstanceOf[dom.Element])
-        else
-          println("Skipping drag - editable element clicked")
       },
       windowEvents(_.onMouseMove) --> { (e: dom.MouseEvent) =>
         handleDragMove(e.clientX)
