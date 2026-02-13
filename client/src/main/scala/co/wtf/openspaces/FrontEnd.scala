@@ -1493,7 +1493,18 @@ private def SingleDiscussionComponent(
         ),
         div(
           cls := "MainActive",
-          div(topic.topicName),
+          // Inline editable topic name (only for the facilitator)
+          InlineEditableTitle(
+            topic,
+            name.now(),
+            newTitle => {
+              if connectionStatus.checkReady() then
+                Topic.make(newTitle) match
+                  case Right(validTopic) =>
+                    topicUpdates(DiscussionAction.Rename(topic.id, validTopic))
+                  case Left(_) => () // Invalid topic name, ignore
+            }
+          ),
           if (
             List("swoogles", "emma").exists(admin =>
               name.now().unwrap.toLowerCase().contains(admin),
@@ -1897,6 +1908,69 @@ def SlotSchedule(
           name,
         ),
       )
+    },
+  )
+
+/** Inline editable title for topic cards.
+  * Shows as plain text, but becomes editable when clicked (if user is the facilitator).
+  */
+def InlineEditableTitle(
+  topic: Discussion,
+  currentUser: Person,
+  onRename: String => Unit,
+): HtmlElement =
+  val isEditing = Var(false)
+  val editValue = Var(topic.topicName)
+  val canEdit = topic.facilitator == currentUser
+  
+  def saveAndClose(): Unit =
+    val newValue = editValue.now().trim
+    if newValue.nonEmpty && newValue != topic.topicName then
+      onRename(newValue)
+    isEditing.set(false)
+  
+  def cancelEdit(): Unit =
+    editValue.set(topic.topicName)
+    isEditing.set(false)
+  
+  div(
+    cls := "InlineEditableTitle",
+    cls := (if canEdit then "InlineEditableTitle--editable" else ""),
+    child <-- isEditing.signal.map { editing =>
+      if editing then
+        input(
+          cls := "InlineEditableTitle-input",
+          typ := "text",
+          value <-- editValue.signal,
+          onInput.mapToValue --> editValue,
+          onBlur --> Observer(_ => saveAndClose()),
+          onKeyDown --> Observer { (e: dom.KeyboardEvent) =>
+            e.key match
+              case "Enter" => saveAndClose()
+              case "Escape" => cancelEdit()
+              case _ => ()
+          },
+          onMountCallback { ctx =>
+            // Focus and select all text when entering edit mode
+            val el = ctx.thisNode.ref.asInstanceOf[dom.html.Input]
+            el.focus()
+            el.select()
+          },
+        )
+      else
+        div(
+          cls := "InlineEditableTitle-text",
+          topic.topicName,
+          if canEdit then
+            onClick --> Observer { (e: dom.MouseEvent) =>
+              e.stopPropagation()
+              editValue.set(topic.topicName)
+              isEditing.set(true)
+            }
+          else
+            cls := "InlineEditableTitle--readonly"
+          ,
+        )
     },
   )
 
