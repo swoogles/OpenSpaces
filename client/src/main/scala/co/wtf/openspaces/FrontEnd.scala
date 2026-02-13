@@ -764,10 +764,15 @@ object FrontEnd extends App:
                 case DiscussionActionConfirmed.Delete(topicId) =>
                   SwapAnimationState.cleanupTopic(topicId)
                 // Initialize everVotedTopics from loaded discussions (on page load/reconnect)
+                // Also track as "last voted" if current user created this topic
+                // (creating a topic = auto-voting Interested on it)
                 case DiscussionActionConfirmed.AddResult(discussion) =>
                   val currentUser = name.now()
                   if discussion.interestedParties.exists(_.voter == currentUser) then
                     everVotedTopics.update(_ + discussion.id)
+                  // If user just created this topic, treat it as their most recent vote
+                  if discussion.facilitator == currentUser then
+                    lastVotedTopicId.set(Some(discussion.id))
                 case _ => ()
 
               // Capture scroll position before state update
