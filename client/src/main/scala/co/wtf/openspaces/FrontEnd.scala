@@ -1368,12 +1368,13 @@ def SwipeableCard(
         // Use elementFromPoint to get the ACTUAL element at touch coordinates
         val touch = e.touches(0)
         val actualTarget = dom.document.elementFromPoint(touch.clientX, touch.clientY)
-        val isButton = actualTarget != null && (
+        val isInteractive = actualTarget != null && (
           actualTarget.tagName == "BUTTON" ||
-          actualTarget.closest("button") != null ||
-          actualTarget.closest("input") != null
+          actualTarget.tagName == "A" ||
+          actualTarget.tagName == "INPUT" ||
+          actualTarget.closest("button, a, input") != null
         )
-        if !isButton then
+        if !isInteractive then
           handleDragStart(touch.clientX, e.currentTarget.asInstanceOf[dom.Element])
       },
       onTouchMove --> { (e: dom.TouchEvent) =>
@@ -1396,12 +1397,13 @@ def SwipeableCard(
         // Use elementFromPoint to get the ACTUAL element at click coordinates
         // This works around CSS Grid capturing events at the wrong level
         val actualTarget = dom.document.elementFromPoint(e.clientX, e.clientY)
-        val isButton = actualTarget != null && (
+        val isInteractive = actualTarget != null && (
           actualTarget.tagName == "BUTTON" ||
-          actualTarget.closest("button") != null ||
-          actualTarget.closest("input") != null
+          actualTarget.tagName == "A" ||
+          actualTarget.tagName == "INPUT" ||
+          actualTarget.closest("button, a, input") != null
         )
-        if !isButton then
+        if !isInteractive then
           e.preventDefault()
           handleDragStart(e.clientX, e.currentTarget.asInstanceOf[dom.Element])
       },
@@ -1980,11 +1982,11 @@ def InlineEditableTitle(
               el.select()
             },
           ),
-          button(
+          a(
             cls := "InlineEditableTitle-cancelBtn",
-            typ := "button",
-            onMouseDown --> Observer { (e: dom.MouseEvent) => e.stopPropagation() },
+            href := "#",
             onClick --> Observer { (e: dom.MouseEvent) =>
+              e.preventDefault()
               e.stopPropagation()
               cancelEdit()
             },
@@ -1998,16 +2000,16 @@ def InlineEditableTitle(
             cls := "InlineEditableTitle-text",
             topic.topicName,
           ),
-          // Edit button only shown for facilitator
+          // Edit button only shown for facilitator - using <a> tag like Slack icon
           if canEdit then
-            button(
+            a(
               cls := "InlineEditableTitle-editBtn",
-              typ := "button",
+              href := "#",
               title := "Edit title",
-              // Stop all events from reaching SwipeableCard
-              onMouseDown --> Observer { (e: dom.MouseEvent) => e.stopPropagation() },
-              onTouchStart --> Observer { (e: dom.TouchEvent) => e.stopPropagation() },
-              onClick --> Observer { (e: dom.MouseEvent) => startEditing(e) },
+              onClick --> Observer { (e: dom.MouseEvent) => 
+                e.preventDefault()
+                startEditing(e) 
+              },
               "✎",
             )
           else
