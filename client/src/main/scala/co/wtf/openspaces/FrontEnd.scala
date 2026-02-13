@@ -428,7 +428,10 @@ object FrontEnd extends App:
 
   val submitNewTopic: Observer[DiscussionAction] = Observer {
     case discussion @ (add: DiscussionAction.Add) =>
-      if (add.facilitator.unwrap.trim.length < 2)
+      // Block submissions while not connected/synced
+      if !connectionStatus.checkReady() then
+        errorBanner.setError("Reconnecting... please wait and try again.")
+      else if (add.facilitator.unwrap.trim.length < 2)
         errorBanner.setError("User name too short. Tell us who you are!")
       else
         errorBanner.clearError()
@@ -1217,9 +1220,13 @@ def SwipeableCard(
     if state.isDragging then
       state.voteDirection match
         case Some(position) =>
-          // Commit the vote
-          val voter = name.now()
-          topicUpdates(DiscussionAction.Vote(topic.id, Feedback(voter, position)))
+          // Only commit the vote if connection is ready
+          // This prevents actions during sync/reconnect which would be rejected
+          if connectionStatus.checkReady() then
+            val voter = name.now()
+            topicUpdates(DiscussionAction.Vote(topic.id, Feedback(voter, position)))
+          else
+            println("Connection not ready, ignoring vote action")
         case None =>
           // Rubber-band back
           ()
@@ -1426,8 +1433,8 @@ private def SingleDiscussionComponent(
               border := "none",
               backgroundColor := "transparent",
               onClick --> Observer { _ =>
-                // TODO Make sure this updates the ActiveDiscussion, so it's not left lingering on the schedule.
-                topicUpdates(DiscussionAction.Delete(topic.id))
+                if connectionStatus.checkReady() then
+                  topicUpdates(DiscussionAction.Delete(topic.id))
               },
               "x",
             )
@@ -1596,12 +1603,16 @@ def VoteButtons(
     else if (votes >= 1) "heat-mild"
     else "heat-cold"
   
-  def handleVote(target: VotePosition) =
-    val voter = name.now()
-    val currentPosition = currentFeedback.map(_.position)
-    // Only update if switching to a different position (no going back to neutral)
-    if !currentPosition.contains(target) then
-      topicUpdates(DiscussionAction.Vote(discussion.id, Feedback(voter, target)))
+  def handleVote(target: VotePosition): Unit =
+    // Only allow voting if connection is ready (prevents actions during reconnect/sync)
+    if connectionStatus.checkReady() then
+      val voter = name.now()
+      val currentPosition = currentFeedback.map(_.position)
+      // Only update if switching to a different position (no going back to neutral)
+      if !currentPosition.contains(target) then
+        topicUpdates(DiscussionAction.Vote(discussion.id, Feedback(voter, target)))
+    else
+      println("Connection not ready, ignoring vote action")
 
   div(
     cls := "VoteButtonRow",

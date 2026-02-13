@@ -272,15 +272,14 @@ class ConnectionStatusManager[Receive, Send](
       startHealthChecks()
       lastHiddenTime.foreach { hiddenTime =>
         val awayDuration = System.currentTimeMillis().toDouble - hiddenTime
-        val awayMinutes = (awayDuration / 1000 / 60).toInt
+        val awaySeconds = (awayDuration / 1000).toInt
         
-        if awayDuration > staleThresholdMs then
-          println(s"User returned after $awayMinutes minutes - forcing reconnect")
+        // Always force reconnect if away for more than 5 seconds
+        // This is aggressive but ensures we never have a zombie connection
+        // WebSocket connections can silently die while app is backgrounded
+        if awayDuration > 5000 then
+          println(s"User returned after $awaySeconds seconds - forcing reconnect for reliability")
           forceReconnect()
-        else if awayDuration > 10000 then
-          println(s"User returned after ${(awayDuration / 1000).toInt} seconds - re-syncing")
-          if syncState.now() != SyncState.Syncing then
-            triggerSync()
       }
       lastHiddenTime = None
   
@@ -430,6 +429,21 @@ class ConnectionStatusManager[Receive, Send](
 
   /** Signal for whether the connection is healthy */
   val isHealthy: Signal[Boolean] = state.map(_.isHealthy)
+  
+  /** Signal for whether the app is ready for user interactions.
+    * True when connected AND sync is complete (not idle, syncing, or error).
+    * Use this to block/disable interactions during reconnection.
+    */
+  val isReady: Signal[Boolean] = state.combineWith(syncState.signal).map {
+    case (ConnectionState.Connected, SyncState.Synced) => true
+    case _ => false
+  }
+  
+  /** Check if app is ready for user interactions (synchronous check).
+    * Use this in event handlers where you need an immediate boolean.
+    */
+  def checkReady(): Boolean =
+    isConnectedVar.now() && syncState.now() == SyncState.Synced
   
   /** Combined sync message signal for UI */
   val syncMessage: Signal[String] = syncState.signal.map(_.message)
