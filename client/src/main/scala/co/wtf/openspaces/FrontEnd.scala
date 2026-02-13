@@ -1924,7 +1924,7 @@ def SlotSchedule(
   )
 
 /** Inline editable title for topic cards.
-  * Shows as plain text, but becomes editable when clicked (if user is the facilitator).
+  * Shows as plain text with an edit button for the facilitator.
   */
 def InlineEditableTitle(
   topic: Discussion,
@@ -1945,55 +1945,69 @@ def InlineEditableTitle(
     editValue.set(topic.topicName)
     isEditing.set(false)
   
+  def startEditing(e: dom.MouseEvent): Unit =
+    e.stopPropagation()
+    e.preventDefault()
+    editValue.set(topic.topicName)
+    isEditing.set(true)
+  
   div(
     cls := "InlineEditableTitle",
-    cls := (if canEdit then "InlineEditableTitle--editable" else ""),
     child <-- isEditing.signal.map { editing =>
       if editing then
-        input(
-          cls := "InlineEditableTitle-input",
-          typ := "text",
-          value <-- editValue.signal,
-          onInput.mapToValue --> editValue,
-          onBlur --> Observer(_ => saveAndClose()),
-          onKeyDown --> Observer { (e: dom.KeyboardEvent) =>
-            e.key match
-              case "Enter" => saveAndClose()
-              case "Escape" => cancelEdit()
-              case _ => ()
-          },
-          onMountCallback { ctx =>
-            // Focus and select all text when entering edit mode
-            val el = ctx.thisNode.ref.asInstanceOf[dom.html.Input]
-            el.focus()
-            el.select()
-          },
+        div(
+          cls := "InlineEditableTitle-editRow",
+          input(
+            cls := "InlineEditableTitle-input",
+            typ := "text",
+            value <-- editValue.signal,
+            onInput.mapToValue --> editValue,
+            onBlur --> Observer(_ => saveAndClose()),
+            onKeyDown --> Observer { (e: dom.KeyboardEvent) =>
+              e.key match
+                case "Enter" => saveAndClose()
+                case "Escape" => cancelEdit()
+                case _ => ()
+            },
+            onMountCallback { ctx =>
+              val el = ctx.thisNode.ref.asInstanceOf[dom.html.Input]
+              el.focus()
+              el.select()
+            },
+          ),
+          button(
+            cls := "InlineEditableTitle-cancelBtn",
+            typ := "button",
+            onMouseDown --> Observer { (e: dom.MouseEvent) => e.stopPropagation() },
+            onClick --> Observer { (e: dom.MouseEvent) =>
+              e.stopPropagation()
+              cancelEdit()
+            },
+            "✕",
+          ),
         )
       else
         div(
-          cls := "InlineEditableTitle-text",
-          cls := (if !canEdit then "InlineEditableTitle--readonly" else ""),
-          topic.topicName,
-          // Stop mousedown from reaching SwipeableCard
-          onMouseDown --> Observer { (e: dom.MouseEvent) =>
-            println(s"Title mousedown! canEdit=$canEdit")
-            if canEdit then
-              e.stopPropagation()
-          },
-          onTouchStart --> Observer { (e: dom.TouchEvent) =>
-            println(s"Title touchstart! canEdit=$canEdit")
-            if canEdit then
-              e.stopPropagation()
-          },
-          // Handle the actual click to enter edit mode
-          onClick --> Observer { (e: dom.MouseEvent) =>
-            println(s"Title clicked! canEdit=$canEdit, facilitator=${topic.facilitator.unwrap}, currentUser=${currentUser.unwrap}")
-            if canEdit then
-              e.stopPropagation()
-              e.preventDefault()
-              editValue.set(topic.topicName)
-              isEditing.set(true)
-          },
+          cls := "InlineEditableTitle-displayRow",
+          span(
+            cls := "InlineEditableTitle-text",
+            topic.topicName,
+          ),
+          // Edit button only shown for facilitator
+          if canEdit then
+            button(
+              cls := "InlineEditableTitle-editBtn",
+              typ := "button",
+              title := "Edit title",
+              // Stop all events from reaching SwipeableCard
+              onMouseDown --> Observer { (e: dom.MouseEvent) => e.stopPropagation() },
+              onTouchStart --> Observer { (e: dom.TouchEvent) => e.stopPropagation() },
+              onClick --> Observer { (e: dom.MouseEvent) => startEditing(e) },
+              "✎",
+            )
+          else
+            span()
+          ,
         )
     },
   )
