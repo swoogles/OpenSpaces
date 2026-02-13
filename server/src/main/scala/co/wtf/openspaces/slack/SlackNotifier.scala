@@ -111,17 +111,39 @@ class SlackNotifierNoOp extends SlackNotifier:
     ZIO.unit
 
 object SlackNotifier:
-  val layer: ZLayer[Option[SlackConfig] & DiscussionRepository & Client, Nothing, SlackNotifier] =
+  val layer: ZLayer[Option[SlackConfigEnv] & DiscussionRepository & Client, Nothing, SlackNotifier] =
     ZLayer.fromZIO:
       for
-        maybeConfig    <- ZIO.service[Option[SlackConfig]]
+        maybeEnvConfig <- ZIO.service[Option[SlackConfigEnv]]
         discussionRepo <- ZIO.service[DiscussionRepository]
         client         <- ZIO.service[Client]
-        notifier <- maybeConfig match
-          case Some(config) =>
-            ZIO.logInfo(s"Slack integration enabled for channel ${config.channelId}") *>
-              ZIO.succeed(SlackNotifierLive(SlackClientLive(client, config), config, discussionRepo))
+        notifier <- maybeEnvConfig match
+          case Some(envConfig) =>
+            resolveOrCreateChannel(client, envConfig).flatMap { channelId =>
+              val config = SlackConfig(envConfig.botToken, channelId, envConfig.channelName, envConfig.appBaseUrl)
+              ZIO.logInfo(s"Slack integration enabled for channel #${envConfig.channelName} ($channelId)") *>
+                ZIO.succeed(SlackNotifierLive(SlackClientLive(client, config), config, discussionRepo))
+            }.catchAll { err =>
+              ZIO.logError(s"Failed to initialize Slack channel: $err") *>
+                ZIO.succeed(SlackNotifierNoOp())
+            }
           case None =>
-            ZIO.logInfo("Slack integration disabled (SLACK_BOT_TOKEN, SLACK_CHANNEL_ID, or APP_BASE_URL not set)") *>
+            ZIO.logInfo("Slack integration disabled (SLACK_BOT_TOKEN or APP_BASE_URL not set)") *>
               ZIO.succeed(SlackNotifierNoOp())
       yield notifier
+
+  private def resolveOrCreateChannel(client: Client, envConfig: SlackConfigEnv): Task[String] =
+    // Create a temporary SlackClient just for channel resolution
+    val tempConfig = SlackConfig(envConfig.botToken, "", envConfig.channelName, envConfig.appBaseUrl)
+    val slackClient = SlackClientLive(client, tempConfig)
+    
+    for
+      maybeChannelId <- slackClient.findChannelByName(envConfig.channelName)
+      channelId <- maybeChannelId match
+        case Some(id) =>
+          ZIO.logInfo(s"Found existing Slack channel #${envConfig.channelName} ($id)") *>
+            ZIO.succeed(id)
+        case None =>
+          ZIO.logInfo(s"Creating Slack channel #${envConfig.channelName}...") *>
+            slackClient.createChannel(envConfig.channelName)
+    yield channelId

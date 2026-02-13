@@ -50,7 +50,7 @@ object Backend extends ZIOAppDefault {
       DiscussionRepository.layer,
       PersistentDiscussionStore.layer,
       // Slack integration
-      SlackConfig.layer,
+      SlackConfigEnv.layer,
       SlackNotifier.layer,
     )
 }

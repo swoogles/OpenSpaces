@@ -12,6 +12,8 @@ trait SlackClient:
   def deleteMessage(channel: String, ts: String): Task[Unit]
   def postReply(channel: String, threadTs: String, text: String): Task[Unit]
   def getPermalink(channel: String, messageTs: String): Task[String]
+  def findChannelByName(name: String): Task[Option[String]]
+  def createChannel(name: String): Task[String]
 
 class SlackClientLive(client: Client, config: SlackConfig) extends SlackClient:
 
@@ -100,4 +102,48 @@ class SlackClientLive(client: Client, config: SlackConfig) extends SlackClient:
         fields.collectFirst { case ("permalink", zio.json.ast.Json.Str(v)) => v } match
           case Some(p) => ZIO.succeed(p)
           case None    => ZIO.fail(new Exception(s"Missing permalink in Slack response: $json"))
+      case _ => ZIO.fail(new Exception(s"Unexpected Slack response format: $json"))
+
+  def findChannelByName(name: String): Task[Option[String]] =
+    ZIO.scoped:
+      for
+        res  <- slackRequest
+                  .addQueryParam("types", "public_channel")
+                  .addQueryParam("limit", "1000")
+                  .get("/conversations.list")
+        body <- res.body.asString
+        json <- parseSlackResponse(body)
+        channelId = extractChannelIdByName(json, name)
+      yield channelId
+
+  def createChannel(name: String): Task[String] =
+    ZIO.scoped:
+      for
+        payload <- ZIO.succeed(s"""{"name":"$name"}""")
+        res     <- slackRequest.post("/conversations.create")(Body.fromString(payload))
+        body    <- res.body.asString
+        json    <- parseSlackResponse(body)
+        channelId <- extractCreatedChannelId(json)
+      yield channelId
+
+  private def extractChannelIdByName(json: zio.json.ast.Json, targetName: String): Option[String] =
+    json match
+      case zio.json.ast.Json.Obj(fields) =>
+        fields.collectFirst { case ("channels", zio.json.ast.Json.Arr(channels)) => channels }.flatMap { channels =>
+          channels.collectFirst {
+            case zio.json.ast.Json.Obj(chFields) 
+              if chFields.collectFirst { case ("name", zio.json.ast.Json.Str(n)) => n }.contains(targetName) =>
+              chFields.collectFirst { case ("id", zio.json.ast.Json.Str(id)) => id }
+          }.flatten
+        }
+      case _ => None
+
+  private def extractCreatedChannelId(json: zio.json.ast.Json): Task[String] =
+    json match
+      case zio.json.ast.Json.Obj(fields) =>
+        fields.collectFirst { case ("channel", zio.json.ast.Json.Obj(chFields)) => chFields }.flatMap { chFields =>
+          chFields.collectFirst { case ("id", zio.json.ast.Json.Str(id)) => id }
+        } match
+          case Some(id) => ZIO.succeed(id)
+          case None     => ZIO.fail(new Exception(s"Missing channel.id in Slack response: $json"))
       case _ => ZIO.fail(new Exception(s"Unexpected Slack response format: $json"))

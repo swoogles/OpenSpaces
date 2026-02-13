@@ -2,20 +2,31 @@ package co.wtf.openspaces.slack
 
 import zio.*
 
-case class SlackConfig(
+/** Initial config loaded from env vars. channelId is resolved at startup. */
+case class SlackConfigEnv(
   botToken: String,
-  channelId: String,
+  channelName: String,
   appBaseUrl: String
 )
 
-object SlackConfig:
-  def fromEnv: UIO[Option[SlackConfig]] =
+/** Runtime config with resolved channel ID. */
+case class SlackConfig(
+  botToken: String,
+  channelId: String,
+  channelName: String,
+  appBaseUrl: String
+)
+
+object SlackConfigEnv:
+  private val DefaultChannelName = "openspaces-discussions-test"
+
+  def fromEnv: UIO[Option[SlackConfigEnv]] =
     ZIO.succeed:
       for
         token   <- sys.env.get("SLACK_BOT_TOKEN")
-        channel <- sys.env.get("SLACK_CHANNEL_ID")
         baseUrl <- sys.env.get("APP_BASE_URL")
-      yield SlackConfig(token, channel, baseUrl)
+        channelName = sys.env.getOrElse("SLACK_CHANNEL_NAME", DefaultChannelName)
+      yield SlackConfigEnv(token, channelName, baseUrl)
 
-  val layer: ZLayer[Any, Nothing, Option[SlackConfig]] =
+  val layer: ZLayer[Any, Nothing, Option[SlackConfigEnv]] =
     ZLayer.fromZIO(fromEnv)
