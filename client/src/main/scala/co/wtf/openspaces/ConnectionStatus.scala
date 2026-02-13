@@ -5,6 +5,9 @@ import com.raquo.laminar.nodes.ReactiveElement
 import io.laminext.websocket.WebSocket
 import org.scalajs.dom
 
+import scala.concurrent.{ExecutionContext, Future}
+import scala.util.{Failure, Success, Try}
+
 /** Represents the WebSocket connection state with all relevant context.
   *
   * This is a client-side only type that provides type-safe access to
@@ -59,7 +62,33 @@ enum ConnectionState:
     case Connecting => false  // Brief connecting state doesn't need banner
     case _          => true
 
-/** Manages WebSocket connection state and provides reactive signals for UI.
+/** Tracks whether state sync is in progress.
+  * Used to show UI feedback during reconnection sync.
+  */
+enum SyncState:
+  case Idle
+  case Syncing
+  case Synced
+  case Error(errorMsg: String)
+
+  /** Human-readable status message */
+  def message: String = this match
+    case Idle              => ""
+    case Syncing           => "Syncing data..."
+    case Synced            => ""
+    case Error(msg)        => s"Sync failed: $msg"
+
+  /** Whether sync is in progress */
+  def isSyncing: Boolean = this == Syncing
+
+/** Centralized manager for WebSocket connection state, sync, and error handling.
+  *
+  * This consolidates all reconnect/sync logic into one place:
+  * - Tracks connection state (connected/connecting/reconnecting/offline)
+  * - Manages sync state with automatic retries
+  * - Handles visibility changes, online/offline events, health checks
+  * - Provides error handling wrappers for async operations
+  * - Coordinates forced reconnects
   *
   * @param ws
   *   The laminext WebSocket instance to monitor
@@ -69,94 +98,197 @@ enum ConnectionState:
   *   Time in milliseconds after which a return to the page triggers reconnection (default: 2 minutes)
   * @param healthCheckIntervalMs
   *   Interval for periodic health checks (default: 30 seconds)
+  * @param maxSyncRetries
+  *   Maximum number of sync retry attempts
   */
 class ConnectionStatusManager[Receive, Send](
   ws: WebSocket[Receive, Send],
   maxReconnectRetries: Int = 10,
-  staleThresholdMs: Double = 2 * 60 * 1000, // 2 minutes - aggressive reconnect on return
-  healthCheckIntervalMs: Int = 30 * 1000,  // 30 second health checks
-):
-  // Track reconnection attempts
+  staleThresholdMs: Double = 2 * 60 * 1000,
+  healthCheckIntervalMs: Int = 30 * 1000,
+  maxSyncRetries: Int = 3,
+)(using ec: ExecutionContext):
+  
+  // ============================================
+  // Connection State
+  // ============================================
+  
   private val reconnectAttemptVar: Var[Int] = Var(0)
-
-  // Track if device is online
   private val isOnlineVar: Var[Boolean] = Var(dom.window.navigator.onLine)
-
-  // Track when page was last hidden (for stale detection)
+  private val isConnectedVar: Var[Boolean] = Var(false)
+  
+  // ============================================
+  // Sync State
+  // ============================================
+  
+  val syncState: Var[SyncState] = Var(SyncState.Idle)
+  private var currentSyncAttempt: Int = 0
+  
+  // ============================================
+  // Reconnect Control
+  // ============================================
+  
+  /** Controls whether the WebSocket should be connected.
+    * Toggle off then on to force reconnection with fresh state.
+    */
+  val connectionEnabled: Var[Boolean] = Var(true)
+  
+  // ============================================
+  // Error Handling
+  // ============================================
+  
+  /** Observable for user-visible errors (validation failures, action rejections, etc.) */
+  val userError: Var[Option[String]] = Var(None)
+  
+  /** Report a user-visible error that should be shown in the ErrorBanner */
+  def reportError(message: String): Unit =
+    userError.set(Some(message))
+  
+  /** Clear any displayed error */
+  def clearError(): Unit =
+    userError.set(None)
+  
+  // ============================================
+  // Visibility & Health Tracking
+  // ============================================
+  
   private var lastHiddenTime: Option[Double] = None
-  
-  // Track when we last received any message (for zombie detection)
   private var lastMessageTime: Double = System.currentTimeMillis().toDouble
-  
-  // Health check interval handle
   private var healthCheckHandle: Option[Int] = None
-  
-  // Callback for when user returns after being away too long
-  private var onStaleReturnCallback: Option[() => Unit] = None
-  
-  // Callback for when connection needs refresh (visibility return or health check failure)
-  private var onNeedsSyncCallback: Option[() => Unit] = None
-  
-  /** Set a callback to be invoked when user returns after stale threshold */
-  def onStaleReturn(callback: => Unit): Unit =
-    onStaleReturnCallback = Some(() => callback)
-  
-  /** Set a callback to be invoked when sync is needed (visibility return, health check) */
-  def onNeedsSync(callback: => Unit): Unit =
-    onNeedsSyncCallback = Some(() => callback)
   
   /** Record that a message was received (call this from received handler) */
   def recordMessageReceived(): Unit =
     lastMessageTime = System.currentTimeMillis().toDouble
 
-  // Set up online/offline event listeners
-  private val onlineHandler: scalajs.js.Function1[dom.Event, Unit] = _ => 
-    isOnlineVar.set(true)
-    // Coming back online - trigger reconnect
-    println("Network online - triggering reconnect")
-    onStaleReturnCallback.foreach(_())
-    
-  private val offlineHandler: scalajs.js.Function1[dom.Event, Unit] = _ => isOnlineVar.set(false)
+  /** Update tracked connection state - call from connected/closed observers */
+  def setConnected(connected: Boolean): Unit =
+    isConnectedVar.set(connected)
   
-  // Visibility change handler - always trigger sync on return for reliability
+  /** Whether the WebSocket is currently connected */
+  def isConnected: Boolean = isConnectedVar.now()
+  
+  // ============================================
+  // Sync Operations
+  // ============================================
+  
+  private var syncOperation: Option[() => Future[Unit]] = None
+  
+  /** Register the sync operation to be called on connect/reconnect.
+    * This should fetch auth ticket and send to server.
+    */
+  def onSync(operation: => Future[Unit]): Unit =
+    syncOperation = Some(() => operation)
+  
+  /** Trigger a sync operation with automatic retry on failure.
+    * Safe to call multiple times - will skip if already syncing.
+    */
+  def triggerSync(): Unit =
+    if syncState.now() == SyncState.Syncing && currentSyncAttempt == 0 then
+      println("Sync already in progress, skipping")
+      return
+    
+    if !isConnectedVar.now() then
+      println("WebSocket not connected, waiting for connection...")
+      syncState.set(SyncState.Error("Waiting for connection"))
+      return
+    
+    syncOperation match
+      case Some(op) => executeSyncWithRetry(op, 0)
+      case None => println("No sync operation registered")
+  
+  private def executeSyncWithRetry(operation: () => Future[Unit], attempt: Int): Unit =
+    currentSyncAttempt = attempt
+    val retryDelayMs = 2000 * math.pow(2, attempt).toInt // Exponential backoff: 2s, 4s, 8s
+    
+    if attempt == 0 then
+      syncState.set(SyncState.Syncing)
+    
+    println(s"Triggering state sync (attempt ${attempt + 1}/$maxSyncRetries)...")
+    
+    // Wrap the operation in a try-catch to handle any synchronous exceptions
+    val futureResult = Try(operation()) match
+      case Success(future) => future
+      case Failure(ex) => Future.failed(ex)
+    
+    futureResult.onComplete {
+      case Success(_) =>
+        // Verify still connected
+        if isConnectedVar.now() then
+          syncState.set(SyncState.Synced)
+          currentSyncAttempt = 0
+        else
+          handleSyncFailure("Connection lost during sync", attempt, retryDelayMs)
+          
+      case Failure(ex) =>
+        handleSyncFailure(ex.getMessage, attempt, retryDelayMs)
+    }
+  
+  private def handleSyncFailure(errorMsg: String, attempt: Int, retryDelayMs: Int): Unit =
+    println(s"Sync failed: $errorMsg")
+    if attempt + 1 < maxSyncRetries then
+      println(s"Retrying sync in ${retryDelayMs}ms...")
+      syncState.set(SyncState.Error(s"Retrying... (${attempt + 1}/$maxSyncRetries)"))
+      val _ = dom.window.setTimeout(
+        () => syncOperation.foreach(op => executeSyncWithRetry(op, attempt + 1)),
+        retryDelayMs
+      )
+    else
+      println("Max sync retries reached, giving up")
+      syncState.set(SyncState.Error(errorMsg))
+      currentSyncAttempt = 0
+  
+  // ============================================
+  // Reconnect Operations
+  // ============================================
+  
+  /** Force a full reconnection by toggling the WebSocket off and on.
+    * This resets all retry counters and triggers a fresh sync.
+    */
+  def forceReconnect(): Unit =
+    println("Force reconnecting WebSocket...")
+    syncState.set(SyncState.Idle)
+    reconnectAttemptVar.set(0)
+    connectionEnabled.set(false)
+    val _ = dom.window.setTimeout(() => connectionEnabled.set(true), 100)
+  
+  // ============================================
+  // Event Handlers
+  // ============================================
+  
+  private val onlineHandler: scalajs.js.Function1[dom.Event, Unit] = _ =>
+    isOnlineVar.set(true)
+    println("Network online - triggering reconnect")
+    forceReconnect()
+    
+  private val offlineHandler: scalajs.js.Function1[dom.Event, Unit] = _ =>
+    isOnlineVar.set(false)
+  
   private val visibilityHandler: scalajs.js.Function1[dom.Event, Unit] = _ =>
     if dom.document.visibilityState == "hidden" then
       lastHiddenTime = Some(System.currentTimeMillis().toDouble)
-      // Stop health checks while hidden to save resources
       healthCheckHandle.foreach(dom.window.clearInterval(_))
       healthCheckHandle = None
     else if dom.document.visibilityState == "visible" then
-      // Restart health checks
       startHealthChecks()
       lastHiddenTime.foreach { hiddenTime =>
         val awayDuration = System.currentTimeMillis().toDouble - hiddenTime
         val awayMinutes = (awayDuration / 1000 / 60).toInt
         
         if awayDuration > staleThresholdMs then
-          // Been away a while - force full reconnect
           println(s"User returned after $awayMinutes minutes - forcing reconnect")
-          onStaleReturnCallback.foreach(_())
-        else if awayDuration > 10000 then // More than 10 seconds
-          // Brief absence - just re-sync to be safe
+          forceReconnect()
+        else if awayDuration > 10000 then
           println(s"User returned after ${(awayDuration / 1000).toInt} seconds - re-syncing")
-          onNeedsSyncCallback.foreach(_())
+          if syncState.now() != SyncState.Syncing then
+            triggerSync()
       }
       lastHiddenTime = None
   
-  // Handle bfcache restoration (page was frozen/restored)
   private val pageshowHandler: scalajs.js.Function1[dom.PageTransitionEvent, Unit] = event =>
     if event.persisted then
       println("Page restored from bfcache - triggering reconnect")
-      onStaleReturnCallback.foreach(_())
+      forceReconnect()
   
-  // Track connection state via our own Var (updated by external observers)
-  private val isConnectedVar: Var[Boolean] = Var(false)
-  
-  /** Update tracked connection state - call from connected/closed observers */
-  def setConnected(connected: Boolean): Unit =
-    isConnectedVar.set(connected)
-  
-  // Periodic health check to detect zombie connections
   private def startHealthChecks(): Unit =
     if healthCheckHandle.isEmpty then
       healthCheckHandle = Some(dom.window.setInterval(
@@ -166,19 +298,74 @@ class ConnectionStatusManager[Receive, Send](
   
   private def checkConnectionHealth(): Unit =
     val timeSinceLastMessage = System.currentTimeMillis().toDouble - lastMessageTime
-    val isConnected = isConnectedVar.now()
+    val connected = isConnectedVar.now()
     
-    // If "connected" but no message in 2 minutes, connection might be zombie
-    if isConnected && timeSinceLastMessage > 2 * 60 * 1000 then
-      println(s"No messages received in ${(timeSinceLastMessage / 1000 / 60).toInt} minutes - connection may be stale, triggering reconnect")
-      onStaleReturnCallback.foreach(_())
-    // If disconnected and retries exhausted, try to reconnect
-    else if !isConnected && reconnectAttemptVar.now() >= maxReconnectRetries then
+    if connected && timeSinceLastMessage > 2 * 60 * 1000 then
+      println(s"No messages received in ${(timeSinceLastMessage / 1000 / 60).toInt} minutes - connection may be stale")
+      forceReconnect()
+    else if !connected && reconnectAttemptVar.now() >= maxReconnectRetries then
       println("Retries exhausted but still disconnected - attempting reconnect")
-      reconnectAttemptVar.set(0) // Reset counter
-      onStaleReturnCallback.foreach(_())
+      forceReconnect()
 
-  /** Binder to attach online/offline/visibility listeners to the DOM lifecycle */
+  // ============================================
+  // Async Operation Wrapper
+  // ============================================
+  
+  /** Execute an async operation with error handling.
+    * Catches exceptions and reports them to userError.
+    * Returns None if operation failed, Some(result) on success.
+    */
+  def withErrorHandling[T](
+    operation: => Future[T],
+    errorPrefix: String = "Operation failed",
+  ): Future[Option[T]] =
+    val futureResult = Try(operation) match
+      case Success(future) => future
+      case Failure(ex) => Future.failed(ex)
+    
+    futureResult.map(Some(_)).recover { case ex =>
+      val message = s"$errorPrefix: ${ex.getMessage}"
+      println(message)
+      reportError(message)
+      None
+    }
+  
+  /** Execute an async operation with retry on failure.
+    * Does not report to userError - use for background operations.
+    */
+  def withRetry[T](
+    operation: => Future[T],
+    maxRetries: Int = 3,
+    onFailure: String => Unit = _ => (),
+  ): Future[T] =
+    def attempt(remaining: Int, lastError: Option[Throwable]): Future[T] =
+      if remaining <= 0 then
+        Future.failed(lastError.getOrElse(new Exception("Max retries exceeded")))
+      else
+        val futureResult = Try(operation) match
+          case Success(future) => future
+          case Failure(ex) => Future.failed(ex)
+        
+        futureResult.recoverWith { case ex =>
+          val delayMs = 2000 * math.pow(2, maxRetries - remaining).toInt
+          println(s"Operation failed, retrying in ${delayMs}ms: ${ex.getMessage}")
+          onFailure(ex.getMessage)
+          
+          val promise = scala.concurrent.Promise[T]()
+          val _ = dom.window.setTimeout(
+            () => attempt(remaining - 1, Some(ex)).onComplete(promise.complete),
+            delayMs
+          )
+          promise.future
+        }
+    
+    attempt(maxRetries, None)
+
+  // ============================================
+  // Lifecycle Binders
+  // ============================================
+  
+  /** Binder to attach event listeners to the DOM lifecycle */
   def bind[El <: ReactiveElement.Base]: Binder[El] =
     (element: El) =>
       ReactiveElement.bindSubscriptionUnsafe(element) { ctx =>
@@ -186,7 +373,6 @@ class ConnectionStatusManager[Receive, Send](
         dom.window.addEventListener("offline", offlineHandler)
         dom.document.addEventListener("visibilitychange", visibilityHandler)
         dom.window.addEventListener("pageshow", pageshowHandler)
-        // Start periodic health checks
         startHealthChecks()
         new com.raquo.airstream.ownership.Subscription(
           ctx.owner,
@@ -195,14 +381,13 @@ class ConnectionStatusManager[Receive, Send](
             dom.window.removeEventListener("offline", offlineHandler)
             dom.document.removeEventListener("visibilitychange", visibilityHandler)
             dom.window.removeEventListener("pageshow", pageshowHandler)
-            // Stop health checks
             healthCheckHandle.foreach(dom.window.clearInterval(_))
             healthCheckHandle = None
           }
         )
       }
 
-  /** Observer to handle WebSocket close events and track reconnection attempts */
+  /** Observer to handle WebSocket close events */
   val closeObserver: Observer[(dom.WebSocket, Boolean)] = Observer {
     case (_, willReconnect) =>
       if willReconnect then
@@ -211,11 +396,15 @@ class ConnectionStatusManager[Receive, Send](
         reconnectAttemptVar.set(0)
   }
 
-  /** Observer to handle successful connection (resets reconnect counter) */
+  /** Observer to handle successful connection */
   val connectedObserver: Observer[dom.WebSocket] = Observer { _ =>
     reconnectAttemptVar.set(0)
   }
 
+  // ============================================
+  // Reactive Signals
+  // ============================================
+  
   /** Reactive signal representing the current connection state */
   val state: Signal[ConnectionState] =
     Signal.combine(
@@ -241,15 +430,14 @@ class ConnectionStatusManager[Receive, Send](
 
   /** Signal for whether the connection is healthy */
   val isHealthy: Signal[Boolean] = state.map(_.isHealthy)
+  
+  /** Combined sync message signal for UI */
+  val syncMessage: Signal[String] = syncState.signal.map(_.message)
 
 /** UI component for displaying connection status */
 object ConnectionStatusIndicator:
 
-  /** Small indicator dot for header/nav bar
-    *
-    * @param state
-    *   Reactive signal of connection state
-    */
+  /** Small indicator dot for header/nav bar */
   def dot(state: Signal[ConnectionState]): HtmlElement =
     span(
       cls := "connection-indicator-dot",
@@ -259,16 +447,12 @@ object ConnectionStatusIndicator:
       child.text <-- state.map(_.icon),
     )
 
-  /** Full status display with icon and message
-    *
-    * @param state
-    *   Reactive signal of connection state
-    */
+  /** Full status display with icon and message */
   def full(state: Signal[ConnectionState]): HtmlElement =
     div(
       cls := "connection-indicator-full",
       cls <-- state.map(_.cssClass),
-      aria.live := "polite",  // Announce changes to screen readers
+      aria.live := "polite",
       span(cls := "connection-icon", child.text <-- state.map(_.icon)),
       span(cls := "connection-message", child.text <-- state.map(_.message)),
     )
@@ -276,13 +460,7 @@ object ConnectionStatusIndicator:
 /** Banner component shown when connection is unhealthy or syncing */
 object ConnectionStatusBanner:
 
-  /** Renders a warning banner when disconnected/reconnecting
-    *
-    * @param state
-    *   Reactive signal of connection state
-    * @param onManualReconnect
-    *   Observer to trigger manual reconnection attempt
-    */
+  /** Renders a warning banner when disconnected/reconnecting */
   def apply(
     state: Signal[ConnectionState],
     onManualReconnect: Observer[Unit],
@@ -291,14 +469,13 @@ object ConnectionStatusBanner:
       cls := "connection-banner",
       cls <-- state.map(_.cssClass),
       display <-- state.map(s => if s.shouldShowBanner then "flex" else "none"),
-      aria.live := "assertive",  // Immediately announce to screen readers
+      aria.live := "assertive",
       role := "alert",
       div(
         cls := "connection-banner-content",
         span(cls := "connection-banner-icon", child.text <-- state.map(_.icon)),
         span(cls := "connection-banner-message", child.text <-- state.map(_.message)),
       ),
-      // Show retry button only when disconnected (not auto-reconnecting)
       child <-- state.map {
         case ConnectionState.Disconnected =>
           button(
@@ -307,20 +484,11 @@ object ConnectionStatusBanner:
             "Retry",
           )
         case _ =>
-          span()  // Empty placeholder
+          span()
       },
     )
 
-  /** Renders a banner that shows both connection and sync status.
-    * Shows sync message when connected but syncing data.
-    *
-    * @param connectionState
-    *   Reactive signal of connection state
-    * @param syncMessage
-    *   Reactive signal of sync status message (empty when not syncing)
-    * @param onManualReconnect
-    *   Observer to trigger manual reconnection attempt
-    */
+  /** Renders a banner that shows both connection and sync status */
   def withSyncStatus(
     connectionState: Signal[ConnectionState],
     syncMessage: Signal[String],
@@ -343,7 +511,6 @@ object ConnectionStatusBanner:
     div(
       cls := "connection-banner",
       cls <-- connectionState.map(_.cssClass),
-      // Also add syncing class when connected but syncing
       cls <-- connectionState.combineWith(syncMessage).map {
         case (ConnectionState.Connected, sync) if sync.nonEmpty => "connection-syncing"
         case _ => ""

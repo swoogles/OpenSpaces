@@ -332,13 +332,6 @@ object FrontEnd extends App:
       DiscussionState(DiscussionState.timeSlotExamples, Map.empty),
     )
 
-  // Tracks state synchronization status (for reconnect handling)
-  val syncState: Var[SyncState] =
-    Var(SyncState.Idle)
-  
-  // Tracks WebSocket connection state (mirrors isConnected signal but accessible anywhere)
-  val isConnectedVar: Var[Boolean] = Var(false)
-
   // Tracks the order of topics the user has voted on / created.
   // Most recent first. Used to maintain stable ordering of judged topics.
   val votedTopicOrder: Var[List[TopicId]] =
@@ -436,11 +429,9 @@ object FrontEnd extends App:
   val submitNewTopic: Observer[DiscussionAction] = Observer {
     case discussion @ (add: DiscussionAction.Add) =>
       if (add.facilitator.unwrap.trim.length < 2)
-        errorBanner.error.set(
-          Some("User name too short. Tell us who you are!"),
-        )
+        errorBanner.setError("User name too short. Tell us who you are!")
       else
-        errorBanner.error.set(None)
+        errorBanner.clearError()
         topicUpdates.sendOne(discussion)
     case _ => ()
   }
@@ -462,7 +453,7 @@ object FrontEnd extends App:
     div(
       TopicSubmission(submitNewTopic,
                       name.signal,
-                      errorBanner.error.toObserver,
+                      errorBanner.errorObserver,
       ),
       // Counter showing remaining topics to vote on
       div(
@@ -605,33 +596,12 @@ object FrontEnd extends App:
     getCookie("access_token").isDefined ||
       getCookie("access_token_expires_at").isDefined
 
-  // Used to force WebSocket reconnection by toggling the connect binder off/on.
-  // laminext's reconnectNow() only works in unmanaged mode, so we need this workaround.
-  val connectionEnabled: Var[Boolean] = Var(true)
-  
-  def forceReconnect(): Unit =
-    // Toggle connection off then on to force laminext to reinitialize
-    // with fresh retry counters
-    println("Force reconnecting WebSocket...")
-    syncState.set(SyncState.Idle) // Reset sync state so it will trigger on reconnect
-    connectionEnabled.set(false)
-    val _ = window.setTimeout(() => connectionEnabled.set(true), 100)
-  
-  // Trigger reconnect when user returns after being away for a while
-  connectionStatus.onStaleReturn(forceReconnect())
-  
-  // Trigger re-sync when returning from brief absence (without full reconnect)
-  // Note: sync will check connection state internally
-  connectionStatus.onNeedsSync {
-    if syncState.now() != SyncState.Syncing then
-      triggerStateSync(topicUpdates, discussionState, syncState)
-  }
-
   val app =
     div(
       cls := "PageContainer",
       // Conditional connect binder - toggles off/on to force reconnection
-      child <-- connectionEnabled.signal.map { enabled =>
+      // Uses connectionStatus.connectionEnabled which is controlled by the manager
+      child <-- connectionStatus.connectionEnabled.signal.map { enabled =>
         if enabled then
           div(topicUpdates.connect)
         else
@@ -642,18 +612,16 @@ object FrontEnd extends App:
       topicUpdates.closed --> Observer { (event: (dom.WebSocket, Boolean)) =>
         connectionStatus.closeObserver.onNext(event)
         connectionStatus.setConnected(false)
-        isConnectedVar.set(false)
       },
       topicUpdates.connected --> Observer { (ws: dom.WebSocket) =>
         connectionStatus.connectedObserver.onNext(ws)
         connectionStatus.setConnected(true)
-        isConnectedVar.set(true)
       },
       // Connection status banner (shows when disconnected/reconnecting/syncing)
       ConnectionStatusBanner.withSyncStatus(
         connectionStatus.state,
-        syncState.signal.map(_.message),
-        Observer(_ => forceReconnect()),
+        connectionStatus.syncMessage,
+        Observer(_ => connectionStatus.forceReconnect()),
       ),
       // Popover component at top level
       // Swap action menu at top level
@@ -704,29 +672,25 @@ object FrontEnd extends App:
       },
       if (hasAuthCookies) {
         div(
-          ticketCenter(topicUpdates, discussionState, syncState),
+          ticketCenter(topicUpdates, discussionState),
           topicUpdates.received --> Observer {
             (event: DiscussionActionConfirmed) =>
               // Record message receipt for health monitoring
               connectionStatus.recordMessageReceived()
               
-              // Handle rejection feedback
+              // Handle rejection feedback - use connectionStatus for error reporting
               event match
                 case DiscussionActionConfirmed.Rejected(
                       _: DiscussionAction.SwapTopics,
                     ) =>
-                  errorBanner.error.set(
-                    Some(
-                      "Swap failed: One or both topics were moved by another user. Please try again.",
-                    ),
+                  connectionStatus.reportError(
+                    "Swap failed: One or both topics were moved by another user. Please try again.",
                   )
                 case DiscussionActionConfirmed.Rejected(
                       _: DiscussionAction.MoveTopic,
                     ) =>
-                  errorBanner.error.set(
-                    Some(
-                      "Move failed: That slot was just filled by another user. Please try again.",
-                    ),
+                  connectionStatus.reportError(
+                    "Move failed: That slot was just filled by another user. Please try again.",
                   )
                 // Trigger swap animation before state update
                 case DiscussionActionConfirmed.SwapTopics(
@@ -1853,23 +1817,51 @@ def SlotSchedule(
     },
   )
 
+/** Error banner that displays user-visible errors.
+  * Merges local errors with connectionStatus.userError for unified error display.
+  */
 case class ErrorBanner(
-  error: Var[Option[String]] = Var(None)):
+  localError: Var[Option[String]] = Var(None)):
+  
+  /** Set a local error (for validation, etc.) */
+  def setError(msg: String): Unit = localError.set(Some(msg))
+  
+  /** Clear local error */
+  def clearError(): Unit = localError.set(None)
+  
+  /** Observer for setting errors */
+  val errorObserver: Observer[Option[String]] = Observer { msg =>
+    localError.set(msg)
+  }
+  
   val component =
     div(
       child <--
-        error.signal.map {
-          case Some(value) =>
+        // Merge local errors with connectionStatus errors
+        localError.signal.combineWith(connectionStatus.userError.signal).map {
+          case (Some(msg), _) =>
+            // Local error takes precedence
             div(
               cls := "ErrorBanner",
-              span(cls := "ErrorBanner-message", "Error: " + value),
+              span(cls := "ErrorBanner-message", "Error: " + msg),
               button(
                 cls := "ErrorBanner-dismiss",
-                onClick --> Observer(_ => error.set(None)),
+                onClick --> Observer(_ => localError.set(None)),
                 "×",
               ),
             )
-          case None =>
+          case (None, Some(msg)) =>
+            // Show connection status error
+            div(
+              cls := "ErrorBanner",
+              span(cls := "ErrorBanner-message", "Error: " + msg),
+              button(
+                cls := "ErrorBanner-dismiss",
+                onClick --> Observer(_ => connectionStatus.clearError()),
+                "×",
+              ),
+            )
+          case (None, None) =>
             div()
         },
     )
@@ -2393,7 +2385,9 @@ val topicUpdates
     )
 }
 
-// Connection status manager for monitoring WebSocket health
+// Connection status manager for monitoring WebSocket health, sync, and error handling
+// All reconnect/sync logic is consolidated here
+import scala.concurrent.ExecutionContext.Implicits.global
 val connectionStatus = new ConnectionStatusManager(
   topicUpdates,
   MaxReconnectRetries,
@@ -2434,192 +2428,101 @@ def fetchTicketWithRefresh(): EventStream[String] = {
   }
 }
 
-/** Tracks whether state sync is in progress.
-  * Used to show UI feedback during reconnection sync.
+/** Fetch a fresh auth ticket, refreshing access token if needed.
+  * Returns a Future that resolves to the ticket response text.
   */
-enum SyncState:
-  case Idle
-  case Syncing
-  case Synced
-  case Error(errorMsg: String)
-
-  /** Human-readable status message */
-  def message: String = this match
-    case Idle              => ""
-    case Syncing           => "Syncing data..."
-    case Synced            => ""
-    case Error(msg)        => s"Sync failed: $msg"
-
-  /** Whether sync is in progress */
-  def isSyncing: Boolean = this == Syncing
-
-/** Triggers state sync by clearing state and fetching a fresh ticket.
-  * Called on initial connection and reconnects.
-  * Handles token refresh, retries on failure, and verifies WebSocket is connected.
-  */
-def triggerStateSync(
-  topicUpdates: WebSocket[DiscussionActionConfirmed, WebSocketMessage],
-  discussionState: Var[DiscussionState],
-  syncState: Var[SyncState],
-  retryCount: Int = 0,
-): Unit =
-  import scala.concurrent.ExecutionContext.Implicits.global
-  val MaxRetries = 3
-  val RetryDelayMs = 2000 * math.pow(2, retryCount).toInt // Exponential backoff: 2s, 4s, 8s
-  
-  // Don't sync if already syncing (prevents duplicate requests)
-  if syncState.now() == SyncState.Syncing && retryCount == 0 then
-    println("Sync already in progress, skipping")
-    return
-  
-  // Mark as syncing but keep existing data visible
-  // Data will be updated/added via AddResult messages
-  // Note: Deleted topics may briefly persist until full state is received
-  if retryCount == 0 then
-    syncState.set(SyncState.Syncing)
-  println(s"Triggering state sync (attempt ${retryCount + 1}/$MaxRetries)...")
-  
-  // Check if WebSocket is actually connected
-  if !FrontEnd.isConnectedVar.now() then
-    println("WebSocket not connected, waiting for connection...")
-    syncState.set(SyncState.Error("Waiting for connection"))
-    return
-  
-  // Refresh token if expired, then fetch ticket
-  val ticketFuture: scala.concurrent.Future[String] = 
-    if isAccessTokenExpired then
-      println("Access token expired, refreshing...")
-      refreshAccessToken().flatMap { refreshed =>
-        if refreshed then
-          fetchTicket()
-        else
-          scala.concurrent.Future.failed(new Exception("Token refresh failed"))
-      }
-    else
-      fetchTicket()
-  
-  ticketFuture.onComplete {
-    case scala.util.Success(responseText) =>
-      responseText.fromJson[Ticket] match
-        case Right(ticket) =>
-          // Verify still connected before sending
-          if FrontEnd.isConnectedVar.now() then
-            println("Ticket received, sending to server for state sync")
-            topicUpdates.sendOne(ticket)
-            syncState.set(SyncState.Synced)
+private def fetchTicketAsync(): scala.concurrent.Future[String] =
+  if isAccessTokenExpired then
+    println("Access token expired, refreshing...")
+    refreshAccessToken().flatMap { refreshed =>
+      if refreshed then
+        dom.fetch("/ticket", new dom.RequestInit {
+          method = dom.HttpMethod.GET
+          headers = new dom.Headers(scalajs.js.Array(
+            scalajs.js.Array("Authorization", s"Bearer ${getCookie("access_token").getOrElse("")}")
+          ))
+        }).toFuture.flatMap { response =>
+          if response.ok then response.text().toFuture
+          else if response.status == 401 then
+            scala.concurrent.Future.failed(new Exception("Unauthorized - please log in again"))
           else
-            println("WebSocket disconnected before ticket could be sent")
-            if retryCount < MaxRetries then
-              val _ = window.setTimeout(() => 
-                triggerStateSync(topicUpdates, discussionState, syncState, retryCount + 1), 
-                RetryDelayMs
-              )
-            else
-              syncState.set(SyncState.Error("Connection lost"))
-        case Left(parseError) =>
-          println(s"Failed to parse ticket: $parseError")
-          handleSyncError("Invalid ticket response", topicUpdates, discussionState, syncState, retryCount, MaxRetries, RetryDelayMs)
-    case scala.util.Failure(error) =>
-      println(s"Failed to fetch ticket: ${error.getMessage}")
-      handleSyncError(error.getMessage, topicUpdates, discussionState, syncState, retryCount, MaxRetries, RetryDelayMs)
-  }
-
-/** Helper to fetch ticket with proper error handling */
-private def fetchTicket(): scala.concurrent.Future[String] =
-  import scala.concurrent.ExecutionContext.Implicits.global
-  dom.fetch("/ticket", new dom.RequestInit {
-    method = dom.HttpMethod.GET
-    headers = new dom.Headers(scalajs.js.Array(
-      scalajs.js.Array("Authorization", s"Bearer ${getCookie("access_token").getOrElse("")}")
-    ))
-  }).toFuture.flatMap { response =>
-    if response.ok then
-      response.text().toFuture
-    else if response.status == 401 then
-      scala.concurrent.Future.failed(new Exception("Unauthorized - please log in again"))
-    else
-      scala.concurrent.Future.failed(new Exception(s"HTTP ${response.status}"))
-  }
-
-/** Helper to handle sync errors with retry logic */  
-private def handleSyncError(
-  errorMsg: String,
-  topicUpdates: WebSocket[DiscussionActionConfirmed, WebSocketMessage],
-  discussionState: Var[DiscussionState],
-  syncState: Var[SyncState],
-  retryCount: Int,
-  maxRetries: Int,
-  retryDelayMs: Int,
-): Unit =
-  if retryCount < maxRetries then
-    println(s"Retrying sync in ${retryDelayMs}ms...")
-    syncState.set(SyncState.Error(s"Retrying... (${retryCount + 1}/$maxRetries)"))
-    val _ = window.setTimeout(() => 
-      triggerStateSync(topicUpdates, discussionState, syncState, retryCount + 1), 
-      retryDelayMs
-    )
+            scala.concurrent.Future.failed(new Exception(s"HTTP ${response.status}"))
+        }
+      else
+        scala.concurrent.Future.failed(new Exception("Token refresh failed"))
+    }
   else
-    println("Max retries reached, giving up")
-    syncState.set(SyncState.Error(errorMsg))
+    dom.fetch("/ticket", new dom.RequestInit {
+      method = dom.HttpMethod.GET
+      headers = new dom.Headers(scalajs.js.Array(
+        scalajs.js.Array("Authorization", s"Bearer ${getCookie("access_token").getOrElse("")}")
+      ))
+    }).toFuture.flatMap { response =>
+      if response.ok then response.text().toFuture
+      else if response.status == 401 then
+        scala.concurrent.Future.failed(new Exception("Unauthorized - please log in again"))
+      else
+        scala.concurrent.Future.failed(new Exception(s"HTTP ${response.status}"))
+    }
 
-/** Handles state synchronization on WebSocket (re)connection.
+/** Sets up state synchronization on WebSocket (re)connection.
   *
-  * When the WebSocket connects (initial or reconnect), this:
-  * 1. Clears local state to avoid stale data
-  * 2. Fetches a fresh auth ticket
-  * 3. Sends ticket to server, which responds with all current discussions
+  * Registers the sync operation with connectionStatus manager, which handles:
+  * - Triggering sync on connect/reconnect
+  * - Automatic retries with exponential backoff
+  * - Coordination with visibility changes and health checks
   *
-  * This ensures the client is always in sync after any disconnection.
+  * Also handles rejected actions by re-authenticating and retrying.
   */
 def ticketCenter(
   topicUpdates: WebSocket[DiscussionActionConfirmed, WebSocketMessage],
   discussionState: Var[DiscussionState],
-  syncState: Var[SyncState],
 ) =
+  // Register the sync operation with the connection manager
+  // This will be called on connect, reconnect, and visibility return
+  connectionStatus.onSync {
+    fetchTicketAsync().map { responseText =>
+      responseText.fromJson[Ticket] match
+        case Right(ticket) =>
+          println("Ticket received, sending to server for state sync")
+          topicUpdates.sendOne(ticket)
+        case Left(parseError) =>
+          throw new Exception(s"Invalid ticket response: $parseError")
+    }
+  }
+
   div(
-    // Use isConnected Signal for reliable connection detection
-    // This handles both "already connected" and "just connected" cases
-    // without race conditions from event timing
+    // Trigger sync when WebSocket connects
     topicUpdates.isConnected.changes.filter(identity) --> Observer { _ =>
-      val currentSyncState = syncState.now()
-      if currentSyncState != SyncState.Syncing then
-        println("WebSocket connected (via isConnected signal) - triggering sync")
-        triggerStateSync(topicUpdates, discussionState, syncState)
+      println("WebSocket connected - triggering sync via connectionStatus")
+      connectionStatus.triggerSync()
     },
-    // Also check on mount in case isConnected was already true before subscription
+    // Also check on mount in case already connected
     onMountCallback { ctx =>
       val isConnected = topicUpdates.isConnected.observe(ctx.owner).now()
-      val currentSyncState = syncState.now()
-      if isConnected && currentSyncState == SyncState.Idle then
+      if isConnected && connectionStatus.syncState.now() == SyncState.Idle then
         println("WebSocket already connected on mount - triggering sync")
-        triggerStateSync(topicUpdates, discussionState, syncState)
+        connectionStatus.triggerSync()
     },
     // Handle rejected actions by re-authenticating and retrying
-    topicUpdates.received.flatMapSwitch {
-      (event: DiscussionActionConfirmed) =>
-        event match
-          case DiscussionActionConfirmed.Rejected(
-                discussionAction,
-              ) =>
-            fetchTicketWithRefresh()
-              .map(response => (response, discussionAction))
-          case other =>
-            EventStream.empty
-    } --> {
-      (
-        ticketResponse,
-        discussionAction,
-      ) =>
-        val ticket = ticketResponse
-          .fromJson[Ticket]
-          .getOrElse(
-            throw new Exception(
-              "Failed to parse ticket: " + ticketResponse,
-            ),
-          )
-        topicUpdates.sendOne(ticket)
-        topicUpdates.sendOne(
-          discussionAction,
-        )
+    // Uses connectionStatus.withErrorHandling to catch and report errors
+    topicUpdates.received.flatMapSwitch { event =>
+      event match
+        case DiscussionActionConfirmed.Rejected(discussionAction) =>
+          EventStream.fromFuture(
+            connectionStatus.withErrorHandling(
+              fetchTicketAsync().map { responseText =>
+                responseText.fromJson[Ticket] match
+                  case Right(ticket) => (ticket, discussionAction)
+                  case Left(err) => throw new Exception(s"Failed to parse ticket: $err")
+              },
+              "Re-authentication failed",
+            )
+          ).collect { case Some(result) => result }
+        case _ =>
+          EventStream.empty
+    } --> { case (ticket, discussionAction) =>
+      topicUpdates.sendOne(ticket)
+      topicUpdates.sendOne(discussionAction)
     },
   )
