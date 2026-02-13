@@ -223,6 +223,60 @@ class DiscussionDataStore(
           }
       applyAction(action).run
 
+  /** Random schedule-only action for schedule chaos mode */
+  def randomScheduleAction: Task[DiscussionActionConfirmed] =
+    defer:
+      val currentState = snapshot.run
+      val topics = currentState.data.values.toList
+      if topics.isEmpty then
+        DiscussionActionConfirmed.Rejected(DiscussionAction.Unschedule(TopicId(0L)))
+      else
+        val actionType = Random.nextIntBounded(4).run
+        val action: DiscussionAction = actionType match
+          case 0 =>
+            // Move to slot
+            val topicIdx = Random.nextIntBounded(topics.size).run
+            val topic = topics(topicIdx)
+            findAvailableSlot(currentState) match
+              case Some(slot) => DiscussionAction.UpdateRoomSlot(topic.id, slot)
+              case None => DiscussionAction.Unschedule(topic.id)
+          case 1 =>
+            // Unschedule
+            val scheduled = topics.filter(_.roomSlot.isDefined)
+            if scheduled.isEmpty then
+              DiscussionAction.Unschedule(TopicId(0L))
+            else
+              val idx = Random.nextIntBounded(scheduled.size).run
+              DiscussionAction.Unschedule(scheduled(idx).id)
+          case _ =>
+            // Swap
+            val scheduled = topics.filter(_.roomSlot.isDefined)
+            if scheduled.size < 2 then
+              DiscussionAction.Unschedule(TopicId(0L))
+            else
+              val idx1 = Random.nextIntBounded(scheduled.size).run
+              val idx2 = Random.nextIntBounded(scheduled.size).run
+              val t1 = scheduled(idx1)
+              val t2 = scheduled(idx2)
+              if t1 != t2 && t1.roomSlot.isDefined && t2.roomSlot.isDefined then
+                DiscussionAction.SwapTopics(t1.id, t1.roomSlot.get, t2.id, t2.roomSlot.get)
+              else
+                DiscussionAction.Unschedule(TopicId(0L))
+        applyAction(action).run
+
+  private def findAvailableSlot(state: DiscussionState): Option[RoomSlot] =
+    state.slots
+      .flatMap(daySlot =>
+        daySlot.slots.flatMap(timeSlotForAllRooms =>
+          timeSlotForAllRooms.rooms.flatMap { room =>
+            val slot = RoomSlot(room, timeSlotForAllRooms.time)
+            if state.data.values.exists(_.roomSlot.contains(slot)) then None
+            else Some(slot)
+          }
+        )
+      )
+      .headOption
+
   private def createDiscussion(
     topic: Topic,
     facilitator: Person,

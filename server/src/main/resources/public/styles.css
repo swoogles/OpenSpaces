@@ -879,6 +879,16 @@
     background-color: #9ae6b4;
 }
 
+.AdminControls-button--schedule-active {
+    background-color: #bee3f8;
+    border-color: #63b3ed;
+    color: #2b6cb0;
+}
+
+.AdminControls-button--schedule-active:hover {
+    background-color: #90cdf4;
+}
+
 .AdminControls-button--danger {
     border-color: #fc8181;
     color: #c53030;

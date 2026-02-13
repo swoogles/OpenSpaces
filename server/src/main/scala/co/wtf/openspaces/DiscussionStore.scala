@@ -8,3 +8,4 @@ trait DiscussionStore:
   def applyAction(discussionAction: DiscussionAction): Task[DiscussionActionConfirmed]
   def applyConfirmed(action: DiscussionActionConfirmed): UIO[Unit]
   def randomDiscussionAction: Task[DiscussionActionConfirmed]
+  def randomScheduleAction: Task[DiscussionActionConfirmed]

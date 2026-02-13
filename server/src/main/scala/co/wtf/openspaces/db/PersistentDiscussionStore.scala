@@ -153,6 +153,77 @@ class PersistentDiscussionStore(
           // No slots available - vote instead of deleting to avoid death spiral
           case None => DiscussionAction.Vote(topicId, Feedback(person, VotePosition.Interested))
 
+  /** Random schedule-only action: move to slot, unschedule, or swap.
+    * Does not create/delete topics or change votes.
+    */
+  def randomScheduleAction: Task[DiscussionActionConfirmed] =
+    for
+      currentState <- state.get
+      topics = currentState.data.values.toList
+      result <- if topics.isEmpty then
+        // No topics to schedule - return a no-op by voting on nothing (will be rejected gracefully)
+        ZIO.succeed(DiscussionActionConfirmed.Rejected(DiscussionAction.Unschedule(TopicId(0L))))
+      else
+        for
+          actionType <- Random.nextIntBounded(4)
+          action <- actionType match
+            case 0 => randomMoveToSlotAction(currentState)
+            case 1 => randomUnscheduleAction(currentState)
+            case 2 | 3 => randomSwapAction(currentState)
+          result <- applyAction(action)
+        yield result
+    yield result
+
+  /** Pick a random topic and move it to an available slot */
+  private def randomMoveToSlotAction(currentState: DiscussionState): Task[DiscussionAction] =
+    val topics = currentState.data.values.toList
+    val availableSlots = findAvailableSlots(currentState)
+    for
+      topicIdx <- Random.nextIntBounded(topics.size.max(1))
+      slotIdx <- Random.nextIntBounded(availableSlots.size.max(1))
+    yield
+      val topic = topics.lift(topicIdx)
+      val slot = availableSlots.lift(slotIdx)
+      (topic, slot) match
+        case (Some(t), Some(s)) => DiscussionAction.UpdateRoomSlot(t.id, s)
+        case (Some(t), None) => DiscussionAction.Unschedule(t.id) // No slots available, unschedule instead
+        case _ => DiscussionAction.Unschedule(TopicId(0L)) // Will be rejected
+
+  /** Pick a random scheduled topic and unschedule it */
+  private def randomUnscheduleAction(currentState: DiscussionState): Task[DiscussionAction] =
+    val scheduledTopics = currentState.data.values.filter(_.roomSlot.isDefined).toList
+    for
+      idx <- Random.nextIntBounded(scheduledTopics.size.max(1))
+    yield scheduledTopics.lift(idx) match
+      case Some(topic) => DiscussionAction.Unschedule(topic.id)
+      case None => DiscussionAction.Unschedule(TopicId(0L)) // Will be rejected
+
+  /** Pick two scheduled topics and swap their slots */
+  private def randomSwapAction(currentState: DiscussionState): Task[DiscussionAction] =
+    val scheduledTopics = currentState.data.values.filter(_.roomSlot.isDefined).toList
+    for
+      idx1 <- Random.nextIntBounded(scheduledTopics.size.max(1))
+      idx2 <- Random.nextIntBounded(scheduledTopics.size.max(1))
+    yield
+      val topic1 = scheduledTopics.lift(idx1)
+      val topic2 = scheduledTopics.lift(idx2).filter(_ != topic1.orNull)
+      (topic1, topic2) match
+        case (Some(t1), Some(t2)) if t1.roomSlot.isDefined && t2.roomSlot.isDefined =>
+          DiscussionAction.SwapTopics(t1.id, t1.roomSlot.get, t2.id, t2.roomSlot.get)
+        case _ => DiscussionAction.Unschedule(TopicId(0L)) // Will be rejected
+
+  /** Find all available (unoccupied) room slots */
+  private def findAvailableSlots(currentState: DiscussionState): List[RoomSlot] =
+    currentState.slots.flatMap { daySlot =>
+      daySlot.slots.flatMap { timeSlotForAllRooms =>
+        timeSlotForAllRooms.rooms.flatMap { room =>
+          val slot = RoomSlot(room, timeSlotForAllRooms.time)
+          val occupied = currentState.data.values.exists(_.roomSlot.contains(slot))
+          if occupied then None else Some(slot)
+        }
+      }
+    }
+
   private def randomExistingTopicId(currentState: DiscussionState): Task[Option[TopicId]] =
     val keys = currentState.data.keys.toList
     if keys.isEmpty then

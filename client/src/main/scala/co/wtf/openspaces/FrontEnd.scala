@@ -1002,26 +1002,42 @@ private def AdminModeToggle(
     ),
   )
 
-/** Admin controls - chaos button, delete all, and reset user */
+/** Admin controls - chaos buttons, delete all, and reset user */
 private def AdminControls(
   $showAdminControls: Signal[Boolean],
   topicUpdates: DiscussionAction => Unit,
 ) =
   import scala.concurrent.ExecutionContext.Implicits.global
   
-  val isActive: Var[Boolean] = Var(false)
+  // Full chaos state
+  val isChaosActive: Var[Boolean] = Var(false)
   val chaosLoading: Var[Boolean] = Var(false)
+  
+  // Schedule-only chaos state
+  val isScheduleChaosActive: Var[Boolean] = Var(false)
+  val scheduleChaosLoading: Var[Boolean] = Var(false)
+  
   val deleteLoading: Var[Boolean] = Var(false)
   val resetLoading: Var[Boolean] = Var(false)
   
   // Fetch initial state on mount
   def fetchStatus(): Unit =
+    // Full chaos status
     dom.fetch("/api/admin/random-actions")
       .toFuture
       .flatMap(_.text().toFuture)
       .foreach { text =>
         text.fromJson[RandomActionStatus] match
-          case Right(status) => isActive.set(status.active)
+          case Right(status) => isChaosActive.set(status.active)
+          case Left(_) => ()
+      }
+    // Schedule chaos status
+    dom.fetch("/api/admin/schedule-chaos")
+      .toFuture
+      .flatMap(_.text().toFuture)
+      .foreach { text =>
+        text.fromJson[RandomActionStatus] match
+          case Right(status) => isScheduleChaosActive.set(status.active)
           case Left(_) => ()
       }
   
@@ -1034,10 +1050,25 @@ private def AdminControls(
       .foreach { text =>
         text.fromJson[RandomActionStatus] match
           case Right(status) => 
-            isActive.set(status.active)
+            isChaosActive.set(status.active)
             chaosLoading.set(false)
           case Left(_) => 
             chaosLoading.set(false)
+      }
+
+  def toggleScheduleChaos(): Unit =
+    scheduleChaosLoading.set(true)
+    dom.fetch("/api/admin/schedule-chaos/toggle", new dom.RequestInit {
+      method = dom.HttpMethod.POST
+    }).toFuture
+      .flatMap(_.text().toFuture)
+      .foreach { text =>
+        text.fromJson[RandomActionStatus] match
+          case Right(status) => 
+            isScheduleChaosActive.set(status.active)
+            scheduleChaosLoading.set(false)
+          case Left(_) => 
+            scheduleChaosLoading.set(false)
       }
 
   def deleteAll(): Unit =
@@ -1073,18 +1104,34 @@ private def AdminControls(
     // Only show when admin mode is active
     display <-- $showAdminControls.map(if _ then "flex" else "none"),
     onMountCallback(_ => fetchStatus()),
+    // Full chaos button
     button(
-      cls <-- Signal.combine(isActive.signal, chaosLoading.signal).map { 
+      cls <-- Signal.combine(isChaosActive.signal, chaosLoading.signal).map { 
         case (_, true) => "AdminControls-button AdminControls-button--loading"
         case (true, _) => "AdminControls-button AdminControls-button--active"
         case (false, _) => "AdminControls-button"
       },
       disabled <-- chaosLoading.signal,
       onClick --> { _ => toggleChaos() },
-      child.text <-- Signal.combine(isActive.signal, chaosLoading.signal).map {
+      child.text <-- Signal.combine(isChaosActive.signal, chaosLoading.signal).map {
         case (_, true) => "⏳"
         case (true, _) => "🎲 Stop Chaos"
         case (false, _) => "🎲 Start Chaos"
+      },
+    ),
+    // Schedule-only chaos button
+    button(
+      cls <-- Signal.combine(isScheduleChaosActive.signal, scheduleChaosLoading.signal).map { 
+        case (_, true) => "AdminControls-button AdminControls-button--loading"
+        case (true, _) => "AdminControls-button AdminControls-button--schedule-active"
+        case (false, _) => "AdminControls-button"
+      },
+      disabled <-- scheduleChaosLoading.signal,
+      onClick --> { _ => toggleScheduleChaos() },
+      child.text <-- Signal.combine(isScheduleChaosActive.signal, scheduleChaosLoading.signal).map {
+        case (_, true) => "⏳"
+        case (true, _) => "📅 Stop Schedule Chaos"
+        case (false, _) => "📅 Schedule Chaos"
       },
     ),
     button(

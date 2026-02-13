@@ -35,6 +35,13 @@ case class DiscussionService(
       _ <- broadcastToAll(action)
     yield action
 
+  /** Generate a random schedule-only action (move/swap/unschedule) and broadcast */
+  def randomScheduleAction: Task[DiscussionActionConfirmed] =
+    for
+      action <- discussionStore.randomScheduleAction
+      _ <- broadcastToAll(action)
+    yield action
+
   /** Delete all topics using the standard delete logic (broadcasts to all clients) */
   def deleteAllTopics: Task[Int] =
     for
