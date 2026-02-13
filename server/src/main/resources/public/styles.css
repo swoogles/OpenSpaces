@@ -1329,52 +1329,65 @@
 }
 
 /* ========================================
-   Persistent Vote Indicators (edges of card)
+   Persistent Vote Indicator (left side of card)
+   Shows vote status icon + count in unified position
    ======================================== */
 
 .VoteIndicator {
     position: absolute;
+    left: 0;
     top: 0;
     bottom: 0;
-    width: 28px;
+    width: 32px;
     display: flex;
+    flex-direction: column;
     align-items: center;
     justify-content: center;
-    font-size: 1.1rem;
+    gap: 2px;
     opacity: 0;
     pointer-events: none;
     transition: opacity 0.3s ease;
+    border-radius: 4px 0 0 4px;
 }
 
 .VoteIndicator--visible {
     opacity: 1;
 }
 
-.VoteIndicator--left {
-    left: 0;
-    border-radius: 4px 0 0 4px;
+/* Interested (heart) - green theme */
+.VoteIndicator--interested {
     background-color: rgba(56, 161, 105, 0.15);
     color: #38a169;
 }
 
-.VoteIndicator--right {
-    right: 0;
-    border-radius: 0 4px 4px 0;
+/* Not interested (X) - gray theme */
+.VoteIndicator--notinterested {
     background-color: rgba(113, 128, 150, 0.15);
     color: #718096;
 }
 
-/* Adjust TopicCard to make room for indicators on both sides */
+.VoteIndicator-icon {
+    font-size: 1.1rem;
+    line-height: 1;
+}
+
+.VoteIndicator-count {
+    font-size: 0.75rem;
+    font-weight: 600;
+    line-height: 1;
+}
+
+/* Adjust TopicCard - only left padding needed now */
 .TopicCard {
     position: relative;
-    padding-left: 32px !important;
-    padding-right: 32px !important;
+    padding-left: 36px !important;
+    padding-right: 12px !important;
 }
 
 /* When inside swipeable container, maintain padding */
 .SwipeableCardContent .TopicCard {
-    padding-left: 32px !important;
-    padding-right: 32px !important;
+    padding-left: 36px !important;
+    padding-right: 12px !important;
 }
 
 /* ============================================

@@ -1327,9 +1327,9 @@ private def SingleDiscussionComponent(
         case Some(feedback) if feedback.position == VotePosition.NotInterested => "#e2e3e5" // gray - not interested
         case _ => "#f8f9fa"                                                                  // neutral - no vote
       
-      // Determine which vote indicators to show (left for interested, right for not interested)
-      val showLeftIndicator = currentUserFeedback.exists(_.position == VotePosition.Interested)
-      val showRightIndicator = currentUserFeedback.exists(_.position == VotePosition.NotInterested)
+      // Determine vote status (both show in same position on left)
+      val voteStatus = currentUserFeedback.map(_.position)
+      val hasVoted = currentUserFeedback.isDefined
 
       val cardContent = div(
         cls := s"TopicCard $heatLevel", // Heat level class for visual indicator
@@ -1356,17 +1356,26 @@ private def SingleDiscussionComponent(
             )
           else Seq.empty
         },
-        // Left indicator (heart) - shows when Interested
+        // Vote status indicator (unified left position) - shows icon + vote count
         div(
-          cls := (if showLeftIndicator then "VoteIndicator VoteIndicator--left VoteIndicator--visible" 
-                  else "VoteIndicator VoteIndicator--left"),
-          "♥"
-        ),
-        // Right indicator (X) - shows when Not Interested  
-        div(
-          cls := (if showRightIndicator then "VoteIndicator VoteIndicator--right VoteIndicator--visible"
-                  else "VoteIndicator VoteIndicator--right"),
-          "✗"
+          cls := (voteStatus match
+            case Some(VotePosition.Interested) => "VoteIndicator VoteIndicator--interested VoteIndicator--visible"
+            case Some(VotePosition.NotInterested) => "VoteIndicator VoteIndicator--notinterested VoteIndicator--visible"
+            case None => "VoteIndicator"
+          ),
+          // Icon based on vote type
+          span(
+            cls := "VoteIndicator-icon",
+            voteStatus match
+              case Some(VotePosition.Interested) => "♥"
+              case Some(VotePosition.NotInterested) => "✗"
+              case None => ""
+          ),
+          // Vote count (only shown after voting)
+          if hasVoted then
+            span(cls := "VoteIndicator-count", votes.toString)
+          else
+            span(),
         ),
         div(
           cls := "MainActive",
