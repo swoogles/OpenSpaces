@@ -248,14 +248,30 @@ class PersistentDiscussionStore(
           _ <- state.update(_.apply(confirmed))
         yield confirmed
 
-      case DiscussionAction.RemoveVote(topicId, voter) =>
+      case DiscussionAction.ResetUser(person) =>
         for
           _ <- ensureUserExists(actor)
-          confirmed = DiscussionActionConfirmed.fromDiscussionAction(action)
-          _ <- persistEvent("RemoveVote", topicId.unwrap, action.toJson, actor)
-          // Remove the voter's feedback from the topic
-          _ <- updateDiscussionParties(topicId, parties => 
-            parties.filterNot(_.voter == voter))
+          currentState <- state.get
+          // Find topics to delete (created by this person)
+          deletedTopicIds = currentState.data.values
+            .filter(_.facilitator == person)
+            .map(_.id)
+            .toList
+          // Find topics where this person has voted (excluding ones being deleted)
+          clearedVoteTopicIds = currentState.data.values
+            .filter(d => !deletedTopicIds.contains(d.id) && d.interestedParties.exists(_.voter == person))
+            .map(_.id)
+            .toList
+          confirmed = DiscussionActionConfirmed.ResetUser(person, deletedTopicIds, clearedVoteTopicIds)
+          _ <- persistEvent("ResetUser", 0L, action.toJson, actor)
+          // Soft delete the topics from DB
+          _ <- ZIO.foreachDiscard(deletedTopicIds) { topicId =>
+            discussionRepo.softDelete(topicId.unwrap)
+          }
+          // Clear votes from remaining topics
+          _ <- ZIO.foreachDiscard(clearedVoteTopicIds) { topicId =>
+            updateDiscussionParties(topicId, parties => parties.filterNot(_.voter == person))
+          }
           _ <- state.update(_.apply(confirmed))
         yield confirmed
 
@@ -381,7 +397,7 @@ class PersistentDiscussionStore(
       case DiscussionAction.AddWithRoomSlot(_, facilitator, _) => facilitator.unwrap
       case DiscussionAction.Delete(_)                        => "system" // TODO: track who deleted
       case DiscussionAction.Vote(_, feedback)                => feedback.voter.unwrap
-      case DiscussionAction.RemoveVote(_, voter)             => voter.unwrap
+      case DiscussionAction.ResetUser(person)                => person.unwrap
       case DiscussionAction.Rename(_, _)                     => "system" // TODO: track who renamed
       case DiscussionAction.UpdateRoomSlot(_, _)             => "system" // TODO: track who scheduled
       case DiscussionAction.Unschedule(_)                    => "system"

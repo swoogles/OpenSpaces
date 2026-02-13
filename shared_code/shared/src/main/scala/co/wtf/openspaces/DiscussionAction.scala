@@ -30,9 +30,8 @@ enum DiscussionAction extends WebSocketMessage derives JsonCodec:
   case Vote(
     topic: TopicId,
     feedback: Feedback)
-  case RemoveVote(
-    topic: TopicId,
-    voter: Person)
+  case ResetUser(
+    person: Person)
   case Rename(
     topicId: TopicId,
     newTopic: Topic) // Any reason to pass original, now that I'm updating based on id?
@@ -56,9 +55,10 @@ enum DiscussionActionConfirmed derives JsonCodec:
   case Vote(
     topic: TopicId,
     feedback: Feedback)
-  case RemoveVote(
-    topic: TopicId,
-    voter: Person)
+  case ResetUser(
+    person: Person,
+    deletedTopicIds: List[TopicId],
+    clearedVoteTopicIds: List[TopicId])
   case Rename(
     topicId: TopicId,
     newTopic: Topic) // Any reason to pass original, now that I'm updating based on id?
@@ -100,8 +100,10 @@ object DiscussionActionConfirmed:
         DiscussionActionConfirmed.Delete(topic)
       case DiscussionAction.Vote(topic, feedback) =>
         DiscussionActionConfirmed.Vote(topic, feedback)
-      case DiscussionAction.RemoveVote(topic, voter) =>
-        DiscussionActionConfirmed.RemoveVote(topic, voter)
+      case DiscussionAction.ResetUser(_) =>
+        throw new Exception(
+          "ResetUser requires server-side processing to determine affected topics.",
+        )
       case DiscussionAction.Rename(topicId, newTopic) =>
         DiscussionActionConfirmed.Rename(topicId, newTopic)
       case DiscussionAction.UpdateRoomSlot(topicId, roomSlot) =>

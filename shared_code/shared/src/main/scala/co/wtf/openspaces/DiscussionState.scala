@@ -48,14 +48,17 @@ case class DiscussionState(
             ),
           )
         }
-      case DiscussionActionConfirmed.RemoveVote(topicId, voter) =>
-        // Remove the voter's feedback from the topic
-        data.updatedWith(topicId) {
-          _.map(value =>
-            value.copy(interestedParties =
-              value.interestedParties.filterNot(_.voter == voter),
-            ),
-          )
+      case DiscussionActionConfirmed.ResetUser(person, deletedTopicIds, clearedVoteTopicIds) =>
+        // Remove deleted topics and clear votes from affected topics
+        val afterDeletes = data.filterNot { case (id, _) => deletedTopicIds.contains(id) }
+        clearedVoteTopicIds.foldLeft(afterDeletes) { (acc, topicId) =>
+          acc.updatedWith(topicId) {
+            _.map(value =>
+              value.copy(interestedParties =
+                value.interestedParties.filterNot(_.voter == person),
+              ),
+            )
+          }
         }
       case DiscussionActionConfirmed.Rename(topicId, newTopic) =>
         data.updatedWith(topicId) {

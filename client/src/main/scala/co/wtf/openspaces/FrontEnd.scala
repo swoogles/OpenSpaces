@@ -1087,25 +1087,10 @@ private def AdminControls(
   def resetUser(): Unit =
     if dom.window.confirm("Reset your user? This will delete your topics, remove your votes, and reset your swipe hint.") then
       resetLoading.set(true)
-      // Access FrontEnd's state directly since Signals don't expose .now()
       val user = FrontEnd.name.now()
-      val state = FrontEnd.discussionState.now()
       
-      // Find and delete all topics created by this user
-      val userTopics = state.data.values.filter(_.facilitator == user)
-      userTopics.foreach { topic =>
-        topicUpdates(DiscussionAction.Delete(topic.id))
-      }
-      
-      // Remove votes from all topics (except ones being deleted)
-      val userTopicIds = userTopics.map(_.id).toSet
-      val topicsWithUserVotes = state.data.values.filter { topic =>
-        !userTopicIds.contains(topic.id) && 
-        topic.interestedParties.exists(_.voter == user)
-      }
-      topicsWithUserVotes.foreach { topic =>
-        topicUpdates(DiscussionAction.RemoveVote(topic.id, user))
-      }
+      // Send single reset action to server (handles topic deletion + vote clearing)
+      topicUpdates(DiscussionAction.ResetUser(user))
       
       // Reset client-side state
       FrontEnd.everVotedTopics.set(Set.empty)
@@ -2364,8 +2349,8 @@ private def handleDiscussionActionConfirmed(
       (Some(topic), true)
     case DiscussionActionConfirmed.Vote(topic, _) =>
       (Some(topic), false)
-    case DiscussionActionConfirmed.RemoveVote(topic, _) =>
-      (Some(topic), false)
+    case DiscussionActionConfirmed.ResetUser(_, _, _) =>
+      (None, false)  // State is updated by the confirmed action itself
     case DiscussionActionConfirmed.Rename(topicId, _) =>
       (Some(topicId), false)
     case DiscussionActionConfirmed.UpdateRoomSlot(topicId, _) =>
