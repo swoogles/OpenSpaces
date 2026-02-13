@@ -1960,16 +1960,17 @@ def InlineEditableTitle(
       else
         div(
           cls := "InlineEditableTitle-text",
+          cls := (if !canEdit then "InlineEditableTitle--readonly" else ""),
           topic.topicName,
-          if canEdit then
-            onClick --> Observer { (e: dom.MouseEvent) =>
+          // Always attach onClick, but only act if user can edit
+          onClick --> Observer { (e: dom.MouseEvent) =>
+            println(s"Title clicked! canEdit=$canEdit, facilitator=${topic.facilitator.unwrap}, currentUser=${currentUser.unwrap}")
+            if canEdit then
               e.stopPropagation()
+              e.preventDefault()
               editValue.set(topic.topicName)
               isEditing.set(true)
-            }
-          else
-            cls := "InlineEditableTitle--readonly"
-          ,
+          },
         )
     },
   )
