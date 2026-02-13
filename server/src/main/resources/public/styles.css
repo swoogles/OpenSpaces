@@ -576,9 +576,12 @@
     align-items: center;
     justify-content: center;
     transition: all 0.15s ease;
-    /* Ensure button is always clickable */
+    /* Force this button to be clickable above everything */
     position: relative;
-    z-index: 10;
+    z-index: 9999;
+    pointer-events: auto !important;
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent;
 }
 
 .InlineEditableTitle-editBtn:hover {

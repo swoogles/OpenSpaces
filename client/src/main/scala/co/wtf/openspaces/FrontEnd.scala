@@ -1365,11 +1365,15 @@ def SwipeableCard(
       transform <-- $transform,
       // Touch events
       onTouchStart --> { (e: dom.TouchEvent) =>
-        // Don't start drag if touching an editable element (button, input)
-        val target = e.target.asInstanceOf[dom.Element]
-        val isEditable = target.closest("input, button, .InlineEditableTitle-editBtn, .InlineEditableTitle-cancelBtn") != null
-        if !isEditable then
-          val touch = e.touches(0)
+        // Use elementFromPoint to get the ACTUAL element at touch coordinates
+        val touch = e.touches(0)
+        val actualTarget = dom.document.elementFromPoint(touch.clientX, touch.clientY)
+        val isButton = actualTarget != null && (
+          actualTarget.tagName == "BUTTON" ||
+          actualTarget.closest("button") != null ||
+          actualTarget.closest("input") != null
+        )
+        if !isButton then
           handleDragStart(touch.clientX, e.currentTarget.asInstanceOf[dom.Element])
       },
       onTouchMove --> { (e: dom.TouchEvent) =>
@@ -1389,10 +1393,15 @@ def SwipeableCard(
       },
       // Mouse events for desktop
       onMouseDown --> { (e: dom.MouseEvent) =>
-        // Don't start drag if clicking on an editable element (button, input)
-        val target = e.target.asInstanceOf[dom.Element]
-        val isEditable = target.closest("input, button, .InlineEditableTitle-editBtn, .InlineEditableTitle-cancelBtn") != null
-        if !isEditable then
+        // Use elementFromPoint to get the ACTUAL element at click coordinates
+        // This works around CSS Grid capturing events at the wrong level
+        val actualTarget = dom.document.elementFromPoint(e.clientX, e.clientY)
+        val isButton = actualTarget != null && (
+          actualTarget.tagName == "BUTTON" ||
+          actualTarget.closest("button") != null ||
+          actualTarget.closest("input") != null
+        )
+        if !isButton then
           e.preventDefault()
           handleDragStart(e.clientX, e.currentTarget.asInstanceOf[dom.Element])
       },
