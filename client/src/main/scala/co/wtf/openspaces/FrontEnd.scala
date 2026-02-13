@@ -1365,8 +1365,12 @@ def SwipeableCard(
       transform <-- $transform,
       // Touch events
       onTouchStart --> { (e: dom.TouchEvent) =>
-        val touch = e.touches(0)
-        handleDragStart(touch.clientX, e.currentTarget.asInstanceOf[dom.Element])
+        // Don't start drag if touching an editable element
+        val target = e.target.asInstanceOf[dom.Element]
+        val isEditable = target.closest(".InlineEditableTitle-text, .InlineEditableTitle-input, input, button") != null
+        if !isEditable then
+          val touch = e.touches(0)
+          handleDragStart(touch.clientX, e.currentTarget.asInstanceOf[dom.Element])
       },
       onTouchMove --> { (e: dom.TouchEvent) =>
         val touch = e.touches(0)
@@ -1385,8 +1389,12 @@ def SwipeableCard(
       },
       // Mouse events for desktop
       onMouseDown --> { (e: dom.MouseEvent) =>
-        e.preventDefault()
-        handleDragStart(e.clientX, e.currentTarget.asInstanceOf[dom.Element])
+        // Don't start drag if clicking on an editable element
+        val target = e.target.asInstanceOf[dom.Element]
+        val isEditable = target.closest(".InlineEditableTitle-text, .InlineEditableTitle-input, input, button") != null
+        if !isEditable then
+          e.preventDefault()
+          handleDragStart(e.clientX, e.currentTarget.asInstanceOf[dom.Element])
       },
       windowEvents(_.onMouseMove) --> { (e: dom.MouseEvent) =>
         handleDragMove(e.clientX)
