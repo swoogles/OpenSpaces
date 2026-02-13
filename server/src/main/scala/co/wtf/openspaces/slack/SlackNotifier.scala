@@ -60,8 +60,10 @@ class SlackNotifierLive(
     val effect = for
       row <- discussionRepo.findById(topicId.unwrap).someOrFail(new Exception(s"Discussion $topicId not found"))
       ts  <- ZIO.fromOption(row.slackThreadTs).orElseFail(new Exception(s"No Slack thread for topic $topicId"))
+      // Use the channel where the thread was created, not the current config channel
+      channelId = row.slackChannelId.getOrElse(config.channelId)
       blocks = buildUpdateBlocks(row.copy(topic = newTopic.unwrap))
-      _ <- slackClient.updateMessage(config.channelId, ts, blocks)
+      _ <- slackClient.updateMessage(channelId, ts, blocks)
     yield ()
 
     effect.catchAll(err => ZIO.logError(s"Slack rename failed for topic $topicId: $err"))
@@ -70,8 +72,10 @@ class SlackNotifierLive(
     val effect = for
       row <- discussionRepo.findById(topicId.unwrap).someOrFail(new Exception(s"Discussion $topicId not found"))
       ts  <- ZIO.fromOption(row.slackThreadTs).orElseFail(new Exception(s"No Slack thread for topic $topicId"))
+      // Use the channel where the thread was created, not the current config channel
+      channelId = row.slackChannelId.getOrElse(config.channelId)
       blocks = buildUpdateBlocks(row.copy(roomSlot = roomSlot.map(_.toJson)))
-      _ <- slackClient.updateMessage(config.channelId, ts, blocks)
+      _ <- slackClient.updateMessage(channelId, ts, blocks)
     yield ()
 
     effect.catchAll(err => ZIO.logError(s"Slack schedule update failed for topic $topicId: $err"))
@@ -80,7 +84,9 @@ class SlackNotifierLive(
     val effect = for
       row <- discussionRepo.findById(topicId.unwrap).someOrFail(new Exception(s"Discussion $topicId not found"))
       ts  <- ZIO.fromOption(row.slackThreadTs).orElseFail(new Exception(s"No Slack thread for topic $topicId"))
-      _   <- slackClient.deleteMessage(config.channelId, ts)
+      // Use the channel where the thread was created, not the current config channel
+      channelId = row.slackChannelId.getOrElse(config.channelId)
+      _   <- slackClient.deleteMessage(channelId, ts)
     yield ()
 
     effect.catchAll(err => ZIO.logError(s"Slack delete failed for topic $topicId: $err"))
