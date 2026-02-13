@@ -1522,25 +1522,12 @@ private def SingleDiscussionComponent(
                   case Right(validTopic) =>
                     topicUpdates(DiscussionAction.Rename(topic.id, validTopic))
                   case Left(_) => () // Invalid topic name, ignore
+            },
+            () => {
+              if connectionStatus.checkReady() then
+                topicUpdates(DiscussionAction.Delete(topic.id))
             }
           ),
-          if (
-            List("swoogles", "emma").exists(admin =>
-              name.now().unwrap.toLowerCase().contains(admin),
-            )
-          )
-            button(
-              cls := "delete-topic",
-              color := "red",
-              border := "none",
-              backgroundColor := "transparent",
-              onClick --> Observer { _ =>
-                if connectionStatus.checkReady() then
-                  topicUpdates(DiscussionAction.Delete(topic.id))
-              },
-              "x",
-            )
-          else span(),
         ),
         div(
           cls := "SecondaryActive",
@@ -1937,6 +1924,7 @@ def InlineEditableTitle(
   topic: Discussion,
   currentUser: Person,
   onRename: String => Unit,
+  onDelete: () => Unit,
 ): HtmlElement =
   val isEditing = Var(false)
   val editValue = Var(topic.topicName)
@@ -2005,17 +1993,32 @@ def InlineEditableTitle(
             cls := "InlineEditableTitle-text",
             topic.topicName,
           ),
-          // Edit button only shown for facilitator - using <a> tag like Slack icon
+          // Edit and delete buttons only shown for facilitator
           if canEdit then
-            a(
-              cls := "InlineEditableTitle-editBtn",
-              href := "#",
-              title := "Edit title",
-              onClick --> Observer { (e: dom.MouseEvent) => 
-                e.preventDefault()
-                startEditing(e) 
-              },
-              "✎",
+            span(
+              cls := "InlineEditableTitle-actions",
+              a(
+                cls := "InlineEditableTitle-editBtn",
+                href := "#",
+                title := "Edit title",
+                onClick --> Observer { (e: dom.MouseEvent) => 
+                  e.preventDefault()
+                  startEditing(e) 
+                },
+                "✎",
+              ),
+              a(
+                cls := "InlineEditableTitle-deleteBtn",
+                href := "#",
+                title := "Delete topic",
+                onClick --> Observer { (e: dom.MouseEvent) => 
+                  e.preventDefault()
+                  e.stopPropagation()
+                  if dom.window.confirm(s"Delete topic '${topic.topicName}'? This cannot be undone.") then
+                    onDelete()
+                },
+                "🗑",
+              ),
             )
           else
             span()

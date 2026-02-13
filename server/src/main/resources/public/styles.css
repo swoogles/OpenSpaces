@@ -593,6 +593,43 @@
     transform: scale(0.95);
 }
 
+.InlineEditableTitle-actions {
+    display: flex;
+    gap: 4px;
+    flex-shrink: 0;
+}
+
+.InlineEditableTitle-deleteBtn {
+    flex-shrink: 0;
+    width: 28px;
+    height: 28px;
+    padding: 0;
+    font-size: 14px;
+    color: #e53e3e;
+    background: #fff5f5;
+    border: 1px solid #fed7d7;
+    border-radius: 6px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.15s ease;
+    position: relative;
+    z-index: 9999;
+    pointer-events: auto !important;
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent;
+}
+
+.InlineEditableTitle-deleteBtn:hover {
+    background: #fed7d7;
+    border-color: #e53e3e;
+}
+
+.InlineEditableTitle-deleteBtn:active {
+    transform: scale(0.95);
+}
+
 .InlineEditableTitle-editRow {
     display: flex;
     gap: 8px;
