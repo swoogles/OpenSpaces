@@ -1976,10 +1976,15 @@ def InlineEditableTitle(
                 case "Escape" => cancelEdit()
                 case _ => ()
             },
+            // Prevent swipe from capturing input interactions
+            onMouseDown --> Observer { (e: dom.MouseEvent) => e.stopPropagation() },
+            onTouchStart --> Observer { (e: dom.TouchEvent) => e.stopPropagation() },
             onMountCallback { ctx =>
               val el = ctx.thisNode.ref.asInstanceOf[dom.html.Input]
               el.focus()
-              el.select()
+              // Put cursor at end of text (not selecting all)
+              val len = el.value.length
+              el.setSelectionRange(len, len)
             },
           ),
           a(
