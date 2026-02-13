@@ -1121,17 +1121,24 @@ private def TopicSubmission(
   setErrorMsg: Observer[Option[String]],
 ) =
   val textVar = Var("")
+  val isFocused = Var(false)
+  
   div(
-    cls := "Flex",
-    span(
+    cls := "TopicSubmission",
+    cls <-- isFocused.signal.map(f => if f then "TopicSubmission--focused" else ""),
+    div(
+      cls := "TopicSubmission-inputWrapper",
       textArea(
-        fontFamily := "Roboto",
-        placeholder := "Create a topic...",
+        cls := "TopicSubmission-textArea",
+        placeholder := "What topic would you like to discuss?",
         value <-- textVar,
         onInput.mapToValue --> textVar,
+        onFocus --> Observer(_ => isFocused.set(true)),
+        onBlur --> Observer(_ => isFocused.set(false)),
       ),
     ),
     button(
+      cls := "TopicSubmission-button",
       onClick
         .mapTo(textVar.now())
         .map(s =>
@@ -1154,7 +1161,8 @@ private def TopicSubmission(
         .tapEach { case _ =>
           textVar.set("")
         } --> submitEffect,
-      "Submit",
+      span(cls := "TopicSubmission-buttonIcon", "✨"),
+      span("Submit Topic"),
     ),
   )
 
