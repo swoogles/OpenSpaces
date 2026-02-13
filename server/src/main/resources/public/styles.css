@@ -560,8 +560,13 @@
 }
 
 .InlineEditableTitle-text {
-    padding: 2px 4px;
-    margin: -2px -4px;
+    padding: 4px 6px;
+    margin: -4px -6px;
+    display: block;
+    min-height: 1.3em;
+    /* Ensure this element captures clicks, not parent */
+    position: relative;
+    z-index: 1;
 }
 
 .InlineEditableTitle-input {

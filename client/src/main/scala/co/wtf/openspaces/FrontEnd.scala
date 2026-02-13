@@ -1974,7 +1974,18 @@ def InlineEditableTitle(
           cls := "InlineEditableTitle-text",
           cls := (if !canEdit then "InlineEditableTitle--readonly" else ""),
           topic.topicName,
-          // Always attach onClick, but only act if user can edit
+          // Stop mousedown from reaching SwipeableCard
+          onMouseDown --> Observer { (e: dom.MouseEvent) =>
+            println(s"Title mousedown! canEdit=$canEdit")
+            if canEdit then
+              e.stopPropagation()
+          },
+          onTouchStart --> Observer { (e: dom.TouchEvent) =>
+            println(s"Title touchstart! canEdit=$canEdit")
+            if canEdit then
+              e.stopPropagation()
+          },
+          // Handle the actual click to enter edit mode
           onClick --> Observer { (e: dom.MouseEvent) =>
             println(s"Title clicked! canEdit=$canEdit, facilitator=${topic.facilitator.unwrap}, currentUser=${currentUser.unwrap}")
             if canEdit then
