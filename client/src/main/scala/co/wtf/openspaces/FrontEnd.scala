@@ -350,11 +350,6 @@ object FrontEnd extends App:
   val everVotedTopics: Var[Set[TopicId]] =
     Var(Set.empty)
 
-  // Tracks the topic the user most recently created.
-  // Used to ensure newly created topics appear prominently (first in unjudged).
-  val lastCreatedTopicId: Var[Option[TopicId]] =
-    Var(None)
-
   // ============================================
   // Vote Celebration (Sound + Visual Effects)
   // ============================================
@@ -464,8 +459,7 @@ object FrontEnd extends App:
           discussionState.signal,
           name.signal,
           lastVotedTopicId.signal,
-          lastCreatedTopicId.signal,
-        ).map { case (state, currentUser, lastVotedId, lastCreatedId) =>
+        ).map { case (state, currentUser, lastVotedId) =>
           val allTopics = state.data.values.toList
 
           // Partition into judged (user has voted) and unjudged (user hasn't voted)
@@ -473,14 +467,8 @@ object FrontEnd extends App:
             topic.interestedParties.exists(_.voter == currentUser)
           }
 
-          // Order unjudged topics: last-created topic first (if present), then rest
-          // This ensures newly created topics appear prominently
-          val firstUnjudged = lastCreatedId match
-            case Some(id) =>
-              val (created, rest) = unjudged.partition(_.id == id)
-              (created ++ rest).headOption.toList
-            case None =>
-              unjudged.headOption.toList
+          // Take only the first unjudged topic (if any)
+          val firstUnjudged = unjudged.headOption.toList
 
           // Order judged topics: last-voted topic first, then rest
           // This ensures the just-voted topic appears right after the unjudged one
@@ -776,15 +764,10 @@ object FrontEnd extends App:
                 case DiscussionActionConfirmed.Delete(topicId) =>
                   SwapAnimationState.cleanupTopic(topicId)
                 // Initialize everVotedTopics from loaded discussions (on page load/reconnect)
-                // Also position newly created topics (by current user) prominently
                 case DiscussionActionConfirmed.AddResult(discussion) =>
                   val currentUser = name.now()
                   if discussion.interestedParties.exists(_.voter == currentUser) then
                     everVotedTopics.update(_ + discussion.id)
-                  // If this is a NEW topic created by the current user, position it first
-                  // in the unjudged list so it's immediately visible
-                  if discussion.facilitator == currentUser then
-                    lastCreatedTopicId.set(Some(discussion.id))
                 case _ => ()
 
               // Capture scroll position before state update
