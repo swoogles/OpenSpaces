@@ -410,6 +410,26 @@ object FrontEnd extends App:
       celebratingTopics.update(_ - topicId)
     }, 450)
 
+  // ============================================
+  // Swipe Hint (one-time onboarding)
+  // ============================================
+  
+  // Whether user has seen the swipe hint (persisted)
+  val hasSeenSwipeHint: Var[Boolean] = Var {
+    Option(localStorage.getItem("hasSeenSwipeHint")).contains("true")
+  }
+  
+  // Whether to currently show the swipe hint UI
+  val showSwipeHint: Var[Boolean] = Var {
+    !Option(localStorage.getItem("hasSeenSwipeHint")).contains("true")
+  }
+  
+  /** Dismiss the swipe hint and remember it */
+  def dismissSwipeHint(): Unit =
+    showSwipeHint.set(false)
+    hasSeenSwipeHint.set(true)
+    localStorage.setItem("hasSeenSwipeHint", "true")
+
   val errorBanner =
     ErrorBanner()
 
@@ -453,7 +473,18 @@ object FrontEnd extends App:
           else s"$count topics left to vote on"
         },
       ),
-      DiscussionSubview(
+      {
+        // Track the first unjudged topic ID for swipe hint
+        val $firstUnjudgedId: Signal[Option[TopicId]] = Signal.combine(
+          discussionState.signal,
+          name.signal,
+        ).map { case (state, currentUser) =>
+          state.data.values.find { topic =>
+            !topic.interestedParties.exists(_.voter == currentUser)
+          }.map(_.id)
+        }
+        
+        DiscussionSubview(
         Signal.combine(
           discussionState.signal,
           name.signal,
@@ -483,7 +514,10 @@ object FrontEnd extends App:
         name.signal,
         topicUpdates.sendOne,
         updateTargetDiscussion,
-      ),
+        $firstUnjudgedId,
+        showSwipeHint.signal,
+      )
+      },
     )
 
   val activeDiscussion: Var[Option[Discussion]] =
@@ -737,6 +771,8 @@ object FrontEnd extends App:
                       votedTopicOrder.update(order => topicId :: order.filterNot(_ == topicId))
                     // Celebrate the vote! (sound + animation)
                     celebrateVote(topicId, feedback.position)
+                    // Dismiss swipe hint on first vote
+                    dismissSwipeHint()
 
                 // Also animate UpdateRoomSlot (similar to MoveTopic)
                 case DiscussionActionConfirmed.UpdateRoomSlot(
@@ -1452,9 +1488,20 @@ private def DiscussionSubview(
   name: StrictSignal[Person],
   topicUpdates: DiscussionAction => Unit,
   updateTargetDiscussion: Observer[Discussion],
+  firstUnjudgedId: Signal[Option[TopicId]] = Signal.fromValue(None),
+  showSwipeHint: Signal[Boolean] = Signal.fromValue(false),
 ) =
   div(
     cls := "TopicsContainer",
+    // Swipe hint tooltip (shows above cards)
+    div(
+      cls := "SwipeHintTooltip",
+      display <-- showSwipeHint.map(if _ then "flex" else "none"),
+      span(cls := "SwipeHintArrow SwipeHintArrow--left", "←"),
+      span(cls := "SwipeHintText", "Swipe to vote"),
+      span(cls := "SwipeHintArrow SwipeHintArrow--right", "→"),
+      onClick --> Observer { _ => FrontEnd.dismissSwipeHint() },
+    ),
     children <--
       topicsOfInterest
         .splitTransition(_.id)(
@@ -1464,7 +1511,15 @@ private def DiscussionSubview(
             signal: Signal[Discussion],
             transition: Transition,
           ) =>
+            // Check if this is the first unjudged card (for wiggle hint)
+            val isFirstUnjudged = firstUnjudgedId.map(_.contains(topic.id))
+            val shouldWiggle = isFirstUnjudged.combineWith(showSwipeHint).map {
+              case (first, hint) => first && hint
+            }
+            
             div(
+              // Apply wiggle class to the wrapper when needed
+              cls <-- shouldWiggle.map(if _ then "SwipeHintWiggle" else ""),
               child <-- SingleDiscussionComponent(
                 name,
                 topicUpdates,

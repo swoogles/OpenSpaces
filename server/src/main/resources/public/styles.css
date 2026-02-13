@@ -1539,3 +1539,117 @@
 .sound-toggle--muted:hover {
     opacity: 0.7;
 }
+
+/* ============================================
+   Swipe Hint (one-time onboarding)
+   ============================================ */
+
+/* Tooltip above the first unjudged card */
+.SwipeHintTooltip {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    padding: 12px 20px;
+    margin: 8px 16px;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    border-radius: 12px;
+    font-size: 15px;
+    font-weight: 500;
+    box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+    cursor: pointer;
+    animation: swipeHintPulse 2s ease-in-out infinite;
+}
+
+.SwipeHintTooltip:hover {
+    transform: scale(1.02);
+}
+
+.SwipeHintArrow {
+    font-size: 18px;
+    font-weight: bold;
+}
+
+.SwipeHintArrow--left {
+    animation: swipeHintArrowLeft 1.5s ease-in-out infinite;
+}
+
+.SwipeHintArrow--right {
+    animation: swipeHintArrowRight 1.5s ease-in-out infinite;
+}
+
+.SwipeHintText {
+    letter-spacing: 0.5px;
+}
+
+@keyframes swipeHintPulse {
+    0%, 100% {
+        box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+    }
+    50% {
+        box-shadow: 0 4px 25px rgba(102, 126, 234, 0.6);
+    }
+}
+
+@keyframes swipeHintArrowLeft {
+    0%, 100% {
+        transform: translateX(0);
+    }
+    50% {
+        transform: translateX(-4px);
+    }
+}
+
+@keyframes swipeHintArrowRight {
+    0%, 100% {
+        transform: translateX(0);
+    }
+    50% {
+        transform: translateX(4px);
+    }
+}
+
+/* Wiggle animation for the first unjudged card */
+.SwipeHintWiggle {
+    animation: swipeHintWiggle 0.6s ease-in-out;
+    animation-delay: 0.3s;
+}
+
+@keyframes swipeHintWiggle {
+    0% {
+        transform: translateX(0);
+    }
+    15% {
+        transform: translateX(-8px);
+    }
+    30% {
+        transform: translateX(6px);
+    }
+    45% {
+        transform: translateX(-4px);
+    }
+    60% {
+        transform: translateX(3px);
+    }
+    75% {
+        transform: translateX(-2px);
+    }
+    100% {
+        transform: translateX(0);
+    }
+}
+
+/* Respect reduced motion preferences */
+@media (prefers-reduced-motion: reduce) {
+    .SwipeHintTooltip {
+        animation: none;
+    }
+    .SwipeHintArrow--left,
+    .SwipeHintArrow--right {
+        animation: none;
+    }
+    .SwipeHintWiggle {
+        animation: none;
+    }
+}
