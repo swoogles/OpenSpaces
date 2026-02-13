@@ -1161,7 +1161,6 @@ private def TopicSubmission(
         .tapEach { case _ =>
           textVar.set("")
         } --> submitEffect,
-      span(cls := "TopicSubmission-buttonIcon", "✨"),
       span("Submit Topic"),
     ),
   )
