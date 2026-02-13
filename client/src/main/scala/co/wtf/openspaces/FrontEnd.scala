@@ -844,11 +844,29 @@ object FrontEnd extends App:
           },
         )
       } else {
+        // Login screen - shown when user is not authenticated
         div(
-          span("No session found. Please log in."),
-          a(
-            href := "/auth",
-            "Login",
+          cls := "LoginScreen",
+          img(
+            cls := "LoginScreen-logo",
+            src := "./wtf-web-nodate.jpg",
+            alt := "Open Spaces",
+          ),
+          div(
+            cls := "LoginScreen-content",
+            h1(cls := "LoginScreen-title", "Welcome to Open Spaces"),
+            p(
+              cls := "LoginScreen-description",
+              "The schedule is shaped by ",
+              strong("your input"),
+              ". Vote on topics you're interested in, propose your own discussions, and help build an unconference that reflects what the community wants to learn and share.",
+            ),
+            a(
+              cls := "LoginScreen-button",
+              href := "/auth",
+              span(cls := "LoginScreen-buttonIcon"),
+              span("Sign in with GitHub"),
+            ),
           ),
         )
       },
