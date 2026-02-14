@@ -6,6 +6,14 @@ import zio.json.*
 import zio.direct.*
 import zio.http.ChannelEvent.Read
 
+import zio.http.codec.PathCodec._
+import zio.http.codec._
+import zio.http.endpoint._
+import zio.http.endpoint.openapi._
+import zio.schema._
+
+case class ActiveStatus(active: Boolean) derives Schema
+
 case class RandomActionSpawner(
   discussionService: DiscussionService,
   schedulingService: SchedulingService,
@@ -57,6 +65,24 @@ case class RandomActionSpawner(
     fullChaosFiber *> scheduleChaosFiber
     }
 
+    
+  val randomActionGet =
+    Endpoint(RoutePattern.GET / "api" / "admin" / "random-actions")
+    //  PathCodec.int("id")
+    .out[ActiveStatus]
+    
+  val randomActionToggle =
+    Endpoint(RoutePattern.POST / "api" / "admin" / "random-actions" / "toggle")
+      .out[ActiveStatus]
+      
+  val randomActionStart =
+    Endpoint(RoutePattern.POST / "api" / "admin" / "random-actions" / "start")
+      .out[ActiveStatus]
+      
+  val randomActionStop =
+    Endpoint(RoutePattern.POST / "api" / "admin" / "random-actions" / "stop")
+      .out[ActiveStatus]
+    
   val routes: Routes[Any, Response] =
     Routes(
       // Version endpoint - returns deployed commit hash
@@ -67,27 +93,29 @@ case class RandomActionSpawner(
       },
       
       // Full chaos endpoints
-      Method.GET / "api" / "admin" / "random-actions" -> handler {
+      randomActionGet.implement { _ =>
         for
           active <- isChaosActive
-        yield Response.json(s"""{"active":$active}""")
-      },
-      Method.POST / "api" / "admin" / "random-actions" / "toggle" -> handler {
-        for
-          newState <- toggleChaos
-        yield Response.json(s"""{"active":$newState}""")
-      },
-      Method.POST / "api" / "admin" / "random-actions" / "start" -> handler {
-        for
-          _ <- setChaosActive(true)
-        yield Response.json("""{"active":true}""")
-      },
-      Method.POST / "api" / "admin" / "random-actions" / "stop" -> handler {
-        for
-          _ <- setChaosActive(false)
-        yield Response.json("""{"active":false}""")
+        yield ActiveStatus(active)
       },
       
+      randomActionToggle.implement { _ =>
+        for
+          active <- toggleChaos
+        yield ActiveStatus(active)
+      },
+      
+      randomActionStart.implement { _ =>
+        for
+          _ <- setChaosActive(true)
+        yield ActiveStatus(true)
+      },
+      
+      randomActionStop.implement { _ =>
+        for
+          _ <- setChaosActive(false)
+        yield ActiveStatus(false)
+      },
       // Schedule chaos endpoints
       Method.GET / "api" / "admin" / "schedule-chaos" -> handler {
         for
