@@ -1142,8 +1142,20 @@ private def AdminControls(
   val deleteLoading: Var[Boolean] = Var(false)
   val resetLoading: Var[Boolean] = Var(false)
   
+  // Deployed version hash
+  val deployedVersion: Var[String] = Var("...")
+  
   // Fetch initial state on mount
   def fetchStatus(): Unit =
+    // Version
+    dom.fetch("/api/version")
+      .toFuture
+      .flatMap(_.text().toFuture)
+      .foreach { text =>
+        text.fromJson[VersionInfo] match
+          case Right(info) => deployedVersion.set(info.version.take(7)) // Short hash
+          case Left(_) => deployedVersion.set("?")
+      }
     // Full chaos status
     dom.fetch("/api/admin/random-actions")
       .toFuture
@@ -1212,6 +1224,7 @@ private def AdminControls(
       }
 
   case class ScheduleResult(scheduled: Int, moved: Int, unscheduled: Int) derives JsonCodec
+  case class VersionInfo(version: String) derives JsonCodec
 
   def deleteAll(): Unit =
     if dom.window.confirm("Delete ALL topics? This cannot be undone.") then
@@ -1312,6 +1325,11 @@ private def AdminControls(
         case true => "⏳"
         case false => "🔄 Reset User"
       },
+    ),
+    // Version display
+    span(
+      cls := "AdminControls-version",
+      child.text <-- deployedVersion.signal.map(v => s"v$v"),
     ),
   )
 

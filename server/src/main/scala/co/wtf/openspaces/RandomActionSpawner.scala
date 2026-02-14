@@ -55,6 +55,12 @@ case class RandomActionSpawner(
 
   val routes: Routes[Any, Response] =
     Routes(
+      // Version endpoint - returns deployed commit hash
+      Method.GET / "api" / "version" -> handler {
+        val version = sys.env.getOrElse("SOURCE_VERSION", "dev")
+        ZIO.succeed(Response.json(s"""{"version":"$version"}"""))
+      },
+      
       // Full chaos endpoints
       Method.GET / "api" / "admin" / "random-actions" -> handler {
         for

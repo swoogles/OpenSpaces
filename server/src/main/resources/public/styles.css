@@ -1062,9 +1062,11 @@
 /* Admin Controls */
 .AdminControls {
     display: flex;
+    flex-wrap: wrap;
     justify-content: center;
     gap: 8px;
     margin: 8px 16px;
+    max-width: 100%;
 }
 
 .AdminControls-button {
@@ -1130,6 +1132,16 @@
 
 .AdminControls-button--primary:hover {
     background-color: #c3dafe;
+}
+
+.AdminControls-version {
+    padding: 8px 12px;
+    font-size: 12px;
+    font-family: monospace;
+    color: #718096;
+    background-color: #edf2f7;
+    border-radius: 6px;
+    align-self: center;
 }
 
 .AdminControls-button--loading {
