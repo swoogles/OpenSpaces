@@ -45,12 +45,13 @@ case class SwipeState(
   */
 object SwipeableCard:
   
-  /** Standard swipeable card for real topics */
+  /** Standard swipeable card for real topics, with optional auto-swipe trigger */
   def apply(
     topic: Discussion,
     name: StrictSignal[Person],
     topicUpdates: DiscussionAction => Unit,
     cardContent: HtmlElement,
+    autoSwipe: Option[(EventStream[AutoSwipeCommand], () => Unit)] = None,
   ): HtmlElement =
     render(
       onVote = Some { position =>
@@ -60,19 +61,7 @@ object SwipeableCard:
         else
           println("Connection not ready, ignoring vote action")
       },
-      autoSwipe = None,
-      cardContent = cardContent,
-    )
-  
-  /** Demo swipeable card with auto-swipe animation (no vote callback) */
-  def demo(
-    autoSwipe: EventStream[AutoSwipeCommand],
-    onSwipeComplete: () => Unit,
-    cardContent: HtmlElement,
-  ): HtmlElement =
-    render(
-      onVote = None,
-      autoSwipe = Some((autoSwipe, onSwipeComplete)),
+      autoSwipe = autoSwipe,
       cardContent = cardContent,
     )
   

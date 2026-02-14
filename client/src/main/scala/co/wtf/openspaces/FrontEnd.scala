@@ -9,7 +9,7 @@ import neotype.*
 
 // Import extracted utilities
 import co.wtf.openspaces.util.{SlotPositionTracker, SwapAnimationState, MenuPositioning, ScrollPreserver}
-import co.wtf.openspaces.components.{ToastManager, AdminControls, TopicSubmission, SwipeableCard, ErrorBanner, VoteButtons, ViewToggle, InlineEditableTitle, NameBadge, AdminModeToggle, Menu, UnscheduledDiscussionsMenu, ActiveDiscussionActionMenu, TopicCard, DiscussionSubview, ScheduleSlotComponent, SlotSchedule, ScheduleView, SlotSchedules, LinearScheduleView, AppView, activeDiscussionLongPressBinder, OnboardingDemo}
+import co.wtf.openspaces.components.{ToastManager, AdminControls, TopicSubmission, SwipeableCard, ErrorBanner, VoteButtons, ViewToggle, InlineEditableTitle, NameBadge, AdminModeToggle, Menu, UnscheduledDiscussionsMenu, ActiveDiscussionActionMenu, TopicCard, DiscussionSubview, ScheduleSlotComponent, SlotSchedule, ScheduleView, SlotSchedules, LinearScheduleView, AppView, activeDiscussionLongPressBinder}
 import co.wtf.openspaces.AppState.*
 import co.wtf.openspaces.services.{AudioService, AuthService}
 
@@ -234,11 +234,6 @@ object FrontEnd extends App:
       ),
       // Toast notifications for schedule changes
       ToastManager.component,
-      // Onboarding demo overlay (shows for new users)
-      child <-- showSwipeHint.signal.map {
-        case true => OnboardingDemo(() => ())
-        case false => emptyNode
-      },
       // Popover component at top level
       // Swap action menu at top level
       child <-- swapMenuState.signal.map {

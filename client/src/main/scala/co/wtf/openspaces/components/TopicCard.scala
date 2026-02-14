@@ -146,7 +146,9 @@ object TopicCard:
 
         // Wrap with swipe functionality if enabled
         if enableSwipe then
-          SwipeableCard(topic, name, topicUpdates, cardContent)
+          // Check if this topic should auto-swipe (for onboarding)
+          val autoSwipe = OnboardingOrchestrator.autoSwipeFor(topic.id)
+          SwipeableCard(topic, name, topicUpdates, cardContent, autoSwipe)
         else
           cardContent
 
@@ -166,8 +168,23 @@ object DiscussionSubview:
     firstUnjudgedId: Signal[Option[TopicId]] = Signal.fromValue(None),
     showSwipeHint: Signal[Boolean] = Signal.fromValue(false),
   ): HtmlElement =
+    // Track whether we've registered for onboarding (only do once per mount)
+    var hasRegisteredOnboarding = false
+    
     div(
       cls := "TopicsContainer",
+      // Register unjudged topics for onboarding when list first populates
+      Signal.combine(topicsOfInterest, showSwipeHint, name) --> Observer[(List[Discussion], Boolean, Person)] { 
+        case (topics, true, currentUser) if !hasRegisteredOnboarding =>
+          // Unjudged = topics the current user hasn't voted on
+          val unjudgedIds = topics
+            .filterNot(_.interestedParties.exists(_.voter == currentUser))
+            .map(_.id)
+          if unjudgedIds.nonEmpty then
+            hasRegisteredOnboarding = true
+            OnboardingOrchestrator.registerTopics(unjudgedIds)
+        case _ => ()
+      },
       children <--
         topicsOfInterest
           .splitTransition(_.id)(
