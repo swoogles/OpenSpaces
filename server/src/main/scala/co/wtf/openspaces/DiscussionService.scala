@@ -33,6 +33,7 @@ case class DiscussionService(
     for
       action <- discussionStore.randomDiscussionAction
       _ <- broadcastToAll(action)
+      _ <- slackNotifier.notify(action, broadcastToAll)
     yield action
 
   /** Generate a random schedule-only action (move/swap/unschedule) and broadcast */
@@ -40,6 +41,7 @@ case class DiscussionService(
     for
       action <- discussionStore.randomScheduleAction
       _ <- broadcastToAll(action)
+      _ <- slackNotifier.notify(action, broadcastToAll)
     yield action
 
   /** Delete all topics using the standard delete logic (broadcasts to all clients) */
