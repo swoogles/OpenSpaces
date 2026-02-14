@@ -22,26 +22,29 @@ case class RandomActionSpawner(
   def setScheduleChaosActive(value: Boolean): UIO[Unit] = scheduleChaosActiveRef.set(value)
   def toggleScheduleChaos: UIO[Boolean] = scheduleChaosActiveRef.updateAndGet(!_)
 
-  def startSpawningRandomActions =
+  def startSpawningRandomActions = {
     // Full chaos loop - fast (100ms)
-    val chaosLoop = chaosActiveRef.get.flatMap { active =>
-      if active then
-        discussionService.randomDiscussionAction
-          .debug("Random action")
-          .ignore
-      else
-        ZIO.unit
-    }
+    val chaosLoop = 
+      defer {
+        val active = chaosActiveRef.get.run
+        ZIO.when(active) {
+          discussionService.randomDiscussionAction
+            .debug("Random action")
+            .ignore
+        }
+      }
     
     // Schedule chaos loop - 2 second cadence
-    val scheduleChaosLoop = scheduleChaosActiveRef.get.flatMap { active =>
-      if active then
-        discussionService.randomScheduleAction
-          .debug("Random schedule action")
-          .ignore
-      else
-        ZIO.unit
-    }
+    val scheduleChaosLoop = 
+      defer {
+        val active = scheduleChaosActiveRef.get.run
+      
+        ZIO.when(active) {
+          discussionService.randomScheduleAction
+            .debug("Random Schedule action")
+            .ignore
+        }
+      }
     
     val fullChaosFiber = chaosLoop
       .repeat(Schedule.spaced(100.millis) && Schedule.forever)
@@ -52,6 +55,7 @@ case class RandomActionSpawner(
       .forkDaemon
     
     fullChaosFiber *> scheduleChaosFiber
+    }
 
   val routes: Routes[Any, Response] =
     Routes(

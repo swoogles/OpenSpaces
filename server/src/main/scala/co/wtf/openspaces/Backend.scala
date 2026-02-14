@@ -6,6 +6,8 @@ import zio.*
 import zio.direct.*
 import zio.http.*
 
+case class MyConfig(ldap: String, port: Int, dburl: String)
+
 object Backend extends ZIOAppDefault {
 
   override def run =

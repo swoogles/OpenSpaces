@@ -26,6 +26,10 @@ lazy val sharedCode =
         "dev.zio" %% "zio-schema-derivation" % "1.6.4",
         "io.github.kitlangton" %%% "neotype" % "0.3.15",
         "io.github.kitlangton" %%% "neotype-zio-json" % "0.3.15",
+        "dev.zio" %% "zio-config"          % "4.0.4",
+        "dev.zio" %% "zio-config-magnolia" % "4.0.4",
+        "dev.zio" %% "zio-config-typesafe" % "4.0.4",
+        "dev.zio" %% "zio-config-refined"  % "4.0.4",
       ),
     )
     .jsSettings(
