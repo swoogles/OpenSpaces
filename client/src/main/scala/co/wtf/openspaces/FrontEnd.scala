@@ -1104,6 +1104,10 @@ private def AdminControls(
   
   // Schedule-only chaos state
   val isScheduleChaosActive: Var[Boolean] = Var(false)
+  
+  // Auto-schedule state
+  val scheduleLoading: Var[Boolean] = Var(false)
+  val scheduleResult: Var[Option[String]] = Var(None)
   val scheduleChaosLoading: Var[Boolean] = Var(false)
   
   val deleteLoading: Var[Boolean] = Var(false)
@@ -1159,6 +1163,26 @@ private def AdminControls(
           case Left(_) => 
             scheduleChaosLoading.set(false)
       }
+
+  def runScheduling(): Unit =
+    scheduleLoading.set(true)
+    scheduleResult.set(None)
+    dom.fetch("/api/admin/schedule", new dom.RequestInit {
+      method = dom.HttpMethod.POST
+    }).toFuture
+      .flatMap(_.text().toFuture)
+      .foreach { text =>
+        scheduleLoading.set(false)
+        // Show result in a toast
+        text.fromJson[ScheduleResult] match
+          case Right(result) =>
+            val msg = s"Scheduled ${result.scheduled}, moved ${result.moved}, unscheduled ${result.unscheduled}"
+            ToastManager.show(msg, "✨")
+          case Left(_) =>
+            ToastManager.show("Scheduling failed", "❌")
+      }
+
+  case class ScheduleResult(scheduled: Int, moved: Int, unscheduled: Int) derives JsonCodec
 
   def deleteAll(): Unit =
     if dom.window.confirm("Delete ALL topics? This cannot be undone.") then
@@ -1221,6 +1245,19 @@ private def AdminControls(
         case (_, true) => "⏳"
         case (true, _) => "📅 Stop Schedule Chaos"
         case (false, _) => "📅 Schedule Chaos"
+      },
+    ),
+    // Auto-schedule button
+    button(
+      cls <-- scheduleLoading.signal.map { loading =>
+        if loading then "AdminControls-button AdminControls-button--primary AdminControls-button--loading"
+        else "AdminControls-button AdminControls-button--primary"
+      },
+      disabled <-- scheduleLoading.signal,
+      onClick --> { _ => runScheduling() },
+      child.text <-- scheduleLoading.signal.map {
+        case true => "⏳"
+        case false => "✨ Schedule Topics"
       },
     ),
     button(

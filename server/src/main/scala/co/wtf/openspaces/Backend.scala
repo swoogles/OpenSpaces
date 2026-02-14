@@ -36,6 +36,7 @@ object Backend extends ZIOAppDefault {
       ApplicationState.layer,
       BackendSocketApp.layer,
       DiscussionService.layer,
+      SchedulingService.layer,
       RandomActionSpawner.layer(initialActive = false),
       GlyphiconService.layer,
       Client.default,

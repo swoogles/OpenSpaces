@@ -92,6 +92,14 @@ case class DiscussionService(
         )
         .run
 
+  /** Apply an action and broadcast to all clients + Slack. Used by scheduler. */
+  def applyAndBroadcast(action: DiscussionAction): Task[DiscussionActionConfirmed] =
+    for
+      result <- discussionStore.applyAction(action)
+      _ <- broadcastToAll(result)
+      _ <- slackNotifier.notify(result, broadcastToAll)
+    yield result
+
   private def handleTicketedAction(
     channel: OpenSpacesServerChannel,
     discussionAction: DiscussionAction,

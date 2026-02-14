@@ -1122,6 +1122,16 @@
     background-color: #feebc8;
 }
 
+.AdminControls-button--primary {
+    border-color: #667eea;
+    color: #5a67d8;
+    background-color: #ebf4ff;
+}
+
+.AdminControls-button--primary:hover {
+    background-color: #c3dafe;
+}
+
 .AdminControls-button--loading {
     opacity: 0.6;
     cursor: wait;

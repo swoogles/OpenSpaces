@@ -8,6 +8,7 @@ import zio.http.ChannelEvent.Read
 
 case class RandomActionSpawner(
   discussionService: DiscussionService,
+  schedulingService: SchedulingService,
   chaosActiveRef: Ref[Boolean],
   scheduleChaosActiveRef: Ref[Boolean]):
 
@@ -104,13 +105,26 @@ case class RandomActionSpawner(
           .map(count => Response.json(s"""{"deleted":$count}"""))
           .orElse(ZIO.succeed(Response.status(Status.InternalServerError)))
       },
+      
+      // Auto-schedule topics
+      Method.POST / "api" / "admin" / "schedule" -> handler {
+        schedulingService.runScheduling
+          .map(summary => Response.json(
+            s"""{"scheduled":${summary.scheduled},"moved":${summary.moved},"unscheduled":${summary.unscheduled}}"""
+          ))
+          .catchAll(err => 
+            ZIO.logError(s"Scheduling failed: $err") *>
+            ZIO.succeed(Response.json(s"""{"error":"${err.getMessage}"}""").status(Status.InternalServerError))
+          )
+      },
     )
 
 object RandomActionSpawner:
-  def layer(initialActive: Boolean): ZLayer[DiscussionService, Nothing, RandomActionSpawner] =
+  def layer(initialActive: Boolean): ZLayer[DiscussionService & SchedulingService, Nothing, RandomActionSpawner] =
     ZLayer.fromZIO:
       for
         service <- ZIO.service[DiscussionService]
+        scheduler <- ZIO.service[SchedulingService]
         chaosRef <- Ref.make(initialActive)
         scheduleChaosRef <- Ref.make(false)
-      yield RandomActionSpawner(service, chaosRef, scheduleChaosRef)
+      yield RandomActionSpawner(service, scheduler, chaosRef, scheduleChaosRef)
