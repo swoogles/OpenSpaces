@@ -323,6 +323,53 @@ object ScrollPreserver:
   /** The id attribute to add to the TimeSlots container */
   val timeSlotsIdAttr: Modifier[HtmlElement] = idAttr := timeSlotsId
 
+/** Toast notification manager for user alerts (e.g., "Your topic was scheduled") */
+object ToastManager:
+  case class Toast(id: Int, message: String, icon: String = "📍")
+  
+  private var nextId = 0
+  val toasts: Var[List[Toast]] = Var(Nil)
+  
+  private val displayDurationMs = 5000
+  private val maxToasts = 3
+  
+  def show(message: String, icon: String = "📍"): Unit =
+    val id = nextId
+    nextId += 1
+    val toast = Toast(id, message, icon)
+    
+    // Add toast, keeping only the most recent maxToasts
+    toasts.update(ts => (toast :: ts).take(maxToasts))
+    
+    // Auto-dismiss after duration
+    dom.window.setTimeout(
+      () => dismiss(id),
+      displayDurationMs
+    )
+  
+  def dismiss(id: Int): Unit =
+    toasts.update(_.filterNot(_.id == id))
+  
+  /** The toast container component - render this at the top level */
+  val component: HtmlElement =
+    div(
+      cls := "ToastContainer",
+      children <-- toasts.signal.map { ts =>
+        ts.map { toast =>
+          div(
+            cls := "Toast",
+            span(cls := "Toast-icon", toast.icon),
+            span(cls := "Toast-message", toast.message),
+            button(
+              cls := "Toast-dismiss",
+              onClick --> Observer(_ => dismiss(toast.id)),
+              "×"
+            )
+          )
+        }
+      }
+    )
+
 object FrontEnd extends App:
   ServiceWorkerClient.registerServiceWorker()
   lazy val container = dom.document.getElementById("app")
@@ -402,6 +449,21 @@ object FrontEnd extends App:
     dom.window.setTimeout(() => {
       celebratingTopics.update(_ - topicId)
     }, 450)
+
+  /** Show a toast notification if the user cares about a topic that was scheduled/moved.
+    * "Cares" means: user voted on it OR user is the facilitator.
+    */
+  def notifyScheduleChange(topicId: TopicId, newSlot: RoomSlot): Unit =
+    val currentUser = name.now()
+    discussionState.now().data.get(topicId).foreach { topic =>
+      val userVoted = topic.interestedParties.exists(_.voter == currentUser)
+      val userIsFacilitator = topic.facilitator == currentUser
+      
+      if userVoted || userIsFacilitator then
+        val action = if userIsFacilitator then "Your topic" else "A topic you voted on"
+        val message = s"$action was scheduled: \"${topic.topicName}\" → ${newSlot.room.name} @ ${newSlot.timeSlot.s}"
+        ToastManager.show(message, "📍")
+    }
 
   // ============================================
   // Swipe Hint (one-time onboarding)
@@ -626,6 +688,8 @@ object FrontEnd extends App:
         connectionStatus.syncMessage,
         Observer(_ => connectionStatus.forceReconnect()),
       ),
+      // Toast notifications for schedule changes
+      ToastManager.component,
       // Popover component at top level
       // Swap action menu at top level
       child <-- swapMenuState.signal.map {
@@ -709,6 +773,9 @@ object FrontEnd extends App:
                     topic2,
                     newSlot2,
                   )
+                  // Show toast if user cares about either topic
+                  notifyScheduleChange(topic1, newSlot1)
+                  notifyScheduleChange(topic2, newSlot2)
                 // Trigger move animation for single topic moves
                 case DiscussionActionConfirmed.MoveTopic(
                       topicId,
@@ -727,6 +794,8 @@ object FrontEnd extends App:
                         targetRoomSlot,
                       )
                     }
+                  // Show toast if user cares about this topic (voted or facilitating)
+                  notifyScheduleChange(topicId, targetRoomSlot)
                 // Track the user's vote for topic ordering
                 case DiscussionActionConfirmed.Vote(topicId, feedback) =>
                   val currentUser = name.now()
@@ -759,6 +828,8 @@ object FrontEnd extends App:
                         newRoomSlot,
                       )
                     }
+                  // Show toast if user cares about this topic
+                  notifyScheduleChange(topicId, newRoomSlot)
                 // Clean up animation state when topics are deleted to prevent memory leaks
                 case DiscussionActionConfirmed.Delete(topicId) =>
                   SwapAnimationState.cleanupTopic(topicId)

@@ -76,6 +76,12 @@ class SlackNotifierLive(
       channelId = row.slackChannelId.getOrElse(config.channelId)
       blocks = buildUpdateBlocks(row.copy(roomSlot = roomSlot.map(_.toJson)))
       _ <- slackClient.updateMessage(channelId, ts, blocks)
+      // Also post a reply to the thread notifying about the schedule change
+      _ <- roomSlot match
+        case Some(rs) =>
+          slackClient.postReply(channelId, ts, s"📍 Scheduled: ${rs.room.name} @ ${rs.timeSlot.s}")
+        case None =>
+          slackClient.postReply(channelId, ts, "📍 This session has been unscheduled")
     yield ()
 
     effect.catchAll(err => ZIO.logError(s"Slack schedule update failed for topic $topicId: $err"))
