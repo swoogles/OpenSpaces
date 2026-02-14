@@ -14,16 +14,16 @@ Current `FrontEnd.scala` contains:
 - ~15 component functions
 - Helper functions
 
-### Step 1.1: Extract utility objects ✅/❌
+### Step 1.1: Extract utility objects ✅ DONE (commit e499dba)
 Extract these standalone objects (no dependencies on FrontEnd state):
 
 | File | Object | Lines | Status |
 |------|--------|-------|--------|
-| `util/SlotPositionTracker.scala` | SlotPositionTracker | ~90 | ❌ |
-| `util/SwapAnimationState.scala` | SwapAnimationState | ~170 | ❌ |
-| `util/MenuPositioning.scala` | MenuPositioning | ~25 | ❌ |
-| `util/ScrollPreserver.scala` | ScrollPreserver | ~25 | ❌ |
-| `components/Toast.scala` | ToastManager | ~45 | ❌ |
+| `util/SlotPositionTracker.scala` | SlotPositionTracker | ~90 | ✅ |
+| `util/SwapAnimationState.scala` | SwapAnimationState | ~170 | ✅ |
+| `util/MenuPositioning.scala` | MenuPositioning | ~25 | ✅ |
+| `util/ScrollPreserver.scala` | ScrollPreserver | ~25 | ✅ |
+| `components/Toast.scala` | ToastManager | ~45 | ✅ |
 
 ### Step 1.2: Extract components ❌
 Components that can be standalone functions/objects:
