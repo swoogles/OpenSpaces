@@ -30,7 +30,7 @@ Components that can be standalone functions/objects:
 
 | File | Component | Lines | Status |
 |------|-----------|-------|--------|
-| `components/AdminControls.scala` | AdminControls + helpers | ~210 | ❌ |
+| `components/AdminControls.scala` | AdminControls + helpers | ~210 | ✅ |
 | `components/TopicSubmission.scala` | TopicSubmission | ~50 | ❌ |
 | `components/SwipeableCard.scala` | SwipeableCard + SwipeState | ~175 | ❌ |
 | `components/TopicCard.scala` | SingleDiscussionComponent | ~140 | ❌ |
