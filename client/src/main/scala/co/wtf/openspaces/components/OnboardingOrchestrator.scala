@@ -89,6 +89,7 @@ object OnboardingOrchestrator:
   
   /** Called when a swipe animation completes */
   private def onSwipeComplete(topicId: TopicId): Unit =
+    println(s"[Onboarding] onSwipeComplete called for $topicId, current phase: ${phase.now()}")
     completedTopics.update(_ + topicId)
     val topics = onboardingTopics.now()
     
@@ -97,20 +98,23 @@ object OnboardingOrchestrator:
         // First swipe done, trigger second after a pause
         topics.lift(1) match
           case Some(secondId) =>
+            println(s"[Onboarding] Scheduling second swipe for $secondId in 1.5 seconds")
             val _ = window.setTimeout(() => {
+              println(s"[Onboarding] Emitting swipe left for topic $secondId")
               phase.set(Phase.SwipingSecond)
               // Swipe left (Not Interested)
               swipeBus.emit((secondId, AutoSwipeCommand(VotePosition.NotInterested, durationMs = 800)))
-            }, 1000)
+            }, 1500) // Increased to 1.5s to allow card to render
           case None =>
-            // Only one topic, finish
+            println("[Onboarding] No second topic, finishing")
             finishOnboarding()
       
       case Phase.SwipingSecond =>
-        // Second swipe done, finish onboarding
+        println("[Onboarding] Second swipe complete, finishing")
         finishOnboarding()
       
-      case _ => ()
+      case other =>
+        println(s"[Onboarding] onSwipeComplete called in unexpected phase: $other")
   
   /** Complete the onboarding process */
   private def finishOnboarding(): Unit =

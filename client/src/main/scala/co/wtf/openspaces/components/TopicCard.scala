@@ -173,13 +173,14 @@ object DiscussionSubview:
     
     div(
       cls := "TopicsContainer",
-      // Register for onboarding when list first populates for a new user
-      Signal.combine(topicsOfInterest, showSwipeHint, name) --> Observer[(List[Discussion], Boolean, Person)] { 
-        case (topics, true, currentUser) if !hasRegisteredOnboarding && topics.nonEmpty =>
-          hasRegisteredOnboarding = true
-          // Pass currentUser - orchestrator will fetch full topic list from AppState
-          OnboardingOrchestrator.registerTopics(currentUser)
-        case _ => ()
+      // Register for onboarding on mount if new user with topics
+      onMountCallback { ctx =>
+        // Use foreach with owner to sample current value immediately
+        Signal.combine(topicsOfInterest, showSwipeHint).foreach { case (topics, needsOnboarding) =>
+          if needsOnboarding && topics.nonEmpty && !hasRegisteredOnboarding then
+            hasRegisteredOnboarding = true
+            OnboardingOrchestrator.registerTopics(name.now())
+        }(ctx.owner)
       },
       children <--
         topicsOfInterest
