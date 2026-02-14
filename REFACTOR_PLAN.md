@@ -43,14 +43,14 @@ Components that can be standalone functions/objects:
 | `components/ErrorBanner.scala` | ErrorBanner | ~45 | ✅ |
 | `components/NameBadge.scala` | NameBadge, BannerLogo, AdminModeToggle | ~95 | ✅ |
 
-### Step 1.3: Extract services ❌
+### Step 1.3: Extract services ✅
 
 | File | Functions | Lines | Status |
 |------|-----------|-------|--------|
-| `services/AudioService.scala` | initAudioOnGesture, playVoteSound, celebrateVote | ~60 | ❌ |
-| `services/AuthService.scala` | getCookie, deleteCookie, getGitHubUsername, isAccessTokenExpired, refreshAccessToken, fetchTicketWithRefresh, fetchTicketAsync | ~120 | ❌ |
+| `services/AudioService.scala` | initAudioOnGesture, playVoteSound, celebrateVote | ~60 | ✅ |
+| `services/AuthService.scala` | getCookie, deleteCookie, getGitHubUsername, isAccessTokenExpired, refreshAccessToken, fetchTicketWithRefresh, fetchTicketAsync | ~120 | ✅ |
 
-### Step 1.4: Create AppState.scala ❌
+### Step 1.4: Create AppState.scala ✅
 Central state management (all the Vars that live in FrontEnd object):
 - discussionState, votedTopicOrder, everVotedTopics
 - soundMuted, celebratingTopics

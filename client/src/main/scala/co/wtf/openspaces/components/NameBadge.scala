@@ -2,8 +2,9 @@ package co.wtf.openspaces.components
 
 import com.raquo.laminar.api.L.{*, given}
 import org.scalajs.dom
-import co.wtf.openspaces.{ConnectionState, Person, GitHubAvatar, deleteCookie}
+import co.wtf.openspaces.{ConnectionState, Person, GitHubAvatar}
 import co.wtf.openspaces.ConnectionStatusIndicator
+import co.wtf.openspaces.services.AuthService
 
 object NameBadge:
   def apply(
@@ -52,9 +53,9 @@ object NameBadge:
           },
           onClick --> Observer { _ =>
             if (dom.window.confirm("Log out?")) {
-              deleteCookie("access_token")
-              deleteCookie("access_token_expires_at")
-              deleteCookie("github_username")
+              AuthService.deleteCookie("access_token")
+              AuthService.deleteCookie("access_token_expires_at")
+              AuthService.deleteCookie("github_username")
               dom.window.location.reload()
             }
           },

@@ -1,0 +1,106 @@
+package co.wtf.openspaces
+
+import com.raquo.laminar.api.L.{*, given}
+import org.scalajs.dom.window
+import neotype.unwrap
+
+import co.wtf.openspaces.services.AuthService
+
+/** Centralized app state (Vars + derived signals) */
+object AppState:
+  private val localStorage = window.localStorage
+
+  val discussionState: Var[DiscussionState] =
+    Var(
+      DiscussionState(DiscussionState.timeSlotExamples, Map.empty),
+    )
+
+  // Tracks the order of topics the user has voted on / created.
+  // Most recent first. Used to maintain stable ordering of judged topics.
+  val votedTopicOrder: Var[List[TopicId]] =
+    Var(Nil)
+
+  // Tracks all topics the user has ever voted on (monotonically grows).
+  // Used to distinguish first votes from vote changes.
+  val everVotedTopics: Var[Set[TopicId]] =
+    Var(Set.empty)
+
+  // ============================================
+  // Vote Celebration (Sound + Visual Effects)
+  // ============================================
+
+  // Sound muted state - persisted to localStorage
+  val soundMuted: Var[Boolean] = Var {
+    Option(localStorage.getItem("soundMuted")).contains("true")
+  }
+
+  // Persist sound muted state to localStorage
+  soundMuted.signal.foreach { muted =>
+    localStorage.setItem("soundMuted", muted.toString)
+  }(unsafeWindowOwner)
+
+  // Topics currently showing celebration animation (cleared after animation ends)
+  val celebratingTopics: Var[Map[TopicId, VotePosition]] = Var(Map.empty)
+
+  // ============================================
+  // Swipe Hint (one-time onboarding)
+  // ============================================
+
+  // Whether user has seen the swipe hint (persisted)
+  val hasSeenSwipeHint: Var[Boolean] = Var {
+    Option(localStorage.getItem("hasSeenSwipeHint")).contains("true")
+  }
+
+  // Whether to currently show the swipe hint UI
+  val showSwipeHint: Var[Boolean] = Var {
+    !Option(localStorage.getItem("hasSeenSwipeHint")).contains("true")
+  }
+
+  /** Dismiss the swipe hint and remember it */
+  def dismissSwipeHint(): Unit =
+    showSwipeHint.set(false)
+    hasSeenSwipeHint.set(true)
+    localStorage.setItem("hasSeenSwipeHint", "true")
+
+  val activeDiscussion: Var[Option[Discussion]] =
+    Var(None)
+
+  // Popover state
+  val popoverState: Var[Option[Discussion]] =
+    Var(None)
+
+  // Swap action menu state: (selected Discussion, target Discussion)
+  val swapMenuState: Var[Option[(Discussion, Discussion)]] =
+    Var(None)
+
+  // Unscheduled discussions menu state
+  val unscheduledMenuState: Var[Option[RoomSlot]] =
+    Var(None)
+
+  // Active discussion actions menu state
+  val activeDiscussionMenuState: Var[Option[Discussion]] =
+    Var(None)
+
+  // Current app view (Schedule or Topics)
+  val currentAppView: Var[AppView] =
+    Var(AppView.Topics)
+
+  // Name from auth cookie (immutable from GitHub)
+  val name: Var[Person] = AuthService.getGitHubUsername()
+
+  // Admin check - only admins can see admin controls
+  val isAdmin: Signal[Boolean] = name.signal.map { person =>
+    List("swoogles", "emma").exists(admin =>
+      person.unwrap.toLowerCase().contains(admin)
+    )
+  }
+
+  // Admin mode toggle - when false, admins see the normal user view
+  val adminModeEnabled: Var[Boolean] = Var(
+    localStorage.getItem("adminModeEnabled") == "true"
+  )
+
+  // Persist admin mode preference
+  adminModeEnabled.signal.foreach { enabled =>
+    localStorage.setItem("adminModeEnabled", enabled.toString)
+  }(unsafeWindowOwner)

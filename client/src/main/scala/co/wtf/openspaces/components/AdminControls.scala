@@ -4,11 +4,13 @@ import com.raquo.laminar.api.L.{*, given}
 import org.scalajs.dom
 import zio.json.*
 
-import co.wtf.openspaces.{DiscussionAction, Person, FrontEnd, connectionStatus, localStorage}
+import co.wtf.openspaces.{DiscussionAction, Person, connectionStatus}
+import co.wtf.openspaces.AppState
+import org.scalajs.dom.window
 
 /** Admin controls component - chaos buttons, auto-schedule, delete all, and reset user.
   * 
-  * Extracted from FrontEnd.scala for better code organization.
+  * Extracted from AppState.scala for better code organization.
   */
 object AdminControls:
   
@@ -138,17 +140,17 @@ object AdminControls:
           return
           
         resetLoading.set(true)
-        val user = FrontEnd.name.now()
+        val user = AppState.name.now()
         
         // Send single reset action to server (handles topic deletion + vote clearing)
         topicUpdates(DiscussionAction.ResetUser(user))
         
         // Reset client-side state
-        FrontEnd.everVotedTopics.set(Set.empty)
-        FrontEnd.votedTopicOrder.set(Nil)
-        FrontEnd.showSwipeHint.set(true)
-        FrontEnd.hasSeenSwipeHint.set(false)
-        localStorage.setItem("hasSeenSwipeHint", "false")
+        AppState.everVotedTopics.set(Set.empty)
+        AppState.votedTopicOrder.set(Nil)
+        AppState.showSwipeHint.set(true)
+        AppState.hasSeenSwipeHint.set(false)
+        window.localStorage.setItem("hasSeenSwipeHint", "false")
         
         resetLoading.set(false)
     

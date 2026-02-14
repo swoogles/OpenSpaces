@@ -10,11 +10,8 @@ import neotype.*
 // Import extracted utilities
 import co.wtf.openspaces.util.{SlotPositionTracker, SwapAnimationState, MenuPositioning, ScrollPreserver}
 import co.wtf.openspaces.components.{ToastManager, AdminControls, TopicSubmission, SwipeableCard, ErrorBanner, VoteButtons, ViewToggle, InlineEditableTitle, NameBadge, AdminModeToggle, Menu, UnscheduledDiscussionsMenu, ActiveDiscussionActionMenu}
-
-val localStorage = window.localStorage
-
-import org.scalajs.dom
-import scala.scalajs.js.URIUtils
+import co.wtf.openspaces.AppState.*
+import co.wtf.openspaces.services.{AudioService, AuthService}
 
 /** FrontEnd.scala - Main entry point and app composition
   * 
@@ -30,107 +27,29 @@ object FrontEnd extends App:
   ServiceWorkerClient.registerServiceWorker()
   lazy val container = dom.document.getElementById("app")
 
-  val discussionState: Var[DiscussionState] =
-    Var(
-      DiscussionState(DiscussionState.timeSlotExamples, Map.empty),
-    )
+  // App state moved to AppState.scala
+  val discussionState = AppState.discussionState
+  val votedTopicOrder = AppState.votedTopicOrder
+  val everVotedTopics = AppState.everVotedTopics
+  val soundMuted = AppState.soundMuted
+  val celebratingTopics = AppState.celebratingTopics
+  val hasSeenSwipeHint = AppState.hasSeenSwipeHint
+  val showSwipeHint = AppState.showSwipeHint
+  val activeDiscussion = AppState.activeDiscussion
+  val popoverState = AppState.popoverState
+  val swapMenuState = AppState.swapMenuState
+  val unscheduledMenuState = AppState.unscheduledMenuState
+  val activeDiscussionMenuState = AppState.activeDiscussionMenuState
+  val currentAppView = AppState.currentAppView
+  val name = AppState.name
+  val isAdmin = AppState.isAdmin
+  val adminModeEnabled = AppState.adminModeEnabled
 
-  // Tracks the order of topics the user has voted on / created.
-  // Most recent first. Used to maintain stable ordering of judged topics.
-  val votedTopicOrder: Var[List[TopicId]] =
-    Var(Nil)
+  def dismissSwipeHint(): Unit = AppState.dismissSwipeHint()
 
-  // Tracks all topics the user has ever voted on (monotonically grows).
-  // Used to distinguish first votes from vote changes.
-  val everVotedTopics: Var[Set[TopicId]] =
-    Var(Set.empty)
-
-  // ============================================
-  // Vote Celebration (Sound + Visual Effects)
-  // ============================================
-  
-  // Sound muted state - persisted to localStorage
-  val soundMuted: Var[Boolean] = Var {
-    Option(localStorage.getItem("soundMuted")).contains("true")
-  }
-  
-  // Persist sound muted state to localStorage
-  soundMuted.signal.foreach { muted =>
-    localStorage.setItem("soundMuted", muted.toString)
-  }(unsafeWindowOwner)
-  
-  // Topics currently showing celebration animation (cleared after animation ends)
-  val celebratingTopics: Var[Map[TopicId, VotePosition]] = Var(Map.empty)
-  
-  // Shared AudioContext - created lazily on first user interaction
-  private var sharedAudioContext: Option[dom.AudioContext] = None
-  
-  /** Get or create the shared AudioContext, resuming if suspended */
-  private def getAudioContext(): Option[dom.AudioContext] =
-    sharedAudioContext match
-      case Some(ctx) =>
-        // Resume if suspended (browser policy)
-        if ctx.state == "suspended" then
-          ctx.resume()
-        Some(ctx)
-      case None =>
-        try
-          val ctx = new dom.AudioContext()
-          sharedAudioContext = Some(ctx)
-          Some(ctx)
-        catch
-          case _: Throwable => None
-  
-  /** Initialize audio on first user gesture (call from any click/touch handler) */
-  def initAudioOnGesture(): Unit =
-    if sharedAudioContext.isEmpty then
-      getAudioContext()
-    else
-      sharedAudioContext.foreach { ctx =>
-        if ctx.state == "suspended" then ctx.resume()
-      }
-  
-  /** Play a satisfying pop/click sound using Web Audio API */
-  def playVoteSound(position: VotePosition): Unit =
-    if !soundMuted.now() then
-      getAudioContext().foreach { audioContext =>
-        try
-          val oscillator = audioContext.createOscillator()
-          val gainNode = audioContext.createGain()
-          
-          // Different sounds for interested vs not interested
-          val (startFreq, endFreq) = position match
-            case VotePosition.Interested => (600.0, 800.0)  // Rising pop - happy
-            case VotePosition.NotInterested => (400.0, 300.0) // Falling thud - muted
-          
-          oscillator.`type` = "sine"
-          oscillator.frequency.setValueAtTime(startFreq, audioContext.currentTime)
-          oscillator.frequency.exponentialRampToValueAtTime(endFreq, audioContext.currentTime + 0.08)
-          
-          gainNode.gain.setValueAtTime(0.15, audioContext.currentTime)
-          gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.12)
-          
-          oscillator.connect(gainNode)
-          gainNode.connect(audioContext.destination)
-          
-          oscillator.start(audioContext.currentTime)
-          oscillator.stop(audioContext.currentTime + 0.12)
-        catch
-          case _: Throwable => () // Silently fail if audio not available
-      }
-  
-  /** Trigger celebration for a topic (animation + sound) */
-  def celebrateVote(topicId: TopicId, position: VotePosition): Unit =
-    // Add to celebrating set
-    celebratingTopics.update(_ + (topicId -> position))
-    
-    // Play sound
-    playVoteSound(position)
-    
-    // Remove from celebrating after animation completes (400ms)
-    dom.window.setTimeout(() => {
-      celebratingTopics.update(_ - topicId)
-    }, 450)
+  def initAudioOnGesture(): Unit = AudioService.initAudioOnGesture()
+  def playVoteSound(position: VotePosition): Unit = AudioService.playVoteSound(position)
+  def celebrateVote(topicId: TopicId, position: VotePosition): Unit = AudioService.celebrateVote(topicId, position)
 
   /** Show a toast notification if the user cares about a topic that was scheduled/moved.
     * "Cares" means: user voted on it OR user is the facilitator.
@@ -140,32 +59,12 @@ object FrontEnd extends App:
     discussionState.now().data.get(topicId).foreach { topic =>
       val userVoted = topic.interestedParties.exists(_.voter == currentUser)
       val userIsFacilitator = topic.facilitator == currentUser
-      
+
       if userVoted || userIsFacilitator then
         val action = if userIsFacilitator then "Your topic" else "A topic you voted on"
-        val message = s"$action was scheduled: \"${topic.topicName}\" → ${newSlot.room.name} @ ${newSlot.timeSlot.s}"
+        val message = s"""$action was scheduled: "${topic.topicName}" → ${newSlot.room.name} @ ${newSlot.timeSlot.s}"""
         ToastManager.show(message, "📍")
     }
-
-  // ============================================
-  // Swipe Hint (one-time onboarding)
-  // ============================================
-  
-  // Whether user has seen the swipe hint (persisted)
-  val hasSeenSwipeHint: Var[Boolean] = Var {
-    Option(localStorage.getItem("hasSeenSwipeHint")).contains("true")
-  }
-  
-  // Whether to currently show the swipe hint UI
-  val showSwipeHint: Var[Boolean] = Var {
-    !Option(localStorage.getItem("hasSeenSwipeHint")).contains("true")
-  }
-  
-  /** Dismiss the swipe hint and remember it */
-  def dismissSwipeHint(): Unit =
-    showSwipeHint.set(false)
-    hasSeenSwipeHint.set(true)
-    localStorage.setItem("hasSeenSwipeHint", "true")
 
   val errorBanner =
     ErrorBanner()
@@ -183,7 +82,6 @@ object FrontEnd extends App:
     case _ => ()
   }
 
-  val name = getGitHubUsername()
   def liveTopicSubmissionAndVoting(
     updateTargetDiscussion: Observer[Discussion],
   ) =
@@ -221,7 +119,7 @@ object FrontEnd extends App:
             !topic.interestedParties.exists(_.voter == currentUser)
           }.map(_.id)
         }
-        
+
         DiscussionSubview(
         Signal.combine(
           discussionState.signal,
@@ -257,46 +155,6 @@ object FrontEnd extends App:
       )
       },
     )
-
-  val activeDiscussion: Var[Option[Discussion]] =
-    Var(None)
-
-  // Popover state
-  val popoverState: Var[Option[Discussion]] =
-    Var(None)
-
-  // Swap action menu state: (selected Discussion, target Discussion)
-  val swapMenuState: Var[Option[(Discussion, Discussion)]] =
-    Var(None)
-
-  // Unscheduled discussions menu state
-  val unscheduledMenuState: Var[Option[RoomSlot]] =
-    Var(None)
-
-  // Active discussion actions menu state
-  val activeDiscussionMenuState: Var[Option[Discussion]] =
-    Var(None)
-
-  // Current app view (Schedule or Topics)
-  val currentAppView: Var[AppView] =
-    Var(AppView.Topics)
-  
-  // Admin check - only admins can see admin controls
-  val isAdmin: Signal[Boolean] = name.signal.map { person =>
-    List("swoogles", "emma").exists(admin =>
-      person.unwrap.toLowerCase().contains(admin)
-    )
-  }
-
-  // Admin mode toggle - when false, admins see the normal user view
-  val adminModeEnabled: Var[Boolean] = Var(
-    localStorage.getItem("adminModeEnabled") == "true"
-  )
-  
-  // Persist admin mode preference
-  adminModeEnabled.signal.foreach { enabled =>
-    localStorage.setItem("adminModeEnabled", enabled.toString)
-  }(unsafeWindowOwner)
 
   val updateTargetDiscussion: Observer[Discussion] =
     Observer[Discussion] { discussion =>
@@ -340,8 +198,8 @@ object FrontEnd extends App:
     }
 
   val hasAuthCookies =
-    getCookie("access_token").isDefined ||
-      getCookie("access_token_expires_at").isDefined
+    AuthService.getCookie("access_token").isDefined ||
+      AuthService.getCookie("access_token_expires_at").isDefined
 
   val app =
     div(
@@ -631,68 +489,6 @@ object FrontEnd extends App:
 
   render(container, app)
 
-def getCookie(
-  name: String,
-): Option[String] = {
-  val cookieString = dom.document.cookie
-  val cookies = cookieString.split(";")
-
-  cookies.find(_.trim.startsWith(s"$name=")) match {
-    case Some(cookie) =>
-      val encodedValue = cookie.trim.substring(name.length + 1)
-      Some(URIUtils.decodeURIComponent(encodedValue))
-    case None => None
-  }
-}
-
-/** Check if the access token is expired or about to expire (within 5 minutes) */
-def isAccessTokenExpired: Boolean = {
-  val accessToken = getCookie("access_token")
-  if (accessToken.isEmpty) {
-    true
-  } else {
-    getCookie("access_token_expires_at") match {
-      case Some(expiresAt) =>
-        val expiryTime = expiresAt.toLongOption.getOrElse(0L)
-        val now = (System.currentTimeMillis() / 1000)
-        val bufferSeconds = 300 // 5 minute buffer
-        now >= (expiryTime - bufferSeconds)
-      case None =>
-        // No expiry cookie means old session - treat as expired to trigger refresh
-        true
-    }
-  }
-}
-
-/** Refresh the access token using the refresh token */
-def refreshAccessToken(): scala.concurrent.Future[Boolean] = {
-  import scala.scalajs.js
-  import scala.concurrent.ExecutionContext.Implicits.global
-  
-  val fetchPromise = dom.fetch("/refresh", new dom.RequestInit {
-    method = dom.HttpMethod.GET
-  })
-  
-  fetchPromise.toFuture.map { response =>
-    if (response.ok) {
-      // Cookies are automatically updated by the response
-      true
-    } else {
-      // Refresh failed - will redirect to login
-      false
-    }
-  }.recover { case _ => false }
-}
-
-/** Gets the GitHub username from the cookie set during OAuth login. The name
-  * is immutable and comes directly from GitHub.
-  */
-private def getGitHubUsername(): Var[Person] =
-  val username = getCookie("github_username")
-    .map(Person(_))
-    .getOrElse(Person(""))
-  Var(username)
-
 // NameBadge, BannerLogo, AdminModeToggle extracted to components/NameBadge.scala
 
 // AdminControls extracted to components/AdminControls.scala
@@ -731,7 +527,7 @@ private def SingleDiscussionComponent(
       val cardContent = div(
         cls := s"TopicCard $heatLevel", // Heat level class for visual indicator
         // Celebration animation class when vote is confirmed
-        cls <-- FrontEnd.celebratingTopics.signal.map { celebrating =>
+        cls <-- AppState.celebratingTopics.signal.map { celebrating =>
           celebrating.get(topic.id) match
             case Some(VotePosition.Interested) => "vote-celebrating vote-celebrating--interested"
             case Some(VotePosition.NotInterested) => "vote-celebrating vote-celebrating--notinterested"
@@ -743,7 +539,7 @@ private def SingleDiscussionComponent(
           case None        => cls:="not-animating-anymore"
         ,
         // Particle elements for celebration effect
-        children <-- FrontEnd.celebratingTopics.signal.map { celebrating =>
+        children <-- AppState.celebratingTopics.signal.map { celebrating =>
           if celebrating.contains(topic.id) then
             Seq(
               div(
@@ -1223,12 +1019,6 @@ def SlotSchedules(
     },
   )
 
-def deleteCookie(
-  name: String,
-) =
-  dom.document.cookie =
-    name + "=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
-
 private def handleDiscussionActionConfirmed(
   event: DiscussionActionConfirmed,
 ): (Option[TopicId], Boolean) =
@@ -1289,78 +1079,6 @@ val connectionStatus = new ConnectionStatusManager(
   MaxReconnectRetries,
 )
 
-/** Fetch a ticket, automatically refreshing the access token if needed */
-def fetchTicketWithRefresh(): EventStream[String] = {
-  import scala.concurrent.ExecutionContext.Implicits.global
-  
-  // Check if token needs refresh before making the request
-  if (isAccessTokenExpired) {
-    EventStream.fromFuture(
-      refreshAccessToken().flatMap { refreshed =>
-        if (refreshed) {
-          // Token refreshed, now fetch the ticket
-          dom.fetch("/ticket", new dom.RequestInit {
-            method = dom.HttpMethod.GET
-            headers = new dom.Headers(scalajs.js.Array(
-              scalajs.js.Array("Authorization", s"Bearer ${getCookie("access_token").getOrElse("")}")
-            ))
-          }).toFuture.flatMap(_.text().toFuture)
-        } else {
-          // Refresh failed, redirect to login
-          window.location.href = "/auth"
-          scala.concurrent.Future.failed(new Exception("Token refresh failed"))
-        }
-      }
-    )
-  } else {
-    // Token is still valid, fetch directly
-    FetchStream.get(
-      "/ticket",
-      fetchOptions =>
-        fetchOptions.headers(
-          "Authorization" -> s"Bearer ${getCookie("access_token").get}",
-        ),
-    )
-  }
-}
-
-/** Fetch a fresh auth ticket, refreshing access token if needed.
-  * Returns a Future that resolves to the ticket response text.
-  */
-private def fetchTicketAsync(): scala.concurrent.Future[String] =
-  if isAccessTokenExpired then
-    println("Access token expired, refreshing...")
-    refreshAccessToken().flatMap { refreshed =>
-      if refreshed then
-        dom.fetch("/ticket", new dom.RequestInit {
-          method = dom.HttpMethod.GET
-          headers = new dom.Headers(scalajs.js.Array(
-            scalajs.js.Array("Authorization", s"Bearer ${getCookie("access_token").getOrElse("")}")
-          ))
-        }).toFuture.flatMap { response =>
-          if response.ok then response.text().toFuture
-          else if response.status == 401 then
-            scala.concurrent.Future.failed(new Exception("Unauthorized - please log in again"))
-          else
-            scala.concurrent.Future.failed(new Exception(s"HTTP ${response.status}"))
-        }
-      else
-        scala.concurrent.Future.failed(new Exception("Token refresh failed"))
-    }
-  else
-    dom.fetch("/ticket", new dom.RequestInit {
-      method = dom.HttpMethod.GET
-      headers = new dom.Headers(scalajs.js.Array(
-        scalajs.js.Array("Authorization", s"Bearer ${getCookie("access_token").getOrElse("")}")
-      ))
-    }).toFuture.flatMap { response =>
-      if response.ok then response.text().toFuture
-      else if response.status == 401 then
-        scala.concurrent.Future.failed(new Exception("Unauthorized - please log in again"))
-      else
-        scala.concurrent.Future.failed(new Exception(s"HTTP ${response.status}"))
-    }
-
 /** Sets up state synchronization on WebSocket (re)connection.
   *
   * Registers the sync operation with connectionStatus manager, which handles:
@@ -1377,7 +1095,7 @@ def ticketCenter(
   // Register the sync operation with the connection manager
   // This will be called on connect, reconnect, and visibility return
   connectionStatus.onSync {
-    fetchTicketAsync().map { responseText =>
+    AuthService.fetchTicketAsync().map { responseText =>
       responseText.fromJson[Ticket] match
         case Right(ticket) =>
           println("Ticket received, sending to server for state sync")
@@ -1407,7 +1125,7 @@ def ticketCenter(
         case DiscussionActionConfirmed.Rejected(discussionAction) =>
           EventStream.fromFuture(
             connectionStatus.withErrorHandling(
-              fetchTicketAsync().map { responseText =>
+              AuthService.fetchTicketAsync().map { responseText =>
                 responseText.fromJson[Ticket] match
                   case Right(ticket) => (ticket, discussionAction)
                   case Left(err) => throw new Exception(s"Failed to parse ticket: $err")
