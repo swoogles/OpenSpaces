@@ -1,7 +1,6 @@
 package co.wtf.openspaces
 
 import com.raquo.laminar.api.L.{*, given}
-import org.scalajs.dom.window
 import neotype.unwrap
 
 import co.wtf.openspaces.services.AuthService
@@ -9,7 +8,6 @@ import co.wtf.openspaces.components.AppView
 
 /** Centralized app state (Vars + derived signals) */
 object AppState:
-  private val localStorage = window.localStorage
 
   val discussionState: Var[DiscussionState] =
     Var(
@@ -32,12 +30,12 @@ object AppState:
 
   // Sound muted state - persisted to localStorage
   val soundMuted: Var[Boolean] = Var {
-    Option(localStorage.getItem("soundMuted")).contains("true")
+    SafeStorage.contains("soundMuted", "true")
   }
 
   // Persist sound muted state to localStorage
   soundMuted.signal.foreach { muted =>
-    localStorage.setItem("soundMuted", muted.toString)
+    SafeStorage.setItem("soundMuted", muted.toString)
   }(unsafeWindowOwner)
 
   // Topics currently showing celebration animation (cleared after animation ends)
@@ -49,19 +47,19 @@ object AppState:
 
   // Whether user has seen the swipe hint (persisted)
   val hasSeenSwipeHint: Var[Boolean] = Var {
-    Option(localStorage.getItem("hasSeenSwipeHint")).contains("true")
+    SafeStorage.contains("hasSeenSwipeHint", "true")
   }
 
   // Whether to currently show the swipe hint UI
   val showSwipeHint: Var[Boolean] = Var {
-    !Option(localStorage.getItem("hasSeenSwipeHint")).contains("true")
+    !SafeStorage.contains("hasSeenSwipeHint", "true")
   }
 
   /** Dismiss the swipe hint and remember it */
   def dismissSwipeHint(): Unit =
     showSwipeHint.set(false)
     hasSeenSwipeHint.set(true)
-    localStorage.setItem("hasSeenSwipeHint", "true")
+    SafeStorage.setItem("hasSeenSwipeHint", "true")
 
   val activeDiscussion: Var[Option[Discussion]] =
     Var(None)
@@ -98,10 +96,10 @@ object AppState:
 
   // Admin mode toggle - when false, admins see the normal user view
   val adminModeEnabled: Var[Boolean] = Var(
-    localStorage.getItem("adminModeEnabled") == "true"
+    SafeStorage.contains("adminModeEnabled", "true")
   )
 
   // Persist admin mode preference
   adminModeEnabled.signal.foreach { enabled =>
-    localStorage.setItem("adminModeEnabled", enabled.toString)
+    SafeStorage.setItem("adminModeEnabled", enabled.toString)
   }(unsafeWindowOwner)

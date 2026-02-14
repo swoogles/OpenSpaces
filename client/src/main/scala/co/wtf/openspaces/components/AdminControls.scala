@@ -4,9 +4,8 @@ import com.raquo.laminar.api.L.{*, given}
 import org.scalajs.dom
 import zio.json.*
 
-import co.wtf.openspaces.{DiscussionAction, Person, connectionStatus}
+import co.wtf.openspaces.{DiscussionAction, Person, SafeStorage, connectionStatus}
 import co.wtf.openspaces.AppState
-import org.scalajs.dom.window
 
 /** Admin controls component - chaos buttons, auto-schedule, delete all, and reset user.
   * 
@@ -150,7 +149,7 @@ object AdminControls:
         AppState.votedTopicOrder.set(Nil)
         AppState.showSwipeHint.set(true)
         AppState.hasSeenSwipeHint.set(false)
-        window.localStorage.setItem("hasSeenSwipeHint", "false")
+        SafeStorage.setItem("hasSeenSwipeHint", "false")
         
         resetLoading.set(false)
     
