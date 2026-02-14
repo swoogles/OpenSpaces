@@ -25,7 +25,7 @@ Extract these standalone objects (no dependencies on FrontEnd state):
 | `util/ScrollPreserver.scala` | ScrollPreserver | ~25 | ✅ |
 | `components/Toast.scala` | ToastManager | ~45 | ✅ |
 
-### Step 1.2: Extract components 🔄 IN PROGRESS
+### Step 1.2: Extract components ✅ DONE
 Components that can be standalone functions/objects:
 
 | File | Component | Lines | Status |
@@ -33,9 +33,9 @@ Components that can be standalone functions/objects:
 | `components/AdminControls.scala` | AdminControls + helpers | ~210 | ✅ |
 | `components/TopicSubmission.scala` | TopicSubmission | ~50 | ✅ |
 | `components/SwipeableCard.scala` | SwipeableCard + SwipeState | ~175 | ✅ |
-| `components/TopicCard.scala` | SingleDiscussionComponent | ~140 | ❌ |
-| `components/ScheduleView.scala` | ScheduleView, LinearScheduleView, SlotSchedules | ~200 | ❌ |
-| `components/ScheduleSlot.scala` | ScheduleSlotComponent, SlotSchedule | ~100 | ❌ |
+| `components/TopicCard.scala` | SingleDiscussionComponent, DiscussionSubview | ~180 | ✅ |
+| `components/ScheduleView.scala` | ScheduleView, LinearScheduleView, SlotSchedules, AppView | ~210 | ✅ |
+| `components/ScheduleSlot.scala` | ScheduleSlotComponent, SlotSchedule | ~150 | ✅ |
 | `components/VoteButtons.scala` | VoteButtons | ~70 | ✅ |
 | `components/ViewToggle.scala` | ViewToggle | ~35 | ✅ |
 | `components/Menus.scala` | Menu, UnscheduledDiscussionsMenu, ActiveDiscussionActionMenu | ~325 | ✅ |

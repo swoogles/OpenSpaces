@@ -5,6 +5,7 @@ import org.scalajs.dom.window
 import neotype.unwrap
 
 import co.wtf.openspaces.services.AuthService
+import co.wtf.openspaces.components.AppView
 
 /** Centralized app state (Vars + derived signals) */
 object AppState:
