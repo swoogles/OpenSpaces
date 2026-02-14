@@ -693,6 +693,7 @@ object FrontEnd extends App:
       // Initialize audio on first user interaction (required by browser autoplay policy)
       onClick --> Observer(_ => initAudioOnGesture()),
       onTouchStart --> Observer(_ => initAudioOnGesture()),
+      onMouseDown --> Observer(_ => initAudioOnGesture()),
       // Conditional connect binder - toggles off/on to force reconnection
       // Uses connectionStatus.connectionEnabled which is controlled by the manager
       child <-- connectionStatus.connectionEnabled.signal.map { enabled =>
