@@ -2,7 +2,7 @@
 
 **Goal**: Break up large files into discoverable, file-browser-friendly modules.
 
-**Status**: 🔄 In Progress
+**Status**: ✅ Phase 1 Complete
 
 ---
 
@@ -57,20 +57,24 @@ Central state management (all the Vars that live in FrontEnd object):
 - hasSeenSwipeHint, showSwipeHint
 - activeDiscussion, popoverState, swapMenuState, etc.
 
-### Step 1.5: Slim down FrontEnd.scala ❌
-What remains:
+### Step 1.5: Slim down FrontEnd.scala ✅
+What remains (~618 lines):
 - `object FrontEnd extends App` - entry point
+- State aliases for backward compatibility
 - `val app` - main app composition
 - WebSocket setup and event handling
-- Imports and wiring
+- Event handlers (handleDiscussionActionConfirmed, ticketCenter)
 
-Target: ~400-500 lines
+Original: ~2900 lines → Final: ~618 lines (79% reduction)
 
 ---
 
-## Phase 2: Break up SharedCode.scala (~216 lines → ~6 files)
+## Phase 2: Break up SharedCode.scala (~216 lines → ~6 files) ⏸️ OPTIONAL
 
-### Step 2.1: Extract models ❌
+*Note: SharedCode.scala is only 216 lines and contains cohesive domain models.
+Breaking it up further has diminishing returns. Consider skipping.*
+
+### Step 2.1: Extract models ⏸️
 
 | File | Types | Status |
 |------|-------|--------|
