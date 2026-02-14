@@ -27,7 +27,7 @@ case class RandomActionSpawner(
 
   // Schedule-only chaos mode (moves, swaps, unschedules - slower)
   def isScheduleChaosActive: UIO[Boolean] = scheduleChaosActiveRef.get
-  def setScheduleChaosActive(value: Boolean): UIO[Unit] = scheduleChaosActiveRef.set(value)
+  def setScheduleChaosActive(value: Boolean): UIO[Boolean] = scheduleChaosActiveRef.set(value).as(value)
   def toggleScheduleChaos: UIO[Boolean] = scheduleChaosActiveRef.updateAndGet(!_)
 
   def startSpawningRandomActions = {
@@ -82,7 +82,25 @@ case class RandomActionSpawner(
   val randomActionStop =
     Endpoint(RoutePattern.POST / "api" / "admin" / "random-actions" / "stop")
       .out[ActiveStatus]
+      
+  // TODO Endpoint definitions for RandomSchedule actions
+  
+  val randomScheduleGet =
+    Endpoint(RoutePattern.GET / "api" / "admin" / "random-schedules")
+    .out[ActiveStatus]
     
+  val randomScheduleToggle =
+    Endpoint(RoutePattern.POST / "api" / "admin" / "random-schedules" / "toggle")
+      .out[ActiveStatus]
+      
+  val randomScheduleStart =
+    Endpoint(RoutePattern.POST / "api" / "admin" / "random-schedules" / "start")
+      .out[ActiveStatus]
+      
+  val randomScheduleStop =
+    Endpoint(RoutePattern.POST / "api" / "admin" / "random-schedules" / "stop")
+      .out[ActiveStatus]
+      
   val routes: Routes[Any, Response] =
     Routes(
       // Version endpoint - returns deployed commit hash
@@ -117,25 +135,25 @@ case class RandomActionSpawner(
         yield ActiveStatus(false)
       },
       // Schedule chaos endpoints
-      Method.GET / "api" / "admin" / "schedule-chaos" -> handler {
+      randomScheduleGet.implement { _ =>
         for
           active <- isScheduleChaosActive
-        yield Response.json(s"""{"active":$active}""")
+        yield ActiveStatus(active)
       },
-      Method.POST / "api" / "admin" / "schedule-chaos" / "toggle" -> handler {
+      randomActionToggle.implement { _ =>
         for
           newState <- toggleScheduleChaos
-        yield Response.json(s"""{"active":$newState}""")
+        yield ActiveStatus(newState)
       },
-      Method.POST / "api" / "admin" / "schedule-chaos" / "start" -> handler {
+      randomScheduleStart.implement { _ =>
         for
           _ <- setScheduleChaosActive(true)
-        yield Response.json("""{"active":true}""")
+        yield ActiveStatus(true)
       },
-      Method.POST / "api" / "admin" / "schedule-chaos" / "stop" -> handler {
+      randomScheduleStop.implement { _ =>
         for
           _ <- setScheduleChaosActive(false)
-        yield Response.json("""{"active":false}""")
+        yield ActiveStatus(false)
       },
       
       // Delete all topics
