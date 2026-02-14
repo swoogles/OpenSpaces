@@ -57,7 +57,8 @@ case class RandomActionSpawner(
     Routes(
       // Version endpoint - returns deployed commit hash
       Method.GET / "api" / "version" -> handler {
-        val version = sys.env.getOrElse("SOURCE_VERSION", "dev")
+        val version = sys.env.getOrElse("HEROKU_SLUG_COMMIT", 
+                      sys.env.getOrElse("SOURCE_VERSION", "dev"))
         ZIO.succeed(Response.json(s"""{"version":"$version"}"""))
       },
       
