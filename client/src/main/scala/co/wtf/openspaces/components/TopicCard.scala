@@ -173,16 +173,12 @@ object DiscussionSubview:
     
     div(
       cls := "TopicsContainer",
-      // Register unjudged topics for onboarding when list first populates
+      // Register for onboarding when list first populates for a new user
       Signal.combine(topicsOfInterest, showSwipeHint, name) --> Observer[(List[Discussion], Boolean, Person)] { 
-        case (topics, true, currentUser) if !hasRegisteredOnboarding =>
-          // Unjudged = topics the current user hasn't voted on
-          val unjudgedIds = topics
-            .filterNot(_.interestedParties.exists(_.voter == currentUser))
-            .map(_.id)
-          if unjudgedIds.nonEmpty then
-            hasRegisteredOnboarding = true
-            OnboardingOrchestrator.registerTopics(unjudgedIds)
+        case (topics, true, currentUser) if !hasRegisteredOnboarding && topics.nonEmpty =>
+          hasRegisteredOnboarding = true
+          // Pass currentUser - orchestrator will fetch full topic list from AppState
+          OnboardingOrchestrator.registerTopics(currentUser)
         case _ => ()
       },
       children <--

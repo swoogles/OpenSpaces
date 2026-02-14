@@ -111,6 +111,7 @@ object SwipeableCard:
     
     /** Run auto-swipe animation programmatically */
     def runAutoSwipe(cmd: AutoSwipeCommand, onComplete: () => Unit): Unit =
+      println(s"[AutoSwipe] runAutoSwipe called with direction=${cmd.direction}, active=${autoSwipeActive.now()}, animating=${isAnimating.now()}")
       if autoSwipeActive.now() || isAnimating.now() then return
       
       autoSwipeActive.set(true)

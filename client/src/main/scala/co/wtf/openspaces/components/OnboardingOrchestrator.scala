@@ -3,7 +3,7 @@ package co.wtf.openspaces.components
 import com.raquo.laminar.api.L.{*, given}
 import org.scalajs.dom.window
 
-import co.wtf.openspaces.{AppState, TopicId, VotePosition}
+import co.wtf.openspaces.{AppState, Person, TopicId, VotePosition}
 
 /** Orchestrates auto-swipe onboarding for new users.
   * 
@@ -51,15 +51,23 @@ object OnboardingOrchestrator:
     }
     (filteredStream, () => onSwipeComplete(topicId))
   
-  /** Register topics for onboarding (called when topic list first renders) */
-  def registerTopics(unjudgedTopicIds: List[TopicId]): Unit =
+  /** Register for onboarding (called when topic list first renders for a new user) */
+  def registerTopics(currentUser: Person): Unit =
     // Only proceed if we haven't seen the hint
     if !AppState.showSwipeHint.now() then return
     if phase.now() != Phase.Waiting then return
     
+    // Get ALL unjudged topics from the full state (not the filtered view)
+    val allTopics = AppState.discussionState.now().data.values.toList
+    val unjudgedTopicIds = allTopics
+      .filterNot(_.interestedParties.exists(_.voter == currentUser))
+      .map(_.id)
+    
     // Take first two unjudged topics
     val toOnboard = unjudgedTopicIds.take(2)
     if toOnboard.isEmpty then return
+    
+    println(s"[Onboarding] Registering ${toOnboard.length} topics for onboarding: $toOnboard")
     
     onboardingTopics.set(toOnboard)
     completedTopics.set(Set.empty)
@@ -70,9 +78,11 @@ object OnboardingOrchestrator:
   /** Start the onboarding sequence */
   private def startOnboarding(): Unit =
     val topics = onboardingTopics.now()
+    println(s"[Onboarding] Starting onboarding with topics: $topics, phase: ${phase.now()}")
     
     topics.headOption.foreach { firstId =>
       phase.set(Phase.SwipingFirst)
+      println(s"[Onboarding] Emitting swipe right for topic $firstId")
       // Swipe right (Interested)
       swipeBus.emit((firstId, AutoSwipeCommand(VotePosition.Interested, durationMs = 800)))
     }
