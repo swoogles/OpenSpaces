@@ -29,21 +29,27 @@ object OnboardingOrchestrator:
   // Current phase
   private val phase: Var[Phase] = Var(Phase.Waiting)
   
-  // Event buses for triggering auto-swipes on specific topics
-  private val swipeBuses: Var[Map[TopicId, EventBus[AutoSwipeCommand]]] = Var(Map.empty)
+  // Global event bus for auto-swipe commands (topicId, command)
+  private val swipeBus: EventBus[(TopicId, AutoSwipeCommand)] = new EventBus
   
   // Topics queued for onboarding (first two unjudged)
   private val onboardingTopics: Var[List[TopicId]] = Var(Nil)
   
+  // Track which topics have completed their swipe
+  private val completedTopics: Var[Set[TopicId]] = Var(Set.empty)
+  
   /** Check if onboarding is active */
   def isActive: Signal[Boolean] = phase.signal.map(_ != Phase.Complete)
   
-  /** Get the auto-swipe stream for a specific topic (if it's in the onboarding queue) */
-  def autoSwipeFor(topicId: TopicId): Option[(EventStream[AutoSwipeCommand], () => Unit)] =
-    val buses = swipeBuses.now()
-    buses.get(topicId).map { bus =>
-      (bus.events, () => onSwipeComplete(topicId))
+  /** Get the auto-swipe stream for a specific topic.
+    * Returns a filtered stream + completion callback.
+    * Cards call this during render - the stream is always available.
+    */
+  def autoSwipeFor(topicId: TopicId): (EventStream[AutoSwipeCommand], () => Unit) =
+    val filteredStream = swipeBus.events.collect {
+      case (id, cmd) if id == topicId => cmd
     }
+    (filteredStream, () => onSwipeComplete(topicId))
   
   /** Register topics for onboarding (called when topic list first renders) */
   def registerTopics(unjudgedTopicIds: List[TopicId]): Unit =
@@ -55,10 +61,8 @@ object OnboardingOrchestrator:
     val toOnboard = unjudgedTopicIds.take(2)
     if toOnboard.isEmpty then return
     
-    // Create event buses for each
-    val buses = toOnboard.map(id => id -> new EventBus[AutoSwipeCommand]).toMap
-    swipeBuses.set(buses)
     onboardingTopics.set(toOnboard)
+    completedTopics.set(Set.empty)
     
     // Start onboarding after a delay
     val _ = window.setTimeout(() => startOnboarding(), 2000)
@@ -66,20 +70,17 @@ object OnboardingOrchestrator:
   /** Start the onboarding sequence */
   private def startOnboarding(): Unit =
     val topics = onboardingTopics.now()
-    val buses = swipeBuses.now()
     
     topics.headOption.foreach { firstId =>
-      buses.get(firstId).foreach { bus =>
-        phase.set(Phase.SwipingFirst)
-        // Swipe right (Interested)
-        bus.emit(AutoSwipeCommand(VotePosition.Interested, durationMs = 800))
-      }
+      phase.set(Phase.SwipingFirst)
+      // Swipe right (Interested)
+      swipeBus.emit((firstId, AutoSwipeCommand(VotePosition.Interested, durationMs = 800)))
     }
   
   /** Called when a swipe animation completes */
   private def onSwipeComplete(topicId: TopicId): Unit =
+    completedTopics.update(_ + topicId)
     val topics = onboardingTopics.now()
-    val buses = swipeBuses.now()
     
     phase.now() match
       case Phase.SwipingFirst =>
@@ -87,11 +88,9 @@ object OnboardingOrchestrator:
         topics.lift(1) match
           case Some(secondId) =>
             val _ = window.setTimeout(() => {
-              buses.get(secondId).foreach { bus =>
-                phase.set(Phase.SwipingSecond)
-                // Swipe left (Not Interested)
-                bus.emit(AutoSwipeCommand(VotePosition.NotInterested, durationMs = 800))
-              }
+              phase.set(Phase.SwipingSecond)
+              // Swipe left (Not Interested)
+              swipeBus.emit((secondId, AutoSwipeCommand(VotePosition.NotInterested, durationMs = 800)))
             }, 1000)
           case None =>
             // Only one topic, finish
@@ -108,11 +107,11 @@ object OnboardingOrchestrator:
     phase.set(Phase.Complete)
     AppState.dismissSwipeHint()
     // Clear state
-    swipeBuses.set(Map.empty)
     onboardingTopics.set(Nil)
+    completedTopics.set(Set.empty)
   
   /** Reset orchestrator (for testing/admin) */
   def reset(): Unit =
     phase.set(Phase.Waiting)
-    swipeBuses.set(Map.empty)
     onboardingTopics.set(Nil)
+    completedTopics.set(Set.empty)

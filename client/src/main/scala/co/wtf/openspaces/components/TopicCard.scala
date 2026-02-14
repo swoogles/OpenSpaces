@@ -146,9 +146,9 @@ object TopicCard:
 
         // Wrap with swipe functionality if enabled
         if enableSwipe then
-          // Check if this topic should auto-swipe (for onboarding)
+          // Always connect to orchestrator - it filters by topicId internally
           val autoSwipe = OnboardingOrchestrator.autoSwipeFor(topic.id)
-          SwipeableCard(topic, name, topicUpdates, cardContent, autoSwipe)
+          SwipeableCard(topic, name, topicUpdates, cardContent, Some(autoSwipe))
         else
           cardContent
 
