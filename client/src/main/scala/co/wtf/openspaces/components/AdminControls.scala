@@ -3,11 +3,14 @@ package co.wtf.openspaces.components
 import com.raquo.laminar.api.L.{*, given}
 import org.scalajs.dom
 import zio.json.*
+import zio.http.endpoint.{Endpoint, EndpointExecutor}
 
 import co.wtf.openspaces.{DiscussionAction, Person, SafeStorage}
 import co.wtf.openspaces.AppState
 import co.wtf.openspaces.*
 import io.laminext.websocket.*
+import zio.http.endpoint.AuthType
+import scala.concurrent.Future
 
 /** Admin controls component - chaos buttons, auto-schedule, delete all, and reset user.
   * 
@@ -16,14 +19,15 @@ import io.laminext.websocket.*
 object AdminControls:
   
   /** API response types */
-  case class RandomActionStatus(active: Boolean) derives JsonCodec
   case class VersionInfo(version: String) derives JsonCodec
   case class ScheduleResult(scheduled: Int, moved: Int, unscheduled: Int) derives JsonCodec
 
   def apply(
     $showAdminControls: Signal[Boolean],
     topicUpdates: DiscussionAction => Unit,
-    connectionStatus: ConnectionStatusManager[DiscussionActionConfirmed, WebSocketMessage]
+    connectionStatus: ConnectionStatusManager[DiscussionActionConfirmed, WebSocketMessage],
+    executor: EndpointExecutor[Any, Unit, zio.Scope]
+
   ): HtmlElement =
     import scala.concurrent.ExecutionContext.Implicits.global
     
@@ -61,7 +65,7 @@ object AdminControls:
         .toFuture
         .flatMap(_.text().toFuture)
         .foreach { text =>
-          text.fromJson[RandomActionStatus] match
+          text.fromJson[ActiveStatus] match
             case Right(status) => isChaosActive.set(status.active)
             case Left(_) => ()
         }
@@ -70,24 +74,31 @@ object AdminControls:
         .toFuture
         .flatMap(_.text().toFuture)
         .foreach { text =>
-          text.fromJson[RandomActionStatus] match
+          text.fromJson[ActiveStatus] match
             case Right(status) => isScheduleChaosActive.set(status.active)
             case Left(_) => ()
         }
     
     def toggleChaos(): Unit =
       chaosLoading.set(true)
-      dom.fetch("/api/admin/random-actions/toggle", new dom.RequestInit {
-        method = dom.HttpMethod.POST
-      }).toFuture
-        .flatMap(_.text().toFuture)
-        .foreach { text =>
-          text.fromJson[RandomActionStatus] match
-            case Right(status) => 
-              isChaosActive.set(status.active)
-              chaosLoading.set(false)
-            case Left(_) => 
-              chaosLoading.set(false)
+      
+      import zio._
+      import zio.http._
+      val invocation = RandomActionApi.randomActionToggle.apply(())
+      val runtime = Runtime.default
+      val fut: Future[ActiveStatus] = Unsafe.unsafe { implicit unsafe =>
+        runtime.unsafe.runToFuture(
+        ZIO.scoped(
+          executor(RandomActionApi.randomActionToggle.apply(()))
+          )
+          
+        )
+      }
+      fut
+        .foreach { status =>
+          println("Like, from zio, eh: " + status)
+          isChaosActive.set(status.active)
+          chaosLoading.set(false)
         }
 
     def toggleScheduleChaos(): Unit =
@@ -98,7 +109,7 @@ object AdminControls:
       }).toFuture
         .flatMap(_.text().toFuture)
         .foreach { text =>
-          text.fromJson[RandomActionStatus] match
+          text.fromJson[ActiveStatus] match
             case Right(status) => 
               isScheduleChaosActive.set(status.active)
               scheduleChaosLoading.set(false)

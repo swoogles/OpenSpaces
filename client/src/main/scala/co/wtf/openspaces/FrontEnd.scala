@@ -14,6 +14,7 @@ import co.wtf.openspaces.components.{ToastManager, AdminControls, TopicSubmissio
 import co.wtf.openspaces.AppState.*
 import co.wtf.openspaces.*
 import co.wtf.openspaces.services.{AudioService, AuthService}
+import zio.http.endpoint.{Endpoint, EndpointExecutor}
 
 /** FrontEnd.scala - Main entry point and app composition
   * 
@@ -26,7 +27,11 @@ import co.wtf.openspaces.services.{AudioService, AuthService}
   */
 
 object FrontEnd extends ZIOAppDefault{
-  def run = ZIO.attempt {
+  override val bootstrap: ZLayer[Any, Nothing, Unit] =
+    Runtime.setConfigProvider(ConfigProvider.fromMap(Map("open-spaces.url" ->  "http://localhost:8080")))
+
+  // ZIO.config(Config.config.nested(serviceName))
+  def run =  ZIO.service[EndpointExecutor[Any, Unit, Scope]].map{ executor => 
   ServiceWorkerClient.registerServiceWorker()
   lazy val container = dom.document.getElementById("app")
 
@@ -435,7 +440,8 @@ object FrontEnd extends ZIOAppDefault{
           AdminControls(
             isAdmin.combineWith(adminModeEnabled.signal).map { case (admin, enabled) => admin && enabled },
             topicUpdates.sendOne,
-            connectionStatus
+            connectionStatus,
+            executor
           ),
           ViewToggle(currentAppView, adminModeEnabled.signal),
           // Conditional view rendering based on current app view
@@ -493,7 +499,11 @@ object FrontEnd extends ZIOAppDefault{
     )
 
   render(container, app)
-  }
+  }.provide(
+    EndpointExecutor.make(serviceName = "open-spaces"),
+    zio.http.Client.default,
+    
+  )
 
 // NameBadge, BannerLogo, AdminModeToggle extracted to components/NameBadge.scala
 

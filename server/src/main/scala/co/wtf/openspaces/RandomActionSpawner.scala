@@ -11,43 +11,13 @@ import zio.http.codec._
 import zio.http.endpoint._
 import zio.schema._
 
-object RandomActionApi {
-  
-  val randomActionGet =
-    Endpoint(RoutePattern.GET / "api" / "admin" / "random-actions")
-    //  PathCodec.int("id")
-    .out[ActiveStatus]
-  
-  val randomActionToggle =
-    Endpoint(RoutePattern.POST / "api" / "admin" / "random-actions" / "toggle")
-      .out[ActiveStatus]
-  
-  val randomScheduleGet =
-    Endpoint(RoutePattern.GET / "api" / "admin" / "schedule-chaos")
-    .out[ActiveStatus]
-  
-  val randomScheduleToggle =
-    Endpoint(RoutePattern.POST / "api" / "admin" / "schedule-chaos" / "toggle")
-      .out[ActiveStatus]
-  
-  val endpoints =
-    List(
-      randomActionGet,
-      randomActionToggle,
-      randomScheduleGet,
-      randomScheduleToggle,
-    )
-}
-
-case class ActiveStatus(active: Boolean) derives Schema
-
 case class RandomActionSpawner(
   discussionService: DiscussionService,
   schedulingService: SchedulingService,
   chaosActiveRef: Ref[Boolean],
   scheduleChaosActiveRef: Ref[Boolean]):
   
-  import RandomActionApi._
+  import co.wtf.openspaces.RandomActionApi._
 
   // Full chaos mode (votes, topics, schedules - fast)
   def isChaosActive: UIO[Boolean] = chaosActiveRef.get

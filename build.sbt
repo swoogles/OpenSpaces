@@ -21,17 +21,12 @@ lazy val sharedCode =
     .settings(
       name := "shared",
       libraryDependencies ++= Seq(
-        "dev.zio" %% "zio-http" % "3.8.1",
-        "dev.zio" %% "zio-http-testkit" % "3.8.1",
+        "dev.zio" %%% "zio-http" % "3.8.1",
         "dev.zio" %%% "zio-schema"          % "1.6.4",
         "dev.zio" %%% "zio-schema-json"     % "1.6.4",
-        "dev.zio" %% "zio-schema-derivation" % "1.6.4",
+        "dev.zio" %%% "zio-schema-derivation" % "1.6.4",
         "io.github.kitlangton" %%% "neotype" % "0.3.15",
         "io.github.kitlangton" %%% "neotype-zio-json" % "0.3.15",
-        "dev.zio" %% "zio-config"          % "4.0.4",
-        "dev.zio" %% "zio-config-magnolia" % "4.0.4",
-        "dev.zio" %% "zio-config-typesafe" % "4.0.4",
-        "dev.zio" %% "zio-config-refined"  % "4.0.4",
       ),
     )
     .jsSettings(
@@ -55,8 +50,8 @@ lazy val client = (project in file("client"))
           ModuleSplitStyle.SmallModulesFor(List("livechart")))
     },
     libraryDependencies ++= Seq(
-      "org.scala-js" %%% "scalajs-dom" % "2.8.0",
-      "io.github.kitlangton" %%% "animus" % "0.6.5",
+      "org.scala-js" %%% "scalajs-dom" % "2.8.1",
+      "io.github.kitlangton" %%% "animus" % "0.6.8",
       "com.raquo" %%% "laminar" % "17.2.0",
       "dev.laminext" %%% "websocket" % "0.17.1"
     ),
@@ -64,14 +59,14 @@ lazy val client = (project in file("client"))
 
 lazy val serviceworker = (project in file("serviceworker"))
   .enablePlugins(ScalaJSPlugin)
-  .dependsOn(sharedCode.js)
+  // .dependsOn(sharedCode.js)
   .settings(
     name := "serviceworker",
     Compile / fastOptJS / artifactPath := baseDirectory.value.getParentFile / "server" / "src" / "main" / "resources" / "public" / "sw.js",
     Compile / fullOptJS / artifactPath := baseDirectory.value.getParentFile / "server" / "src" / "main" / "resources" / "public" / "sw.js",
     scalaJSUseMainModuleInitializer := true,
     libraryDependencies ++= Seq(
-      "org.scala-js" %%% "scalajs-dom" % "2.8.0",
+      "org.scala-js" %%% "scalajs-dom" % "2.8.1",
     ),
   )
 
@@ -100,12 +95,17 @@ lazy val server = (project in file("server"))
     libraryDependencies ++= Seq(
       "dev.zio" %% "zio" % "2.1.16",
       "dev.zio" %% "zio-direct" % "1.0.0-RC7",
+      "dev.zio" %%% "zio-http-testkit" % "3.8.1",
       // Database
       "com.augustnagro" %% "magnum" % "1.3.0",
       "org.postgresql" % "postgresql" % "42.7.4",
       "com.zaxxer" % "HikariCP" % "6.2.1",
       "org.flywaydb" % "flyway-core" % "10.21.0",
       "org.flywaydb" % "flyway-database-postgresql" % "10.21.0",
+      "dev.zio" %% "zio-config"          % "4.0.4",
+      "dev.zio" %% "zio-config-magnolia" % "4.0.4",
+      "dev.zio" %% "zio-config-typesafe" % "4.0.4",
+      "dev.zio" %% "zio-config-refined"  % "4.0.4",
     ),
   )
 
