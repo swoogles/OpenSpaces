@@ -27,9 +27,6 @@ import zio.http.endpoint.{Endpoint, EndpointExecutor}
   */
 
 object FrontEnd extends ZIOAppDefault{
-  override val bootstrap: ZLayer[Any, Nothing, Unit] =
-    Runtime.setConfigProvider(ConfigProvider.fromMap(Map("open-spaces.url" ->  "http://localhost:8080")))
-
   // ZIO.config(Config.config.nested(serviceName))
   def run =  ZIO.service[EndpointExecutor[Any, Unit, Scope]].map{ executor => 
   ServiceWorkerClient.registerServiceWorker()
