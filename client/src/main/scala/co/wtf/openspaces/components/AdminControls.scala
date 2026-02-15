@@ -89,6 +89,7 @@ object AdminControls:
 
     def toggleScheduleChaos(): Unit =
       scheduleChaosLoading.set(true)
+      println("Should be toggling chaos")
       dom.fetch("/api/admin/schedule-chaos/toggle", new dom.RequestInit {
         method = dom.HttpMethod.POST
       }).toFuture

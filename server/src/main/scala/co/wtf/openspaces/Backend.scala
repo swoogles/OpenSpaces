@@ -5,6 +5,8 @@ import co.wtf.openspaces.slack.*
 import zio.*
 import zio.direct.*
 import zio.http.*
+import zio.http.endpoint.openapi._
+import  zio.http.endpoint.openapi._
 
 case class MyConfig(ldap: String, port: Int, dburl: String)
 
@@ -17,6 +19,13 @@ object Backend extends ZIOAppDefault {
         throw new IllegalStateException("No value found for $PORT"),
       )
       .toInt
+
+    val openAPI       = OpenAPIGen.fromEndpoints(title = "Library API", version = "1.0", 
+    RandomActionApi.endpoints
+    )
+    
+    val swaggerRoutes = SwaggerUI.routes("docs", openAPI)
+    
     defer:
       val statefulRoutes =
         ZIO.serviceWith[ApplicationState](_.authRoutes).run
@@ -24,7 +33,7 @@ object Backend extends ZIOAppDefault {
         ZIO.serviceWith[BackendSocketApp](_.socketRoutes).run
       val randomActionRoutes =
         ZIO.serviceWith[RandomActionSpawner](_.routes).run
-      val allRoutes = statefulRoutes ++ socketRoutes ++ randomActionRoutes
+      val allRoutes = statefulRoutes ++ socketRoutes ++ randomActionRoutes ++ swaggerRoutes
 
       // Start the random action spawner (runs in background, controlled via admin API)
       ZIO.serviceWithZIO[RandomActionSpawner](_.startSpawningRandomActions).run
