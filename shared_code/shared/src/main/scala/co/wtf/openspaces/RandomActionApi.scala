@@ -45,17 +45,28 @@ case class RandomActionClient(
 executor: EndpointExecutor[Any, Unit, zio.Scope]
 ) {
 
-import zio._
-import zio.http._
-val invocation = RandomActionApi.randomActionToggle.apply(())
-val runtime = Runtime.default
-
-def randomActionToggle: Future[ActiveStatus] = 
+  import zio._
+  import zio.http._
+  val runtime = Runtime.default
+  
+  def randomActionToggle: Future[ActiveStatus] = 
+    futureDumb(RandomActionApi.randomActionToggle.apply(()))
+  
+  private def futureDumb[P, I, E, O, A <: AuthType](
+  invocation: Invocation[P, Unit, ZNothing, O, zio.http.endpoint.AuthType.None.type]
+  ) = {
+  
   Unsafe.unsafe { implicit unsafe =>
+    println("slightly less dumb future")
     runtime.unsafe.runToFuture(
       ZIO.scoped(
-        executor(RandomActionApi.randomActionToggle.apply(()))
+        executor(invocation)
         )
       )
+  }
+  }
+    
+  def  randomScheduleActionToggle: Future[ActiveStatus] = {
+    futureDumb(RandomActionApi.randomScheduleToggle.apply(()))
   }
 }

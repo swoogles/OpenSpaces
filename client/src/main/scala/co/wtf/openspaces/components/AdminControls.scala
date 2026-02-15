@@ -78,31 +78,25 @@ object AdminControls:
             case Left(_) => ()
         }
     
-    def toggleChaos(): Unit =
+    def toggleChaos(): Unit = {
       chaosLoading.set(true)
       
       randomActionClient.randomActionToggle
         .foreach { status =>
-          println("Like, from zio, eh: " + status)
           isChaosActive.set(status.active)
           chaosLoading.set(false)
         }
+    }
 
-    def toggleScheduleChaos(): Unit =
+    def toggleScheduleChaos(): Unit = {
       scheduleChaosLoading.set(true)
-      println("Should be toggling chaos")
-      dom.fetch("/api/admin/schedule-chaos/toggle", new dom.RequestInit {
-        method = dom.HttpMethod.POST
-      }).toFuture
-        .flatMap(_.text().toFuture)
-        .foreach { text =>
-          text.fromJson[ActiveStatus] match
-            case Right(status) => 
-              isScheduleChaosActive.set(status.active)
-              scheduleChaosLoading.set(false)
-            case Left(_) => 
-              scheduleChaosLoading.set(false)
+      randomActionClient.randomScheduleActionToggle
+        .foreach { status => 
+          println("zio schedule chaos toggle")
+          isScheduleChaosActive.set(status.active)
+          scheduleChaosLoading.set(false)
         }
+      }
 
     def runScheduling(): Unit =
       scheduleLoading.set(true)
