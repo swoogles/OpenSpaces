@@ -223,6 +223,7 @@ object FrontEnd extends ZIOAppDefault{
   val hasAuthCookies =
     AuthService.getCookie("access_token").isDefined ||
       AuthService.getCookie("access_token_expires_at").isDefined
+  val randomActionClient = RandomActionClient(executor)
 
   val app =
     div(
@@ -306,7 +307,7 @@ object FrontEnd extends ZIOAppDefault{
       },
       if (hasAuthCookies) {
         div(
-          ticketCenter(topicUpdates, discussionState),
+          ticketCenter(topicUpdates, discussionState, randomActionClient),
           topicUpdates.received --> Observer {
             (event: DiscussionActionConfirmed) =>
               // Record message receipt for health monitoring
@@ -455,7 +456,7 @@ object FrontEnd extends ZIOAppDefault{
             isAdmin.combineWith(adminModeEnabled.signal).map { case (admin, enabled) => admin && enabled },
             topicUpdates.sendOne,
             connectionStatus,
-            RandomActionClient(executor)
+            randomActionClient
           ),
           ViewToggle(currentAppView, adminModeEnabled.signal),
           // Conditional view rendering based on current app view
@@ -597,11 +598,12 @@ object FrontEnd extends ZIOAppDefault{
   def ticketCenter(
     topicUpdates: WebSocket[DiscussionActionConfirmed, WebSocketMessage],
     discussionState: Var[DiscussionState],
+    randomActionClient: RandomActionClient,
   ) =
     // Register the sync operation with the connection manager
     // This will be called on connect, reconnect, and visibility return
     connectionStatus.onSync {
-      AuthService.fetchTicketAsync().map { responseText =>
+      AuthService.fetchTicketAsync(randomActionClient).map { responseText =>
         responseText.fromJson[Ticket] match
           case Right(ticket) =>
             println("Ticket received, sending to server for state sync")
@@ -631,7 +633,7 @@ object FrontEnd extends ZIOAppDefault{
           case DiscussionActionConfirmed.Rejected(discussionAction) =>
             EventStream.fromFuture(
               connectionStatus.withErrorHandling(
-                AuthService.fetchTicketAsync().map { responseText =>
+                AuthService.fetchTicketAsync(randomActionClient).map { responseText =>
                   responseText.fromJson[Ticket] match
                     case Right(ticket) => (ticket, discussionAction)
                     case Left(err) => throw new Exception(s"Failed to parse ticket: $err")

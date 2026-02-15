@@ -114,16 +114,10 @@ case class TicketRoutesApp(
   ticketService: AuthenticatedTicketService):
   val routes =
     Routes(
-      Method.GET / "ticket" -> handler { (_: Request) =>
-        defer:
-          val ticket = ticketService.create.run
-          Response.json(ticket.toJson)
+      RandomActionApi.ticketGet.implement { _ =>
+        ticketService.create.map(_.toJson)
       },
-    ) @@ HandlerAspect.bearerAuthZIO { secret =>
-      defer:
-        ZIO.unit.run
-        secret.stringValue.nonEmpty || true // TODO Real check
-    }
+    )
 
 object TicketRoutesApp:
   val layer = ZLayer.fromFunction(TicketRoutesApp.apply _)

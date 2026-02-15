@@ -17,6 +17,11 @@ case class DeleteTopicsResult(deleted: Int) derives Schema, JsonCodec
 
 object RandomActionApi {
 
+  val ticketGet =
+    Endpoint(RoutePattern.GET / "ticket")
+      .header[String]("Authorization")
+      .out[String]
+
   val versionGet =
     Endpoint(RoutePattern.GET / "api" / "version")
       .out[VersionInfo]
@@ -49,6 +54,7 @@ object RandomActionApi {
   
   val endpoints =
     List(
+      ticketGet,
       versionGet,
       randomActionGet,
       randomActionToggle,
@@ -79,8 +85,15 @@ executor: EndpointExecutor[Any, Unit, zio.Scope]
   def randomScheduleStatus: Future[ActiveStatus] =
     futureDumb(RandomActionApi.randomScheduleGet.apply(()))
   
+  def ticket(accessToken: String): Future[String] =
+    futureDumb(
+      RandomActionApi.ticketGet.apply(
+        s"Bearer $accessToken",
+      )
+    )
+
   private def futureDumb[P, I, E, O, A <: AuthType](
-  invocation: Invocation[P, Unit, ZNothing, O, zio.http.endpoint.AuthType.None.type]
+  invocation: Invocation[P, I, ZNothing, O, zio.http.endpoint.AuthType.None.type]
   ) = {
   
   Unsafe.unsafe { implicit unsafe =>
