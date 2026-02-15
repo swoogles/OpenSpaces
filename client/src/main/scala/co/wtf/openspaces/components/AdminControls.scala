@@ -26,8 +26,7 @@ object AdminControls:
     $showAdminControls: Signal[Boolean],
     topicUpdates: DiscussionAction => Unit,
     connectionStatus: ConnectionStatusManager[DiscussionActionConfirmed, WebSocketMessage],
-    executor: EndpointExecutor[Any, Unit, zio.Scope]
-
+    randomActionClient: RandomActionClient
   ): HtmlElement =
     import scala.concurrent.ExecutionContext.Implicits.global
     
@@ -82,19 +81,7 @@ object AdminControls:
     def toggleChaos(): Unit =
       chaosLoading.set(true)
       
-      import zio._
-      import zio.http._
-      val invocation = RandomActionApi.randomActionToggle.apply(())
-      val runtime = Runtime.default
-      val fut: Future[ActiveStatus] = Unsafe.unsafe { implicit unsafe =>
-        runtime.unsafe.runToFuture(
-        ZIO.scoped(
-          executor(RandomActionApi.randomActionToggle.apply(()))
-          )
-          
-        )
-      }
-      fut
+      randomActionClient.randomActionToggle
         .foreach { status =>
           println("Like, from zio, eh: " + status)
           isChaosActive.set(status.active)

@@ -455,7 +455,7 @@ object FrontEnd extends ZIOAppDefault{
             isAdmin.combineWith(adminModeEnabled.signal).map { case (admin, enabled) => admin && enabled },
             topicUpdates.sendOne,
             connectionStatus,
-            executor
+            RandomActionClient(executor)
           ),
           ViewToggle(currentAppView, adminModeEnabled.signal),
           // Conditional view rendering based on current app view
