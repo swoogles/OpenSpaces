@@ -69,10 +69,10 @@ case class RandomActionSpawner(
   val routes: Routes[Any, Response] =
     Routes(
       // Version endpoint - returns deployed commit hash
-      Method.GET / "api" / "version" -> handler {
+      versionGet.implement { _ =>
         val version = sys.env.getOrElse("HEROKU_SLUG_COMMIT",
                       sys.env.getOrElse("SOURCE_VERSION", "dev"))
-        ZIO.succeed(Response.json(s"""{"version":"$version"}"""))
+        ZIO.succeed(VersionInfo(version))
       },
 
       // Full chaos endpoints
@@ -102,7 +102,7 @@ case class RandomActionSpawner(
       // Delete all topics
       Method.POST / "api" / "admin" / "topics" / "delete-all" -> handler {
         discussionService.deleteAllTopics
-          .map(count => Response.json(s"""{"deleted":$count}"""))
+          .map(count => Response.json(DeleteTopicsResult(count).toJson))
           .orElse(ZIO.succeed(Response.status(Status.InternalServerError)))
       },
 
@@ -110,8 +110,13 @@ case class RandomActionSpawner(
       Method.POST / "api" / "admin" / "schedule" -> handler {
         schedulingService.runScheduling
           .map(summary => Response.json(
-            s"""{"scheduled":${summary.scheduled},"moved":${summary.moved},"unscheduled":${summary.unscheduled}}"""
-          ))
+            ScheduleResult(
+              scheduled = summary.scheduled,
+              moved = summary.moved,
+              unscheduled = summary.unscheduled,
+            ).toJson
+          )
+          )
           .catchAll(err =>
             ZIO.logError(s"Scheduling failed: $err") *>
             ZIO.succeed(Response.json(s"""{"error":"${err.getMessage}"}""").status(Status.InternalServerError))

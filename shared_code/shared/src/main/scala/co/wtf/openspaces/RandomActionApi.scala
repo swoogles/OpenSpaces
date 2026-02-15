@@ -11,8 +11,15 @@ import zio.schema._
 import scala.concurrent.Future
 
 case class ActiveStatus(active: Boolean) derives Schema, JsonCodec
+case class VersionInfo(version: String) derives Schema, JsonCodec
+case class ScheduleResult(scheduled: Int, moved: Int, unscheduled: Int) derives Schema, JsonCodec
+case class DeleteTopicsResult(deleted: Int) derives Schema, JsonCodec
 
 object RandomActionApi {
+
+  val versionGet =
+    Endpoint(RoutePattern.GET / "api" / "version")
+      .out[VersionInfo]
   
   val randomActionGet =
     Endpoint(RoutePattern.GET / "api" / "admin" / "random-actions")
@@ -31,13 +38,24 @@ object RandomActionApi {
   val randomScheduleToggle =
     Endpoint(RoutePattern.POST / "api" / "admin" / "schedule-chaos" / "toggle")
       .out[ActiveStatus]
+
+  val deleteAllTopics =
+    Endpoint(RoutePattern.POST / "api" / "admin" / "topics" / "delete-all")
+      .out[DeleteTopicsResult]
+
+  val runScheduling =
+    Endpoint(RoutePattern.POST / "api" / "admin" / "schedule")
+      .out[ScheduleResult]
   
   val endpoints =
     List(
+      versionGet,
       randomActionGet,
       randomActionToggle,
       randomScheduleGet,
       randomScheduleToggle,
+      deleteAllTopics,
+      runScheduling,
     )
 }
 
@@ -51,6 +69,15 @@ executor: EndpointExecutor[Any, Unit, zio.Scope]
   
   def randomActionToggle: Future[ActiveStatus] = 
     futureDumb(RandomActionApi.randomActionToggle.apply(()))
+
+  def version: Future[VersionInfo] =
+    futureDumb(RandomActionApi.versionGet.apply(()))
+
+  def randomActionStatus: Future[ActiveStatus] =
+    futureDumb(RandomActionApi.randomActionGet.apply(()))
+
+  def randomScheduleStatus: Future[ActiveStatus] =
+    futureDumb(RandomActionApi.randomScheduleGet.apply(()))
   
   private def futureDumb[P, I, E, O, A <: AuthType](
   invocation: Invocation[P, Unit, ZNothing, O, zio.http.endpoint.AuthType.None.type]
@@ -69,4 +96,10 @@ executor: EndpointExecutor[Any, Unit, zio.Scope]
   def  randomScheduleActionToggle: Future[ActiveStatus] = {
     futureDumb(RandomActionApi.randomScheduleToggle.apply(()))
   }
+
+  def deleteAllTopics: Future[DeleteTopicsResult] =
+    futureDumb(RandomActionApi.deleteAllTopics.apply(()))
+
+  def runScheduling: Future[ScheduleResult] =
+    futureDumb(RandomActionApi.runScheduling.apply(()))
 }

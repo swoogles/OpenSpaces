@@ -2,25 +2,18 @@ package co.wtf.openspaces.components
 
 import com.raquo.laminar.api.L.{*, given}
 import org.scalajs.dom
-import zio.json.*
-import zio.http.endpoint.{Endpoint, EndpointExecutor}
 
 import co.wtf.openspaces.{DiscussionAction, Person, SafeStorage}
 import co.wtf.openspaces.AppState
 import co.wtf.openspaces.*
 import io.laminext.websocket.*
-import zio.http.endpoint.AuthType
-import scala.concurrent.Future
+import scala.util.{Failure, Success}
 
 /** Admin controls component - chaos buttons, auto-schedule, delete all, and reset user.
   * 
   * Extracted from AppState.scala for better code organization.
   */
 object AdminControls:
-  
-  /** API response types */
-  case class VersionInfo(version: String) derives JsonCodec
-  case class ScheduleResult(scheduled: Int, moved: Int, unscheduled: Int) derives JsonCodec
 
   def apply(
     $showAdminControls: Signal[Boolean],
@@ -51,79 +44,62 @@ object AdminControls:
     // Fetch initial state on mount
     def fetchStatus(): Unit =
       // Version
-      dom.fetch("/api/version")
-        .toFuture
-        .flatMap(_.text().toFuture)
-        .foreach { text =>
-          text.fromJson[VersionInfo] match
-            case Right(info) => deployedVersion.set(info.version.take(7)) // Short hash
-            case Left(_) => deployedVersion.set("?")
+      randomActionClient.version
+        .onComplete {
+          case Success(info) => deployedVersion.set(info.version.take(7)) // Short hash
+          case Failure(_) => deployedVersion.set("?")
         }
       // Full chaos status
-      dom.fetch("/api/admin/random-actions")
-        .toFuture
-        .flatMap(_.text().toFuture)
-        .foreach { text =>
-          text.fromJson[ActiveStatus] match
-            case Right(status) => isChaosActive.set(status.active)
-            case Left(_) => ()
-        }
+      randomActionClient.randomActionStatus
+        .foreach(status => isChaosActive.set(status.active))
       // Schedule chaos status
-      dom.fetch("/api/admin/schedule-chaos")
-        .toFuture
-        .flatMap(_.text().toFuture)
-        .foreach { text =>
-          text.fromJson[ActiveStatus] match
-            case Right(status) => isScheduleChaosActive.set(status.active)
-            case Left(_) => ()
-        }
+      randomActionClient.randomScheduleStatus
+        .foreach(status => isScheduleChaosActive.set(status.active))
     
     def toggleChaos(): Unit = {
       chaosLoading.set(true)
       
       randomActionClient.randomActionToggle
-        .foreach { status =>
-          isChaosActive.set(status.active)
-          chaosLoading.set(false)
+        .onComplete {
+          case Success(status) =>
+            isChaosActive.set(status.active)
+            chaosLoading.set(false)
+          case Failure(_) =>
+            chaosLoading.set(false)
         }
     }
 
     def toggleScheduleChaos(): Unit = {
       scheduleChaosLoading.set(true)
       randomActionClient.randomScheduleActionToggle
-        .foreach { status => 
-          println("zio schedule chaos toggle")
-          isScheduleChaosActive.set(status.active)
-          scheduleChaosLoading.set(false)
+        .onComplete {
+          case Success(status) =>
+            isScheduleChaosActive.set(status.active)
+            scheduleChaosLoading.set(false)
+          case Failure(_) =>
+            scheduleChaosLoading.set(false)
         }
       }
 
     def runScheduling(): Unit =
       scheduleLoading.set(true)
       scheduleResult.set(None)
-      dom.fetch("/api/admin/schedule", new dom.RequestInit {
-        method = dom.HttpMethod.POST
-      }).toFuture
-        .flatMap(_.text().toFuture)
-        .foreach { text =>
-          scheduleLoading.set(false)
-          // Show result in a toast
-          text.fromJson[ScheduleResult] match
-            case Right(result) =>
-              val msg = s"Scheduled ${result.scheduled}, moved ${result.moved}, unscheduled ${result.unscheduled}"
-              ToastManager.show(msg, "✨")
-            case Left(_) =>
-              ToastManager.show("Scheduling failed", "❌")
+      randomActionClient.runScheduling
+        .onComplete {
+          case Success(result) =>
+            scheduleLoading.set(false)
+            val msg = s"Scheduled ${result.scheduled}, moved ${result.moved}, unscheduled ${result.unscheduled}"
+            ToastManager.show(msg, "✨")
+          case Failure(_) =>
+            scheduleLoading.set(false)
+            ToastManager.show("Scheduling failed", "❌")
         }
 
     def deleteAll(): Unit =
       if dom.window.confirm("Delete ALL topics? This cannot be undone.") then
         deleteLoading.set(true)
-        dom.fetch("/api/admin/topics/delete-all", new dom.RequestInit {
-          method = dom.HttpMethod.POST
-        }).toFuture
-          .flatMap(_.text().toFuture)
-          .foreach { _ =>
+        randomActionClient.deleteAllTopics
+          .onComplete { _ =>
             deleteLoading.set(false)
           }
 
