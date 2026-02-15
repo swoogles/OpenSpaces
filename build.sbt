@@ -21,6 +21,8 @@ lazy val sharedCode =
     .settings(
       name := "shared",
       libraryDependencies ++= Seq(
+        "dev.zio" %% "zio-http" % "3.8.1",
+        "dev.zio" %% "zio-http-testkit" % "3.8.1",
         "dev.zio" %%% "zio-schema"          % "1.6.4",
         "dev.zio" %%% "zio-schema-json"     % "1.6.4",
         "dev.zio" %% "zio-schema-derivation" % "1.6.4",
@@ -97,8 +99,6 @@ lazy val server = (project in file("server"))
 
     libraryDependencies ++= Seq(
       "dev.zio" %% "zio" % "2.1.16",
-      "dev.zio" %% "zio-http" % "3.0.1",
-      "dev.zio" %% "zio-http-testkit" % "3.0.1",
       "dev.zio" %% "zio-direct" % "1.0.0-RC7",
       // Database
       "com.augustnagro" %% "magnum" % "1.3.0",

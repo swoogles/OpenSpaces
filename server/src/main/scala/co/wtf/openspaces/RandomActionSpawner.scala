@@ -13,52 +13,52 @@ import zio.schema._
 
 object RandomActionApi {
   
-val randomActionGet =
-  Endpoint(RoutePattern.GET / "api" / "admin" / "random-actions")
-  //  PathCodec.int("id")
-  .out[ActiveStatus]
-
-val randomActionToggle =
-  Endpoint(RoutePattern.POST / "api" / "admin" / "random-actions" / "toggle")
+  val randomActionGet =
+    Endpoint(RoutePattern.GET / "api" / "admin" / "random-actions")
+    //  PathCodec.int("id")
     .out[ActiveStatus]
-
-val randomActionStart =
-  Endpoint(RoutePattern.POST / "api" / "admin" / "random-actions" / "start")
+  
+  val randomActionToggle =
+    Endpoint(RoutePattern.POST / "api" / "admin" / "random-actions" / "toggle")
+      .out[ActiveStatus]
+  
+  val randomActionStart =
+    Endpoint(RoutePattern.POST / "api" / "admin" / "random-actions" / "start")
+      .out[ActiveStatus]
+  
+  val randomActionStop =
+    Endpoint(RoutePattern.POST / "api" / "admin" / "random-actions" / "stop")
+      .out[ActiveStatus]
+  
+  // TODO Endpoint definitions for RandomSchedule actions
+  
+  val randomScheduleGet =
+    Endpoint(RoutePattern.GET / "api" / "admin" / "schedule-chaos")
     .out[ActiveStatus]
-
-val randomActionStop =
-  Endpoint(RoutePattern.POST / "api" / "admin" / "random-actions" / "stop")
-    .out[ActiveStatus]
-
-// TODO Endpoint definitions for RandomSchedule actions
-
-val randomScheduleGet =
-  Endpoint(RoutePattern.GET / "api" / "admin" / "schedule-chaos")
-  .out[ActiveStatus]
-
-val randomScheduleToggle =
-  Endpoint(RoutePattern.POST / "api" / "admin" / "schedule-chaos" / "toggle")
-    .out[ActiveStatus]
-
-val randomScheduleStart =
-  Endpoint(RoutePattern.POST / "api" / "admin" / "schedule-chaos" / "start")
-    .out[ActiveStatus]
-
-val randomScheduleStop =
-  Endpoint(RoutePattern.POST / "api" / "admin" / "random-schedules" / "stop")
-    .out[ActiveStatus]
-
-val endpoints =
-  List(
-    randomActionGet,
-    randomActionToggle,
-    randomActionStart,
-    randomActionStop,
-    randomScheduleGet,
-    randomScheduleToggle,
-    randomScheduleStart,
-    randomScheduleStop
-  )
+  
+  val randomScheduleToggle =
+    Endpoint(RoutePattern.POST / "api" / "admin" / "schedule-chaos" / "toggle")
+      .out[ActiveStatus]
+  
+  val randomScheduleStart =
+    Endpoint(RoutePattern.POST / "api" / "admin" / "schedule-chaos" / "start")
+      .out[ActiveStatus]
+  
+  val randomScheduleStop =
+    Endpoint(RoutePattern.POST / "api" / "admin" / "random-schedules" / "stop")
+      .out[ActiveStatus]
+  
+  val endpoints =
+    List(
+      randomActionGet,
+      randomActionToggle,
+      randomActionStart,
+      randomActionStop,
+      randomScheduleGet,
+      randomScheduleToggle,
+      randomScheduleStart,
+      randomScheduleStop
+    )
 }
 
 case class ActiveStatus(active: Boolean) derives Schema
