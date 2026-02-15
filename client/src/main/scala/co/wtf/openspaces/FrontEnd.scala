@@ -27,6 +27,23 @@ import zio.http.endpoint.{Endpoint, EndpointExecutor}
   */
 
 object FrontEnd extends ZIOAppDefault{
+  import org.scalajs.dom
+  import org.scalajs.dom.window
+  
+  override val bootstrap: ZLayer[Any, Nothing, Unit] =
+    Runtime.setConfigProvider(
+      ConfigProvider.fromMap(
+        Map(
+        "open-spaces.url" ->  
+        (if (window.location.hostname == "localhost") 
+          "http://localhost:8080"
+        else
+          "https://open-spaces-188fb0320ebe.herokuapp.com"
+          )
+          )
+        )
+        )
+
   // ZIO.config(Config.config.nested(serviceName))
   def run =  ZIO.service[EndpointExecutor[Any, Unit, Scope]].map{ executor => 
   ServiceWorkerClient.registerServiceWorker()
