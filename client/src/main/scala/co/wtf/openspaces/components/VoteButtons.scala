@@ -2,7 +2,9 @@ package co.wtf.openspaces.components
 
 import com.raquo.laminar.api.L.{*, given}
 import neotype.*
-import co.wtf.openspaces.{Discussion, DiscussionAction, Feedback, Person, VotePosition, connectionStatus, GlyphiconUtils, SvgIcon}
+import co.wtf.openspaces.{Discussion, DiscussionAction, Feedback, Person, VotePosition, GlyphiconUtils, SvgIcon}
+import co.wtf.openspaces.*
+import io.laminext.websocket.*
 
 /** Reusable voting buttons component - matches the Topics view styling */
 object VoteButtons:
@@ -10,6 +12,7 @@ object VoteButtons:
     discussion: Discussion,
     name: StrictSignal[Person],
     topicUpdates: DiscussionAction => Unit,
+    connectionStatus: ConnectionStatusManager[DiscussionActionConfirmed, WebSocketMessage]
   ) =
     val currentFeedback =
       discussion.interestedParties.find(_.voter == name.now())

@@ -1,12 +1,14 @@
 package co.wtf.openspaces.components
 
 import com.raquo.laminar.api.L.{*, given}
-import co.wtf.openspaces.connectionStatus
+import co.wtf.openspaces.*
+import io.laminext.websocket.*
 
 /** Error banner that displays user-visible errors.
   * Merges local errors with connectionStatus.userError for unified error display.
   */
 case class ErrorBanner(
+  connectionStatus: ConnectionStatusManager[DiscussionActionConfirmed, WebSocketMessage],
   localError: Var[Option[String]] = Var(None)):
   
   /** Set a local error (for validation, etc.) */

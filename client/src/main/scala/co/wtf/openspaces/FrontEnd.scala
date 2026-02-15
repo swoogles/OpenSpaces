@@ -5,12 +5,14 @@ import com.raquo.laminar.api.L.{*, given}
 import org.scalajs.dom
 import org.scalajs.dom.window
 import zio.json.*
+import zio.*
 import neotype.*
 
 // Import extracted utilities
 import co.wtf.openspaces.util.{SlotPositionTracker, SwapAnimationState, MenuPositioning, ScrollPreserver}
 import co.wtf.openspaces.components.{ToastManager, AdminControls, TopicSubmission, SwipeableCard, ErrorBanner, VoteButtons, ViewToggle, InlineEditableTitle, NameBadge, AdminModeToggle, Menu, UnscheduledDiscussionsMenu, ActiveDiscussionActionMenu, TopicCard, DiscussionSubview, ScheduleSlotComponent, SlotSchedule, ScheduleView, SlotSchedules, LinearScheduleView, AppView, activeDiscussionLongPressBinder}
 import co.wtf.openspaces.AppState.*
+import co.wtf.openspaces.*
 import co.wtf.openspaces.services.{AudioService, AuthService}
 
 /** FrontEnd.scala - Main entry point and app composition
@@ -23,7 +25,8 @@ import co.wtf.openspaces.services.{AudioService, AuthService}
   * - components/Toast.scala
   */
 
-object FrontEnd extends App:
+object FrontEnd extends ZIOAppDefault{
+  def run = ZIO.attempt {
   ServiceWorkerClient.registerServiceWorker()
   lazy val container = dom.document.getElementById("app")
 
@@ -67,7 +70,7 @@ object FrontEnd extends App:
     }
 
   val errorBanner =
-    ErrorBanner()
+    ErrorBanner(connectionStatus)
 
   val submitNewTopic: Observer[DiscussionAction] = Observer {
     case discussion @ (add: DiscussionAction.Add) =>
@@ -150,6 +153,7 @@ object FrontEnd extends App:
         name.signal,
         topicUpdates.sendOne,
         updateTargetDiscussion,
+        connectionStatus,
         $firstUnjudgedId,
         showSwipeHint.signal,
       )
@@ -431,6 +435,7 @@ object FrontEnd extends App:
           AdminControls(
             isAdmin.combineWith(adminModeEnabled.signal).map { case (admin, enabled) => admin && enabled },
             topicUpdates.sendOne,
+            connectionStatus
           ),
           ViewToggle(currentAppView, adminModeEnabled.signal),
           // Conditional view rendering based on current app view
@@ -488,6 +493,7 @@ object FrontEnd extends App:
     )
 
   render(container, app)
+  }
 
 // NameBadge, BannerLogo, AdminModeToggle extracted to components/NameBadge.scala
 
@@ -495,124 +501,125 @@ object FrontEnd extends App:
 // TopicSubmission extracted to components/TopicSubmission.scala
 // SwipeableCard extracted to components/SwipeableCard.scala
 
-private def handleDiscussionActionConfirmed(
-  event: DiscussionActionConfirmed,
-): (Option[TopicId], Boolean) =
-  event match {
-    case DiscussionActionConfirmed.Delete(topic) =>
-      (Some(topic), true)
-    case DiscussionActionConfirmed.Vote(topic, _) =>
-      (Some(topic), false)
-    case DiscussionActionConfirmed.ResetUser(_, _, _) =>
-      (None, false)  // State is updated by the confirmed action itself
-    case DiscussionActionConfirmed.Rename(topicId, _) =>
-      (Some(topicId), false)
-    case DiscussionActionConfirmed.UpdateRoomSlot(topicId, _) =>
-      (Some(topicId), false)
-    case DiscussionActionConfirmed.Unschedule(topicId) =>
-      (Some(topicId), false)
-    case DiscussionActionConfirmed.MoveTopic(topicId, _) =>
-      (Some(topicId), false)
-    case DiscussionActionConfirmed.SwapTopics(topic1, _, _, _) =>
-      (Some(topic1), false)
-    case DiscussionActionConfirmed.AddResult(_) =>
-      (None, false)
-    case DiscussionActionConfirmed.SlackThreadLinked(topicId, _) =>
-      (Some(topicId), false)
-    case DiscussionActionConfirmed.Rejected(_) =>
-      (None, false)
+  private def handleDiscussionActionConfirmed(
+    event: DiscussionActionConfirmed,
+  ): (Option[TopicId], Boolean) =
+    event match {
+      case DiscussionActionConfirmed.Delete(topic) =>
+        (Some(topic), true)
+      case DiscussionActionConfirmed.Vote(topic, _) =>
+        (Some(topic), false)
+      case DiscussionActionConfirmed.ResetUser(_, _, _) =>
+        (None, false)  // State is updated by the confirmed action itself
+      case DiscussionActionConfirmed.Rename(topicId, _) =>
+        (Some(topicId), false)
+      case DiscussionActionConfirmed.UpdateRoomSlot(topicId, _) =>
+        (Some(topicId), false)
+      case DiscussionActionConfirmed.Unschedule(topicId) =>
+        (Some(topicId), false)
+      case DiscussionActionConfirmed.MoveTopic(topicId, _) =>
+        (Some(topicId), false)
+      case DiscussionActionConfirmed.SwapTopics(topic1, _, _, _) =>
+        (Some(topic1), false)
+      case DiscussionActionConfirmed.AddResult(_) =>
+        (None, false)
+      case DiscussionActionConfirmed.SlackThreadLinked(topicId, _) =>
+        (Some(topicId), false)
+      case DiscussionActionConfirmed.Rejected(_) =>
+        (None, false)
+    }
+  
+  import io.laminext.websocket.*
+  // WebSocket configuration constants
+  private val MaxReconnectRetries = 10
+  
+  val topicUpdates
+    : WebSocket[DiscussionActionConfirmed, WebSocketMessage] = {
+    // If I don't confine the scope of it, it clashes with laminar's `span`. Weird.
+    import scala.concurrent.duration._
+    WebSocket
+      .url("/discussions")
+      .text[DiscussionActionConfirmed, WebSocketMessage](
+        _.toJson,
+        _.fromJson[DiscussionActionConfirmed].left.map(Exception(_)),
+      )
+      .build(
+        autoReconnect = true,
+        reconnectDelay = 1.second,
+        reconnectDelayOffline = 20.seconds,
+        reconnectRetries = MaxReconnectRetries,
+        bufferWhenDisconnected = true,  // Buffer messages during brief disconnects
+        bufferSize = 10,                // Keep up to 10 pending messages
+      )
   }
-
-import io.laminext.websocket.*
-// WebSocket configuration constants
-private val MaxReconnectRetries = 10
-
-val topicUpdates
-  : WebSocket[DiscussionActionConfirmed, WebSocketMessage] = {
-  // If I don't confine the scope of it, it clashes with laminar's `span`. Weird.
-  import scala.concurrent.duration._
-  WebSocket
-    .url("/discussions")
-    .text[DiscussionActionConfirmed, WebSocketMessage](
-      _.toJson,
-      _.fromJson[DiscussionActionConfirmed].left.map(Exception(_)),
-    )
-    .build(
-      autoReconnect = true,
-      reconnectDelay = 1.second,
-      reconnectDelayOffline = 20.seconds,
-      reconnectRetries = MaxReconnectRetries,
-      bufferWhenDisconnected = true,  // Buffer messages during brief disconnects
-      bufferSize = 10,                // Keep up to 10 pending messages
+  
+  // Connection status manager for monitoring WebSocket health, sync, and error handling
+  // All reconnect/sync logic is consolidated here
+  import scala.concurrent.ExecutionContext.Implicits.global
+  val connectionStatus: ConnectionStatusManager[DiscussionActionConfirmed, WebSocketMessage] = new ConnectionStatusManager(
+    topicUpdates,
+    MaxReconnectRetries,
+  )
+  
+  /** Sets up state synchronization on WebSocket (re)connection.
+    *
+    * Registers the sync operation with connectionStatus manager, which handles:
+    * - Triggering sync on connect/reconnect
+    * - Automatic retries with exponential backoff
+    * - Coordination with visibility changes and health checks
+    *
+    * Also handles rejected actions by re-authenticating and retrying.
+    */
+  def ticketCenter(
+    topicUpdates: WebSocket[DiscussionActionConfirmed, WebSocketMessage],
+    discussionState: Var[DiscussionState],
+  ) =
+    // Register the sync operation with the connection manager
+    // This will be called on connect, reconnect, and visibility return
+    connectionStatus.onSync {
+      AuthService.fetchTicketAsync().map { responseText =>
+        responseText.fromJson[Ticket] match
+          case Right(ticket) =>
+            println("Ticket received, sending to server for state sync")
+            topicUpdates.sendOne(ticket)
+          case Left(parseError) =>
+            throw new Exception(s"Invalid ticket response: $parseError")
+      }
+    }
+  
+    div(
+      // Trigger sync when WebSocket connects
+      topicUpdates.isConnected.changes.filter(identity) --> Observer { _ =>
+        println("WebSocket connected - triggering sync via connectionStatus")
+        connectionStatus.triggerSync()
+      },
+      // Also check on mount in case already connected
+      onMountCallback { ctx =>
+        val isConnected = topicUpdates.isConnected.observe(ctx.owner).now()
+        if isConnected && connectionStatus.syncState.now() == SyncState.Idle then
+          println("WebSocket already connected on mount - triggering sync")
+          connectionStatus.triggerSync()
+      },
+      // Handle rejected actions by re-authenticating and retrying
+      // Uses connectionStatus.withErrorHandling to catch and report errors
+      topicUpdates.received.flatMapSwitch { event =>
+        event match
+          case DiscussionActionConfirmed.Rejected(discussionAction) =>
+            EventStream.fromFuture(
+              connectionStatus.withErrorHandling(
+                AuthService.fetchTicketAsync().map { responseText =>
+                  responseText.fromJson[Ticket] match
+                    case Right(ticket) => (ticket, discussionAction)
+                    case Left(err) => throw new Exception(s"Failed to parse ticket: $err")
+                },
+                "Re-authentication failed",
+              )
+            ).collect { case Some(result) => result }
+          case _ =>
+            EventStream.empty
+      } --> { case (ticket, discussionAction) =>
+        topicUpdates.sendOne(ticket)
+        topicUpdates.sendOne(discussionAction)
+      },
     )
 }
-
-// Connection status manager for monitoring WebSocket health, sync, and error handling
-// All reconnect/sync logic is consolidated here
-import scala.concurrent.ExecutionContext.Implicits.global
-val connectionStatus = new ConnectionStatusManager(
-  topicUpdates,
-  MaxReconnectRetries,
-)
-
-/** Sets up state synchronization on WebSocket (re)connection.
-  *
-  * Registers the sync operation with connectionStatus manager, which handles:
-  * - Triggering sync on connect/reconnect
-  * - Automatic retries with exponential backoff
-  * - Coordination with visibility changes and health checks
-  *
-  * Also handles rejected actions by re-authenticating and retrying.
-  */
-def ticketCenter(
-  topicUpdates: WebSocket[DiscussionActionConfirmed, WebSocketMessage],
-  discussionState: Var[DiscussionState],
-) =
-  // Register the sync operation with the connection manager
-  // This will be called on connect, reconnect, and visibility return
-  connectionStatus.onSync {
-    AuthService.fetchTicketAsync().map { responseText =>
-      responseText.fromJson[Ticket] match
-        case Right(ticket) =>
-          println("Ticket received, sending to server for state sync")
-          topicUpdates.sendOne(ticket)
-        case Left(parseError) =>
-          throw new Exception(s"Invalid ticket response: $parseError")
-    }
-  }
-
-  div(
-    // Trigger sync when WebSocket connects
-    topicUpdates.isConnected.changes.filter(identity) --> Observer { _ =>
-      println("WebSocket connected - triggering sync via connectionStatus")
-      connectionStatus.triggerSync()
-    },
-    // Also check on mount in case already connected
-    onMountCallback { ctx =>
-      val isConnected = topicUpdates.isConnected.observe(ctx.owner).now()
-      if isConnected && connectionStatus.syncState.now() == SyncState.Idle then
-        println("WebSocket already connected on mount - triggering sync")
-        connectionStatus.triggerSync()
-    },
-    // Handle rejected actions by re-authenticating and retrying
-    // Uses connectionStatus.withErrorHandling to catch and report errors
-    topicUpdates.received.flatMapSwitch { event =>
-      event match
-        case DiscussionActionConfirmed.Rejected(discussionAction) =>
-          EventStream.fromFuture(
-            connectionStatus.withErrorHandling(
-              AuthService.fetchTicketAsync().map { responseText =>
-                responseText.fromJson[Ticket] match
-                  case Right(ticket) => (ticket, discussionAction)
-                  case Left(err) => throw new Exception(s"Failed to parse ticket: $err")
-              },
-              "Re-authentication failed",
-            )
-          ).collect { case Some(result) => result }
-        case _ =>
-          EventStream.empty
-    } --> { case (ticket, discussionAction) =>
-      topicUpdates.sendOne(ticket)
-      topicUpdates.sendOne(discussionAction)
-    },
-  )

@@ -4,8 +4,10 @@ import com.raquo.laminar.api.L.{*, given}
 import org.scalajs.dom
 import zio.json.*
 
-import co.wtf.openspaces.{DiscussionAction, Person, SafeStorage, connectionStatus}
+import co.wtf.openspaces.{DiscussionAction, Person, SafeStorage}
 import co.wtf.openspaces.AppState
+import co.wtf.openspaces.*
+import io.laminext.websocket.*
 
 /** Admin controls component - chaos buttons, auto-schedule, delete all, and reset user.
   * 
@@ -21,6 +23,7 @@ object AdminControls:
   def apply(
     $showAdminControls: Signal[Boolean],
     topicUpdates: DiscussionAction => Unit,
+    connectionStatus: ConnectionStatusManager[DiscussionActionConfirmed, WebSocketMessage]
   ): HtmlElement =
     import scala.concurrent.ExecutionContext.Implicits.global
     

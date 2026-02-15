@@ -4,7 +4,9 @@ import com.raquo.laminar.api.L.{*, given}
 import org.scalajs.dom
 import org.scalajs.dom.window
 
-import co.wtf.openspaces.{Discussion, DiscussionAction, Person, Feedback, VotePosition, connectionStatus}
+import co.wtf.openspaces.{Discussion, DiscussionAction, Person, Feedback, VotePosition}
+import co.wtf.openspaces.*
+import io.laminext.websocket.*
 
 /** Swipe state for tracking drag gestures */
 case class SwipeState(
@@ -47,6 +49,7 @@ object SwipeableCard:
     name: StrictSignal[Person],
     topicUpdates: DiscussionAction => Unit,
     cardContent: HtmlElement,
+    connectionStatus: ConnectionStatusManager[DiscussionActionConfirmed, WebSocketMessage]
   ): HtmlElement =
     val swipeState: Var[SwipeState] = Var(SwipeState())
     

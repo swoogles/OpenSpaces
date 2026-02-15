@@ -6,9 +6,11 @@ import org.scalajs.dom
 
 import co.wtf.openspaces.{
   Discussion, DiscussionAction, Person, Topic, TopicId, VotePosition,
-  GitHubAvatar, connectionStatus
+  GitHubAvatar
 }
 import co.wtf.openspaces.AppState
+import co.wtf.openspaces.*
+import io.laminext.websocket.*
 
 /** Topic card component showing a discussion with vote state, heat level, and inline editing.
   *
@@ -19,6 +21,7 @@ object TopicCard:
     name: StrictSignal[Person],
     topicUpdates: DiscussionAction => Unit,
     signal: Signal[Option[Discussion]],
+    connectionStatus: ConnectionStatusManager[DiscussionActionConfirmed, WebSocketMessage],
     transition: Option[Transition] = None,
     enableSwipe: Boolean = true,
     iconModifiers: Seq[Modifier[HtmlElement]] = Seq.empty,
@@ -146,7 +149,7 @@ object TopicCard:
 
         // Wrap with swipe functionality if enabled
         if enableSwipe then
-          SwipeableCard(topic, name, topicUpdates, cardContent)
+          SwipeableCard(topic, name, topicUpdates, cardContent, connectionStatus)
         else
           cardContent
 
@@ -163,6 +166,7 @@ object DiscussionSubview:
     name: StrictSignal[Person],
     topicUpdates: DiscussionAction => Unit,
     updateTargetDiscussion: Observer[Discussion],
+    connectionStatus: ConnectionStatusManager[DiscussionActionConfirmed, WebSocketMessage],
     firstUnjudgedId: Signal[Option[TopicId]] = Signal.fromValue(None),
     showSwipeHint: Signal[Boolean] = Signal.fromValue(false),
   ): HtmlElement =
@@ -190,6 +194,7 @@ object DiscussionSubview:
                   name,
                   topicUpdates,
                   signal.map(Some(_)),
+                  connectionStatus,
                   Some(transition),
                 ),
               ),

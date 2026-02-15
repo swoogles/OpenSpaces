@@ -9,6 +9,7 @@ import co.wtf.openspaces.{
   GitHubAvatar, SvgIcon, GlyphiconUtils
 }
 import co.wtf.openspaces.util.ScrollPreserver
+import co.wtf.openspaces.FrontEnd.connectionStatus
 
 /** App view mode enum.
   */
@@ -69,6 +70,7 @@ object ScheduleView:
             name,
             topicUpdates,
             activeDiscussion.signal,
+            connectionStatus,
             iconModifiers = Seq(handleActiveDiscussionLongPress),
           ),
         ),
@@ -185,6 +187,7 @@ object LinearScheduleView:
                             name,
                             topicUpdates,
                             Signal.fromValue(Some(disc)),
+                            connectionStatus,
                           ),
                         )
                       case None =>

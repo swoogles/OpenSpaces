@@ -22,16 +22,6 @@ object RandomActionApi {
     Endpoint(RoutePattern.POST / "api" / "admin" / "random-actions" / "toggle")
       .out[ActiveStatus]
   
-  val randomActionStart =
-    Endpoint(RoutePattern.POST / "api" / "admin" / "random-actions" / "start")
-      .out[ActiveStatus]
-  
-  val randomActionStop =
-    Endpoint(RoutePattern.POST / "api" / "admin" / "random-actions" / "stop")
-      .out[ActiveStatus]
-  
-  // TODO Endpoint definitions for RandomSchedule actions
-  
   val randomScheduleGet =
     Endpoint(RoutePattern.GET / "api" / "admin" / "schedule-chaos")
     .out[ActiveStatus]
@@ -40,24 +30,12 @@ object RandomActionApi {
     Endpoint(RoutePattern.POST / "api" / "admin" / "schedule-chaos" / "toggle")
       .out[ActiveStatus]
   
-  val randomScheduleStart =
-    Endpoint(RoutePattern.POST / "api" / "admin" / "schedule-chaos" / "start")
-      .out[ActiveStatus]
-  
-  val randomScheduleStop =
-    Endpoint(RoutePattern.POST / "api" / "admin" / "random-schedules" / "stop")
-      .out[ActiveStatus]
-  
   val endpoints =
     List(
       randomActionGet,
       randomActionToggle,
-      randomActionStart,
-      randomActionStop,
       randomScheduleGet,
       randomScheduleToggle,
-      randomScheduleStart,
-      randomScheduleStop
     )
 }
 
@@ -141,18 +119,6 @@ case class RandomActionSpawner(
         yield ActiveStatus(active)
       },
 
-      randomActionStart.implement { _ =>
-        for
-          _ <- setChaosActive(true)
-        yield ActiveStatus(true)
-      },
-
-      randomActionStop.implement { _ =>
-        for
-          _ <- setChaosActive(false)
-        yield ActiveStatus(false)
-      },
-      // Schedule chaos endpoints
       randomScheduleGet.implement { _ =>
         for
           active <- isScheduleChaosActive
@@ -163,22 +129,6 @@ case class RandomActionSpawner(
           newState <- toggleScheduleChaos
         yield ActiveStatus(newState)
       },
-      randomScheduleStart.implement { _ =>
-        for
-          _ <- setScheduleChaosActive(true)
-        yield ActiveStatus(true)
-      },
-      randomScheduleStop.implement { _ =>
-        for
-          _ <- setScheduleChaosActive(false)
-        yield ActiveStatus(false)
-      },
-      randomActionToggle.implement { _ =>
-        for
-          newState <- toggleScheduleChaos
-        yield ActiveStatus(newState)
-      },
-
       // Delete all topics
       Method.POST / "api" / "admin" / "topics" / "delete-all" -> handler {
         discussionService.deleteAllTopics
