@@ -91,6 +91,9 @@ lazy val server = (project in file("server"))
 
     // Also ensure the JS is available during development
     Compile / compile := ((Compile / compile) dependsOn (client / Compile / fastOptJS) dependsOn (serviceworker / Compile / fastOptJS)).value,
+    
+    reStart := ((reStart) dependsOn (client / Compile / fastOptJS) dependsOn (serviceworker / Compile / fastOptJS)).evaluated,
+    
 
     libraryDependencies ++= Seq(
       "dev.zio" %% "zio" % "2.1.16",

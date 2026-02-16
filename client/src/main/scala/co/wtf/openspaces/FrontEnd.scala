@@ -30,6 +30,8 @@ object FrontEnd extends ZIOAppDefault{
   import org.scalajs.dom
   import org.scalajs.dom.window
   
+  println("doing stuff")
+  
   override val bootstrap: ZLayer[Any, Nothing, Unit] =
     Runtime.setConfigProvider(
       ConfigProvider.fromMap(
