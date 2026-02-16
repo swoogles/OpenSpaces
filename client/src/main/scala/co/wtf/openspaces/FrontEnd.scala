@@ -133,9 +133,9 @@ object FrontEnd extends ZIOAppDefault{
       div(
         cls := "UnjudgedCounter",
         child.text <-- $unjudgedCount.map { count =>
-          if count == 0 then "✓ You've voted on all topics!"
+          if count == 0 then "Thank you for giving feedback on everything! Check back later for more topics!"
           else if count == 1 then "1 topic left to vote on"
-          else s"$count topics left to vote on"
+          else s"$count topics Need your feedback!"
         },
       ),
       {
