@@ -45,7 +45,7 @@ object Backend extends ZIOAppDefault {
       )
       .toInt
 
-    val openAPI       = OpenAPIGen.fromEndpoints(title = "Library API", version = "1.0", 
+    val openAPI       = OpenAPIGen.fromEndpoints(title = "server", version = "1.0", 
     RandomActionApi.endpoints
     )
     
