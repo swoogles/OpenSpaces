@@ -14,6 +14,7 @@ import zio.json.*
 class PersistentDiscussionStore(
   eventRepo: EventRepository,
   discussionRepo: DiscussionRepository,
+  topicVoteRepo: TopicVoteRepository,
   userRepo: UserRepository,
   glyphiconService: GlyphiconService,
   state: Ref[DiscussionState]
@@ -266,6 +267,7 @@ class PersistentDiscussionStore(
               discussion <- createDiscussion(topic, facilitator, None)
               _          <- persistEvent("Add", discussion.id.unwrap, action.toJson, actor)
               _          <- persistDiscussion(discussion)
+              _          <- persistDiscussionVotes(discussion)
               _          <- state.update(_.apply(discussion))
             yield DiscussionActionConfirmed.AddResult(discussion)
         yield result
@@ -283,6 +285,7 @@ class PersistentDiscussionStore(
               discussion <- createDiscussion(topic, facilitator, Some(roomSlot))
               _          <- persistEvent("AddWithRoomSlot", discussion.id.unwrap, action.toJson, actor)
               _          <- persistDiscussion(discussion)
+              _          <- persistDiscussionVotes(discussion)
               _          <- state.update(_.apply(discussion))
             yield DiscussionActionConfirmed.AddResult(discussion)
         yield result
@@ -338,9 +341,7 @@ class PersistentDiscussionStore(
           _ <- ensureUserExists(actor)
           confirmed = DiscussionActionConfirmed.fromDiscussionAction(action)
           _ <- persistEvent("Vote", topicId.unwrap, action.toJson, actor)
-          // Upsert: remove any existing vote from this voter, then add the new vote
-          _ <- updateDiscussionParties(topicId, parties => 
-            parties.filterNot(_.voter == feedback.voter) + feedback)
+          _ <- upsertVoteIfDiscussionExists(topicId, feedback)
           _ <- state.update(_.apply(confirmed))
         yield confirmed
 
@@ -366,7 +367,7 @@ class PersistentDiscussionStore(
           }
           // Clear votes from remaining topics
           _ <- ZIO.foreachDiscard(clearedVoteTopicIds) { topicId =>
-            updateDiscussionParties(topicId, parties => parties.filterNot(_.voter == person))
+            topicVoteRepo.deleteVote(topicId.unwrap, person.unwrap)
           }
           _ <- state.update(_.apply(confirmed))
         yield confirmed
@@ -428,10 +429,18 @@ class PersistentDiscussionStore(
       topic = discussion.topic.unwrap,
       facilitator = discussion.facilitator.unwrap,
       glyphicon = discussion.glyphicon.name,
-      roomSlot = discussion.roomSlot.map(_.toJson),
-      interestedParties = discussion.interestedParties.toJson
+      roomSlot = discussion.roomSlot.map(_.toJson)
     )
     discussionRepo.insert(row)
+
+  private def persistDiscussionVotes(discussion: Discussion): Task[Unit] =
+    ZIO.foreachDiscard(discussion.interestedParties) { feedback =>
+      topicVoteRepo.upsertVote(
+        discussion.id.unwrap,
+        feedback.voter.unwrap,
+        feedback.position,
+      )
+    }
 
   private def updateDiscussionRoomSlot(topicId: TopicId, roomSlot: Option[RoomSlot]): Task[Unit] =
     for
@@ -443,17 +452,19 @@ class PersistentDiscussionStore(
           ZIO.unit
     yield ()
 
-  private def updateDiscussionParties(
+  private def upsertVoteIfDiscussionExists(
     topicId: TopicId,
-    f: Set[Feedback] => Set[Feedback]
+    feedback: Feedback
   ): Task[Unit] =
     for
       existing <- discussionRepo.findById(topicId.unwrap)
       _ <- existing match
-        case Some(row) =>
-          val parties = row.interestedParties.fromJson[Set[Feedback]].getOrElse(Set.empty)
-          val updated = f(parties)
-          discussionRepo.update(row.copy(interestedParties = updated.toJson))
+        case Some(_) =>
+          topicVoteRepo.upsertVote(
+            topicId.unwrap,
+            feedback.voter.unwrap,
+            feedback.position,
+          )
         case None =>
           ZIO.unit
     yield ()
@@ -482,9 +493,19 @@ class PersistentDiscussionStore(
 
 object PersistentDiscussionStore:
   /** Load initial state from database */
-  def loadInitialState(discussionRepo: DiscussionRepository, userRepo: UserRepository): Task[DiscussionState] =
+  def loadInitialState(
+    discussionRepo: DiscussionRepository,
+    topicVoteRepo: TopicVoteRepository,
+    userRepo: UserRepository
+  ): Task[DiscussionState] =
     for
       rows <- discussionRepo.findAllActive
+      voteRows <- topicVoteRepo.findAllForActiveDiscussions
+      votesByTopic = voteRows.groupMap(_.topicId) { voteRow =>
+        VotePosition.values
+          .find(_.toString == voteRow.position)
+          .map(position => Feedback(Person(voteRow.githubUsername), position))
+      }.view.mapValues(_.flatten.toSet).toMap
       // Get all unique facilitators
       facilitators = rows.map(_.facilitator).distinct
       // Fetch user info for all facilitators
@@ -496,7 +517,7 @@ object PersistentDiscussionStore:
           facilitator = Person(row.facilitator)
           glyphicon = Glyphicon(row.glyphicon)
           roomSlot = row.roomSlot.flatMap(_.fromJson[RoomSlot].toOption)
-          parties = row.interestedParties.fromJson[Set[Feedback]].getOrElse(Set.empty)
+          parties = votesByTopic.getOrElse(row.id, Set.empty)
         yield Discussion(
           topic,
           facilitator,
@@ -514,7 +535,7 @@ object PersistentDiscussionStore:
     )
 
   val layer: ZLayer[
-    EventRepository & DiscussionRepository & UserRepository & GlyphiconService,
+    EventRepository & DiscussionRepository & TopicVoteRepository & UserRepository & GlyphiconService,
     Throwable,
     DiscussionStore
   ] =
@@ -522,14 +543,16 @@ object PersistentDiscussionStore:
       for
         eventRepo      <- ZIO.service[EventRepository]
         discussionRepo <- ZIO.service[DiscussionRepository]
+        topicVoteRepo  <- ZIO.service[TopicVoteRepository]
         userRepo       <- ZIO.service[UserRepository]
         glyphiconSvc   <- ZIO.service[GlyphiconService]
-        initialState   <- loadInitialState(discussionRepo, userRepo)
+        initialState   <- loadInitialState(discussionRepo, topicVoteRepo, userRepo)
         stateRef       <- Ref.make(initialState)
         _              <- ZIO.logInfo(s"Loaded ${initialState.data.size} discussions from database")
       yield PersistentDiscussionStore(
         eventRepo,
         discussionRepo,
+        topicVoteRepo,
         userRepo,
         glyphiconSvc,
         stateRef

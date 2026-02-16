@@ -85,6 +85,7 @@ object Backend extends ZIOAppDefault {
       UserRepository.layer,
       EventRepository.layer,
       DiscussionRepository.layer,
+      TopicVoteRepository.layer,
       PersistentDiscussionStore.layer,
       // Slack integration
       SlackConfigEnv.layer,

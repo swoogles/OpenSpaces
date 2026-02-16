@@ -1,6 +1,7 @@
 package co.wtf.openspaces.db
 
 import com.augustnagro.magnum.*
+import co.wtf.openspaces.VotePosition
 import zio.*
 
 import java.time.OffsetDateTime
@@ -110,7 +111,7 @@ trait DiscussionRepository:
 class DiscussionRepositoryLive(ds: DataSource) extends DiscussionRepository:
   def findById(id: Long): Task[Option[DiscussionRow]] =
     transactZIO(ds):
-      sql"""SELECT id, topic, facilitator, glyphicon, room_slot::text, interested_parties::text,
+      sql"""SELECT id, topic, facilitator, glyphicon, room_slot::text,
                    created_at, updated_at, deleted_at,
                    slack_channel_id, slack_thread_ts, slack_permalink
             FROM discussions WHERE id = $id"""
@@ -120,7 +121,7 @@ class DiscussionRepositoryLive(ds: DataSource) extends DiscussionRepository:
 
   def findAllActive: Task[Vector[DiscussionRow]] =
     transactZIO(ds):
-      sql"""SELECT id, topic, facilitator, glyphicon, room_slot::text, interested_parties::text,
+      sql"""SELECT id, topic, facilitator, glyphicon, room_slot::text,
                    created_at, updated_at, deleted_at,
                    slack_channel_id, slack_thread_ts, slack_permalink
             FROM discussions WHERE deleted_at IS NULL"""
@@ -129,9 +130,9 @@ class DiscussionRepositoryLive(ds: DataSource) extends DiscussionRepository:
 
   def insert(row: DiscussionRow): Task[Unit] =
     transactZIO(ds):
-      sql"""INSERT INTO discussions (id, topic, facilitator, glyphicon, room_slot, interested_parties, created_at, updated_at, deleted_at, slack_channel_id, slack_thread_ts, slack_permalink)
+      sql"""INSERT INTO discussions (id, topic, facilitator, glyphicon, room_slot, created_at, updated_at, deleted_at, slack_channel_id, slack_thread_ts, slack_permalink)
             VALUES (${row.id}, ${row.topic}, ${row.facilitator}, ${row.glyphicon},
-                    ${row.roomSlot}::jsonb, ${row.interestedParties}::jsonb,
+                    ${row.roomSlot}::jsonb,
                     ${row.createdAt}, ${row.updatedAt}, ${row.deletedAt},
                     ${row.slackChannelId}, ${row.slackThreadTs}, ${row.slackPermalink})""".update.run()
       ()
@@ -143,7 +144,6 @@ class DiscussionRepositoryLive(ds: DataSource) extends DiscussionRepository:
               facilitator = ${row.facilitator},
               glyphicon = ${row.glyphicon},
               room_slot = ${row.roomSlot}::jsonb,
-              interested_parties = ${row.interestedParties}::jsonb,
               deleted_at = ${row.deletedAt}
             WHERE id = ${row.id}""".update.run()
       ()
@@ -155,7 +155,7 @@ class DiscussionRepositoryLive(ds: DataSource) extends DiscussionRepository:
 
   def truncate: Task[Unit] =
     transactZIO(ds):
-      sql"TRUNCATE discussions".update.run()
+      sql"TRUNCATE discussions CASCADE".update.run()
       ()
 
   def updateSlackThread(topicId: Long, channelId: String, threadTs: String, permalink: String): Task[Unit] =
@@ -170,3 +170,36 @@ class DiscussionRepositoryLive(ds: DataSource) extends DiscussionRepository:
 object DiscussionRepository:
   val layer: ZLayer[DataSource, Nothing, DiscussionRepository] =
     ZLayer.fromFunction(ds => DiscussionRepositoryLive(ds))
+
+trait TopicVoteRepository:
+  def findAllForActiveDiscussions: Task[Vector[TopicVoteRow]]
+  def upsertVote(topicId: Long, githubUsername: String, position: VotePosition): Task[Unit]
+  def deleteVote(topicId: Long, githubUsername: String): Task[Unit]
+
+class TopicVoteRepositoryLive(ds: DataSource) extends TopicVoteRepository:
+  def findAllForActiveDiscussions: Task[Vector[TopicVoteRow]] =
+    transactZIO(ds):
+      sql"""SELECT tv.topic_id, tv.github_username, tv.position, tv.first_voted_at
+            FROM topic_votes tv
+            INNER JOIN discussions d ON d.id = tv.topic_id
+            WHERE d.deleted_at IS NULL"""
+        .query[TopicVoteRow]
+        .run()
+
+  def upsertVote(topicId: Long, githubUsername: String, position: VotePosition): Task[Unit] =
+    transactZIO(ds):
+      sql"""INSERT INTO topic_votes (topic_id, github_username, position)
+            VALUES ($topicId, $githubUsername, ${position.toString})
+            ON CONFLICT (topic_id, github_username)
+            DO UPDATE SET position = EXCLUDED.position""".update.run()
+      ()
+
+  def deleteVote(topicId: Long, githubUsername: String): Task[Unit] =
+    transactZIO(ds):
+      sql"""DELETE FROM topic_votes
+            WHERE topic_id = $topicId AND github_username = $githubUsername""".update.run()
+      ()
+
+object TopicVoteRepository:
+  val layer: ZLayer[DataSource, Nothing, TopicVoteRepository] =
+    ZLayer.fromFunction(ds => TopicVoteRepositoryLive(ds))

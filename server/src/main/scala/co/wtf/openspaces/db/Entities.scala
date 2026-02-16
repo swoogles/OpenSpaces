@@ -37,7 +37,6 @@ case class DiscussionRow(
   facilitator: String,
   glyphicon: String,
   roomSlot: Option[String],       // JSON string
-  interestedParties: String,      // JSON array string
   createdAt: OffsetDateTime,
   updatedAt: OffsetDateTime,
   deletedAt: Option[OffsetDateTime],
@@ -52,8 +51,14 @@ object DiscussionRow:
     topic: String,
     facilitator: String,
     glyphicon: String,
-    roomSlot: Option[String],
-    interestedParties: String
+    roomSlot: Option[String]
   ): DiscussionRow =
     val now = OffsetDateTime.now()
-    DiscussionRow(id, topic, facilitator, glyphicon, roomSlot, interestedParties, now, now, None, None, None, None)
+    DiscussionRow(id, topic, facilitator, glyphicon, roomSlot, now, now, None, None, None, None)
+
+case class TopicVoteRow(
+  topicId: Long,
+  githubUsername: String,
+  position: String,
+  firstVotedAt: OffsetDateTime
+) derives DbCodec
