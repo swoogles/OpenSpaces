@@ -160,25 +160,22 @@ object FrontEnd extends ZIOAppDefault{
       ),
       // Counter showing remaining topics to vote on
       div(
-        cls := "UnjudgedCounter",
-        child.text <-- $unjudgedCount.map { count =>
-          if count == 0 then "Thank you for giving feedback on everything! Check back later for more topics!"
-          else if count == 1 then "1 topic left to vote on"
-          else s"$count topics Need your feedback!"
-        },
-      ),
-      div(
         cls := "TopicGroups",
         div(
           cls := "TopicSection",
-          h3(cls := "TopicSection-title", "Next Topic To Vote"),
-          p(
-            cls := "TopicSection-subtitle",
-            "Only one unvoted topic is shown at a time. Vote to reveal the next one.",
+          h3(cls := "TopicSection-title", 
+          child.text <-- $unjudgedCount.map { count =>
+            if count == 0 then "Thank you for giving feedback on everything! Check back later for more topics!"
+            else if count == 1 then "1 topic needs your feedback!"
+            else s"$count topics need your feedback!"
+          },
           ),
-          child.maybe <-- $hasNextTopic.map { hasNext =>
-            if hasNext then None
-            else Some(div(cls := "TopicSection-empty", "You have voted on every current topic."))
+          child <-- $unjudgedCount.map { count =>
+            if (count == 0) p()
+            else  p(
+              cls := "TopicSection-subtitle",
+              "Swipe to Vote. Vote to reveal the next. Swiping will not hurt feelings or data integrity. Everything can be remedied.",
+            )
           },
           DiscussionSubview(
             $nextUnjudgedTopic,
@@ -193,11 +190,7 @@ object FrontEnd extends ZIOAppDefault{
         ),
         div(
           cls := "TopicSection",
-          h3(cls := "TopicSection-title", "Topics You Already Voted On"),
-          p(
-            cls := "TopicSection-subtitle",
-            "Ordered by when you first voted, newest at the top.",
-          ),
+          h3(cls := "TopicSection-title", "Viewed Topics"),
           child.maybe <-- $hasVotedTopics.map { hasVoted =>
             if hasVoted then None
             else Some(div(cls := "TopicSection-empty", "No voted topics yet."))
