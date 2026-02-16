@@ -222,7 +222,8 @@ object FrontEnd extends ZIOAppDefault{
 
   val hasAuthCookies =
     AuthService.getCookie("access_token").isDefined ||
-      AuthService.getCookie("access_token_expires_at").isDefined
+      AuthService.getCookie("access_token_expires_at").isDefined ||
+      AuthService.getCookie("github_username").isDefined
   val randomActionClient = RandomActionClient(executor)
 
   val app =
@@ -600,6 +601,8 @@ object FrontEnd extends ZIOAppDefault{
     discussionState: Var[DiscussionState],
     randomActionClient: RandomActionClient,
   ) =
+    var authRefreshIntervalHandle: Option[Int] = None
+
     // Register the sync operation with the connection manager
     // This will be called on connect, reconnect, and visibility return
     connectionStatus.onSync {
@@ -614,6 +617,27 @@ object FrontEnd extends ZIOAppDefault{
     }
   
     div(
+      // Keep access token fresh while the app is open.
+      onMountUnmountCallback(
+        _ =>
+          val intervalHandle = dom.window.setInterval(
+            () =>
+              AuthService.ensureFreshAccessToken().foreach { refreshed =>
+                if !refreshed then
+                  dom.window.location.href = "/auth"
+              },
+            60 * 1000,
+          )
+          authRefreshIntervalHandle = Some(intervalHandle)
+          AuthService.ensureFreshAccessToken().foreach { refreshed =>
+            if !refreshed then
+              dom.window.location.href = "/auth"
+          }
+        ,
+        _ =>
+          authRefreshIntervalHandle.foreach(dom.window.clearInterval)
+          authRefreshIntervalHandle = None,
+      ),
       // Trigger sync when WebSocket connects
       topicUpdates.isConnected.changes.filter(identity) --> Observer { _ =>
         println("WebSocket connected - triggering sync via connectionStatus")

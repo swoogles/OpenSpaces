@@ -5,10 +5,13 @@ import org.scalajs.dom
 import org.scalajs.dom.window
 import scala.scalajs.js.URIUtils
 import scala.concurrent.ExecutionContext.Implicits.global
+import scala.concurrent.Future
 
 import co.wtf.openspaces.{Person, RandomActionClient}
 
 object AuthService:
+  private var refreshInFlight: Option[Future[Boolean]] = None
+
   def getCookie(
     name: String,
   ): Option[String] = {
@@ -49,7 +52,7 @@ object AuthService:
   }
 
   /** Refresh the access token using the refresh token */
-  def refreshAccessToken(): scala.concurrent.Future[Boolean] = {
+  def refreshAccessToken(): Future[Boolean] = {
     import scala.scalajs.js
     import scala.concurrent.ExecutionContext.Implicits.global
 
@@ -68,6 +71,23 @@ object AuthService:
     }.recover { case _ => false }
   }
 
+  /** Ensure the access token is still fresh, refreshing when close to expiry.
+    * Uses a single in-flight refresh to avoid duplicate /refresh calls.
+    */
+  def ensureFreshAccessToken(): Future[Boolean] =
+    if !isAccessTokenExpired then
+      Future.successful(true)
+    else
+      refreshInFlight match
+        case Some(existingRefresh) =>
+          existingRefresh
+        case None =>
+          val refreshFuture = refreshAccessToken().andThen { case _ =>
+            refreshInFlight = None
+          }
+          refreshInFlight = Some(refreshFuture)
+          refreshFuture
+
   /** Gets the GitHub username from the cookie set during OAuth login. The name
     * is immutable and comes directly from GitHub.
     */
@@ -79,43 +99,18 @@ object AuthService:
 
   /** Fetch a ticket, automatically refreshing the access token if needed */
   def fetchTicketWithRefresh(randomActionClient: RandomActionClient): EventStream[String] = {
-    import scala.concurrent.ExecutionContext.Implicits.global
-    val accessToken = getCookie("access_token").getOrElse("")
-
-    // Check if token needs refresh before making the request
-    if (isAccessTokenExpired) {
-      EventStream.fromFuture(
-        refreshAccessToken().flatMap { refreshed =>
-          if (refreshed) {
-            // Token refreshed, now fetch the ticket
-            randomActionClient
-              .ticket(getCookie("access_token").getOrElse(""))
-          } else {
-            // Refresh failed, redirect to login
-            window.location.href = "/auth"
-            scala.concurrent.Future.failed(new Exception("Token refresh failed"))
-          }
-        }
-      )
-    } else {
-      // Token is still valid, fetch directly
-      EventStream.fromFuture(randomActionClient.ticket(accessToken))
-    }
+    EventStream.fromFuture(fetchTicketAsync(randomActionClient))
   }
 
   /** Fetch a fresh auth ticket, refreshing access token if needed.
     * Returns a Future that resolves to the ticket response text.
     */
-  def fetchTicketAsync(randomActionClient: RandomActionClient): scala.concurrent.Future[String] =
-    if isAccessTokenExpired then
-      println("Access token expired, refreshing...")
-      refreshAccessToken().flatMap { refreshed =>
-        if refreshed then
-          randomActionClient
-            .ticket(getCookie("access_token").getOrElse(""))
-        else
-          scala.concurrent.Future.failed(new Exception("Token refresh failed"))
-      }
-    else
-      randomActionClient
-        .ticket(getCookie("access_token").getOrElse(""))
+  def fetchTicketAsync(randomActionClient: RandomActionClient): Future[String] =
+    ensureFreshAccessToken().flatMap { refreshed =>
+      if refreshed then
+        randomActionClient
+          .ticket(getCookie("access_token").getOrElse(""))
+      else
+        window.location.href = "/auth"
+        Future.failed(new Exception("Token refresh failed"))
+    }
