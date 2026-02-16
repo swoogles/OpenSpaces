@@ -328,6 +328,10 @@ object FrontEnd extends ZIOAppDefault{
                   connectionStatus.reportError(
                     "Move failed: That slot was just filled by another user. Please try again.",
                   )
+                case DiscussionActionConfirmed.Unauthorized(_) =>
+                  connectionStatus.reportError(
+                    "Session expired. Re-authenticating...",
+                  )
                 // Trigger swap animation before state update
                 case DiscussionActionConfirmed.SwapTopics(
                       topic1,
@@ -553,6 +557,8 @@ object FrontEnd extends ZIOAppDefault{
         (Some(topicId), false)
       case DiscussionActionConfirmed.StateReplace(_) =>
         (None, false)
+      case DiscussionActionConfirmed.Unauthorized(_) =>
+        (None, false)
       case DiscussionActionConfirmed.Rejected(_) =>
         (None, false)
     }
@@ -652,11 +658,11 @@ object FrontEnd extends ZIOAppDefault{
           println("WebSocket already connected on mount - triggering sync")
           connectionStatus.triggerSync()
       },
-      // Handle rejected actions by re-authenticating and retrying
+      // Handle unauthorized actions by re-authenticating and retrying
       // Uses connectionStatus.withErrorHandling to catch and report errors
       topicUpdates.received.flatMapSwitch { event =>
         event match
-          case DiscussionActionConfirmed.Rejected(discussionAction) =>
+          case DiscussionActionConfirmed.Unauthorized(discussionAction) =>
             EventStream.fromFuture(
               connectionStatus.withErrorHandling(
                 AuthService.fetchTicketAsync(randomActionClient).map { responseText =>

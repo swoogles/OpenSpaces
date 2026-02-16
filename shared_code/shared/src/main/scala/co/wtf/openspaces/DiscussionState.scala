@@ -98,6 +98,8 @@ case class DiscussionState(
             data.updatedWith(topicId) {
               _.map(value => value.copy(slackThreadUrl = Some(slackThreadUrl)))
             }
+          case DiscussionActionConfirmed.Unauthorized(_) =>
+            data
           case DiscussionActionConfirmed.StateReplace(_) =>
             data,
         )

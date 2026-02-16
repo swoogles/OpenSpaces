@@ -32,16 +32,14 @@ case class DiscussionService(
   def randomDiscussionAction: Task[DiscussionActionConfirmed] =
     for
       action <- discussionStore.randomDiscussionAction
-      _ <- broadcastToAll(action)
-      _ <- slackNotifier.notify(action, broadcastToAll)
+      _ <- handleActionResult(action, None)
     yield action
 
   /** Generate a random schedule-only action (move/swap/unschedule) and broadcast */
   def randomScheduleAction: Task[DiscussionActionConfirmed] =
     for
       action <- discussionStore.randomScheduleAction
-      _ <- broadcastToAll(action)
-      _ <- slackNotifier.notify(action, broadcastToAll)
+      _ <- handleActionResult(action, None)
     yield action
 
   /** Delete all topics using the standard delete logic (broadcasts to all clients) */
@@ -93,8 +91,7 @@ case class DiscussionService(
   def applyAndBroadcast(action: DiscussionAction): Task[DiscussionActionConfirmed] =
     for
       result <- discussionStore.applyAction(action)
-      _ <- broadcastToAll(result)
-      _ <- slackNotifier.notify(result, broadcastToAll)
+      _ <- handleActionResult(result, None)
     yield result
 
   private def handleTicketedAction(
@@ -105,8 +102,19 @@ case class DiscussionService(
       val actionResult = discussionStore
         .applyAction(discussionAction)
         .run
-      broadcastToAll(actionResult).run
-      slackNotifier.notify(actionResult, broadcastToAll).run
+      handleActionResult(actionResult, Some(channel)).run
+
+  private def handleActionResult(
+    actionResult: DiscussionActionConfirmed,
+    sourceChannel: Option[OpenSpacesServerChannel],
+  ): Task[Unit] =
+    actionResult match
+      case rejected @ DiscussionActionConfirmed.Rejected(_) =>
+        sourceChannel match
+          case Some(channel) => channel.send(rejected).ignore
+          case None => ZIO.unit
+      case other =>
+        broadcastToAll(other) *> slackNotifier.notify(other, broadcastToAll)
 
   private def handleUnticketedAction(
     channel: OpenSpacesServerChannel,
@@ -114,7 +122,7 @@ case class DiscussionService(
   ): UIO[Unit] =
     channel
       .send(
-        DiscussionActionConfirmed.Rejected(
+        DiscussionActionConfirmed.Unauthorized(
           discussionAction,
         ),
       )

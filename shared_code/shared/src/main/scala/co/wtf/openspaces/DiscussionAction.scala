@@ -82,6 +82,8 @@ enum DiscussionActionConfirmed derives JsonCodec:
     slackThreadUrl: String)
   case StateReplace(
     discussions: List[Discussion])
+  case Unauthorized(
+    discussionAction: DiscussionAction)
   case Rejected(
     discussionAction: DiscussionAction)
 
