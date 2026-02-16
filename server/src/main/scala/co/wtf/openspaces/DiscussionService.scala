@@ -6,12 +6,16 @@ import zio.direct.*
 import zio.http.*
 import zio.json.*
 
+private case class ChannelRegistry(
+  connected: Set[OpenSpacesServerChannel],
+  pending: Map[OpenSpacesServerChannel, Vector[DiscussionActionConfirmed]],
+)
+
 case class DiscussionService(
-  connectedUsers: Ref[Set[OpenSpacesServerChannel]],
+  channelRegistry: Ref[ChannelRegistry],
   discussionStore: DiscussionStore,
   authenticatedTicketService: AuthenticatedTicketService,
-  slackNotifier: SlackNotifier,
-  syncGate: Semaphore):
+  slackNotifier: SlackNotifier):
 
   def handleMessage(
     message: WebSocketMessage,
@@ -22,7 +26,7 @@ case class DiscussionService(
         handleTicket(ticket, channel)
       case discussionAction: DiscussionAction =>
         defer:
-          if (connectedUsers.get.run.contains(channel)) {
+          if (channelRegistry.get.run.connected.contains(channel)) {
             handleTicketedAction(channel, discussionAction).run
           }
           else {
@@ -65,35 +69,70 @@ case class DiscussionService(
         .use(ticket)
         .mapError(new Exception(_))
         .run
-      syncGate.withPermit {
-        defer:
-          val state = discussionStore.snapshot.run
-          channel
-            .send(
-              DiscussionActionConfirmed.StateReplace(
-                state.data.values.toList,
-              ),
-            )
-            .run
-          connectedUsers
-            .update(_ + channel)
-            .run
-      }.run
+      channelRegistry
+        .update(reg =>
+          reg.copy(pending = reg.pending.updated(channel, Vector.empty)),
+        )
+        .run
+      val state = discussionStore.snapshot.run
+      channel
+        .send(
+          DiscussionActionConfirmed.StateReplace(
+            state.data.values.toList,
+          ),
+        )
+        .tapError(_ =>
+          channelRegistry.update(reg =>
+            reg.copy(
+              connected = reg.connected - channel,
+              pending = reg.pending - channel,
+            ),
+          ),
+        )
+        .run
+      val buffered = channelRegistry
+        .modify(reg =>
+          val queued = reg.pending.getOrElse(channel, Vector.empty)
+          (
+            queued,
+            reg.copy(
+              connected = reg.connected + channel,
+              pending = reg.pending - channel,
+            ),
+          )
+        )
+        .run
+      ZIO.foreachDiscard(buffered)(message => channel.send(message).ignore).run
 
   private def broadcastToAll(message: DiscussionActionConfirmed): Task[Unit] =
-    syncGate.withPermit:
-      defer:
-        // Update server's in-memory state (important for SlackThreadLinked)
-        discussionStore.applyConfirmed(message).run
-        val channels = connectedUsers.get.run
-        ZIO
-          .foreachParDiscard(channels)(channel =>
-            channel.send(message).ignore,
+    defer:
+      // Update server's in-memory state (important for SlackThreadLinked)
+      discussionStore.applyConfirmed(message).run
+      val channels = channelRegistry
+        .modify(reg =>
+          val updatedPending =
+            reg.pending.view.mapValues(buffer => buffer :+ message).toMap
+          (
+            reg.connected,
+            reg.copy(pending = updatedPending),
           )
-          .run
+        )
+        .run
+      ZIO
+        .foreachParDiscard(channels)(channel =>
+          channel.send(message).ignore,
+        )
+        .run
 
   def removeChannel(channel: OpenSpacesServerChannel): UIO[Unit] =
-    connectedUsers.update(_ - channel).unit
+    channelRegistry
+      .update(reg =>
+        reg.copy(
+          connected = reg.connected - channel,
+          pending = reg.pending - channel,
+        ),
+      )
+      .unit
 
   /** Apply an action and broadcast to all clients + Slack. Used by scheduler. */
   def applyAndBroadcast(action: DiscussionAction): Task[DiscussionActionConfirmed] =
@@ -141,9 +180,13 @@ object DiscussionService:
     ZLayer.fromZIO:
       defer:
         DiscussionService(
-          Ref.make(Set.empty[OpenSpacesServerChannel]).run,
+          Ref.make(
+            ChannelRegistry(
+              connected = Set.empty,
+              pending = Map.empty,
+            ),
+          ).run,
           ZIO.service[DiscussionStore].run,
           ZIO.service[AuthenticatedTicketService].run,
           ZIO.service[SlackNotifier].run,
-          Semaphore.make(1).run,
         )
