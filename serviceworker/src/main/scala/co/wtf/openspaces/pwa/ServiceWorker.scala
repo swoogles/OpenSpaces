@@ -12,7 +12,7 @@ import scala.scalajs.js
 import scala.scalajs.js.JSConverters._
 
 object ServiceWorker:
-  private val cacheName = "sticky-icky-cache"
+  private val cacheName = "sticky-icky-cache-v2"
 
   private val assetsToCache: js.Array[RequestInfo] =
     List[RequestInfo](
@@ -36,9 +36,13 @@ object ServiceWorker:
 
     self.addEventListener(
       "activate",
-      (event: ExtendableEvent) =>
-        // Take control immediately so updates apply without reload
-        self.clients.claim(),
+      (event: ExtendableEvent) => {
+        event.waitUntil(
+          clearOldCaches()
+            .map(_ => self.clients.claim())
+            .toJSPromise,
+        )
+      },
     )
 
     self.addEventListener(
@@ -47,6 +51,10 @@ object ServiceWorker:
         val request = event.request
         if request.method.toString != "GET" then
           event.respondWith(fetch(request).toFuture.toJSPromise)
+        else if bypassCache(request) then
+          event.respondWith(fetch(request).toFuture.toJSPromise)
+        else if isAppShellRequest(request) then
+          event.respondWith(networkFirst(request).toJSPromise)
         else
           event.respondWith(
             staleWhileRevalidate(event).toJSPromise,
@@ -63,6 +71,62 @@ object ServiceWorker:
             .flatMap(_.addAll(assetsToCache).toFuture),
         )
         .getOrElse(Future.unit)
+
+  private def clearOldCaches(): Future[Unit] =
+    self.caches
+      .map(
+        _.keys().toFuture.flatMap { cacheNames =>
+          val removals = cacheNames.toSeq
+            .filter(_ != cacheName)
+            .map(name =>
+              self.caches
+                .map(_.delete(name).toFuture.map(_ => ()))
+                .getOrElse(Future.unit),
+            )
+          Future.sequence(removals).map(_ => ())
+        },
+      )
+      .getOrElse(Future.unit)
+
+  private def bypassCache(request: Request): Boolean =
+    val path = new URL(request.url).pathname
+    path.startsWith("/api/") || path == "/discussions"
+
+  private def isAppShellRequest(request: Request): Boolean =
+    val path = new URL(request.url).pathname
+    request.mode.toString == "navigate" ||
+      path == "/" ||
+      path == "/index.html" ||
+      path.endsWith(".js") ||
+      path.endsWith(".css") ||
+      path.endsWith(".webmanifest")
+
+  private def networkFirst(request: Request): Future[Response] =
+    self.caches
+      .map(
+        _.open(cacheName).toFuture.flatMap { cache =>
+          fetch(request).toFuture
+            .flatMap { networkResp =>
+              if networkResp != null && networkResp.ok then
+                cache
+                  .put(request, networkResp.clone())
+                  .toFuture
+                  .map(_ => networkResp)
+              else
+                Future.successful(networkResp)
+            }
+            .recoverWith { case _ =>
+              cache
+                .`match`(request)
+                .toFuture
+                .flatMap {
+                  case cached: Response => Future.successful(cached)
+                  case _                => fetch(request).toFuture
+                }
+            }
+        },
+      )
+      .getOrElse(fetch(request).toFuture)
 
   private def staleWhileRevalidate(
     event: FetchEvent,
@@ -103,5 +167,4 @@ object ServiceWorker:
       )
       .getOrElse(fetch(request).toFuture)
   }
-
 
