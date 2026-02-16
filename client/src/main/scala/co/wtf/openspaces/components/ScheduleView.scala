@@ -7,7 +7,7 @@ import neotype.unwrap
 
 import co.wtf.openspaces.{
   DaySlots, Discussion, DiscussionAction, DiscussionState, Person, RoomSlot,
-  GitHubAvatar, SvgIcon, GlyphiconUtils, LightningTalkNight, LightningTalkProposal, LightningTalkState
+  SvgIcon, GlyphiconUtils, LightningTalkNight, LightningTalkProposal, LightningTalkState
 }
 import co.wtf.openspaces.util.ScrollPreserver
 import co.wtf.openspaces.FrontEnd.connectionStatus
@@ -238,19 +238,22 @@ object LinearScheduleView:
                   (1 to 10).toList.map { slotNumber =>
                     val assigned = lightningSlotMap.get(slotNumber)
                     div(
-                      cls := "LightningTalk-slot",
-                      div(cls := "LightningTalk-slotNumber", s"#$slotNumber"),
                       assigned match
                         case Some(proposal) =>
-                          div(
-                            cls := "LightningTalk-main",
-                            div(cls := "LightningTalk-title", proposal.topicName),
-                            div(cls := "LightningTalk-meta", s"by ${proposal.speakerName}"),
+                          LightningTalkProposalCard(
+                            proposal = proposal,
+                            metaText = s"by ${proposal.speakerName}",
+                            rowClass = "LightningTalk-slot",
+                            slotNumber = Some(slotNumber),
                           )
                         case None =>
                           div(
-                            cls := "LightningTalk-main LightningTalk-main--empty",
-                            "Open slot",
+                            cls := "LightningTalk-slot",
+                            div(cls := "LightningTalk-slotNumber", s"#$slotNumber"),
+                            div(
+                              cls := "LightningTalk-main LightningTalk-main--empty",
+                              "Open slot",
+                            ),
                           ),
                     )
                   },

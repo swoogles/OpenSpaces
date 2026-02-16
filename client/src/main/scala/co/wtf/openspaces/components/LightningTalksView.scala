@@ -1,60 +1,11 @@
 package co.wtf.openspaces.components
 
 import com.raquo.laminar.api.L.{*, given}
-import org.scalajs.dom
 import neotype.unwrap
 
 import co.wtf.openspaces.*
 
 object LightningTalksView:
-
-  private def nightLabel(night: LightningTalkNight): String =
-    night match
-      case LightningTalkNight.Monday   => "Monday Night"
-      case LightningTalkNight.Tuesday  => "Tuesday Night"
-      case LightningTalkNight.Thursday => "Thursday Night"
-
-  private def proposalActions(
-    proposal: LightningTalkProposal,
-    currentUser: Person,
-    isAdmin: Boolean,
-    sendLightningAction: LightningTalkAction => Unit,
-    setErrorMsg: Observer[Option[String]],
-  ): HtmlElement =
-    val canManage = isAdmin || proposal.speaker == currentUser
-    if !canManage then
-      div()
-    else
-      div(
-        cls := "LightningTalk-actions",
-        button(
-          cls := "LightningTalk-actionButton",
-          "Edit",
-          onClick --> Observer { _ =>
-            val currentTitle = proposal.topicName
-            val updatedTitle = dom.window.prompt("Edit lightning talk title", currentTitle)
-            Option(updatedTitle).foreach { title =>
-              Topic.make(title) match
-                case Left(error) =>
-                  setErrorMsg.onNext(Some(error))
-                case Right(validTopic) =>
-                  sendLightningAction(
-                    LightningTalkAction.Rename(proposal.id, validTopic),
-                  )
-            }
-          },
-        ),
-        button(
-          cls := "LightningTalk-actionButton LightningTalk-actionButton--danger",
-          "Delete",
-          onClick --> Observer { _ =>
-            if dom.window.confirm("Delete this lightning talk proposal?") then
-              sendLightningAction(
-                LightningTalkAction.Delete(proposal.id),
-              )
-          },
-        ),
-      )
 
   def apply(
     lightningTalkState: Var[LightningTalkState],
@@ -93,12 +44,14 @@ object LightningTalksView:
               cls := "LightningTalk-myProposalNotice",
               s"You already submitted: \"${proposal.topicName}\". Edit or delete your existing proposal below.",
             ),
-            proposalActions(
-              proposal,
-              currentUser,
-              isAdmin,
-              sendLightningAction,
-              setErrorMsg,
+            LightningTalkProposalCard(
+              proposal = proposal,
+              metaText = s"${proposal.speakerName} • ${LightningTalkProposalCard.locationLabel(proposal)}",
+              rowClass = "LightningTalk-row LightningTalk-row--myProposal",
+              currentUser = Some(currentUser),
+              isAdmin = isAdmin,
+              sendLightningAction = Some(sendLightningAction),
+              setErrorMsg = Some(setErrorMsg),
             ),
           )
         case (None, _) =>
@@ -165,28 +118,13 @@ object LightningTalksView:
           else
             div(
               proposals.map { proposal =>
-                val where = proposal.assignment match
-                  case Some(assignment) =>
-                    s"${nightLabel(assignment.night)} slot #${assignment.slot.unwrap}"
-                  case None =>
-                    "Unassigned"
-                div(
-                  cls := "LightningTalk-row",
-                  div(
-                    cls := "LightningTalk-main",
-                    div(cls := "LightningTalk-title", proposal.topicName),
-                    div(
-                      cls := "LightningTalk-meta",
-                      s"${proposal.speakerName} • $where",
-                    ),
-                  ),
-                  proposalActions(
-                    proposal,
-                    currentUser,
-                    isAdmin,
-                    sendLightningAction,
-                    setErrorMsg,
-                  ),
+                LightningTalkProposalCard(
+                  proposal = proposal,
+                  metaText = s"${proposal.speakerName} • ${LightningTalkProposalCard.locationLabel(proposal)}",
+                  currentUser = Some(currentUser),
+                  isAdmin = isAdmin,
+                  sendLightningAction = Some(sendLightningAction),
+                  setErrorMsg = Some(setErrorMsg),
                 )
               },
             )
