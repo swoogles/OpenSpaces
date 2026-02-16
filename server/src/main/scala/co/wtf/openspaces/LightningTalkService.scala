@@ -212,6 +212,9 @@ case class LightningTalkService(
       createdAt = createdAt,
       updatedAt = java.time.OffsetDateTime.now(),
       deletedAt = None,
+      slackChannelId = None,
+      slackThreadTs = None,
+      slackPermalink = proposal.slackThreadUrl,
     )
 
 object LightningTalkService:
@@ -237,6 +240,7 @@ object LightningTalkService:
       speakerDisplayName = speakerDisplayName,
       assignment = assignment,
       createdAtEpochMs = row.createdAt.toInstant.toEpochMilli,
+      slackThreadUrl = row.slackPermalink,
     )
 
   def loadInitialState(

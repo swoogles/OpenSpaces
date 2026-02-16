@@ -203,7 +203,10 @@ case class DiscussionService(
           case Some(channel) => channel.send(DiscussionActionConfirmedMessage(rejected)).ignore
           case None => ZIO.unit
       case other =>
-        broadcastToAll(DiscussionActionConfirmedMessage(other)) *> slackNotifier.notify(other, msg => broadcastToAll(DiscussionActionConfirmedMessage(msg)))
+        broadcastToAll(DiscussionActionConfirmedMessage(other)) *> slackNotifier.notifyDiscussion(
+          other,
+          msg => broadcastToAll(DiscussionActionConfirmedMessage(msg)),
+        )
 
   private def handleLightningActionResult(
     actionResult: LightningTalkActionConfirmed,
@@ -215,7 +218,10 @@ case class DiscussionService(
           case Some(channel) => channel.send(LightningTalkActionConfirmedMessage(rejected)).ignore
           case None => ZIO.unit
       case other =>
-        broadcastToAll(LightningTalkActionConfirmedMessage(other))
+        broadcastToAll(LightningTalkActionConfirmedMessage(other)) *> slackNotifier.notifyLightning(
+          other,
+          msg => broadcastToAll(LightningTalkActionConfirmedMessage(msg)),
+        )
 
   private def handleUnticketedAction(
     channel: OpenSpacesServerChannel,

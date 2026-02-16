@@ -134,6 +134,9 @@ enum LightningTalkAction derives JsonCodec:
 enum LightningTalkActionConfirmed derives JsonCodec:
   case AddResult(
     proposal: LightningTalkProposal)
+  case SlackThreadLinked(
+    proposalId: LightningTalkId,
+    slackThreadUrl: String)
   case Rename(
     proposalId: LightningTalkId,
     newTopic: Topic)

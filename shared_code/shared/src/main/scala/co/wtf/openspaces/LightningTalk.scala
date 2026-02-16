@@ -36,6 +36,7 @@ case class LightningTalkProposal(
   speakerDisplayName: Option[String],
   assignment: Option[LightningAssignment],
   createdAtEpochMs: Long,
+  slackThreadUrl: Option[String] = None,
 ) derives JsonCodec:
   val speakerName: String = speakerDisplayName.getOrElse(speaker.unwrap)
   val topicName: String = topic.unwrap

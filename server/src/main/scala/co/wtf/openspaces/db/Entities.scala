@@ -72,4 +72,7 @@ case class LightningTalkRow(
   createdAt: OffsetDateTime,
   updatedAt: OffsetDateTime,
   deletedAt: Option[OffsetDateTime],
+  slackChannelId: Option[String],
+  slackThreadTs: Option[String],
+  slackPermalink: Option[String],
 ) derives DbCodec
