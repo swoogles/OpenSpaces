@@ -75,6 +75,24 @@ class PersistentDiscussionStore(
     Person("kitlangton"),
     Person("jamesward"),
     Person("BruceEckel"),
+    // Randomly pulled from list of active creators
+    Person("cheshire137"),
+    Person("gaearon"),
+    Person("frenck"),
+    Person("charliermarsh"),
+    Person("peppy"),
+    Person("phodal"),
+    Person("dtolnay"),
+    Person("GrahamCampbell"),
+    Person("freekmurze"),
+    Person("Borda"),
+    Person("antfu"),
+    Person("lllyasviel"),
+    Person("fabpot"),
+    Person("himself65"),
+    Person("bradfitz"),
+    Person("ornicar"),
+    
   )
 
   private def randomPerson: Task[Person] =
