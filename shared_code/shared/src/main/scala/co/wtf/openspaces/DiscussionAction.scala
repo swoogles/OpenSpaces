@@ -35,14 +35,10 @@ enum DiscussionAction extends WebSocketMessage derives JsonCodec:
   case Rename(
     topicId: TopicId,
     newTopic: Topic) // Any reason to pass original, now that I'm updating based on id?
-  case UpdateRoomSlot(
+  case SetRoomSlot(
     topicId: TopicId,
-    roomSlot: RoomSlot)
-  case Unschedule(
-    topicId: TopicId)
-  case MoveTopic(
-    topicId: TopicId,
-    targetRoomSlot: RoomSlot)
+    expectedCurrentRoomSlot: Option[RoomSlot],
+    newRoomSlot: Option[RoomSlot])
   case SwapTopics(
     topic1: TopicId,
     expectedRoomSlot1: RoomSlot,
@@ -62,14 +58,9 @@ enum DiscussionActionConfirmed derives JsonCodec:
   case Rename(
     topicId: TopicId,
     newTopic: Topic) // Any reason to pass original, now that I'm updating based on id?
-  case UpdateRoomSlot(
+  case SetRoomSlot(
     topicId: TopicId,
-    roomSlot: RoomSlot) // Any reason to pass original, now that I'm updating based on id?
-  case Unschedule(
-    topicId: TopicId) // TODO Should actually be an Option[RoomSlot], when unscheduling something
-  case MoveTopic(
-    topicId: TopicId,
-    targetRoomSlot: RoomSlot)
+    newRoomSlot: Option[RoomSlot])
   case SwapTopics(
     topic1: TopicId,
     newRoomSlot1: RoomSlot,
@@ -110,12 +101,8 @@ object DiscussionActionConfirmed:
         )
       case DiscussionAction.Rename(topicId, newTopic) =>
         DiscussionActionConfirmed.Rename(topicId, newTopic)
-      case DiscussionAction.UpdateRoomSlot(topicId, roomSlot) =>
-        DiscussionActionConfirmed.UpdateRoomSlot(topicId, roomSlot)
-      case DiscussionAction.Unschedule(topicId) =>
-        DiscussionActionConfirmed.Unschedule(topicId)
-      case DiscussionAction.MoveTopic(topicId, targetRoomSlot) =>
-        DiscussionActionConfirmed.MoveTopic(topicId, targetRoomSlot)
+      case DiscussionAction.SetRoomSlot(topicId, _, newRoomSlot) =>
+        DiscussionActionConfirmed.SetRoomSlot(topicId, newRoomSlot)
       case DiscussionAction.SwapTopics(topic1,
                                        expected1,
                                        topic2,

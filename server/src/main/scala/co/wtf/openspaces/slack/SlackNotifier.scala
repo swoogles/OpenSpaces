@@ -26,17 +26,11 @@ class SlackNotifierLive(
       case DiscussionActionConfirmed.Rename(topicId, newTopic) =>
         handleRename(topicId, newTopic).fork.unit
 
-      case DiscussionActionConfirmed.UpdateRoomSlot(topicId, roomSlot) =>
-        handleUpdateRoomSlot(topicId, Some(roomSlot)).fork.unit
-
-      case DiscussionActionConfirmed.Unschedule(topicId) =>
-        handleUpdateRoomSlot(topicId, None).fork.unit
+      case DiscussionActionConfirmed.SetRoomSlot(topicId, newRoomSlot) =>
+        handleUpdateRoomSlot(topicId, newRoomSlot).fork.unit
 
       case DiscussionActionConfirmed.Delete(topicId) =>
         handleDelete(topicId).fork.unit
-
-      case DiscussionActionConfirmed.MoveTopic(topicId, targetRoomSlot) =>
-        handleUpdateRoomSlot(topicId, Some(targetRoomSlot)).fork.unit
 
       case DiscussionActionConfirmed.SwapTopics(topic1, newSlot1, topic2, newSlot2) =>
         (handleUpdateRoomSlot(topic1, Some(newSlot1)) *> handleUpdateRoomSlot(topic2, Some(newSlot2))).fork.unit

@@ -149,7 +149,12 @@ class PersistentDiscussionStore(
         DiscussionAction.Add(topic, person)
       case Some(topicId) =>
         availableSlot match
-          case Some(roomSlot) => DiscussionAction.UpdateRoomSlot(topicId, roomSlot)
+          case Some(roomSlot) =>
+            DiscussionAction.SetRoomSlot(
+              topicId,
+              currentState.data.get(topicId).flatMap(_.roomSlot),
+              Some(roomSlot),
+            )
           // No slots available - vote instead of deleting to avoid death spiral
           case None => DiscussionAction.Vote(topicId, Feedback(person, VotePosition.Interested))
 
@@ -163,7 +168,11 @@ class PersistentDiscussionStore(
       topics = currentState.data.values.toList
       result <- if topics.isEmpty then
         // No topics to schedule - return a no-op (will be rejected gracefully)
-        ZIO.succeed(DiscussionActionConfirmed.Rejected(DiscussionAction.Unschedule(TopicId(0L))))
+        ZIO.succeed(
+          DiscussionActionConfirmed.Rejected(
+            DiscussionAction.SetRoomSlot(TopicId(0L), None, None),
+          ),
+        )
       else
         for
           // 0-99: 0-44 = move to slot (45%), 45-94 = swap (50%), 95-99 = unschedule (5%)
@@ -187,9 +196,12 @@ class PersistentDiscussionStore(
       val topic = topics.lift(topicIdx)
       val slot = availableSlots.lift(slotIdx)
       (topic, slot) match
-        case (Some(t), Some(s)) => DiscussionAction.UpdateRoomSlot(t.id, s)
-        case (Some(t), None) => DiscussionAction.Unschedule(t.id) // No slots available, unschedule instead
-        case _ => DiscussionAction.Unschedule(TopicId(0L)) // Will be rejected
+        case (Some(t), Some(s)) =>
+          DiscussionAction.SetRoomSlot(t.id, t.roomSlot, Some(s))
+        case (Some(t), None) =>
+          DiscussionAction.SetRoomSlot(t.id, t.roomSlot, None) // No slots available, unschedule instead
+        case _ =>
+          DiscussionAction.SetRoomSlot(TopicId(0L), None, None) // Will be rejected
 
   /** Pick a random scheduled topic and unschedule it */
   private def randomUnscheduleAction(currentState: DiscussionState): Task[DiscussionAction] =
@@ -197,8 +209,10 @@ class PersistentDiscussionStore(
     for
       idx <- Random.nextIntBounded(scheduledTopics.size.max(1))
     yield scheduledTopics.lift(idx) match
-      case Some(topic) => DiscussionAction.Unschedule(topic.id)
-      case None => DiscussionAction.Unschedule(TopicId(0L)) // Will be rejected
+      case Some(topic) =>
+        DiscussionAction.SetRoomSlot(topic.id, topic.roomSlot, None)
+      case None =>
+        DiscussionAction.SetRoomSlot(TopicId(0L), None, None) // Will be rejected
 
   /** Pick two scheduled topics and swap their slots */
   private def randomSwapAction(currentState: DiscussionState): Task[DiscussionAction] =
@@ -212,7 +226,7 @@ class PersistentDiscussionStore(
       (topic1, topic2) match
         case (Some(t1), Some(t2)) if t1.roomSlot.isDefined && t2.roomSlot.isDefined =>
           DiscussionAction.SwapTopics(t1.id, t1.roomSlot.get, t2.id, t2.roomSlot.get)
-        case _ => DiscussionAction.Unschedule(TopicId(0L)) // Will be rejected
+        case _ => DiscussionAction.SetRoomSlot(TopicId(0L), None, None) // Will be rejected
 
   /** Find all available (unoccupied) room slots */
   private def findAvailableSlots(currentState: DiscussionState): List[RoomSlot] =
@@ -292,20 +306,29 @@ class PersistentDiscussionStore(
             yield confirmed
         yield result
 
-      case move @ DiscussionAction.MoveTopic(topicId, targetRoomSlot) =>
+      case setSlot @ DiscussionAction.SetRoomSlot(topicId,
+                                                  expectedCurrentRoomSlot,
+                                                  newRoomSlot,
+          ) =>
         for
           _            <- ensureUserExists(actor)
           currentState <- state.get
-          targetOccupied = currentState.data.values.exists(d =>
-            d.id != topicId && d.roomSlot.contains(targetRoomSlot)
+          actualCurrentRoomSlot = currentState.data.get(topicId).flatMap(_.roomSlot)
+          currentMatches = actualCurrentRoomSlot == expectedCurrentRoomSlot
+          targetOccupied = newRoomSlot.exists(slot =>
+            currentState.data.values.exists(d =>
+              d.id != topicId && d.roomSlot.contains(slot),
+            ),
           )
-          result <- if targetOccupied then
-            ZIO.succeed(DiscussionActionConfirmed.Rejected(move))
+          result <- if !currentMatches || targetOccupied then
+            ZIO.succeed(DiscussionActionConfirmed.Rejected(setSlot))
           else
-            val confirmed = DiscussionActionConfirmed.fromDiscussionAction(move)
+            val confirmed = DiscussionActionConfirmed.fromDiscussionAction(
+              setSlot,
+            )
             for
-              _ <- persistEvent("MoveTopic", topicId.unwrap, action.toJson, actor)
-              _ <- updateDiscussionRoomSlot(topicId, Some(targetRoomSlot))
+              _ <- persistEvent("SetRoomSlot", topicId.unwrap, action.toJson, actor)
+              _ <- updateDiscussionRoomSlot(topicId, newRoomSlot)
               _ <- state.update(_.apply(confirmed))
             yield confirmed
         yield result
@@ -354,24 +377,6 @@ class PersistentDiscussionStore(
           confirmed = DiscussionActionConfirmed.fromDiscussionAction(action)
           _ <- persistEvent("Rename", topicId.unwrap, action.toJson, actor)
           _ <- updateDiscussionTopic(topicId, newTopic)
-          _ <- state.update(_.apply(confirmed))
-        yield confirmed
-
-      case DiscussionAction.UpdateRoomSlot(topicId, roomSlot) =>
-        for
-          _ <- ensureUserExists(actor)
-          confirmed = DiscussionActionConfirmed.fromDiscussionAction(action)
-          _ <- persistEvent("UpdateRoomSlot", topicId.unwrap, action.toJson, actor)
-          _ <- updateDiscussionRoomSlot(topicId, Some(roomSlot))
-          _ <- state.update(_.apply(confirmed))
-        yield confirmed
-
-      case DiscussionAction.Unschedule(topicId) =>
-        for
-          _ <- ensureUserExists(actor)
-          confirmed = DiscussionActionConfirmed.fromDiscussionAction(action)
-          _ <- persistEvent("Unschedule", topicId.unwrap, action.toJson, actor)
-          _ <- updateDiscussionRoomSlot(topicId, None)
           _ <- state.update(_.apply(confirmed))
         yield confirmed
 
@@ -472,9 +477,7 @@ class PersistentDiscussionStore(
       case DiscussionAction.Vote(_, feedback)                => feedback.voter.unwrap
       case DiscussionAction.ResetUser(person)                => person.unwrap
       case DiscussionAction.Rename(_, _)                     => "system" // TODO: track who renamed
-      case DiscussionAction.UpdateRoomSlot(_, _)             => "system" // TODO: track who scheduled
-      case DiscussionAction.Unschedule(_)                    => "system"
-      case DiscussionAction.MoveTopic(_, _)                  => "system"
+      case DiscussionAction.SetRoomSlot(_, _, _)             => "system" // TODO: track who scheduled
       case DiscussionAction.SwapTopics(_, _, _, _)           => "system"
 
 object PersistentDiscussionStore:

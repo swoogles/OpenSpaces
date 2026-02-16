@@ -33,15 +33,11 @@ case class DiscussionState(
         copy(data = other match
           case Rejected(action) =>
             data // This should never actually get passed in, right?
-          case DiscussionActionConfirmed.UpdateRoomSlot(topicId,
-                                                        roomSlot,
+          case DiscussionActionConfirmed.SetRoomSlot(topicId,
+                                                     newRoomSlot,
               ) =>
             data.updatedWith(topicId) {
-              _.map(value => value.copy(roomSlot = Some(roomSlot)))
-            }
-          case DiscussionActionConfirmed.Unschedule(topicId) =>
-            data.updatedWith(topicId) {
-              _.map(value => value.copy(roomSlot = None))
+              _.map(value => value.copy(roomSlot = newRoomSlot))
             }
           case DiscussionActionConfirmed.Delete(topicId) =>
             data.filterNot(_._2.id == topicId)
@@ -70,13 +66,6 @@ case class DiscussionState(
             data.updatedWith(topicId) {
               _.map(value => value.copy(topic = newTopic))
             }
-          case DiscussionActionConfirmed.MoveTopic(topicId,
-                                                   targetRoomSlot,
-              ) =>
-            data.updatedWith(topicId) {
-              _.map(value => value.copy(roomSlot = Some(targetRoomSlot)))
-            }
-
           case DiscussionActionConfirmed.SwapTopics(topic1,
                                                     newSlot1,
                                                     topic2,

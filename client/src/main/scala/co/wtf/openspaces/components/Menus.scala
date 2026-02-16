@@ -154,9 +154,10 @@ object UnscheduledDiscussionsMenu:
                   cls := "Menu-swapButton",
                   onClick --> Observer { _ =>
                     topicUpdates(
-                      DiscussionAction.MoveTopic(
+                      DiscussionAction.SetRoomSlot(
                         discussion.id,
-                        targetRoomSlot,
+                        discussion.roomSlot,
+                        Some(targetRoomSlot),
                       ),
                     )
                     dismissMenu.onNext(())
@@ -232,9 +233,10 @@ object UnscheduledDiscussionsMenu:
                 cls := "Menu-swapButton",
                 onClick --> Observer { _ =>
                   topicUpdates(
-                    DiscussionAction.UpdateRoomSlot(
+                    DiscussionAction.SetRoomSlot(
                       discussion.id,
-                      targetRoomSlot,
+                      discussion.roomSlot,
+                      Some(targetRoomSlot),
                     ),
                   )
                   // Set the discussion as active after assigning it to the room slot
@@ -287,7 +289,11 @@ object ActiveDiscussionActionMenu:
             cls := "Menu-swapButton",
             onClick --> Observer { _ =>
               topicUpdates(
-                DiscussionAction.Unschedule(discussion.id),
+                DiscussionAction.SetRoomSlot(
+                  discussion.id,
+                  discussion.roomSlot,
+                  None,
+                ),
               )
               dismissMenu.onNext(())
             },

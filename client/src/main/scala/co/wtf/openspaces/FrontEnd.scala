@@ -192,15 +192,15 @@ object FrontEnd extends ZIOAppDefault{
 
   val setActiveDiscussion: Observer[Discussion] = Observer {
     discussion =>
-      discussion.roomSlot match
-        case Some(value) =>
-          topicUpdates.sendOne(
-            DiscussionAction.UpdateRoomSlot(discussion.id, value),
-          )
-        case None =>
-          topicUpdates.sendOne(
-            DiscussionAction.Unschedule(discussion.id),
-          )
+      val expectedCurrentRoomSlot =
+        discussionState.now().data.get(discussion.id).flatMap(_.roomSlot)
+      topicUpdates.sendOne(
+        DiscussionAction.SetRoomSlot(
+          discussion.id,
+          expectedCurrentRoomSlot,
+          discussion.roomSlot,
+        ),
+      )
 
       activeDiscussion.set(Some(discussion))
   }
@@ -323,10 +323,10 @@ object FrontEnd extends ZIOAppDefault{
                     "Swap failed: One or both topics were moved by another user. Please try again.",
                   )
                 case DiscussionActionConfirmed.Rejected(
-                      _: DiscussionAction.MoveTopic,
+                      _: DiscussionAction.SetRoomSlot,
                     ) =>
                   connectionStatus.reportError(
-                    "Move failed: That slot was just filled by another user. Please try again.",
+                    "Schedule change failed: topic or slot changed. Please try again.",
                   )
                 case DiscussionActionConfirmed.Unauthorized(_) =>
                   connectionStatus.reportError(
@@ -349,26 +349,6 @@ object FrontEnd extends ZIOAppDefault{
                   // Show toast if user cares about either topic
                   notifyScheduleChange(topic1, newSlot1)
                   notifyScheduleChange(topic2, newSlot2)
-                // Trigger move animation for single topic moves
-                case DiscussionActionConfirmed.MoveTopic(
-                      topicId,
-                      targetRoomSlot,
-                    ) =>
-                  // Get the topic's current (old) position before state updates
-                  discussionState
-                    .now()
-                    .data
-                    .get(topicId)
-                    .flatMap(_.roomSlot)
-                    .foreach { oldSlot =>
-                      SwapAnimationState.startMoveAnimation(
-                        topicId,
-                        oldSlot,
-                        targetRoomSlot,
-                      )
-                    }
-                  // Show toast if user cares about this topic (voted or facilitating)
-                  notifyScheduleChange(topicId, targetRoomSlot)
                 // Track the user's vote for topic ordering
                 case DiscussionActionConfirmed.Vote(topicId, feedback) =>
                   val currentUser = name.now()
@@ -383,10 +363,10 @@ object FrontEnd extends ZIOAppDefault{
                     // Dismiss swipe hint on first vote
                     dismissSwipeHint()
 
-                // Also animate UpdateRoomSlot (similar to MoveTopic)
-                case DiscussionActionConfirmed.UpdateRoomSlot(
+                // Animate schedule updates for single-topic slot changes
+                case DiscussionActionConfirmed.SetRoomSlot(
                       topicId,
-                      newRoomSlot,
+                      Some(newRoomSlot),
                     ) =>
                   // Get the topic's current (old) position before state updates
                   discussionState
@@ -403,6 +383,8 @@ object FrontEnd extends ZIOAppDefault{
                     }
                   // Show toast if user cares about this topic
                   notifyScheduleChange(topicId, newRoomSlot)
+                case DiscussionActionConfirmed.SetRoomSlot(_, None) =>
+                  ()
                 // Clean up animation state when topics are deleted to prevent memory leaks
                 case DiscussionActionConfirmed.Delete(topicId) =>
                   SwapAnimationState.cleanupTopic(topicId)
@@ -543,11 +525,7 @@ object FrontEnd extends ZIOAppDefault{
         (None, false)  // State is updated by the confirmed action itself
       case DiscussionActionConfirmed.Rename(topicId, _) =>
         (Some(topicId), false)
-      case DiscussionActionConfirmed.UpdateRoomSlot(topicId, _) =>
-        (Some(topicId), false)
-      case DiscussionActionConfirmed.Unschedule(topicId) =>
-        (Some(topicId), false)
-      case DiscussionActionConfirmed.MoveTopic(topicId, _) =>
+      case DiscussionActionConfirmed.SetRoomSlot(topicId, _) =>
         (Some(topicId), false)
       case DiscussionActionConfirmed.SwapTopics(topic1, _, _, _) =>
         (Some(topic1), false)

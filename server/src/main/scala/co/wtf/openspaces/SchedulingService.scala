@@ -33,17 +33,24 @@ case class SchedulingService(
       // Run the algorithm
       actions = computeSchedule(discussions, allRooms, allTimeSlots, frozenSlots)
       
-      // Convert confirmed actions to discussion actions and apply
-      _ <- ZIO.foreachDiscard(actions) { confirmed =>
-        val action = confirmedToAction(confirmed)
+      // Apply computed actions
+      _ <- ZIO.foreachDiscard(actions) { action =>
         discussionService.applyAndBroadcast(action)
       }
       
       summary = SchedulingSummary(
-        scheduled = actions.count(_.isInstanceOf[DiscussionActionConfirmed.UpdateRoomSlot]),
-        moved = actions.count(_.isInstanceOf[DiscussionActionConfirmed.MoveTopic]) + 
-                actions.count(_.isInstanceOf[DiscussionActionConfirmed.SwapTopics]),
-        unscheduled = actions.count(_.isInstanceOf[DiscussionActionConfirmed.Unschedule])
+        scheduled = actions.count {
+          case DiscussionAction.SetRoomSlot(_, None, Some(_)) => true
+          case _ => false
+        },
+        moved = actions.count {
+          case DiscussionAction.SetRoomSlot(_, Some(_), Some(_)) => true
+          case _ => false
+        },
+        unscheduled = actions.count {
+          case DiscussionAction.SetRoomSlot(_, Some(_), None) => true
+          case _ => false
+        }
       )
       _ <- ZIO.logInfo(s"Scheduling complete: $summary")
     yield summary
@@ -54,7 +61,7 @@ case class SchedulingService(
     rooms: List[Room],
     timeSlots: List[TimeSlot],
     frozenSlots: Set[TimeSlot]
-  ): List[DiscussionActionConfirmed] =
+  ): List[DiscussionAction] =
     
     // Phase 1: Partition topics
     val frozen = discussions.filter(d => 
@@ -151,8 +158,8 @@ case class SchedulingService(
     discussions: List[Discussion],
     target: Map[TopicId, RoomSlot],
     frozenIds: Set[TopicId]
-  ): List[DiscussionActionConfirmed] =
-    val actions = scala.collection.mutable.ListBuffer[DiscussionActionConfirmed]()
+  ): List[DiscussionAction] =
+    val actions = scala.collection.mutable.ListBuffer[DiscussionAction]()
     
     for d <- discussions if !frozenIds.contains(d.id) do
       val currentSlot = d.roomSlot
@@ -161,33 +168,21 @@ case class SchedulingService(
       (currentSlot, targetSlot) match
         case (None, Some(slot)) =>
           // Was unscheduled, now scheduled
-          actions += DiscussionActionConfirmed.UpdateRoomSlot(d.id, slot)
+          actions += DiscussionAction.SetRoomSlot(d.id, None, Some(slot))
         
         case (Some(old), Some(newSlot)) if old != newSlot =>
           // Moved to different slot
-          actions += DiscussionActionConfirmed.MoveTopic(d.id, newSlot)
+          actions += DiscussionAction.SetRoomSlot(d.id, Some(old), Some(newSlot))
         
         case (Some(_), None) =>
           // Was scheduled, now unscheduled (bumped by higher-voted topics)
-          actions += DiscussionActionConfirmed.Unschedule(d.id)
+          actions += DiscussionAction.SetRoomSlot(d.id, currentSlot, None)
         
         case _ =>
           // No change needed
           ()
     
     actions.toList
-
-  /** Convert a confirmed action back to a discussion action for re-application */
-  private def confirmedToAction(confirmed: DiscussionActionConfirmed): DiscussionAction =
-    confirmed match
-      case DiscussionActionConfirmed.UpdateRoomSlot(topicId, roomSlot) =>
-        DiscussionAction.UpdateRoomSlot(topicId, roomSlot)
-      case DiscussionActionConfirmed.MoveTopic(topicId, targetRoomSlot) =>
-        DiscussionAction.MoveTopic(topicId, targetRoomSlot)
-      case DiscussionActionConfirmed.Unschedule(topicId) =>
-        DiscussionAction.Unschedule(topicId)
-      case other =>
-        throw new IllegalArgumentException(s"Unexpected action type: $other")
 
 case class SchedulingSummary(
   scheduled: Int,

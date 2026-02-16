@@ -76,22 +76,27 @@ class DiscussionDataStore(
             confirmedAction
           else DiscussionActionConfirmed.Rejected(swap)
 
-      case move @ DiscussionAction.MoveTopic(topicId,
-                                             targetRoomSlot,
+      case setSlot @ DiscussionAction.SetRoomSlot(topicId,
+                                                  expectedCurrentRoomSlot,
+                                                  newRoomSlot,
           ) =>
         defer:
           val currentState = discussionDatabase.get.run
-          // Check if target slot is occupied by a different discussion
-          val targetOccupied = currentState.data.values.exists {
-            discussion =>
-              discussion.id != topicId &&
-              discussion.roomSlot.contains(targetRoomSlot)
+          val actualCurrentRoomSlot =
+            currentState.data.get(topicId).flatMap(_.roomSlot)
+          val currentMatches = actualCurrentRoomSlot == expectedCurrentRoomSlot
+          val targetOccupied = newRoomSlot.exists { slot =>
+            currentState.data.values.exists { discussion =>
+              discussion.id != topicId && discussion.roomSlot.contains(slot)
+            }
           }
 
-          if (targetOccupied) DiscussionActionConfirmed.Rejected(move)
+          if !currentMatches || targetOccupied then
+            DiscussionActionConfirmed.Rejected(setSlot)
           else
-            val confirmedAction =
-              DiscussionActionConfirmed.fromDiscussionAction(move)
+            val confirmedAction = DiscussionActionConfirmed.fromDiscussionAction(
+              setSlot,
+            )
             discussionDatabase
               .updateAndGet(s => s(confirmedAction))
               .run
@@ -215,9 +220,10 @@ class DiscussionDataStore(
                         Feedback(person, VotePosition.Interested),
                       )
                     case Some(roomSlot) =>
-                      DiscussionAction.UpdateRoomSlot(
+                      DiscussionAction.SetRoomSlot(
                         id,
-                        roomSlot,
+                        state.data.get(id).flatMap(_.roomSlot),
+                        Some(roomSlot),
                       )
                   }
           }
@@ -231,7 +237,9 @@ class DiscussionDataStore(
       val currentState = snapshot.run
       val topics = currentState.data.values.toList
       if topics.isEmpty then
-        DiscussionActionConfirmed.Rejected(DiscussionAction.Unschedule(TopicId(0L)))
+        DiscussionActionConfirmed.Rejected(
+          DiscussionAction.SetRoomSlot(TopicId(0L), None, None),
+        )
       else
         // 0-99: 0-44 = move to slot (45%), 45-94 = swap (50%), 95-99 = unschedule (5%)
         val actionType = Random.nextIntBounded(100).run
@@ -241,13 +249,15 @@ class DiscussionDataStore(
             val topicIdx = Random.nextIntBounded(topics.size).run
             val topic = topics(topicIdx)
             findAvailableSlot(currentState) match
-              case Some(slot) => DiscussionAction.UpdateRoomSlot(topic.id, slot)
-              case None => DiscussionAction.Unschedule(topic.id)
+              case Some(slot) =>
+                DiscussionAction.SetRoomSlot(topic.id, topic.roomSlot, Some(slot))
+              case None =>
+                DiscussionAction.SetRoomSlot(topic.id, topic.roomSlot, None)
           case n if n < 95 =>
             // Swap (50%)
             val scheduled = topics.filter(_.roomSlot.isDefined)
             if scheduled.size < 2 then
-              DiscussionAction.Unschedule(TopicId(0L))
+              DiscussionAction.SetRoomSlot(TopicId(0L), None, None)
             else
               val idx1 = Random.nextIntBounded(scheduled.size).run
               val idx2 = Random.nextIntBounded(scheduled.size).run
@@ -256,15 +266,16 @@ class DiscussionDataStore(
               if t1 != t2 && t1.roomSlot.isDefined && t2.roomSlot.isDefined then
                 DiscussionAction.SwapTopics(t1.id, t1.roomSlot.get, t2.id, t2.roomSlot.get)
               else
-                DiscussionAction.Unschedule(TopicId(0L))
+                DiscussionAction.SetRoomSlot(TopicId(0L), None, None)
           case _ =>
             // Unschedule (5%)
             val scheduled = topics.filter(_.roomSlot.isDefined)
             if scheduled.isEmpty then
-              DiscussionAction.Unschedule(TopicId(0L))
+              DiscussionAction.SetRoomSlot(TopicId(0L), None, None)
             else
               val idx = Random.nextIntBounded(scheduled.size).run
-              DiscussionAction.Unschedule(scheduled(idx).id)
+              val topic = scheduled(idx)
+              DiscussionAction.SetRoomSlot(topic.id, topic.roomSlot, None)
         applyAction(action).run
 
   private def findAvailableSlot(state: DiscussionState): Option[RoomSlot] =
