@@ -91,6 +91,13 @@ object FrontEnd extends ZIOAppDefault{
   val errorBanner =
     ErrorBanner(connectionStatus)
 
+  val sendDiscussionAction: DiscussionAction => Unit = action =>
+    if connectionStatus.checkReady() then
+      errorBanner.clearError()
+      topicUpdates.sendOne(action)
+    else
+      connectionStatus.reportError("Syncing latest topics. Please wait a moment.")
+
   val submitNewTopic: Observer[DiscussionAction] = Observer {
     case discussion @ (add: DiscussionAction.Add) =>
       // Block submissions while not connected/synced
@@ -100,7 +107,7 @@ object FrontEnd extends ZIOAppDefault{
         errorBanner.setError("User name too short. Tell us who you are!")
       else
         errorBanner.clearError()
-        topicUpdates.sendOne(discussion)
+        sendDiscussionAction(discussion)
     case _ => ()
   }
 
@@ -170,7 +177,7 @@ object FrontEnd extends ZIOAppDefault{
         },
         None,
         name.signal,
-        topicUpdates.sendOne,
+        sendDiscussionAction,
         updateTargetDiscussion,
         connectionStatus,
         $firstUnjudgedId,
@@ -194,7 +201,7 @@ object FrontEnd extends ZIOAppDefault{
     discussion =>
       val expectedCurrentRoomSlot =
         discussionState.now().data.get(discussion.id).flatMap(_.roomSlot)
-      topicUpdates.sendOne(
+      sendDiscussionAction(
         DiscussionAction.SetRoomSlot(
           discussion.id,
           expectedCurrentRoomSlot,
@@ -266,7 +273,7 @@ object FrontEnd extends ZIOAppDefault{
           Menu(
             selectedDiscussion,
             targetDiscussion,
-            topicUpdates.sendOne,
+            sendDiscussionAction,
             dismissSwapMenu,
           )
         case None =>
@@ -286,7 +293,7 @@ object FrontEnd extends ZIOAppDefault{
               unscheduledDiscussions,
               roomSlot,
               name.signal,
-              topicUpdates.sendOne,
+              sendDiscussionAction,
               dismissUnscheduledMenu,
               setActiveDiscussion,
               activeDiscussionOpt,
@@ -300,7 +307,7 @@ object FrontEnd extends ZIOAppDefault{
         case Some(discussion) =>
           ActiveDiscussionActionMenu(
             discussion,
-            topicUpdates.sendOne,
+            sendDiscussionAction,
             dismissActiveDiscussionMenu,
           )
         case None =>
@@ -332,6 +339,8 @@ object FrontEnd extends ZIOAppDefault{
                   connectionStatus.reportError(
                     "Session expired. Re-authenticating...",
                   )
+                case DiscussionActionConfirmed.StateReplace(_) =>
+                  connectionStatus.markStateSynchronized()
                 // Trigger swap animation before state update
                 case DiscussionActionConfirmed.SwapTopics(
                       topic1,
@@ -441,7 +450,7 @@ object FrontEnd extends ZIOAppDefault{
           // Admin controls (only visible when admin AND admin mode enabled)
           AdminControls(
             isAdmin.combineWith(adminModeEnabled.signal).map { case (admin, enabled) => admin && enabled },
-            topicUpdates.sendOne,
+            sendDiscussionAction,
             connectionStatus,
             randomActionClient
           ),
@@ -452,7 +461,7 @@ object FrontEnd extends ZIOAppDefault{
               ScheduleView(
                 discussionState,
                 activeDiscussion,
-                topicUpdates.sendOne,
+                sendDiscussionAction,
                 name.signal,
                 setActiveDiscussion,
                 popoverState,
@@ -465,7 +474,7 @@ object FrontEnd extends ZIOAppDefault{
             case AppView.Schedule =>
               LinearScheduleView(
                 discussionState.signal,
-                topicUpdates.sendOne,
+                sendDiscussionAction,
                 name.signal,
                 unscheduledMenuState,
               )

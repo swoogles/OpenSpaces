@@ -107,6 +107,7 @@ class ConnectionStatusManager[Receive, Send](
   staleThresholdMs: Double = 2 * 60 * 1000,
   healthCheckIntervalMs: Int = 30 * 1000,
   maxSyncRetries: Int = 3,
+  syncAckTimeoutMs: Int = 5000,
 )(using ec: ExecutionContext):
   
   // ============================================
@@ -123,6 +124,8 @@ class ConnectionStatusManager[Receive, Send](
   
   val syncState: Var[SyncState] = Var(SyncState.Idle)
   private var currentSyncAttempt: Int = 0
+  private var awaitingStateReplace: Boolean = false
+  private var syncAckTimeoutHandle: Option[Int] = None
   
   // ============================================
   // Reconnect Control
@@ -163,6 +166,10 @@ class ConnectionStatusManager[Receive, Send](
   /** Update tracked connection state - call from connected/closed observers */
   def setConnected(connected: Boolean): Unit =
     isConnectedVar.set(connected)
+    if !connected then
+      clearSyncWaitState()
+      syncState.set(SyncState.Idle)
+      currentSyncAttempt = 0
   
   /** Whether the WebSocket is currently connected */
   def isConnected: Boolean = isConnectedVar.now()
@@ -183,7 +190,7 @@ class ConnectionStatusManager[Receive, Send](
     * Safe to call multiple times - will skip if already syncing.
     */
   def triggerSync(): Unit =
-    if syncState.now() == SyncState.Syncing && currentSyncAttempt == 0 then
+    if syncState.now() == SyncState.Syncing || awaitingStateReplace then
       println("Sync already in progress, skipping")
       return
     
@@ -199,9 +206,8 @@ class ConnectionStatusManager[Receive, Send](
   private def executeSyncWithRetry(operation: () => Future[Unit], attempt: Int): Unit =
     currentSyncAttempt = attempt
     val retryDelayMs = 2000 * math.pow(2, attempt).toInt // Exponential backoff: 2s, 4s, 8s
-    
-    if attempt == 0 then
-      syncState.set(SyncState.Syncing)
+    clearSyncWaitState()
+    syncState.set(SyncState.Syncing)
     
     println(s"Triggering state sync (attempt ${attempt + 1}/$maxSyncRetries)...")
     
@@ -214,8 +220,15 @@ class ConnectionStatusManager[Receive, Send](
       case Success(_) =>
         // Verify still connected
         if isConnectedVar.now() then
-          syncState.set(SyncState.Synced)
-          currentSyncAttempt = 0
+          awaitingStateReplace = true
+          syncAckTimeoutHandle = Some(
+            dom.window.setTimeout(
+              () =>
+                if awaitingStateReplace && syncState.now() == SyncState.Syncing then
+                  handleSyncFailure("Timed out waiting for server snapshot", attempt, retryDelayMs),
+              syncAckTimeoutMs,
+            ),
+          )
         else
           handleSyncFailure("Connection lost during sync", attempt, retryDelayMs)
           
@@ -225,6 +238,7 @@ class ConnectionStatusManager[Receive, Send](
   
   private def handleSyncFailure(errorMsg: String, attempt: Int, retryDelayMs: Int): Unit =
     println(s"Sync failed: $errorMsg")
+    clearSyncWaitState()
     if attempt + 1 < maxSyncRetries then
       println(s"Retrying sync in ${retryDelayMs}ms...")
       syncState.set(SyncState.Error(s"Retrying... (${attempt + 1}/$maxSyncRetries)"))
@@ -236,6 +250,18 @@ class ConnectionStatusManager[Receive, Send](
       println("Max sync retries reached, giving up")
       syncState.set(SyncState.Error(errorMsg))
       currentSyncAttempt = 0
+
+  /** Mark sync as complete once a fresh StateReplace snapshot is received. */
+  def markStateSynchronized(): Unit =
+    if awaitingStateReplace && isConnectedVar.now() then
+      clearSyncWaitState()
+      syncState.set(SyncState.Synced)
+      currentSyncAttempt = 0
+
+  private def clearSyncWaitState(): Unit =
+    awaitingStateReplace = false
+    syncAckTimeoutHandle.foreach(dom.window.clearTimeout)
+    syncAckTimeoutHandle = None
   
   // ============================================
   // Reconnect Operations
@@ -246,6 +272,7 @@ class ConnectionStatusManager[Receive, Send](
     */
   def forceReconnect(): Unit =
     println("Force reconnecting WebSocket...")
+    clearSyncWaitState()
     syncState.set(SyncState.Idle)
     reconnectAttemptVar.set(0)
     connectionEnabled.set(false)

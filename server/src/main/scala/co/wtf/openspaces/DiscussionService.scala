@@ -10,7 +10,8 @@ case class DiscussionService(
   connectedUsers: Ref[Set[OpenSpacesServerChannel]],
   discussionStore: DiscussionStore,
   authenticatedTicketService: AuthenticatedTicketService,
-  slackNotifier: SlackNotifier):
+  slackNotifier: SlackNotifier,
+  syncGate: Semaphore):
 
   def handleMessage(
     message: WebSocketMessage,
@@ -64,28 +65,32 @@ case class DiscussionService(
         .use(ticket)
         .mapError(new Exception(_))
         .run
-      connectedUsers
-        .updateAndGet(_ + channel)
-        .run
-      val state = discussionStore.snapshot.run
-      channel
-        .send(
-          DiscussionActionConfirmed.StateReplace(
-            state.data.values.toList,
-          ),
-        )
-        .run
+      syncGate.withPermit {
+        defer:
+          val state = discussionStore.snapshot.run
+          channel
+            .send(
+              DiscussionActionConfirmed.StateReplace(
+                state.data.values.toList,
+              ),
+            )
+            .run
+          connectedUsers
+            .update(_ + channel)
+            .run
+      }.run
 
   private def broadcastToAll(message: DiscussionActionConfirmed): Task[Unit] =
-    defer:
-      // Update server's in-memory state (important for SlackThreadLinked)
-      discussionStore.applyConfirmed(message).run
-      val channels = connectedUsers.get.run
-      ZIO
-        .foreachParDiscard(channels)(channel =>
-          channel.send(message).ignore,
-        )
-        .run
+    syncGate.withPermit:
+      defer:
+        // Update server's in-memory state (important for SlackThreadLinked)
+        discussionStore.applyConfirmed(message).run
+        val channels = connectedUsers.get.run
+        ZIO
+          .foreachParDiscard(channels)(channel =>
+            channel.send(message).ignore,
+          )
+          .run
 
   def removeChannel(channel: OpenSpacesServerChannel): UIO[Unit] =
     connectedUsers.update(_ - channel).unit
@@ -140,4 +145,5 @@ object DiscussionService:
           ZIO.service[DiscussionStore].run,
           ZIO.service[AuthenticatedTicketService].run,
           ZIO.service[SlackNotifier].run,
+          Semaphore.make(1).run,
         )
