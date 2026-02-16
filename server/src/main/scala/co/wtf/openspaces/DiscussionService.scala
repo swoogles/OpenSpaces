@@ -23,6 +23,7 @@ case class DiscussionService(
     channel: OpenSpacesServerChannel,
   ): ZIO[Any, Throwable, Unit] =
     message match
+      // TODO Decide what should happen when *Confirmed messages come through here. Just no op? Error?
       case ticket: Ticket =>
         handleTicket(ticket, channel)
       case DiscussionActionMessage(discussionAction) =>
