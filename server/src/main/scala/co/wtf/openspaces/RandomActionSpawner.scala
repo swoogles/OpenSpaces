@@ -34,11 +34,20 @@ case class RandomActionSpawner(
     val chaosLoop =
       defer {
         val active = chaosActiveRef.get.run
-        ZIO.when(active) {
+        val lightningChancePercent = 20
+        val actionType = Random.nextIntBounded(100).run
+        if !active then
+          ZIO.unit.run
+        else if actionType < lightningChancePercent then
+          discussionService.randomLightningAction
+            .debug("Random lightning action")
+            .ignore
+            .run
+        else
           discussionService.randomDiscussionAction
             .debug("Random action")
             .ignore
-        }.run
+            .run
       }
 
     // Schedule chaos loop - 2 second cadence

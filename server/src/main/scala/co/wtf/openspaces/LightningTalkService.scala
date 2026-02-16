@@ -11,6 +11,29 @@ case class LightningTalkService(
   lightningTalkRepo: LightningTalkRepository,
   userRepo: UserRepository,
 ):
+  // Pool of real GitHub users for random action generation.
+  // TODO Dedup with other user pools
+  private val randomUserPool: List[Person] = List(
+    Person("kitlangton"),
+    Person("jamesward"),
+    Person("BruceEckel"),
+    Person("cheshire137"),
+    Person("gaearon"),
+    Person("frenck"),
+    Person("charliermarsh"),
+    Person("peppy"),
+    Person("phodal"),
+    Person("dtolnay"),
+    Person("GrahamCampbell"),
+    Person("freekmurze"),
+    Person("Borda"),
+    Person("antfu"),
+    Person("lllyasviel"),
+    Person("fabpot"),
+    Person("himself65"),
+    Person("bradfitz"),
+    Person("ornicar"),
+  )
 
   def snapshot: UIO[LightningTalkState] =
     state.get
@@ -126,8 +149,26 @@ case class LightningTalkService(
               yield confirmed
         yield result
 
+  def randomLightningAction: Task[LightningTalkActionConfirmed] =
+    for
+      person <- randomPerson
+      current <- state.get
+      topic <- DiscussionTopics.randomTopic
+      action = current.proposalForSpeaker(person) match
+        case Some(existing) =>
+          LightningTalkAction.Rename(existing.id, topic)
+        case None =>
+          LightningTalkAction.Submit(topic, person)
+      result <- applyAction(action)
+    yield result
+
   private def ensureUserExists(username: String): Task[Unit] =
     userRepo.upsert(username, None).unit
+
+  private def randomPerson: Task[Person] =
+    for
+      idx <- zio.Random.nextIntBounded(randomUserPool.size)
+    yield randomUserPool(idx)
 
   private def createProposal(topic: Topic, speaker: Person): Task[LightningTalkProposal] =
     for
