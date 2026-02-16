@@ -5,14 +5,12 @@ import co.wtf.openspaces.slack._
 import zio.direct._
 import zio.http._
 import zio.http.endpoint.openapi._
-import  zio.http.endpoint.openapi._
 import java.time.format.DateTimeFormatter
 
-import zio.json.{DeriveJsonEncoder, EncoderOps}
+import zio.json.EncoderOps
 import zio.logging.{ConsoleLoggerConfig, LogAnnotation, LogFormat, consoleJsonLogger}
 import zio.logging.LogFormat._
 import zio._
-import co.wtf.openspaces.Backend.myLogFormat
 
 case class MyConfig(ldap: String, port: Int, dburl: String)
 
@@ -21,8 +19,11 @@ object Backend extends ZIOAppDefault {
   private val userLogAnnotation = LogAnnotation[UserRow]("user", (_, u) => u, _.toJson)
   
   
-  val myLogFormat = 
-  LogFormat.timestamp(DateTimeFormatter.ofPattern("MM-dd HH:mm:ss")) |-| LogFormat.level |-| label("message", quoted(line)) |-| LogFormat.annotation(userLogAnnotation)
+  val myLogFormat =
+    label("timestamp", LogFormat.timestamp(DateTimeFormatter.ofPattern("MM-dd HH:mm:ss"))) |-|
+      label("level", LogFormat.level) |-|
+      label("message", quoted(line)) |-|
+      LogFormat.annotation(userLogAnnotation)
   
   private val logConfig = ConsoleLoggerConfig.default.copy(
     format =  myLogFormat
