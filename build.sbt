@@ -88,12 +88,9 @@ lazy val server = (project in file("server"))
     // This avoids sbt-dotenv plugins that use reflection hacks incompatible with modern JDKs.
     reStart / envVars := Dotenv.load(baseDirectory.value.getParentFile / ".env", streams.value.log),
 
-    // Key fix: Make the stage task depend on client's fastOptJS
+    // Production packaging uses full optimized frontend artifacts
     stage := (stage dependsOn (client / Compile / fullOptJS) dependsOn (serviceworker / Compile / fullOptJS)).value,
-
-    // Also ensure the JS is available during development
-    Compile / compile := ((Compile / compile) dependsOn (client / Compile / fastOptJS) dependsOn (serviceworker / Compile / fastOptJS)).value,
-    
+    // Development run keeps fast frontend artifacts up to date
     reStart := ((reStart) dependsOn (client / Compile / fastOptJS) dependsOn (serviceworker / Compile / fastOptJS)).evaluated,
     
 
