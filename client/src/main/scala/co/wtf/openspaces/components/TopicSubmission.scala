@@ -19,11 +19,9 @@ object TopicSubmission:
     val isFocused = Var(false)
     
     div(
+      cls := "TopicSubmission",
       cls <-- isFocused.signal.map { focused =>
-        UiClasses.build(
-          "TopicSubmission",
-          "TopicSubmission--focused" -> focused,
-        )
+        if focused then "TopicSubmission--focused" else ""
       },
       div(
         cls := "TopicSubmission-inputWrapper",

@@ -26,10 +26,8 @@ private object MenuUi:
     target: Boolean = false,
   ): HtmlElement =
     val mods = Seq[Modifier[HtmlElement]](
-      cls := UiClasses.build(
-        "Menu-section",
-        "Menu-section--target" -> target,
-      ),
+      cls := "Menu-section",
+      if target then cls := "Menu-section--target" else emptyMod,
       div(cls := "Menu-label", label),
     ) ++ body
     div(mods)
@@ -39,7 +37,8 @@ private object MenuUi:
     variantClass: String,
   ): HtmlElement =
     div(
-      cls := UiClasses.join("Menu-topic", variantClass),
+      cls := "Menu-topic",
+      if variantClass.nonEmpty then cls := variantClass else emptyMod,
       GitHubAvatar(discussion.facilitator),
       div(
         div(cls := "Menu-topicName", discussion.topicName),

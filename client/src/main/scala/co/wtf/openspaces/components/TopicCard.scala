@@ -42,7 +42,8 @@ object TopicCard:
         val hasVoted = currentUserFeedback.isDefined
 
         val cardContent = div(
-          cls := UiClasses.join("TopicCard", voteBackgroundClass),
+          cls := "TopicCard",
+          cls := voteBackgroundClass,
           // Celebration animation class when vote is confirmed
           cls <-- AppState.celebratingTopics.signal.map { celebrating =>
             celebrating.get(topic.id) match
@@ -67,21 +68,15 @@ object TopicCard:
           },
           // Vote status indicator (unified left position) - shows icon + vote count
           div(
-            cls := (voteStatus match
+            cls := "VoteIndicator",
+            voteStatus match
               case Some(VotePosition.Interested) =>
-                UiClasses.build(
-                  "VoteIndicator",
-                  "VoteIndicator--interested" -> true,
-                  "VoteIndicator--visible" -> true,
-                )
+                cls := "VoteIndicator--interested"
               case Some(VotePosition.NotInterested) =>
-                UiClasses.build(
-                  "VoteIndicator",
-                  "VoteIndicator--notinterested" -> true,
-                  "VoteIndicator--visible" -> true,
-                )
-              case None => "VoteIndicator"
-            ),
+                cls := "VoteIndicator--notinterested"
+              case None => emptyMod
+            ,
+            if hasVoted then cls := "VoteIndicator--visible" else emptyMod,
             // Icon based on vote type
             span(
               cls := "VoteIndicator-icon",
@@ -132,10 +127,8 @@ object TopicCard:
                 )
               case None =>
                 span(
-                  cls := UiClasses.build(
-                    "RoomSlot",
-                    "RoomSlot--unscheduled" -> true,
-                  ),
+                  cls := "RoomSlot",
+                  cls := "RoomSlot--unscheduled",
                   "Unscheduled",
                 )
             },

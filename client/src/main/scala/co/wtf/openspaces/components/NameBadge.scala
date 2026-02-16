@@ -22,11 +22,9 @@ object NameBadge:
         cls := "UserProfileSection",
         // Sound toggle button
         button(
+          cls := "sound-toggle",
           cls <-- soundMuted.signal.map { muted =>
-            UiClasses.build(
-              "sound-toggle",
-              "sound-toggle--muted" -> muted,
-            )
+            if muted then "sound-toggle--muted" else ""
           },
           title <-- soundMuted.signal.map { muted =>
             if muted then "Sound off - click to enable"

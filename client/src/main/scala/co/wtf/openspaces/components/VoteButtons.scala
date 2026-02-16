@@ -36,11 +36,9 @@ object VoteButtons:
     div(
       cls := "VoteButtonRow",
       button(
-        cls := UiClasses.build(
-          "VoteButton",
-          "VoteButton--interested" -> true,
-          "VoteButton--active" -> isInterested,
-        ),
+        cls := "VoteButton",
+        cls := "VoteButton--interested",
+        if isInterested then cls := "VoteButton--active" else emptyMod,
         onClick --> Observer { _ =>
           handleVote(VotePosition.Interested)
         },
@@ -55,11 +53,9 @@ object VoteButtons:
         span(cls := "VoteCount VoteCount--hidden", "?")
       },
       button(
-        cls := UiClasses.build(
-          "VoteButton",
-          "VoteButton--notinterested" -> true,
-          "VoteButton--active" -> isNotInterested,
-        ),
+        cls := "VoteButton",
+        cls := "VoteButton--notinterested",
+        if isNotInterested then cls := "VoteButton--active" else emptyMod,
         onClick --> Observer { _ =>
           handleVote(VotePosition.NotInterested)
         },

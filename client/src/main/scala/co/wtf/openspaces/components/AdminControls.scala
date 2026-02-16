@@ -14,19 +14,6 @@ import scala.util.{Failure, Success}
   * Extracted from AppState.scala for better code organization.
   */
 object AdminControls:
-  private def adminButtonClass(
-    isLoading: Boolean,
-    variantClass: Option[String] = None,
-    activeClass: Option[String] = None,
-    isActive: Boolean = false,
-  ): String =
-    UiClasses.join(
-      "AdminControls-button",
-      variantClass.getOrElse(""),
-      activeClass.filter(_ => isActive).getOrElse(""),
-      if isLoading then "AdminControls-button--loading" else "",
-    )
-
   def apply(
     $showAdminControls: Signal[Boolean],
     topicUpdates: DiscussionAction => Unit,
@@ -142,13 +129,13 @@ object AdminControls:
       onMountCallback(_ => fetchStatus()),
       // Full chaos button
       button(
-        cls <-- Signal.combine(isChaosActive.signal, chaosLoading.signal).map { 
-          case (isActive, isLoading) =>
-            adminButtonClass(
-              isLoading = isLoading,
-              activeClass = Some("AdminControls-button--active"),
-              isActive = isActive,
-            )
+        cls := "AdminControls-button",
+        cls <-- Signal.combine(isChaosActive.signal, chaosLoading.signal).map {
+          case (isActive, _) =>
+            if isActive then "AdminControls-button--active" else ""
+        },
+        cls <-- chaosLoading.signal.map { isLoading =>
+          if isLoading then "AdminControls-button--loading" else ""
         },
         disabled <-- chaosLoading.signal,
         onClick --> { _ => toggleChaos() },
@@ -160,13 +147,13 @@ object AdminControls:
       ),
       // Schedule-only chaos button
       button(
-        cls <-- Signal.combine(isScheduleChaosActive.signal, scheduleChaosLoading.signal).map { 
-          case (isActive, isLoading) =>
-            adminButtonClass(
-              isLoading = isLoading,
-              activeClass = Some("AdminControls-button--schedule-active"),
-              isActive = isActive,
-            )
+        cls := "AdminControls-button",
+        cls <-- Signal.combine(isScheduleChaosActive.signal, scheduleChaosLoading.signal).map {
+          case (isActive, _) =>
+            if isActive then "AdminControls-button--schedule-active" else ""
+        },
+        cls <-- scheduleChaosLoading.signal.map { isLoading =>
+          if isLoading then "AdminControls-button--loading" else ""
         },
         disabled <-- scheduleChaosLoading.signal,
         onClick --> { _ => toggleScheduleChaos() },
@@ -178,11 +165,10 @@ object AdminControls:
       ),
       // Auto-schedule button
       button(
+        cls := "AdminControls-button",
+        cls := "AdminControls-button--primary",
         cls <-- scheduleLoading.signal.map { loading =>
-          adminButtonClass(
-            isLoading = loading,
-            variantClass = Some("AdminControls-button--primary"),
-          )
+          if loading then "AdminControls-button--loading" else ""
         },
         disabled <-- scheduleLoading.signal,
         onClick --> { _ => runScheduling() },
@@ -192,11 +178,10 @@ object AdminControls:
         },
       ),
       button(
+        cls := "AdminControls-button",
+        cls := "AdminControls-button--danger",
         cls <-- deleteLoading.signal.map { loading =>
-          adminButtonClass(
-            isLoading = loading,
-            variantClass = Some("AdminControls-button--danger"),
-          )
+          if loading then "AdminControls-button--loading" else ""
         },
         disabled <-- deleteLoading.signal,
         onClick --> { _ => deleteAll() },
@@ -206,11 +191,10 @@ object AdminControls:
         },
       ),
       button(
+        cls := "AdminControls-button",
+        cls := "AdminControls-button--warning",
         cls <-- resetLoading.signal.map { loading =>
-          adminButtonClass(
-            isLoading = loading,
-            variantClass = Some("AdminControls-button--warning"),
-          )
+          if loading then "AdminControls-button--loading" else ""
         },
         disabled <-- resetLoading.signal,
         onClick --> { _ => resetUser() },
