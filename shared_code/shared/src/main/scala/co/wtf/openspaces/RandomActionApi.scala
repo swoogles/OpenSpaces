@@ -22,7 +22,7 @@ object RandomActionApi {
   val ticketGet =
     Endpoint(RoutePattern.GET / "ticket")
       .header[String]("Authorization")
-      .out[String]
+      .out[Ticket]
 
   val refreshGet =
     Endpoint(RoutePattern.GET / "refresh")
@@ -97,7 +97,7 @@ executor: EndpointExecutor[Any, Unit, zio.Scope]
   def randomScheduleStatus: Future[ActiveStatus] =
     futureDumb(RandomActionApi.randomScheduleGet.apply(()))
   
-  def ticket(accessToken: String): Future[String] =
+  def ticket(accessToken: String): Future[Ticket] =
     futureDumb(
       RandomActionApi.ticketGet.apply(
         s"Bearer $accessToken",

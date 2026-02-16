@@ -5,6 +5,7 @@ import co.wtf.openspaces.VotePosition.Interested
 import neotype.*
 import neotype.given
 import neotype.interop.ziojson.given
+import zio.schema.*
 import zio.json.*
 
 import java.time.{LocalDate, LocalDateTime}
@@ -15,7 +16,7 @@ sealed trait WebSocketMessage derives JsonCodec
 case class Ticket(
   uuid: UUID)
     extends WebSocketMessage
-    derives JsonCodec
+    derives JsonCodec, Schema
 
 enum DiscussionAction extends WebSocketMessage derives JsonCodec:
   case Add(

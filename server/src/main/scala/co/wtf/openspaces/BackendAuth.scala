@@ -115,7 +115,7 @@ case class TicketRoutesApp(
   val routes =
     Routes(
       RandomActionApi.ticketGet.implement { _ =>
-        ticketService.create.map(_.toJson)
+        ticketService.create
       },
     )
 

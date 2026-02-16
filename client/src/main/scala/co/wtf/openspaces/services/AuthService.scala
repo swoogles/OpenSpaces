@@ -7,7 +7,7 @@ import scala.scalajs.js.URIUtils
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
 
-import co.wtf.openspaces.{Person, RandomActionClient}
+import co.wtf.openspaces.{Person, RandomActionClient, Ticket}
 
 object AuthService:
   private var refreshInFlight: Option[Future[Boolean]] = None
@@ -86,14 +86,14 @@ object AuthService:
     com.raquo.laminar.api.L.Var(username)
 
   /** Fetch a ticket, automatically refreshing the access token if needed */
-  def fetchTicketWithRefresh(randomActionClient: RandomActionClient): EventStream[String] = {
+  def fetchTicketWithRefresh(randomActionClient: RandomActionClient): EventStream[Ticket] = {
     EventStream.fromFuture(fetchTicketAsync(randomActionClient))
   }
 
   /** Fetch a fresh auth ticket, refreshing access token if needed.
-    * Returns a Future that resolves to the ticket response text.
+    * Returns a Future that resolves to the typed ticket.
     */
-  def fetchTicketAsync(randomActionClient: RandomActionClient): Future[String] =
+  def fetchTicketAsync(randomActionClient: RandomActionClient): Future[Ticket] =
     ensureFreshAccessToken(randomActionClient).flatMap { refreshed =>
       if refreshed then
         randomActionClient

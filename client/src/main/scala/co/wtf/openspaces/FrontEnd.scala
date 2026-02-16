@@ -592,13 +592,9 @@ object FrontEnd extends ZIOAppDefault{
     // Register the sync operation with the connection manager
     // This will be called on connect, reconnect, and visibility return
     connectionStatus.onSync {
-      AuthService.fetchTicketAsync(randomActionClient).map { responseText =>
-        responseText.fromJson[Ticket] match
-          case Right(ticket) =>
-            println("Ticket received, sending to server for state sync")
-            topicUpdates.sendOne(ticket)
-          case Left(parseError) =>
-            throw new Exception(s"Invalid ticket response: $parseError")
+      AuthService.fetchTicketAsync(randomActionClient).map { ticket =>
+        println("Ticket received, sending to server for state sync")
+        topicUpdates.sendOne(ticket)
       }
     }
   
@@ -643,11 +639,8 @@ object FrontEnd extends ZIOAppDefault{
           case DiscussionActionConfirmed.Unauthorized(discussionAction) =>
             EventStream.fromFuture(
               connectionStatus.withErrorHandling(
-                AuthService.fetchTicketAsync(randomActionClient).map { responseText =>
-                  responseText.fromJson[Ticket] match
-                    case Right(ticket) => (ticket, discussionAction)
-                    case Left(err) => throw new Exception(s"Failed to parse ticket: $err")
-                },
+                AuthService.fetchTicketAsync(randomActionClient)
+                  .map(ticket => (ticket, discussionAction)),
                 "Re-authentication failed",
               )
             ).collect { case Some(result) => result }
