@@ -10,7 +10,7 @@ case class UserRow(
   githubUsername: String,
   displayName: Option[String],
   createdAt: OffsetDateTime
-) derives DbCodec
+) derives DbCodec, JsonCodec
 
 object UserRow:
   def create(githubUsername: String, displayName: Option[String]): UserRow =

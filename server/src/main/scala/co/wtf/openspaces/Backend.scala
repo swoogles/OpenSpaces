@@ -1,16 +1,40 @@
 package co.wtf.openspaces
 
-import co.wtf.openspaces.db.*
-import co.wtf.openspaces.slack.*
-import zio.*
-import zio.direct.*
-import zio.http.*
+import co.wtf.openspaces.db._
+import co.wtf.openspaces.slack._
+import zio.direct._
+import zio.http._
 import zio.http.endpoint.openapi._
 import  zio.http.endpoint.openapi._
+import java.time.format.DateTimeFormatter
+
+import zio.json.{DeriveJsonEncoder, EncoderOps}
+import zio.logging.{ConsoleLoggerConfig, LogAnnotation, LogFormat, consoleJsonLogger}
+import zio.logging.LogFormat._
+import zio._
+import co.wtf.openspaces.Backend.myLogFormat
 
 case class MyConfig(ldap: String, port: Int, dburl: String)
 
 object Backend extends ZIOAppDefault {
+
+  private val userLogAnnotation = LogAnnotation[UserRow]("user", (_, u) => u, _.toJson)
+  
+  
+  val myLogFormat = 
+  LogFormat.timestamp(DateTimeFormatter.ofPattern("MM-dd HH:mm:ss")) |-| LogFormat.level |-| label("message", quoted(line)) |-| LogFormat.annotation(userLogAnnotation)
+  
+  private val logConfig = ConsoleLoggerConfig.default.copy(
+    format =  myLogFormat
+    // (LogFormat.timestamp(DateTimeFormatter.ISO_LOCAL_TIME) +
+    // LogFormat.space +
+    // LogFormat.level +
+    // LogFormat.space +
+    //       LogFormat.annotation(LogAnnotation.TraceId) + LogFormat.annotation(userLogAnnotation))
+  )
+  
+  override val bootstrap: ZLayer[ZIOAppArgs, Any, Any] =
+    Runtime.removeDefaultLoggers >>> consoleJsonLogger(logConfig)
 
   override def run =
     val port = sys.env
