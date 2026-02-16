@@ -237,6 +237,43 @@ body {
     gap: 10px;
 }
 
+.TopicGroups {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    margin: 8px 16px 24px 16px;
+}
+
+.TopicSection {
+    background: #ffffff;
+    border: 1px solid #d4e2ef;
+    border-radius: 14px;
+    padding: 12px;
+    box-shadow: 0 2px 8px rgba(15, 23, 42, 0.06);
+}
+
+.TopicSection-title {
+    margin: 0;
+    color: #1f3553;
+    font-size: 16px;
+    font-weight: 700;
+}
+
+.TopicSection-subtitle {
+    margin: 4px 0 10px 0;
+    color: #516a84;
+    font-size: 13px;
+    line-height: 1.35;
+}
+
+.TopicSection-empty {
+    padding: 10px 8px;
+    color: #5b7188;
+    font-size: 13px;
+    background: #f3f7fb;
+    border-radius: 10px;
+}
+
 .UnjudgedCounter {
     text-align: center;
     padding: 8px 16px;

@@ -112,15 +112,46 @@ object FrontEnd extends ZIOAppDefault{
   def liveTopicSubmissionAndVoting(
     updateTargetDiscussion: Observer[Discussion],
   ) =
-    // Signal for counting unjudged topics
-    val $unjudgedCount = Signal.combine(
+    val $orderedTopics = Signal.combine(
       discussionState.signal,
       name.signal,
     ).map { case (state, currentUser) =>
-      state.data.values.count { topic =>
-        !topic.interestedParties.exists(_.voter == currentUser)
-      }
+      state.data.values.toList.sortBy(topic => (topic.createdAtEpochMs, topic.id.unwrap))
     }
+
+    val $unjudgedTopics = Signal.combine(
+      $orderedTopics,
+      name.signal,
+    ).map { case (topics, currentUser) =>
+      topics.filter(topic => !topic.interestedParties.exists(_.voter == currentUser))
+    }
+
+    val $votedTopics = Signal.combine(
+      $orderedTopics,
+      name.signal,
+    ).map { case (topics, currentUser) =>
+      topics
+        .filter(topic => topic.interestedParties.exists(_.voter == currentUser))
+        .sortBy { topic =>
+          val firstVoteTs = topic.interestedParties
+            .find(_.voter == currentUser)
+            .flatMap(_.firstVotedAtEpochMs)
+            .getOrElse(Long.MinValue)
+          (-firstVoteTs, topic.id.unwrap)
+        }
+    }
+
+    val $nextUnjudgedTopic = $unjudgedTopics.map(_.headOption.toList)
+
+    // Signal for counting unjudged topics
+    val $unjudgedCount = $unjudgedTopics.map(_.size)
+
+    // Track the first unjudged topic ID for swipe hint
+    val $firstUnjudgedId: Signal[Option[TopicId]] =
+      $nextUnjudgedTopic.map(_.headOption.map(_.id))
+
+    val $hasVotedTopics = $votedTopics.map(_.nonEmpty)
+    val $hasNextTopic = $nextUnjudgedTopic.map(_.nonEmpty)
 
     div(
       TopicSubmission(submitNewTopic,
@@ -136,55 +167,51 @@ object FrontEnd extends ZIOAppDefault{
           else s"$count topics Need your feedback!"
         },
       ),
-      {
-        // Track the first unjudged topic ID for swipe hint
-        val $firstUnjudgedId: Signal[Option[TopicId]] = Signal.combine(
-          discussionState.signal,
-          name.signal,
-        ).map { case (state, currentUser) =>
-          state.data.values.find { topic =>
-            !topic.interestedParties.exists(_.voter == currentUser)
-          }.map(_.id)
-        }
-
-        DiscussionSubview(
-        Signal.combine(
-          discussionState.signal,
-          name.signal,
-        ).map { case (state, currentUser) =>
-          // Keep a stable, deterministic order that does not depend on vote events.
-          val allTopics = state.data.values.toList.sortBy(_.id.unwrap)
-
-          // Partition into judged (user has voted) and unjudged (user hasn't voted)
-          val (judged, unjudged) = allTopics.partition { topic =>
-            topic.interestedParties.exists(_.voter == currentUser)
-          }
-
-          // Take only the first unjudged topic (if any)
-          val firstUnjudged = unjudged.headOption.toList
-
-          // Sort judged topics by when the current user first voted (newest first).
-          // Topics missing a timestamp fall back to the oldest bucket and stable ID ordering.
-          val sortedJudged = judged.sortBy { topic =>
-            val firstVoteTs = topic.interestedParties
-              .find(_.voter == currentUser)
-              .flatMap(_.firstVotedAtEpochMs)
-              .getOrElse(Long.MinValue)
-            (-firstVoteTs, topic.id.unwrap)
-          }
-
-          // Combine: first unjudged + judged topics sorted by first-vote time
-          firstUnjudged ++ sortedJudged
-        },
-        None,
-        name.signal,
-        sendDiscussionAction,
-        updateTargetDiscussion,
-        connectionStatus,
-        $firstUnjudgedId,
-        showSwipeHint.signal,
-      )
-      },
+      div(
+        cls := "TopicGroups",
+        div(
+          cls := "TopicSection",
+          h3(cls := "TopicSection-title", "Next Topic To Vote"),
+          p(
+            cls := "TopicSection-subtitle",
+            "Only one unvoted topic is shown at a time. Vote to reveal the next one.",
+          ),
+          child.maybe <-- $hasNextTopic.map { hasNext =>
+            if hasNext then None
+            else Some(div(cls := "TopicSection-empty", "You have voted on every current topic."))
+          },
+          DiscussionSubview(
+            $nextUnjudgedTopic,
+            None,
+            name.signal,
+            sendDiscussionAction,
+            updateTargetDiscussion,
+            connectionStatus,
+            $firstUnjudgedId,
+            showSwipeHint.signal,
+          ),
+        ),
+        div(
+          cls := "TopicSection",
+          h3(cls := "TopicSection-title", "Topics You Already Voted On"),
+          p(
+            cls := "TopicSection-subtitle",
+            "Ordered by when you first voted, newest at the top.",
+          ),
+          child.maybe <-- $hasVotedTopics.map { hasVoted =>
+            if hasVoted then None
+            else Some(div(cls := "TopicSection-empty", "No voted topics yet."))
+          },
+          DiscussionSubview(
+            $votedTopics,
+            None,
+            name.signal,
+            sendDiscussionAction,
+            updateTargetDiscussion,
+            connectionStatus,
+          ),
+        ),
+      ),
     )
 
   val updateTargetDiscussion: Observer[Discussion] =

@@ -299,6 +299,7 @@ class DiscussionDataStore(
     for {
       randomIcon <- glyphiconService.getRandomIcon
       randomId   <- Random.nextLong
+      createdAtEpochMs = java.lang.System.currentTimeMillis()
     } yield Discussion(
       topic,
       facilitator,
@@ -308,6 +309,7 @@ class DiscussionDataStore(
       roomSlot,
       None,
       None,
+      createdAtEpochMs,
     )
 
 object DiscussionDataStore:

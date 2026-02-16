@@ -64,7 +64,8 @@ case class Discussion(
   glyphicon: Glyphicon,
   roomSlot: Option[RoomSlot],
   facilitatorDisplayName: Option[String],
-  slackThreadUrl: Option[String])
+  slackThreadUrl: Option[String],
+  createdAtEpochMs: Long)
     derives JsonCodec:
 
   val votes: Int = interestedParties.count(_.position == Interested)
@@ -79,6 +80,7 @@ object Discussion:
     glyphicon: Glyphicon,
     roomSlot: Option[RoomSlot] = None,
     facilitatorDisplayName: Option[String] = None,
+    createdAtEpochMs: Long = java.lang.System.currentTimeMillis(),
   ): Discussion =
     Discussion(
       topic,
@@ -89,6 +91,7 @@ object Discussion:
       roomSlot,
       facilitatorDisplayName,
       None,
+      createdAtEpochMs,
     )
 
   val example1 = Discussion(
@@ -149,6 +152,7 @@ object Discussion:
       None,
       None,
       None,
+      0L,
     )
 
   val example5 =
@@ -161,6 +165,7 @@ object Discussion:
       None,
       None,
       None,
+      0L,
     )
 
   val example6 =
@@ -173,6 +178,7 @@ object Discussion:
       None,
       None,
       None,
+      0L,
     )
 
 case class Room(

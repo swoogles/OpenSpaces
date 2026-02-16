@@ -408,16 +408,18 @@ class PersistentDiscussionStore(
       randomIcon <- glyphiconService.getRandomIcon
       randomId   <- Random.nextLong
       userRow    <- userRepo.findByUsername(facilitator.unwrap)
+      createdAtEpochMs = java.lang.System.currentTimeMillis()
       displayName = userRow.flatMap(_.displayName)
     yield Discussion(
       topic,
       facilitator,
-      Set(Feedback(facilitator, VotePosition.Interested, Some(java.lang.System.currentTimeMillis()))),
+      Set(Feedback(facilitator, VotePosition.Interested, Some(createdAtEpochMs))),
       TopicId(randomId),
       randomIcon,
       roomSlot,
       displayName,
-      None
+      None,
+      createdAtEpochMs
     )
 
   private def persistEvent(
@@ -537,7 +539,8 @@ object PersistentDiscussionStore:
           glyphicon,
           roomSlot,
           userMap.get(row.facilitator).flatten,
-          row.slackPermalink
+          row.slackPermalink,
+          row.createdAt.toInstant.toEpochMilli
         )
       }
     yield DiscussionState(
