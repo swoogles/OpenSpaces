@@ -14,16 +14,6 @@ object AppState:
       DiscussionState(DiscussionState.timeSlotExamples, Map.empty),
     )
 
-  // Tracks the order of topics the user has voted on / created.
-  // Most recent first. Used to maintain stable ordering of judged topics.
-  val votedTopicOrder: Var[List[TopicId]] =
-    Var(Nil)
-
-  // Tracks all topics the user has ever voted on (monotonically grows).
-  // Used to distinguish first votes from vote changes.
-  val everVotedTopics: Var[Set[TopicId]] =
-    Var(Set.empty)
-
   // ============================================
   // Vote Celebration (Sound + Visual Effects)
   // ============================================

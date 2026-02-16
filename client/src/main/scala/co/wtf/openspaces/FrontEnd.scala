@@ -51,8 +51,6 @@ object FrontEnd extends ZIOAppDefault{
 
   // App state moved to AppState.scala
   val discussionState = AppState.discussionState
-  val votedTopicOrder = AppState.votedTopicOrder
-  val everVotedTopics = AppState.everVotedTopics
   val soundMuted = AppState.soundMuted
   val celebratingTopics = AppState.celebratingTopics
   val hasSeenSwipeHint = AppState.hasSeenSwipeHint
@@ -361,17 +359,12 @@ object FrontEnd extends ZIOAppDefault{
                   // Show toast if user cares about either topic
                   notifyScheduleChange(topic1, newSlot1)
                   notifyScheduleChange(topic2, newSlot2)
-                // Track the user's vote history
                 case DiscussionActionConfirmed.Vote(topicId, feedback) =>
                   val currentUser = name.now()
                   if feedback.voter == currentUser then
-                    val isFirstVote = !everVotedTopics.now().contains(topicId)
-                    everVotedTopics.update(_ + topicId)
-                    if isFirstVote then
-                      votedTopicOrder.update(order => topicId :: order.filterNot(_ == topicId))
                     // Celebrate the vote! (sound + animation)
                     celebrateVote(topicId, feedback.position)
-                    // Dismiss swipe hint on first vote
+                    // Dismiss swipe hint when the user votes.
                     dismissSwipeHint()
 
                 // Animate schedule updates for single-topic slot changes
@@ -399,11 +392,6 @@ object FrontEnd extends ZIOAppDefault{
                 // Clean up animation state when topics are deleted to prevent memory leaks
                 case DiscussionActionConfirmed.Delete(topicId) =>
                   SwapAnimationState.cleanupTopic(topicId)
-                // Track topics the user has voted on (for everVotedTopics set)
-                case DiscussionActionConfirmed.AddResult(discussion) =>
-                  val currentUser = name.now()
-                  if discussion.interestedParties.exists(_.voter == currentUser) then
-                    everVotedTopics.update(_ + discussion.id)
                 case _ => ()
 
               // Capture scroll position before state update

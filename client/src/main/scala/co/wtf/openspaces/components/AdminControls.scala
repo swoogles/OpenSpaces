@@ -114,8 +114,6 @@ object AdminControls:
         topicUpdates(DiscussionAction.ResetUser(user))
         
         // Reset client-side state
-        AppState.everVotedTopics.set(Set.empty)
-        AppState.votedTopicOrder.set(Nil)
         AppState.showSwipeHint.set(true)
         AppState.hasSeenSwipeHint.set(false)
         SafeStorage.setItem("hasSeenSwipeHint", "false")
