@@ -43,6 +43,7 @@ lazy val client = (project in file("client"))
     name := "client",
     Compile / fastOptJS / artifactPath := baseDirectory.value.getParentFile / "server" / "src" / "main" / "resources" / "public" / "client-fastopt.js",
     Compile / fullOptJS / artifactPath := baseDirectory.value.getParentFile / "server" / "src" / "main" / "resources" / "public" / "client-fastopt.js",
+    Compile / fullOptJS / scalaJSLinkerConfig ~= (_.withSourceMap(false)),
     scalaJSUseMainModuleInitializer := true,
     scalaJSLinkerConfig ~= {
       _.withModuleKind(ModuleKind.ESModule)
@@ -64,6 +65,7 @@ lazy val serviceworker = (project in file("serviceworker"))
     name := "serviceworker",
     Compile / fastOptJS / artifactPath := baseDirectory.value.getParentFile / "server" / "src" / "main" / "resources" / "public" / "sw.js",
     Compile / fullOptJS / artifactPath := baseDirectory.value.getParentFile / "server" / "src" / "main" / "resources" / "public" / "sw.js",
+    Compile / fullOptJS / scalaJSLinkerConfig ~= (_.withSourceMap(false)),
     scalaJSUseMainModuleInitializer := true,
     libraryDependencies ++= Seq(
       "org.scala-js" %%% "scalajs-dom" % "2.8.1",
