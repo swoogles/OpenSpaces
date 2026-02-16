@@ -7,7 +7,7 @@ import zio.http.*
 import zio.json.*
 
 case class DiscussionService(
-  connectedUsers: Ref[List[OpenSpacesServerChannel]],
+  connectedUsers: Ref[Set[OpenSpacesServerChannel]],
   discussionStore: DiscussionStore,
   authenticatedTicketService: AuthenticatedTicketService,
   slackNotifier: SlackNotifier):
@@ -65,7 +65,7 @@ case class DiscussionService(
         .mapError(new Exception(_))
         .run
       connectedUsers
-        .updateAndGet(_ :+ channel)
+        .updateAndGet(_ + channel)
         .run
       val state = discussionStore.snapshot.run
       channel
@@ -86,6 +86,9 @@ case class DiscussionService(
           channel.send(message).ignore,
         )
         .run
+
+  def removeChannel(channel: OpenSpacesServerChannel): UIO[Unit] =
+    connectedUsers.update(_ - channel).unit
 
   /** Apply an action and broadcast to all clients + Slack. Used by scheduler. */
   def applyAndBroadcast(action: DiscussionAction): Task[DiscussionActionConfirmed] =
@@ -133,7 +136,7 @@ object DiscussionService:
     ZLayer.fromZIO:
       defer:
         DiscussionService(
-          Ref.make(List.empty[OpenSpacesServerChannel]).run,
+          Ref.make(Set.empty[OpenSpacesServerChannel]).run,
           ZIO.service[DiscussionStore].run,
           ZIO.service[AuthenticatedTicketService].run,
           ZIO.service[SlackNotifier].run,

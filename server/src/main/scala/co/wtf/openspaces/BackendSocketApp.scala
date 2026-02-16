@@ -18,6 +18,7 @@ case class BackendSocketApp(
   val socketApp: WebSocketApp[Any] =
     Handler.webSocket { channel =>
       defer:
+        val openSpacesChannel = OpenSpacesServerChannel(channel)
         channel.receiveAll {
           case Read(WebSocketFrame.Text(text)) =>
             text.fromJson[WebSocketMessage] match
@@ -27,7 +28,7 @@ case class BackendSocketApp(
                 defer:
                   discussionService
                     .handleMessage(value,
-                                   OpenSpacesServerChannel(channel),
+                                   openSpacesChannel,
                     )
                     .run
 
@@ -35,10 +36,10 @@ case class BackendSocketApp(
             ZIO.unit
 
           case Read(WebSocketFrame.Close(status, reason)) =>
-            ZIO.unit
+            discussionService.removeChannel(openSpacesChannel)
 
           case ExceptionCaught(cause) =>
-            ZIO.unit
+            discussionService.removeChannel(openSpacesChannel)
 
           case other =>
             ZIO.unit
