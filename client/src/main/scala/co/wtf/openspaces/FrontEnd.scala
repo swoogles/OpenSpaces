@@ -551,6 +551,8 @@ object FrontEnd extends ZIOAppDefault{
         (None, false)
       case DiscussionActionConfirmed.SlackThreadLinked(topicId, _) =>
         (Some(topicId), false)
+      case DiscussionActionConfirmed.StateReplace(_) =>
+        (None, false)
       case DiscussionActionConfirmed.Rejected(_) =>
         (None, false)
     }

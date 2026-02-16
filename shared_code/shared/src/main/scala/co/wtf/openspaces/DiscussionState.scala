@@ -24,75 +24,83 @@ case class DiscussionState(
   def apply(
     discussionAction: DiscussionActionConfirmed,
   ): DiscussionState =
-    copy(data = discussionAction match
-      case Rejected(action) =>
-        data // This should never actually get passed in, right?
-      case DiscussionActionConfirmed.UpdateRoomSlot(topicId,
-                                                    roomSlot,
-          ) =>
-        data.updatedWith(topicId) {
-          _.map(value => value.copy(roomSlot = Some(roomSlot)))
-        }
-      case DiscussionActionConfirmed.Unschedule(topicId) =>
-        data.updatedWith(topicId) {
-          _.map(value => value.copy(roomSlot = None))
-        }
-      case DiscussionActionConfirmed.Delete(topicId) =>
-        data.filterNot(_._2.id == topicId)
-      case DiscussionActionConfirmed.Vote(topicId, newFeedback) =>
-        // Upsert: remove any existing vote from this voter, then add the new vote
-        data.updatedWith(topicId) {
-          _.map(value =>
-            value.copy(interestedParties =
-              value.interestedParties.filterNot(_.voter == newFeedback.voter) + newFeedback,
-            ),
-          )
-        }
-      case DiscussionActionConfirmed.ResetUser(person, deletedTopicIds, clearedVoteTopicIds) =>
-        // Remove deleted topics and clear votes from affected topics
-        val afterDeletes = data.filterNot { case (id, _) => deletedTopicIds.contains(id) }
-        clearedVoteTopicIds.foldLeft(afterDeletes) { (acc, topicId) =>
-          acc.updatedWith(topicId) {
-            _.map(value =>
-              value.copy(interestedParties =
-                value.interestedParties.filterNot(_.voter == person),
-              ),
-            )
-          }
-        }
-      case DiscussionActionConfirmed.Rename(topicId, newTopic) =>
-        data.updatedWith(topicId) {
-          _.map(value => value.copy(topic = newTopic))
-        }
-      case DiscussionActionConfirmed.MoveTopic(topicId,
-                                               targetRoomSlot,
-          ) =>
-        data.updatedWith(topicId) {
-          _.map(value => value.copy(roomSlot = Some(targetRoomSlot)))
-        }
+    discussionAction match
+      case DiscussionActionConfirmed.StateReplace(discussions) =>
+        copy(
+          data = discussions.map(d => d.id -> d).toMap,
+        )
+      case other =>
+        copy(data = other match
+          case Rejected(action) =>
+            data // This should never actually get passed in, right?
+          case DiscussionActionConfirmed.UpdateRoomSlot(topicId,
+                                                        roomSlot,
+              ) =>
+            data.updatedWith(topicId) {
+              _.map(value => value.copy(roomSlot = Some(roomSlot)))
+            }
+          case DiscussionActionConfirmed.Unschedule(topicId) =>
+            data.updatedWith(topicId) {
+              _.map(value => value.copy(roomSlot = None))
+            }
+          case DiscussionActionConfirmed.Delete(topicId) =>
+            data.filterNot(_._2.id == topicId)
+          case DiscussionActionConfirmed.Vote(topicId, newFeedback) =>
+            // Upsert: remove any existing vote from this voter, then add the new vote
+            data.updatedWith(topicId) {
+              _.map(value =>
+                value.copy(interestedParties =
+                  value.interestedParties.filterNot(_.voter == newFeedback.voter) + newFeedback,
+                ),
+              )
+            }
+          case DiscussionActionConfirmed.ResetUser(person, deletedTopicIds, clearedVoteTopicIds) =>
+            // Remove deleted topics and clear votes from affected topics
+            val afterDeletes = data.filterNot { case (id, _) => deletedTopicIds.contains(id) }
+            clearedVoteTopicIds.foldLeft(afterDeletes) { (acc, topicId) =>
+              acc.updatedWith(topicId) {
+                _.map(value =>
+                  value.copy(interestedParties =
+                    value.interestedParties.filterNot(_.voter == person),
+                  ),
+                )
+              }
+            }
+          case DiscussionActionConfirmed.Rename(topicId, newTopic) =>
+            data.updatedWith(topicId) {
+              _.map(value => value.copy(topic = newTopic))
+            }
+          case DiscussionActionConfirmed.MoveTopic(topicId,
+                                                   targetRoomSlot,
+              ) =>
+            data.updatedWith(topicId) {
+              _.map(value => value.copy(roomSlot = Some(targetRoomSlot)))
+            }
 
-      case DiscussionActionConfirmed.SwapTopics(topic1,
-                                                newSlot1,
-                                                topic2,
-                                                newSlot2,
-          ) =>
-        // The confirmed action contains the new (swapped) room slots
-        data
-          .updatedWith(topic1)(
-            _.map(_.copy(roomSlot = Some(newSlot1))),
-          )
-          .updatedWith(topic2)(
-            _.map(_.copy(roomSlot = Some(newSlot2))),
-          )
+          case DiscussionActionConfirmed.SwapTopics(topic1,
+                                                    newSlot1,
+                                                    topic2,
+                                                    newSlot2,
+              ) =>
+            // The confirmed action contains the new (swapped) room slots
+            data
+              .updatedWith(topic1)(
+                _.map(_.copy(roomSlot = Some(newSlot1))),
+              )
+              .updatedWith(topic2)(
+                _.map(_.copy(roomSlot = Some(newSlot2))),
+              )
 
-      case DiscussionActionConfirmed.AddResult(discussion) =>
-        data + (discussion.id -> discussion)
+          case DiscussionActionConfirmed.AddResult(discussion) =>
+            data + (discussion.id -> discussion)
 
-      case DiscussionActionConfirmed.SlackThreadLinked(topicId, slackThreadUrl) =>
-        data.updatedWith(topicId) {
-          _.map(value => value.copy(slackThreadUrl = Some(slackThreadUrl)))
-        },
-    )
+          case DiscussionActionConfirmed.SlackThreadLinked(topicId, slackThreadUrl) =>
+            data.updatedWith(topicId) {
+              _.map(value => value.copy(slackThreadUrl = Some(slackThreadUrl)))
+            }
+          case DiscussionActionConfirmed.StateReplace(_) =>
+            data,
+        )
 
 object DiscussionState:
   def apply(

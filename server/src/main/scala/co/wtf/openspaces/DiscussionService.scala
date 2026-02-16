@@ -69,15 +69,12 @@ case class DiscussionService(
       connectedUsers
         .updateAndGet(_ :+ channel)
         .run
-      val discussions = discussionStore.snapshot.run
-      ZIO
-        .foreachDiscard(discussions.data.values)(discussion =>
-          channel
-            .send(
-              DiscussionActionConfirmed.AddResult(
-                discussion,
-              ),
-            ),
+      val state = discussionStore.snapshot.run
+      channel
+        .send(
+          DiscussionActionConfirmed.StateReplace(
+            state.data.values.toList,
+          ),
         )
         .run
 

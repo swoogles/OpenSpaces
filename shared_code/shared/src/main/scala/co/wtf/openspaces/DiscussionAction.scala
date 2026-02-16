@@ -80,6 +80,8 @@ enum DiscussionActionConfirmed derives JsonCodec:
   case SlackThreadLinked(
     topicId: TopicId,
     slackThreadUrl: String)
+  case StateReplace(
+    discussions: List[Discussion])
   case Rejected(
     discussionAction: DiscussionAction)
 
