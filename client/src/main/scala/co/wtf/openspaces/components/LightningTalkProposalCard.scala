@@ -25,12 +25,6 @@ object LightningTalkProposalCard:
     rowClass: String = "LightningTalk-row",
     slotNumber: Option[Int] = None,
   ): HtmlElement =
-    val speakerMeta = metaText match
-      case Some(value) if value.nonEmpty =>
-        s"${proposal.speakerName} • $value"
-      case _ =>
-        proposal.speakerName
-
     div(
       cls := rowClass,
       slotNumber
@@ -38,10 +32,10 @@ object LightningTalkProposalCard:
         .getOrElse(emptyNode),
       div(
         cls := "LightningTalk-main",
-        div(cls := "LightningTalk-title", "Lightning Talk"),
+        div(cls := "LightningTalk-title", proposal.speakerName),
         div(
           cls := "LightningTalk-metaRow",
-          div(cls := "LightningTalk-meta", speakerMeta),
+          metaText.filter(_.nonEmpty).map(value => div(cls := "LightningTalk-meta", value)).getOrElse(emptyNode),
           proposal.slackThreadUrl match
             case Some(url) =>
               a(
