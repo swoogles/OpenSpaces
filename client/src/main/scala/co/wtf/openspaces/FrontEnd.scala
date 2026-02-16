@@ -622,14 +622,14 @@ object FrontEnd extends ZIOAppDefault{
         _ =>
           val intervalHandle = dom.window.setInterval(
             () =>
-              AuthService.ensureFreshAccessToken().foreach { refreshed =>
+              AuthService.ensureFreshAccessToken(randomActionClient).foreach { refreshed =>
                 if !refreshed then
                   dom.window.location.href = "/auth"
               },
             60 * 1000,
           )
           authRefreshIntervalHandle = Some(intervalHandle)
-          AuthService.ensureFreshAccessToken().foreach { refreshed =>
+          AuthService.ensureFreshAccessToken(randomActionClient).foreach { refreshed =>
             if !refreshed then
               dom.window.location.href = "/auth"
           }

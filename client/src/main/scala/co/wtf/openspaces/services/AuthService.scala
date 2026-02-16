@@ -52,29 +52,17 @@ object AuthService:
   }
 
   /** Refresh the access token using the refresh token */
-  def refreshAccessToken(): Future[Boolean] = {
-    import scala.scalajs.js
-    import scala.concurrent.ExecutionContext.Implicits.global
-
-    val fetchPromise = dom.fetch("/refresh", new dom.RequestInit {
-      method = dom.HttpMethod.GET
-    })
-
-    fetchPromise.toFuture.map { response =>
-      if (response.ok) {
-        // Cookies are automatically updated by the response
-        true
-      } else {
-        // Refresh failed - will redirect to login
-        false
-      }
-    }.recover { case _ => false }
-  }
+  def refreshAccessToken(
+    randomActionClient: RandomActionClient,
+  ): Future[Boolean] =
+    randomActionClient.refresh.map(_.status == "refreshed").recover { case _ => false }
 
   /** Ensure the access token is still fresh, refreshing when close to expiry.
     * Uses a single in-flight refresh to avoid duplicate /refresh calls.
     */
-  def ensureFreshAccessToken(): Future[Boolean] =
+  def ensureFreshAccessToken(
+    randomActionClient: RandomActionClient,
+  ): Future[Boolean] =
     if !isAccessTokenExpired then
       Future.successful(true)
     else
@@ -82,7 +70,7 @@ object AuthService:
         case Some(existingRefresh) =>
           existingRefresh
         case None =>
-          val refreshFuture = refreshAccessToken().andThen { case _ =>
+          val refreshFuture = refreshAccessToken(randomActionClient).andThen { case _ =>
             refreshInFlight = None
           }
           refreshInFlight = Some(refreshFuture)
@@ -106,7 +94,7 @@ object AuthService:
     * Returns a Future that resolves to the ticket response text.
     */
   def fetchTicketAsync(randomActionClient: RandomActionClient): Future[String] =
-    ensureFreshAccessToken().flatMap { refreshed =>
+    ensureFreshAccessToken(randomActionClient).flatMap { refreshed =>
       if refreshed then
         randomActionClient
           .ticket(getCookie("access_token").getOrElse(""))

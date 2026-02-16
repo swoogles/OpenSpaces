@@ -9,11 +9,13 @@ import zio.http.codec._
 import zio.http.endpoint._
 import zio.schema._
 import scala.concurrent.Future
+import scala.concurrent.ExecutionContext.Implicits.global
 
 case class ActiveStatus(active: Boolean) derives Schema, JsonCodec
 case class VersionInfo(version: String) derives Schema, JsonCodec
 case class ScheduleResult(scheduled: Int, moved: Int, unscheduled: Int) derives Schema, JsonCodec
 case class DeleteTopicsResult(deleted: Int) derives Schema, JsonCodec
+case class RefreshStatus(status: String) derives Schema, JsonCodec
 
 object RandomActionApi {
 
@@ -21,6 +23,15 @@ object RandomActionApi {
     Endpoint(RoutePattern.GET / "ticket")
       .header[String]("Authorization")
       .out[String]
+
+  val refreshGet =
+    Endpoint(RoutePattern.GET / "refresh")
+      .header(HeaderCodec.cookie.optional)
+      .out[RefreshStatus]
+      .outHeader(HeaderCodec.setCookie)
+      .outHeader(HeaderCodec.setCookie)
+      .outHeader(HeaderCodec.setCookie)
+      .outHeader(HeaderCodec.setCookie)
 
   val versionGet =
     Endpoint(RoutePattern.GET / "api" / "version")
@@ -55,6 +66,7 @@ object RandomActionApi {
   val endpoints =
     List(
       ticketGet,
+      refreshGet,
       versionGet,
       randomActionGet,
       randomActionToggle,
@@ -91,6 +103,9 @@ executor: EndpointExecutor[Any, Unit, zio.Scope]
         s"Bearer $accessToken",
       )
     )
+
+  def refresh: Future[RefreshStatus] =
+    futureDumb(RandomActionApi.refreshGet.apply(None)).map(_._1)
 
   private def futureDumb[P, I, E, O, A <: AuthType](
   invocation: Invocation[P, I, ZNothing, O, zio.http.endpoint.AuthType.None.type]
