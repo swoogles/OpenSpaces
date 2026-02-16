@@ -62,7 +62,7 @@ object RandomActionApi {
   val runScheduling =
     Endpoint(RoutePattern.POST / "api" / "admin" / "schedule")
       .out[ScheduleResult]
-  
+
   val endpoints =
     List(
       ticketGet,

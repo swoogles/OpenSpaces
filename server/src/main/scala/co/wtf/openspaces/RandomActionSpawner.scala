@@ -65,7 +65,6 @@ case class RandomActionSpawner(
     fullChaosFiber *> scheduleChaosFiber
   }
 
-
   val routes: Routes[Any, Response] =
     Routes(
       // Version endpoint - returns deployed commit hash

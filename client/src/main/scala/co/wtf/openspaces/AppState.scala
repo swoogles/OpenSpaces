@@ -14,6 +14,9 @@ object AppState:
       DiscussionState(DiscussionState.timeSlotExamples, Map.empty),
     )
 
+  val lightningTalkState: Var[LightningTalkState] =
+    Var(LightningTalkState.empty)
+
   // ============================================
   // Vote Celebration (Sound + Visual Effects)
   // ============================================

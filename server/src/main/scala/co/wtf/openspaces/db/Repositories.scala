@@ -208,3 +208,76 @@ class TopicVoteRepositoryLive(ds: DataSource) extends TopicVoteRepository:
 object TopicVoteRepository:
   val layer: ZLayer[DataSource, Nothing, TopicVoteRepository] =
     ZLayer.fromFunction(ds => TopicVoteRepositoryLive(ds))
+
+trait LightningTalkRepository:
+  def findById(id: Long): Task[Option[LightningTalkRow]]
+  def findBySpeakerActive(speaker: String): Task[Option[LightningTalkRow]]
+  def findAllActive: Task[Vector[LightningTalkRow]]
+  def insert(row: LightningTalkRow): Task[Unit]
+  def update(row: LightningTalkRow): Task[Unit]
+  def softDelete(id: Long): Task[Unit]
+
+class LightningTalkRepositoryLive(ds: DataSource) extends LightningTalkRepository:
+  def findById(id: Long): Task[Option[LightningTalkRow]] =
+    transactZIO(ds):
+      sql"""SELECT id, topic, speaker, assignment_night, assignment_slot,
+                   created_at, updated_at, deleted_at
+            FROM lightning_talks
+            WHERE id = $id"""
+        .query[LightningTalkRow]
+        .run()
+        .headOption
+
+  def findBySpeakerActive(speaker: String): Task[Option[LightningTalkRow]] =
+    transactZIO(ds):
+      sql"""SELECT id, topic, speaker, assignment_night, assignment_slot,
+                   created_at, updated_at, deleted_at
+            FROM lightning_talks
+            WHERE speaker = $speaker
+              AND deleted_at IS NULL"""
+        .query[LightningTalkRow]
+        .run()
+        .headOption
+
+  def findAllActive: Task[Vector[LightningTalkRow]] =
+    transactZIO(ds):
+      sql"""SELECT id, topic, speaker, assignment_night, assignment_slot,
+                   created_at, updated_at, deleted_at
+            FROM lightning_talks
+            WHERE deleted_at IS NULL"""
+        .query[LightningTalkRow]
+        .run()
+
+  def insert(row: LightningTalkRow): Task[Unit] =
+    transactZIO(ds):
+      sql"""INSERT INTO lightning_talks (
+              id, topic, speaker, assignment_night, assignment_slot,
+              created_at, updated_at, deleted_at
+            ) VALUES (
+              ${row.id}, ${row.topic}, ${row.speaker},
+              ${row.assignmentNight}, ${row.assignmentSlot},
+              ${row.createdAt}, ${row.updatedAt}, ${row.deletedAt}
+            )""".update.run()
+      ()
+
+  def update(row: LightningTalkRow): Task[Unit] =
+    transactZIO(ds):
+      sql"""UPDATE lightning_talks SET
+              topic = ${row.topic},
+              speaker = ${row.speaker},
+              assignment_night = ${row.assignmentNight},
+              assignment_slot = ${row.assignmentSlot},
+              deleted_at = ${row.deletedAt}
+            WHERE id = ${row.id}""".update.run()
+      ()
+
+  def softDelete(id: Long): Task[Unit] =
+    transactZIO(ds):
+      sql"""UPDATE lightning_talks
+            SET deleted_at = NOW()
+            WHERE id = $id""".update.run()
+      ()
+
+object LightningTalkRepository:
+  val layer: ZLayer[DataSource, Nothing, LightningTalkRepository] =
+    ZLayer.fromFunction(ds => LightningTalkRepositoryLive(ds))

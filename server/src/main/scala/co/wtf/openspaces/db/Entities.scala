@@ -62,3 +62,14 @@ case class TopicVoteRow(
   position: String,
   firstVotedAt: OffsetDateTime
 ) derives DbCodec
+
+case class LightningTalkRow(
+  id: Long,
+  topic: String,
+  speaker: String,
+  assignmentNight: Option[String],
+  assignmentSlot: Option[Int],
+  createdAt: OffsetDateTime,
+  updatedAt: OffsetDateTime,
+  deletedAt: Option[OffsetDateTime],
+) derives DbCodec

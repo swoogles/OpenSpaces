@@ -3,10 +3,11 @@ package co.wtf.openspaces.components
 import animus.*
 import com.raquo.laminar.api.L.{*, given}
 import org.scalajs.dom
+import neotype.unwrap
 
 import co.wtf.openspaces.{
   DaySlots, Discussion, DiscussionAction, DiscussionState, Person, RoomSlot,
-  GitHubAvatar, SvgIcon, GlyphiconUtils
+  GitHubAvatar, SvgIcon, GlyphiconUtils, LightningTalkNight, LightningTalkProposal, LightningTalkState
 }
 import co.wtf.openspaces.util.ScrollPreserver
 import co.wtf.openspaces.FrontEnd.connectionStatus
@@ -17,6 +18,7 @@ enum AppView:
   case Admin
   case Topics
   case Schedule
+  case LightningTalks
 
 /** Schedule view showing the full grid of rooms and time slots.
   *
@@ -157,8 +159,16 @@ object SlotSchedules:
 /** Linear schedule view showing full topic cards organized by day/time/room.
   */
 object LinearScheduleView:
+  private def lightningNightForDay(dayName: String): Option[LightningTalkNight] =
+    dayName match
+      case "MONDAY"    => Some(LightningTalkNight.Monday)
+      case "TUESDAY"   => Some(LightningTalkNight.Tuesday)
+      case "THURSDAY"  => Some(LightningTalkNight.Thursday)
+      case _           => None
+
   def apply(
     $discussionState: Signal[DiscussionState],
+    $lightningTalkState: Signal[LightningTalkState],
     topicUpdates: DiscussionAction => Unit,
     name: StrictSignal[Person],
     unscheduledMenuState: Var[Option[RoomSlot]],
@@ -170,11 +180,21 @@ object LinearScheduleView:
 
     div(
       cls := "LinearScheduleView",
-      children <-- $discussionState.map { state =>
+      children <-- Signal.combine($discussionState, $lightningTalkState).map { (state, lightningState) =>
         state.slots.map { daySlot =>
+          val dayName = daySlot.date.getDayOfWeek.toString
+          val maybeLightningNight = lightningNightForDay(dayName)
+          val lightningSlotMap = maybeLightningNight
+            .map(night =>
+              lightningState
+                .assignedForNight(night)
+                .flatMap(proposal => proposal.assignment.map(_.slot.unwrap -> proposal))
+                .toMap,
+            )
+            .getOrElse(Map.empty[Int, LightningTalkProposal])
           div(
             cls := "LinearDay",
-            div(cls := "LinearDayHeader", daySlot.date.getDayOfWeek.toString),
+            div(cls := "LinearDayHeader", dayName),
             daySlot.slots.map { timeSlotForAllRooms =>
               div(
                 cls := "LinearTimeSlot",
@@ -205,6 +225,36 @@ object LinearScheduleView:
                     },
                   )
                 },
+              )
+            } ++ maybeLightningNight.toList.map { _ =>
+              div(
+                cls := "LinearTimeSlot LinearTimeSlot--lightning",
+                div(
+                  cls := "LinearTimeHeader LinearTimeHeader--lightning",
+                  "Evening Lightning Talks",
+                ),
+                div(
+                  cls := "LightningTalk-night LightningTalk-night--schedule",
+                  (1 to 10).toList.map { slotNumber =>
+                    val assigned = lightningSlotMap.get(slotNumber)
+                    div(
+                      cls := "LightningTalk-slot",
+                      div(cls := "LightningTalk-slotNumber", s"#$slotNumber"),
+                      assigned match
+                        case Some(proposal) =>
+                          div(
+                            cls := "LightningTalk-main",
+                            div(cls := "LightningTalk-title", proposal.topicName),
+                            div(cls := "LightningTalk-meta", s"by ${proposal.speakerName}"),
+                          )
+                        case None =>
+                          div(
+                            cls := "LightningTalk-main LightningTalk-main--empty",
+                            "Open slot",
+                          ),
+                    )
+                  },
+                ),
               )
             },
           )

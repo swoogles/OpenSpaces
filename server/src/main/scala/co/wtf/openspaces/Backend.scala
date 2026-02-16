@@ -73,6 +73,7 @@ object Backend extends ZIOAppDefault {
       BackendSocketApp.layer,
       DiscussionService.layer,
       SchedulingService.layer,
+      LightningTalkService.layer,
       RandomActionSpawner.layer(initialActive = false),
       GlyphiconService.layer,
       Client.default,
@@ -86,6 +87,7 @@ object Backend extends ZIOAppDefault {
       EventRepository.layer,
       DiscussionRepository.layer,
       TopicVoteRepository.layer,
+      LightningTalkRepository.layer,
       PersistentDiscussionStore.layer,
       // Slack integration
       SlackConfigEnv.layer,

@@ -274,6 +274,105 @@ body {
     border-radius: 10px;
 }
 
+.LightningTalks {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    padding-bottom: 70px;
+}
+
+.LightningTalk-adminControls {
+    display: flex;
+}
+
+.LightningTalk-adminControls .AdminControls-button {
+    width: 100%;
+}
+
+.LightningTalk-myProposalNotice {
+    color: #856404;
+    background: #fff8dc;
+    border: 1px solid #ffe69c;
+    border-radius: 10px;
+    padding: 8px 10px;
+    font-size: 13px;
+}
+
+.LightningTalk-list,
+.LightningTalk-night {
+    background: #ffffff;
+    border: 1px solid #d4e2ef;
+    border-radius: 14px;
+    padding: 10px;
+    box-shadow: 0 2px 8px rgba(15, 23, 42, 0.06);
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.LightningTalk-row,
+.LightningTalk-slot {
+    display: grid;
+    grid-template-columns: auto 1fr auto;
+    gap: 8px;
+    align-items: center;
+    border: 1px solid #dbe7f3;
+    border-radius: 10px;
+    padding: 8px;
+    background: #f8fbff;
+}
+
+.LightningTalk-slotNumber {
+    color: #3b5f8a;
+    font-size: 13px;
+    font-weight: 800;
+    min-width: 26px;
+}
+
+.LightningTalk-main {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.LightningTalk-main--empty {
+    color: #6f859d;
+    font-style: italic;
+}
+
+.LightningTalk-title {
+    color: #1f3553;
+    font-size: 14px;
+    font-weight: 700;
+    line-height: 1.3;
+}
+
+.LightningTalk-meta {
+    color: #5b7188;
+    font-size: 12px;
+}
+
+.LightningTalk-actions {
+    display: flex;
+    gap: 6px;
+}
+
+.LightningTalk-actionButton {
+    background: #edf3fa;
+    border: 1px solid #c8d8e8;
+    color: #234464;
+    border-radius: 8px;
+    padding: 5px 8px;
+    font-size: 12px;
+    font-weight: 700;
+}
+
+.LightningTalk-actionButton--danger {
+    background: #fff2f2;
+    border-color: #ffbfbf;
+    color: #a61d24;
+}
+
 .UnjudgedCounter {
     text-align: center;
     padding: 8px 16px;
@@ -1453,6 +1552,10 @@ body {
     margin-bottom: 20px;
 }
 
+.LinearTimeSlot--lightning {
+    margin-top: 8px;
+}
+
 .LinearTimeHeader {
     font-size: 1.1rem;
     font-weight: 600;
@@ -1466,6 +1569,15 @@ body {
     top: 52px; /* Height of day header */
     z-index: 10;
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+}
+
+.LinearTimeHeader--lightning {
+    background-color: #fff4d6;
+    color: #7c5310;
+}
+
+.LightningTalk-night--schedule {
+    margin-top: 8px;
 }
 
 .LinearRoomSlot {

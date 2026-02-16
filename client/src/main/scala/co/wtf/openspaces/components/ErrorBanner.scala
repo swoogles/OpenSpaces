@@ -8,7 +8,7 @@ import io.laminext.websocket.*
   * Merges local errors with connectionStatus.userError for unified error display.
   */
 case class ErrorBanner(
-  connectionStatus: ConnectionStatusManager[DiscussionActionConfirmed, WebSocketMessage],
+  connectionStatus: ConnectionStatusManager[WebSocketMessage, WebSocketMessage],
   localError: Var[Option[String]] = Var(None)):
   
   /** Set a local error (for validation, etc.) */

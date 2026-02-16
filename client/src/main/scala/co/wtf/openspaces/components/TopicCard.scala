@@ -21,7 +21,7 @@ object TopicCard:
     name: StrictSignal[Person],
     topicUpdates: DiscussionAction => Unit,
     signal: Signal[Option[Discussion]],
-    connectionStatus: ConnectionStatusManager[DiscussionActionConfirmed, WebSocketMessage],
+    connectionStatus: ConnectionStatusManager[WebSocketMessage, WebSocketMessage],
     transition: Option[Transition] = None,
     enableSwipe: Boolean = true,
     iconModifiers: Seq[Modifier[HtmlElement]] = Seq.empty,
@@ -165,7 +165,7 @@ object DiscussionSubview:
     name: StrictSignal[Person],
     topicUpdates: DiscussionAction => Unit,
     updateTargetDiscussion: Observer[Discussion],
-    connectionStatus: ConnectionStatusManager[DiscussionActionConfirmed, WebSocketMessage],
+    connectionStatus: ConnectionStatusManager[WebSocketMessage, WebSocketMessage],
     firstUnjudgedId: Signal[Option[TopicId]] = Signal.fromValue(None),
     showSwipeHint: Signal[Boolean] = Signal.fromValue(false),
   ): HtmlElement =

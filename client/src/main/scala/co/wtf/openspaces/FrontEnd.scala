@@ -10,7 +10,7 @@ import neotype.*
 
 // Import extracted utilities
 import co.wtf.openspaces.util.{SlotPositionTracker, SwapAnimationState, MenuPositioning, ScrollPreserver}
-import co.wtf.openspaces.components.{ToastManager, AdminControls, TopicSubmission, SwipeableCard, ErrorBanner, VoteButtons, ViewToggle, InlineEditableTitle, NameBadge, AdminModeToggle, Menu, UnscheduledDiscussionsMenu, ActiveDiscussionActionMenu, TopicCard, DiscussionSubview, ScheduleSlotComponent, SlotSchedule, ScheduleView, SlotSchedules, LinearScheduleView, AppView, activeDiscussionLongPressBinder}
+import co.wtf.openspaces.components.{ToastManager, AdminControls, TopicSubmission, SwipeableCard, ErrorBanner, VoteButtons, ViewToggle, InlineEditableTitle, NameBadge, AdminModeToggle, Menu, UnscheduledDiscussionsMenu, ActiveDiscussionActionMenu, TopicCard, DiscussionSubview, ScheduleSlotComponent, SlotSchedule, ScheduleView, SlotSchedules, LinearScheduleView, LightningTalksView, AppView, activeDiscussionLongPressBinder}
 import co.wtf.openspaces.AppState.*
 import co.wtf.openspaces.*
 import co.wtf.openspaces.services.{AudioService, AuthService}
@@ -51,6 +51,7 @@ object FrontEnd extends ZIOAppDefault{
 
   // App state moved to AppState.scala
   val discussionState = AppState.discussionState
+  val lightningTalkState = AppState.lightningTalkState
   val soundMuted = AppState.soundMuted
   val celebratingTopics = AppState.celebratingTopics
   val hasSeenSwipeHint = AppState.hasSeenSwipeHint
@@ -92,9 +93,16 @@ object FrontEnd extends ZIOAppDefault{
   val sendDiscussionAction: DiscussionAction => Unit = action =>
     if connectionStatus.checkReady() then
       errorBanner.clearError()
-      topicUpdates.sendOne(action)
+      topicUpdates.sendOne(DiscussionActionMessage(action))
     else
       connectionStatus.reportError("Syncing latest topics. Please wait a moment.")
+
+  val sendLightningAction: LightningTalkAction => Unit = action =>
+    if connectionStatus.checkReady() then
+      errorBanner.clearError()
+      topicUpdates.sendOne(LightningTalkActionMessage(action))
+    else
+      connectionStatus.reportError("Syncing latest lightning talks. Please wait a moment.")
 
   val submitNewTopic: Observer[DiscussionAction] = Observer {
     case discussion @ (add: DiscussionAction.Add) =>
@@ -338,115 +346,129 @@ object FrontEnd extends ZIOAppDefault{
         div(
           ticketCenter(topicUpdates, discussionState, randomActionClient),
           topicUpdates.received --> Observer {
-            (event: DiscussionActionConfirmed) =>
-              // Record message receipt for health monitoring
+            (event: WebSocketMessage) =>
               connectionStatus.recordMessageReceived()
-              
-              // Handle rejection feedback - use connectionStatus for error reporting
+
               event match
-                case DiscussionActionConfirmed.Rejected(
-                      _: DiscussionAction.SwapTopics,
-                    ) =>
-                  connectionStatus.reportError(
-                    "Swap failed: One or both topics were moved by another user. Please try again.",
-                  )
-                case DiscussionActionConfirmed.Rejected(
-                      _: DiscussionAction.SetRoomSlot,
-                    ) =>
-                  connectionStatus.reportError(
-                    "Schedule change failed: topic or slot changed. Please try again.",
-                  )
-                case DiscussionActionConfirmed.Unauthorized(_) =>
-                  connectionStatus.reportError(
-                    "Session expired. Re-authenticating...",
-                  )
-                case DiscussionActionConfirmed.StateReplace(_) =>
-                  connectionStatus.markStateSynchronized()
-                // Trigger swap animation before state update
-                case DiscussionActionConfirmed.SwapTopics(
-                      topic1,
-                      newSlot1,
-                      topic2,
-                      newSlot2,
-                    ) =>
-                  // Start the swap animation
-                  SwapAnimationState.startSwapAnimation(
-                    topic1,
-                    newSlot1,
-                    topic2,
-                    newSlot2,
-                  )
-                  // Show toast if user cares about either topic
-                  notifyScheduleChange(topic1, newSlot1)
-                  notifyScheduleChange(topic2, newSlot2)
-                case DiscussionActionConfirmed.Vote(topicId, feedback) =>
-                  val currentUser = name.now()
-                  if feedback.voter == currentUser then
-                    // Celebrate the vote! (sound + animation)
-                    celebrateVote(topicId, feedback.position)
-                    // Dismiss swipe hint when the user votes.
-                    dismissSwipeHint()
-
-                // Animate schedule updates for single-topic slot changes
-                case DiscussionActionConfirmed.SetRoomSlot(
-                      topicId,
-                      Some(newRoomSlot),
-                    ) =>
-                  // Get the topic's current (old) position before state updates
-                  discussionState
-                    .now()
-                    .data
-                    .get(topicId)
-                    .flatMap(_.roomSlot)
-                    .foreach { oldSlot =>
-                      SwapAnimationState.startMoveAnimation(
-                        topicId,
-                        oldSlot,
-                        newRoomSlot,
+                case DiscussionActionConfirmedMessage(discussionEvent) =>
+                  discussionEvent match
+                    case DiscussionActionConfirmed.Rejected(
+                          _: DiscussionAction.SwapTopics,
+                        ) =>
+                      connectionStatus.reportError(
+                        "Swap failed: One or both topics were moved by another user. Please try again.",
                       )
-                    }
-                  // Show toast if user cares about this topic
-                  notifyScheduleChange(topicId, newRoomSlot)
-                case DiscussionActionConfirmed.SetRoomSlot(_, None) =>
-                  ()
-                // Clean up animation state when topics are deleted to prevent memory leaks
-                case DiscussionActionConfirmed.Delete(topicId) =>
-                  SwapAnimationState.cleanupTopic(topicId)
-                case _ => ()
-
-              // Capture scroll position before state update
-              val restoreScroll = ScrollPreserver.captureScrollPosition()
-              
-              discussionState
-                .update { existing =>
-                  val state = existing(event)
-                  val (topicId, shouldClearActive) =
-                    handleDiscussionActionConfirmed(event)
-
-                  if (shouldClearActive) {
-                    activeDiscussion.set(None)
-                  }
-
-                  topicId.foreach { id =>
-                    if (
-                      activeDiscussion.now().map(_.id).contains(id)
-                    ) {
-                      activeDiscussion.set(state.data.get(id))
-                    }
-                  }
-
-                  // Auto-select newly created topics that are scheduled in a room slot
-                  event match
-                    case DiscussionActionConfirmed.AddResult(discussion)
-                        if discussion.roomSlot.isDefined =>
-                      activeDiscussion.set(Some(discussion))
+                    case DiscussionActionConfirmed.Rejected(
+                          _: DiscussionAction.SetRoomSlot,
+                        ) =>
+                      connectionStatus.reportError(
+                        "Schedule change failed: topic or slot changed. Please try again.",
+                      )
+                    case DiscussionActionConfirmed.Unauthorized(_) =>
+                      connectionStatus.reportError(
+                        "Session expired. Re-authenticating...",
+                      )
+                    case DiscussionActionConfirmed.StateReplace(_) =>
+                      connectionStatus.markStateSynchronized()
+                    case DiscussionActionConfirmed.SwapTopics(
+                          topic1,
+                          newSlot1,
+                          topic2,
+                          newSlot2,
+                        ) =>
+                      SwapAnimationState.startSwapAnimation(
+                        topic1,
+                        newSlot1,
+                        topic2,
+                        newSlot2,
+                      )
+                      notifyScheduleChange(topic1, newSlot1)
+                      notifyScheduleChange(topic2, newSlot2)
+                    case DiscussionActionConfirmed.Vote(topicId, feedback) =>
+                      val currentUser = name.now()
+                      if feedback.voter == currentUser then
+                        celebrateVote(topicId, feedback.position)
+                        dismissSwipeHint()
+                    case DiscussionActionConfirmed.SetRoomSlot(
+                          topicId,
+                          Some(newRoomSlot),
+                        ) =>
+                      discussionState
+                        .now()
+                        .data
+                        .get(topicId)
+                        .flatMap(_.roomSlot)
+                        .foreach { oldSlot =>
+                          SwapAnimationState.startMoveAnimation(
+                            topicId,
+                            oldSlot,
+                            newRoomSlot,
+                          )
+                        }
+                      notifyScheduleChange(topicId, newRoomSlot)
+                    case DiscussionActionConfirmed.SetRoomSlot(_, None) =>
+                      ()
+                    case DiscussionActionConfirmed.Delete(topicId) =>
+                      SwapAnimationState.cleanupTopic(topicId)
                     case _ => ()
 
-                  state
-                }
-              
-              // Restore scroll position after DOM updates
-              restoreScroll()
+                  val restoreScroll = ScrollPreserver.captureScrollPosition()
+                  discussionState
+                    .update { existing =>
+                      val state = existing(discussionEvent)
+                      val (topicId, shouldClearActive) =
+                        handleDiscussionActionConfirmed(discussionEvent)
+
+                      if (shouldClearActive) {
+                        activeDiscussion.set(None)
+                      }
+
+                      topicId.foreach { id =>
+                        if (
+                          activeDiscussion.now().map(_.id).contains(id)
+                        ) {
+                          activeDiscussion.set(state.data.get(id))
+                        }
+                      }
+
+                      discussionEvent match
+                        case DiscussionActionConfirmed.AddResult(discussion)
+                            if discussion.roomSlot.isDefined =>
+                          activeDiscussion.set(Some(discussion))
+                        case _ => ()
+
+                      state
+                    }
+                  restoreScroll()
+
+                case LightningTalkActionConfirmedMessage(lightningEvent) =>
+                  lightningEvent match
+                    case LightningTalkActionConfirmed.Rejected(
+                          _: LightningTalkAction.Submit,
+                        ) =>
+                      connectionStatus.reportError(
+                        "Submit failed. You may already have a proposal.",
+                      )
+                    case LightningTalkActionConfirmed.Rejected(
+                          LightningTalkAction.DrawForNextNight,
+                        ) =>
+                      connectionStatus.reportError(
+                        "Draw not applied. Nights may already be full.",
+                      )
+                    case LightningTalkActionConfirmed.Rejected(_) =>
+                      connectionStatus.reportError(
+                        "Lightning talk update failed. Please refresh and try again.",
+                      )
+                    case LightningTalkActionConfirmed.Unauthorized(_) =>
+                      connectionStatus.reportError(
+                        "Session expired. Re-authenticating...",
+                      )
+                    case LightningTalkActionConfirmed.StateReplace(_) =>
+                      connectionStatus.markStateSynchronized()
+                    case _ => ()
+                  lightningTalkState.update(existing => existing(lightningEvent))
+                case _ =>
+                  ()
           },
           errorBanner.component,
           // Admin mode toggle at the very top (only visible to admins)
@@ -476,9 +498,21 @@ object FrontEnd extends ZIOAppDefault{
               )
             case AppView.Topics =>
               liveTopicSubmissionAndVoting(updateTargetDiscussion)
+            case AppView.LightningTalks =>
+              LightningTalksView(
+                lightningTalkState,
+                name.signal,
+                isAdmin.combineWith(adminModeEnabled.signal).map { case (admin, enabled) =>
+                  admin && enabled
+                },
+                sendLightningAction,
+                errorBanner.errorObserver,
+                connectionStatus,
+              )
             case AppView.Schedule =>
               LinearScheduleView(
                 discussionState.signal,
+                lightningTalkState.signal,
                 sendDiscussionAction,
                 name.signal,
                 unscheduledMenuState,
@@ -560,14 +594,14 @@ object FrontEnd extends ZIOAppDefault{
   private val MaxReconnectRetries = 10
   
   val topicUpdates
-    : WebSocket[DiscussionActionConfirmed, WebSocketMessage] = {
+    : WebSocket[WebSocketMessage, WebSocketMessage] = {
     // If I don't confine the scope of it, it clashes with laminar's `span`. Weird.
     import scala.concurrent.duration._
-    WebSocket
+      WebSocket
       .url("/discussions")
-      .text[DiscussionActionConfirmed, WebSocketMessage](
+      .text[WebSocketMessage, WebSocketMessage](
         _.toJson,
-        _.fromJson[DiscussionActionConfirmed].left.map(Exception(_)),
+        _.fromJson[WebSocketMessage].left.map(Exception(_)),
       )
       .build(
         autoReconnect = true,
@@ -582,7 +616,7 @@ object FrontEnd extends ZIOAppDefault{
   // Connection status manager for monitoring WebSocket health, sync, and error handling
   // All reconnect/sync logic is consolidated here
   import scala.concurrent.ExecutionContext.Implicits.global
-  val connectionStatus: ConnectionStatusManager[DiscussionActionConfirmed, WebSocketMessage] = new ConnectionStatusManager(
+  val connectionStatus: ConnectionStatusManager[WebSocketMessage, WebSocketMessage] = new ConnectionStatusManager(
     topicUpdates,
     MaxReconnectRetries,
   )
@@ -597,7 +631,7 @@ object FrontEnd extends ZIOAppDefault{
     * Also handles rejected actions by re-authenticating and retrying.
     */
   def ticketCenter(
-    topicUpdates: WebSocket[DiscussionActionConfirmed, WebSocketMessage],
+    topicUpdates: WebSocket[WebSocketMessage, WebSocketMessage],
     discussionState: Var[DiscussionState],
     randomActionClient: RandomActionClient,
   ) =
@@ -650,7 +684,9 @@ object FrontEnd extends ZIOAppDefault{
       // Uses connectionStatus.withErrorHandling to catch and report errors
       topicUpdates.received.flatMapSwitch { event =>
         event match
-          case DiscussionActionConfirmed.Unauthorized(discussionAction) =>
+          case DiscussionActionConfirmedMessage(
+                DiscussionActionConfirmed.Unauthorized(discussionAction),
+              ) =>
             EventStream.fromFuture(
               connectionStatus.withErrorHandling(
                 AuthService.fetchTicketAsync(randomActionClient)
@@ -658,11 +694,25 @@ object FrontEnd extends ZIOAppDefault{
                 "Re-authentication failed",
               )
             ).collect { case Some(result) => result }
+          case LightningTalkActionConfirmedMessage(
+                LightningTalkActionConfirmed.Unauthorized(lightningAction),
+              ) =>
+            EventStream.fromFuture(
+              connectionStatus.withErrorHandling(
+                AuthService.fetchTicketAsync(randomActionClient)
+                  .map(ticket => (ticket, lightningAction)),
+                "Re-authentication failed",
+              )
+            ).collect { case Some(result) => result }
           case _ =>
             EventStream.empty
       } --> { case (ticket, discussionAction) =>
         topicUpdates.sendOne(ticket)
-        topicUpdates.sendOne(discussionAction)
+        discussionAction match
+          case action: DiscussionAction =>
+            topicUpdates.sendOne(DiscussionActionMessage(action))
+          case action: LightningTalkAction =>
+            topicUpdates.sendOne(LightningTalkActionMessage(action))
       },
     )
 }

@@ -8,12 +8,13 @@ import zio.json.*
 
 private case class ChannelRegistry(
   connected: Set[OpenSpacesServerChannel],
-  pending: Map[OpenSpacesServerChannel, Vector[DiscussionActionConfirmed]],
+  pending: Map[OpenSpacesServerChannel, Vector[WebSocketMessage]],
 )
 
 case class DiscussionService(
   channelRegistry: Ref[ChannelRegistry],
   discussionStore: DiscussionStore,
+  lightningTalkService: LightningTalkService,
   authenticatedTicketService: AuthenticatedTicketService,
   slackNotifier: SlackNotifier):
 
@@ -24,13 +25,21 @@ case class DiscussionService(
     message match
       case ticket: Ticket =>
         handleTicket(ticket, channel)
-      case discussionAction: DiscussionAction =>
+      case DiscussionActionMessage(discussionAction) =>
         defer:
           if (channelRegistry.get.run.connected.contains(channel)) {
             handleTicketedAction(channel, discussionAction).run
           }
           else {
             handleUnticketedAction(channel, discussionAction).run
+          }
+      case LightningTalkActionMessage(lightningAction) =>
+        defer:
+          if (channelRegistry.get.run.connected.contains(channel)) {
+            handleTicketedLightningAction(channel, lightningAction).run
+          }
+          else {
+            handleUnticketedLightningAction(channel, lightningAction).run
           }
 
   /** Generate a random action and broadcast to all connected clients */
@@ -55,7 +64,7 @@ case class DiscussionService(
       _ <- ZIO.foreachDiscard(topicIds) { topicId =>
         for
           result <- discussionStore.applyAction(DiscussionAction.Delete(topicId))
-          _ <- broadcastToAll(result)
+          _ <- broadcastToAll(DiscussionActionConfirmedMessage(result))
         yield ()
       }
     yield topicIds.size
@@ -75,10 +84,30 @@ case class DiscussionService(
         )
         .run
       val state = discussionStore.snapshot.run
+      val lightningState = lightningTalkService.snapshot.run
       channel
         .send(
-          DiscussionActionConfirmed.StateReplace(
-            state.data.values.toList,
+          DiscussionActionConfirmedMessage(
+            DiscussionActionConfirmed.StateReplace(
+              state.data.values.toList,
+            ),
+          ),
+        )
+        .tapError(_ =>
+          channelRegistry.update(reg =>
+            reg.copy(
+              connected = reg.connected - channel,
+              pending = reg.pending - channel,
+            ),
+          ),
+        )
+        .run
+      channel
+        .send(
+          LightningTalkActionConfirmedMessage(
+            LightningTalkActionConfirmed.StateReplace(
+              lightningState.proposals.values.toList,
+            ),
           ),
         )
         .tapError(_ =>
@@ -104,10 +133,16 @@ case class DiscussionService(
         .run
       ZIO.foreachDiscard(buffered)(message => channel.send(message).ignore).run
 
-  private def broadcastToAll(message: DiscussionActionConfirmed): Task[Unit] =
+  private def broadcastToAll(message: WebSocketMessage): Task[Unit] =
     defer:
-      // Update server's in-memory state (important for SlackThreadLinked)
-      discussionStore.applyConfirmed(message).run
+      // Update server's in-memory state for outbound confirmed actions.
+      message match
+        case DiscussionActionConfirmedMessage(discussionConfirmed) =>
+          discussionStore.applyConfirmed(discussionConfirmed).run
+        case LightningTalkActionConfirmedMessage(lightningConfirmed) =>
+          lightningTalkService.applyConfirmed(lightningConfirmed).run
+        case _ =>
+          ZIO.unit.run
       val channels = channelRegistry
         .modify(reg =>
           val updatedPending =
@@ -158,10 +193,22 @@ case class DiscussionService(
     actionResult match
       case rejected @ DiscussionActionConfirmed.Rejected(_) =>
         sourceChannel match
-          case Some(channel) => channel.send(rejected).ignore
+          case Some(channel) => channel.send(DiscussionActionConfirmedMessage(rejected)).ignore
           case None => ZIO.unit
       case other =>
-        broadcastToAll(other) *> slackNotifier.notify(other, broadcastToAll)
+        broadcastToAll(DiscussionActionConfirmedMessage(other)) *> slackNotifier.notify(other, msg => broadcastToAll(DiscussionActionConfirmedMessage(msg)))
+
+  private def handleLightningActionResult(
+    actionResult: LightningTalkActionConfirmed,
+    sourceChannel: Option[OpenSpacesServerChannel],
+  ): Task[Unit] =
+    actionResult match
+      case rejected @ LightningTalkActionConfirmed.Rejected(_) =>
+        sourceChannel match
+          case Some(channel) => channel.send(LightningTalkActionConfirmedMessage(rejected)).ignore
+          case None => ZIO.unit
+      case other =>
+        broadcastToAll(LightningTalkActionConfirmedMessage(other))
 
   private def handleUnticketedAction(
     channel: OpenSpacesServerChannel,
@@ -169,8 +216,34 @@ case class DiscussionService(
   ): UIO[Unit] =
     channel
       .send(
-        DiscussionActionConfirmed.Unauthorized(
-          discussionAction,
+        DiscussionActionConfirmedMessage(
+          DiscussionActionConfirmed.Unauthorized(
+            discussionAction,
+          ),
+        ),
+      )
+      .ignore
+
+  private def handleTicketedLightningAction(
+    channel: OpenSpacesServerChannel,
+    lightningAction: LightningTalkAction,
+  ): ZIO[Any, Throwable, Unit] =
+    defer:
+      val actionResult = lightningTalkService
+        .applyAction(lightningAction)
+        .run
+      handleLightningActionResult(actionResult, Some(channel)).run
+
+  private def handleUnticketedLightningAction(
+    channel: OpenSpacesServerChannel,
+    lightningAction: LightningTalkAction,
+  ): UIO[Unit] =
+    channel
+      .send(
+        LightningTalkActionConfirmedMessage(
+          LightningTalkActionConfirmed.Unauthorized(
+            lightningAction,
+          ),
         ),
       )
       .ignore
@@ -187,6 +260,7 @@ object DiscussionService:
             ),
           ).run,
           ZIO.service[DiscussionStore].run,
+          ZIO.service[LightningTalkService].run,
           ZIO.service[AuthenticatedTicketService].run,
           ZIO.service[SlackNotifier].run,
         )

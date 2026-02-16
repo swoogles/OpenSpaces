@@ -18,7 +18,7 @@ case class Ticket(
     extends WebSocketMessage
     derives JsonCodec, Schema
 
-enum DiscussionAction extends WebSocketMessage derives JsonCodec:
+enum DiscussionAction derives JsonCodec:
   case Add(
     topic: Topic,
     facilitator: Person)
@@ -115,3 +115,55 @@ object DiscussionActionConfirmed:
                                              topic2,
                                              expected1,
         )
+
+enum LightningTalkAction derives JsonCodec:
+  case Submit(
+    topic: Topic,
+    speaker: Person)
+  case Rename(
+    proposalId: LightningTalkId,
+    newTopic: Topic)
+  case Delete(
+    proposalId: LightningTalkId)
+  case SetAssignment(
+    proposalId: LightningTalkId,
+    expectedCurrentAssignment: Option[LightningAssignment],
+    newAssignment: Option[LightningAssignment])
+  case DrawForNextNight
+
+enum LightningTalkActionConfirmed derives JsonCodec:
+  case AddResult(
+    proposal: LightningTalkProposal)
+  case Rename(
+    proposalId: LightningTalkId,
+    newTopic: Topic)
+  case Delete(
+    proposalId: LightningTalkId)
+  case SetAssignment(
+    proposalId: LightningTalkId,
+    newAssignment: Option[LightningAssignment])
+  case DrawForNightResult(
+    night: LightningTalkNight,
+    assignments: List[LightningDrawAssignment])
+  case StateReplace(
+    proposals: List[LightningTalkProposal])
+  case Unauthorized(
+    action: LightningTalkAction)
+  case Rejected(
+    action: LightningTalkAction)
+
+case class DiscussionActionMessage(
+  action: DiscussionAction,
+) extends WebSocketMessage derives JsonCodec
+
+case class DiscussionActionConfirmedMessage(
+  event: DiscussionActionConfirmed,
+) extends WebSocketMessage derives JsonCodec
+
+case class LightningTalkActionMessage(
+  action: LightningTalkAction,
+) extends WebSocketMessage derives JsonCodec
+
+case class LightningTalkActionConfirmedMessage(
+  event: LightningTalkActionConfirmed,
+) extends WebSocketMessage derives JsonCodec

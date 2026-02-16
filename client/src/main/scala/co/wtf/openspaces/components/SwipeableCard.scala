@@ -49,7 +49,7 @@ object SwipeableCard:
     name: StrictSignal[Person],
     topicUpdates: DiscussionAction => Unit,
     cardContent: HtmlElement,
-    connectionStatus: ConnectionStatusManager[DiscussionActionConfirmed, WebSocketMessage]
+    connectionStatus: ConnectionStatusManager[WebSocketMessage, WebSocketMessage]
   ): HtmlElement =
     val swipeState: Var[SwipeState] = Var(SwipeState())
     
