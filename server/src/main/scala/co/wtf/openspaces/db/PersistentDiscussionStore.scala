@@ -16,6 +16,7 @@ class PersistentDiscussionStore(
   discussionRepo: DiscussionRepository,
   topicVoteRepo: TopicVoteRepository,
   userRepo: UserRepository,
+  gitHubProfileService: GitHubProfileService,
   glyphiconService: GlyphiconService,
   state: Ref[DiscussionState]
 ) extends DiscussionStore:
@@ -415,7 +416,10 @@ class PersistentDiscussionStore(
 
   /** Ensure user exists in DB (auto-create if needed for system/anonymous actions) */
   private def ensureUserExists(username: String): Task[Unit] =
-    userRepo.upsert(username, None).unit
+    if username == "system" then
+      userRepo.upsert(username, Some(username)).unit
+    else
+      gitHubProfileService.ensureUserWithDisplayName(username).unit
 
   private def createDiscussion(
     topic: Topic,
@@ -521,7 +525,7 @@ object PersistentDiscussionStore:
   def loadInitialState(
     discussionRepo: DiscussionRepository,
     topicVoteRepo: TopicVoteRepository,
-    userRepo: UserRepository
+    gitHubProfileService: GitHubProfileService,
   ): Task[DiscussionState] =
     for
       rows <- discussionRepo.findAllActive
@@ -540,8 +544,10 @@ object PersistentDiscussionStore:
       // Get all unique facilitators
       facilitators = rows.map(_.facilitator).distinct
       // Fetch user info for all facilitators
-      userRows <- ZIO.foreach(facilitators)(username => userRepo.findByUsername(username))
-      userMap = userRows.flatten.map(u => u.githubUsername -> u.displayName).toMap
+      userRows <- ZIO.foreach(facilitators)(username =>
+        gitHubProfileService.ensureUserWithDisplayName(username).either.map(_.toOption),
+      )
+      userMap = userRows.flatten.map(u => u.githubUsername -> u.displayName.orElse(Some(u.githubUsername))).toMap
       discussions = rows.flatMap { row =>
         for
           topic <- Topic.make(row.topic).toOption
@@ -567,7 +573,7 @@ object PersistentDiscussionStore:
     )
 
   val layer: ZLayer[
-    EventRepository & DiscussionRepository & TopicVoteRepository & UserRepository & GlyphiconService,
+    EventRepository & DiscussionRepository & TopicVoteRepository & UserRepository & GitHubProfileService & GlyphiconService,
     Throwable,
     DiscussionStore
   ] =
@@ -577,8 +583,9 @@ object PersistentDiscussionStore:
         discussionRepo <- ZIO.service[DiscussionRepository]
         topicVoteRepo  <- ZIO.service[TopicVoteRepository]
         userRepo       <- ZIO.service[UserRepository]
+        gitHubProfileService <- ZIO.service[GitHubProfileService]
         glyphiconSvc   <- ZIO.service[GlyphiconService]
-        initialState   <- loadInitialState(discussionRepo, topicVoteRepo, userRepo)
+        initialState   <- loadInitialState(discussionRepo, topicVoteRepo, gitHubProfileService)
         stateRef       <- Ref.make(initialState)
         _              <- ZIO.logInfo(s"Loaded ${initialState.data.size} discussions from database")
       yield PersistentDiscussionStore(
@@ -586,6 +593,7 @@ object PersistentDiscussionStore:
         discussionRepo,
         topicVoteRepo,
         userRepo,
+        gitHubProfileService,
         glyphiconSvc,
         stateRef
       )

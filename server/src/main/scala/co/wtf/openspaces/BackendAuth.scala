@@ -192,7 +192,10 @@ case class ApplicationState(
                   .fromEither(userBody.fromJson[GitHubUser])
                   .mapError(e => new Exception(s"Failed to parse GitHub user: $e"))
                 // Upsert user to database (creates if new, updates display name if changed)
-                _ <- userRepository.upsert(githubUser.login, githubUser.name)
+                _ <- userRepository.upsert(
+                  githubUser.login,
+                  githubUser.name.map(_.trim).filter(_.nonEmpty).orElse(Some(githubUser.login)),
+                )
               } yield {
                               val cookies = AuthCookies.fromToken(data, githubUser.login)
                               cookies.foldLeft(

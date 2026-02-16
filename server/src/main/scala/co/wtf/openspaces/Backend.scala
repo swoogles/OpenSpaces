@@ -84,6 +84,7 @@ object Backend extends ZIOAppDefault {
       DataSourceLive.layer,
       FlywayMigration.layer,
       UserRepository.layer,
+      GitHubProfileService.layer,
       EventRepository.layer,
       DiscussionRepository.layer,
       TopicVoteRepository.layer,

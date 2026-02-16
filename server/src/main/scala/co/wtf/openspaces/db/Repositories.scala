@@ -33,14 +33,18 @@ class UserRepositoryLive(ds: DataSource) extends UserRepository:
       
       existing match
         case Some(row) =>
-          if row.displayName != displayName then
-            sql"""UPDATE users SET display_name = $displayName WHERE github_username = $username""".update.run()
-            row.copy(displayName = displayName)
-          else row
+          val normalizedDisplayName = displayName.map(_.trim).filter(_.nonEmpty)
+          normalizedDisplayName match
+            case Some(value) if row.displayName != Some(value) =>
+              sql"""UPDATE users SET display_name = ${Some(value)} WHERE github_username = $username""".update.run()
+              row.copy(displayName = Some(value))
+            case _ =>
+              row
         case None =>
           val now = OffsetDateTime.now()
-          sql"""INSERT INTO users (github_username, display_name, created_at) VALUES ($username, $displayName, $now)""".update.run()
-          UserRow(username, displayName, now)
+          val normalizedDisplayName = displayName.map(_.trim).filter(_.nonEmpty)
+          sql"""INSERT INTO users (github_username, display_name, created_at) VALUES ($username, $normalizedDisplayName, $now)""".update.run()
+          UserRow(username, normalizedDisplayName, now)
 
   def findAll: Task[Vector[UserRow]] =
     transactZIO(ds):

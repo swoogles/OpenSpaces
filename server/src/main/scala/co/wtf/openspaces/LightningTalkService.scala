@@ -9,6 +9,7 @@ case class LightningTalkService(
   state: Ref[LightningTalkState],
   lightningTalkRepo: LightningTalkRepository,
   userRepo: UserRepository,
+  gitHubProfileService: GitHubProfileService,
 ):
   // Pool of real GitHub users for random action generation.
   // TODO Dedup with other user pools
@@ -144,7 +145,10 @@ case class LightningTalkService(
     yield result
 
   private def ensureUserExists(username: String): Task[Unit] =
-    userRepo.upsert(username, None).unit
+    if username == "system" then
+      userRepo.upsert(username, Some(username)).unit
+    else
+      gitHubProfileService.ensureUserWithDisplayName(username).unit
 
   private def randomPerson: Task[Person] =
     for
@@ -221,25 +225,29 @@ object LightningTalkService:
 
   def loadInitialState(
     lightningTalkRepo: LightningTalkRepository,
-    userRepo: UserRepository,
+    gitHubProfileService: GitHubProfileService,
   ): Task[LightningTalkState] =
     for
       rows <- lightningTalkRepo.findAllActive
       speakers = rows.map(_.speaker).distinct
-      userRows <- ZIO.foreach(speakers)(userRepo.findByUsername)
-      userMap = userRows.flatten.map(u => u.githubUsername -> u.displayName).toMap
+      userRows <- ZIO.foreach(speakers)(speaker =>
+        gitHubProfileService.ensureUserWithDisplayName(speaker).either.map(_.toOption),
+      )
+      userMap = userRows.flatten.map(u => u.githubUsername -> u.displayName.orElse(Some(u.githubUsername))).toMap
       proposals = rows.flatMap(row => fromRow(row, userMap.get(row.speaker).flatten))
     yield LightningTalkState(proposals.map(p => p.id -> p).toMap)
 
-  val layer: ZLayer[LightningTalkRepository & UserRepository, Throwable, LightningTalkService] =
+  val layer: ZLayer[LightningTalkRepository & UserRepository & GitHubProfileService, Throwable, LightningTalkService] =
     ZLayer.fromZIO:
       for
         lightningTalkRepo <- ZIO.service[LightningTalkRepository]
         userRepo <- ZIO.service[UserRepository]
-        initialState <- loadInitialState(lightningTalkRepo, userRepo)
+        gitHubProfileService <- ZIO.service[GitHubProfileService]
+        initialState <- loadInitialState(lightningTalkRepo, gitHubProfileService)
         stateRef <- Ref.make(initialState)
       yield LightningTalkService(
         stateRef,
         lightningTalkRepo,
         userRepo,
+        gitHubProfileService,
       )
