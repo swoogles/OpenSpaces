@@ -338,8 +338,10 @@ body {
 
 .LightningTalk-main {
     display: flex;
-    flex-direction: column;
-    gap: 2px;
+    flex-direction: row;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
 }
 
 .LightningTalk-main--empty {
@@ -363,6 +365,7 @@ body {
     display: inline-flex;
     align-items: center;
     gap: 6px;
+    max-width: 100%;
 }
 
 .LightningTalk-actions {
