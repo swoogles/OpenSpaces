@@ -100,27 +100,23 @@ case class RandomActionSpawner(
         yield ActiveStatus(newState)
       },
       // Delete all topics
-      Method.POST / "api" / "admin" / "topics" / "delete-all" -> handler {
+      RandomActionApi.deleteAllTopics.implement { _ =>
         discussionService.deleteAllTopics
-          .map(count => Response.json(DeleteTopicsResult(count).toJson))
-          .orElse(ZIO.succeed(Response.status(Status.InternalServerError)))
+          .orDie
+          .map(DeleteTopicsResult(_))
       },
 
       // Auto-schedule topics
-      Method.POST / "api" / "admin" / "schedule" -> handler {
+      RandomActionApi.runScheduling.implement { _ =>
         schedulingService.runScheduling
-          .map(summary => Response.json(
+          .orDie
+          .map { summary =>
             ScheduleResult(
               scheduled = summary.scheduled,
               moved = summary.moved,
               unscheduled = summary.unscheduled,
-            ).toJson
-          )
-          )
-          .catchAll(err =>
-            ZIO.logError(s"Scheduling failed: $err") *>
-            ZIO.succeed(Response.json(s"""{"error":"${err.getMessage}"}""").status(Status.InternalServerError))
-          )
+            )
+          }
       },
     )
 
