@@ -155,7 +155,8 @@ object FrontEnd extends ZIOAppDefault{
           name.signal,
           votedTopicOrder.signal,
         ).map { case (state, currentUser, voteOrder) =>
-          val allTopics = state.data.values.toList
+          // Keep a stable, deterministic order that does not depend on vote events.
+          val allTopics = state.data.values.toList.sortBy(_.id.unwrap)
 
           // Partition into judged (user has voted) and unjudged (user hasn't voted)
           val (judged, unjudged) = allTopics.partition { topic =>
@@ -165,14 +166,16 @@ object FrontEnd extends ZIOAppDefault{
           // Take only the first unjudged topic (if any)
           val firstUnjudged = unjudged.headOption.toList
 
-          // Sort judged topics by vote order (most recent first)
-          // Topics not in voteOrder go to the end, sorted by ID for stability
+          // First-voted topics bubble to the top of judged topics; others stay in stable ID order.
+          // This means first vote moves a topic up once, but subsequent vote toggles keep its position.
           val orderIndex = voteOrder.zipWithIndex.toMap
           val sortedJudged = judged.sortBy { topic =>
-            orderIndex.getOrElse(topic.id, Int.MaxValue)
+            orderIndex.get(topic.id) match
+              case Some(index) => (0, index.toLong)
+              case None => (1, topic.id.unwrap)
           }
 
-          // Combine: first unjudged + judged topics in vote order
+          // Combine: first unjudged + judged topics with first-vote promotion
           firstUnjudged ++ sortedJudged
         },
         None,
@@ -358,13 +361,12 @@ object FrontEnd extends ZIOAppDefault{
                   // Show toast if user cares about either topic
                   notifyScheduleChange(topic1, newSlot1)
                   notifyScheduleChange(topic2, newSlot2)
-                // Track the user's vote for topic ordering
+                // Track the user's vote history
                 case DiscussionActionConfirmed.Vote(topicId, feedback) =>
                   val currentUser = name.now()
                   if feedback.voter == currentUser then
                     val isFirstVote = !everVotedTopics.now().contains(topicId)
                     everVotedTopics.update(_ + topicId)
-                    // Move to front of vote order (prepend, removing any existing entry)
                     if isFirstVote then
                       votedTopicOrder.update(order => topicId :: order.filterNot(_ == topicId))
                     // Celebrate the vote! (sound + animation)
@@ -398,15 +400,10 @@ object FrontEnd extends ZIOAppDefault{
                 case DiscussionActionConfirmed.Delete(topicId) =>
                   SwapAnimationState.cleanupTopic(topicId)
                 // Track topics the user has voted on (for everVotedTopics set)
-                // Also add newly created topics to vote order
                 case DiscussionActionConfirmed.AddResult(discussion) =>
                   val currentUser = name.now()
                   if discussion.interestedParties.exists(_.voter == currentUser) then
                     everVotedTopics.update(_ + discussion.id)
-                  // If user just created this topic, add to front of vote order
-                  // (creating a topic = auto-voting Interested on it)
-                  if discussion.facilitator == currentUser then
-                    votedTopicOrder.update(order => discussion.id :: order.filterNot(_ == discussion.id))
                 case _ => ()
 
               // Capture scroll position before state update
