@@ -9,6 +9,8 @@ import scala.scalajs.js
 import scala.util.{Failure, Success}
 
 object ServiceWorkerClient:
+  private var reloadedForNewServiceWorker = false
+
   def registerServiceWorker(): Unit =
     val window = dom.window
     val navigatorDyn = window.navigator.asInstanceOf[js.Dynamic]
@@ -29,6 +31,8 @@ object ServiceWorkerClient:
       .onComplete {
         case Success(registration) =>
           registration.onupdatefound = (_: dom.Event) => ()
+          if registration.waiting != null then
+            registration.waiting.postMessage("SKIP_WAITING")
           registration.update()
 
           val controller = serviceWorker.controller
@@ -36,8 +40,10 @@ object ServiceWorkerClient:
             println("SWC: controller present -> " + controller.state)
           serviceWorker.oncontrollerchange = (_: dom.Event) =>
             println("SWC: controller changed")
+            if !reloadedForNewServiceWorker then
+              reloadedForNewServiceWorker = true
+              dom.window.location.reload()
 
         case Failure(error) =>
           println(s"SWC: registration failed: ${error.getMessage}")
       }
-

@@ -1081,10 +1081,29 @@ function $p_Lco_wtf_openspaces_pwa_ServiceWorker$__clearOldCaches__s_concurrent_
 function $p_Lco_wtf_openspaces_pwa_ServiceWorker$__bypassCache__Lorg_scalajs_dom_Request__Z($thiz, request) {
   var path = $as_T(new URL($as_T(request.url)).pathname);
   var this$1 = $n(path);
-  if ($uZ(this$1.startsWith("/api/"))) {
+  if ((($uZ(this$1.startsWith("/api/")) || (path === "/discussions")) || (path === "/sw.js"))) {
+    var $x_3 = true;
+  } else {
+    var this$2 = $n(path);
+    var $x_3 = $uZ(this$2.endsWith(".js"));
+  }
+  if ($x_3) {
+    var $x_2 = true;
+  } else {
+    var this$3 = $n(path);
+    var $x_2 = $uZ(this$3.endsWith(".css"));
+  }
+  if ($x_2) {
+    var $x_1 = true;
+  } else {
+    var this$4 = $n(path);
+    var $x_1 = $uZ(this$4.endsWith(".html"));
+  }
+  if ($x_1) {
     return true;
   } else {
-    return (path === "/discussions");
+    var this$5 = $n(path);
+    return $uZ(this$5.endsWith(".webmanifest"));
   }
 }
 function $p_Lco_wtf_openspaces_pwa_ServiceWorker$__isAppShellRequest__Lorg_scalajs_dom_Request__Z($thiz, request) {
@@ -1194,7 +1213,7 @@ function $c_Lco_wtf_openspaces_pwa_ServiceWorker$() {
   this.Lco_wtf_openspaces_pwa_ServiceWorker$__f_cacheName = null;
   this.Lco_wtf_openspaces_pwa_ServiceWorker$__f_assetsToCache = null;
   $n_Lco_wtf_openspaces_pwa_ServiceWorker$ = this;
-  this.Lco_wtf_openspaces_pwa_ServiceWorker$__f_cacheName = "sticky-icky-cache-v2";
+  this.Lco_wtf_openspaces_pwa_ServiceWorker$__f_cacheName = "sticky-icky-cache-v3";
   var col = new $c_sci_$colon$colon("/index.html", new $c_sci_$colon$colon("/manifest.webmanifest", $m_sci_Nil$()));
   this.Lco_wtf_openspaces_pwa_ServiceWorker$__f_assetsToCache = $m_sjs_js_JSConverters$JSRichIterableOnce$().toJSArray$extension__sc_IterableOnce__sjs_js_Array(col);
 }
@@ -1206,39 +1225,49 @@ function $h_Lco_wtf_openspaces_pwa_ServiceWorker$() {
 $h_Lco_wtf_openspaces_pwa_ServiceWorker$.prototype = $c_Lco_wtf_openspaces_pwa_ServiceWorker$.prototype;
 $c_Lco_wtf_openspaces_pwa_ServiceWorker$.prototype.main__AT__V = (function(args) {
   var \u03b41$ = self;
-  \u03b41$.addEventListener("install", ((event) => {
-    self.skipWaiting();
-    var f = $p_Lco_wtf_openspaces_pwa_ServiceWorker$__preCache__s_concurrent_Future($m_Lco_wtf_openspaces_pwa_ServiceWorker$());
-    event.waitUntil($m_sjs_js_JSConverters$JSRichFuture$().toJSPromise$extension__s_concurrent_Future__s_concurrent_ExecutionContext__sjs_js_Promise(f, $m_s_concurrent_ExecutionContext$().global__s_concurrent_ExecutionContextExecutor()));
+  \u03b41$.addEventListener("message", ((event) => {
+    var x = event.data;
+    if (((x !== null) && $dp_equals__O__Z($n(x), "SKIP_WAITING"))) {
+      self.skipWaiting();
+      return (void 0);
+    } else {
+      return (void 0);
+    }
   }));
   var \u03b42$ = self;
-  \u03b42$.addEventListener("activate", ((event$2) => {
+  \u03b42$.addEventListener("install", ((event$2) => {
+    self.skipWaiting();
+    var f = $p_Lco_wtf_openspaces_pwa_ServiceWorker$__preCache__s_concurrent_Future($m_Lco_wtf_openspaces_pwa_ServiceWorker$());
+    event$2.waitUntil($m_sjs_js_JSConverters$JSRichFuture$().toJSPromise$extension__s_concurrent_Future__s_concurrent_ExecutionContext__sjs_js_Promise(f, $m_s_concurrent_ExecutionContext$().global__s_concurrent_ExecutionContextExecutor()));
+  }));
+  var \u03b43$ = self;
+  \u03b43$.addEventListener("activate", ((event$3) => {
     var f$1 = $n($p_Lco_wtf_openspaces_pwa_ServiceWorker$__clearOldCaches__s_concurrent_Future($m_Lco_wtf_openspaces_pwa_ServiceWorker$())).map__F1__s_concurrent_ExecutionContext__s_concurrent_Future(new $c_sjsr_AnonFunction1_$$Lambda$3aa60c34ef08a878abffbf4628007cc68fa3c7ab(((_$1) => {
       $as_jl_Void(_$1);
       return self.clients.claim();
     })), $m_s_concurrent_ExecutionContext$().global__s_concurrent_ExecutionContextExecutor());
-    event$2.waitUntil($m_sjs_js_JSConverters$JSRichFuture$().toJSPromise$extension__s_concurrent_Future__s_concurrent_ExecutionContext__sjs_js_Promise(f$1, $m_s_concurrent_ExecutionContext$().global__s_concurrent_ExecutionContextExecutor()));
+    event$3.waitUntil($m_sjs_js_JSConverters$JSRichFuture$().toJSPromise$extension__s_concurrent_Future__s_concurrent_ExecutionContext__sjs_js_Promise(f$1, $m_s_concurrent_ExecutionContext$().global__s_concurrent_ExecutionContextExecutor()));
   }));
-  var \u03b43$ = self;
-  \u03b43$.addEventListener("fetch", ((event$3) => {
-    var request = event$3.request;
+  var \u03b44$ = self;
+  \u03b44$.addEventListener("fetch", ((event$4) => {
+    var request = event$4.request;
     if (($dp_toString__T($n(request.method)) !== "GET")) {
       var p = fetch(request);
       var f$2 = $m_sjs_js_Thenable$ThenableOps$().toFuture$extension__sjs_js_Thenable__s_concurrent_Future(p);
-      event$3.respondWith($m_sjs_js_JSConverters$JSRichFuture$().toJSPromise$extension__s_concurrent_Future__s_concurrent_ExecutionContext__sjs_js_Promise(f$2, $m_s_concurrent_ExecutionContext$().global__s_concurrent_ExecutionContextExecutor()));
+      event$4.respondWith($m_sjs_js_JSConverters$JSRichFuture$().toJSPromise$extension__s_concurrent_Future__s_concurrent_ExecutionContext__sjs_js_Promise(f$2, $m_s_concurrent_ExecutionContext$().global__s_concurrent_ExecutionContextExecutor()));
       return (void 0);
     } else if ($p_Lco_wtf_openspaces_pwa_ServiceWorker$__bypassCache__Lorg_scalajs_dom_Request__Z($m_Lco_wtf_openspaces_pwa_ServiceWorker$(), request)) {
       var p$1 = fetch(request);
       var f$3 = $m_sjs_js_Thenable$ThenableOps$().toFuture$extension__sjs_js_Thenable__s_concurrent_Future(p$1);
-      event$3.respondWith($m_sjs_js_JSConverters$JSRichFuture$().toJSPromise$extension__s_concurrent_Future__s_concurrent_ExecutionContext__sjs_js_Promise(f$3, $m_s_concurrent_ExecutionContext$().global__s_concurrent_ExecutionContextExecutor()));
+      event$4.respondWith($m_sjs_js_JSConverters$JSRichFuture$().toJSPromise$extension__s_concurrent_Future__s_concurrent_ExecutionContext__sjs_js_Promise(f$3, $m_s_concurrent_ExecutionContext$().global__s_concurrent_ExecutionContextExecutor()));
       return (void 0);
     } else if ($p_Lco_wtf_openspaces_pwa_ServiceWorker$__isAppShellRequest__Lorg_scalajs_dom_Request__Z($m_Lco_wtf_openspaces_pwa_ServiceWorker$(), request)) {
       var f$4 = $p_Lco_wtf_openspaces_pwa_ServiceWorker$__networkFirst__Lorg_scalajs_dom_Request__s_concurrent_Future($m_Lco_wtf_openspaces_pwa_ServiceWorker$(), request);
-      event$3.respondWith($m_sjs_js_JSConverters$JSRichFuture$().toJSPromise$extension__s_concurrent_Future__s_concurrent_ExecutionContext__sjs_js_Promise(f$4, $m_s_concurrent_ExecutionContext$().global__s_concurrent_ExecutionContextExecutor()));
+      event$4.respondWith($m_sjs_js_JSConverters$JSRichFuture$().toJSPromise$extension__s_concurrent_Future__s_concurrent_ExecutionContext__sjs_js_Promise(f$4, $m_s_concurrent_ExecutionContext$().global__s_concurrent_ExecutionContextExecutor()));
       return (void 0);
     } else {
-      var f$5 = $p_Lco_wtf_openspaces_pwa_ServiceWorker$__staleWhileRevalidate__Lorg_scalajs_dom_FetchEvent__s_concurrent_Future($m_Lco_wtf_openspaces_pwa_ServiceWorker$(), event$3);
-      event$3.respondWith($m_sjs_js_JSConverters$JSRichFuture$().toJSPromise$extension__s_concurrent_Future__s_concurrent_ExecutionContext__sjs_js_Promise(f$5, $m_s_concurrent_ExecutionContext$().global__s_concurrent_ExecutionContextExecutor()));
+      var f$5 = $p_Lco_wtf_openspaces_pwa_ServiceWorker$__staleWhileRevalidate__Lorg_scalajs_dom_FetchEvent__s_concurrent_Future($m_Lco_wtf_openspaces_pwa_ServiceWorker$(), event$4);
+      event$4.respondWith($m_sjs_js_JSConverters$JSRichFuture$().toJSPromise$extension__s_concurrent_Future__s_concurrent_ExecutionContext__sjs_js_Promise(f$5, $m_s_concurrent_ExecutionContext$().global__s_concurrent_ExecutionContextExecutor()));
       return (void 0);
     }
   }));

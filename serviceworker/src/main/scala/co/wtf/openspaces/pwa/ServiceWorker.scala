@@ -12,7 +12,7 @@ import scala.scalajs.js
 import scala.scalajs.js.JSConverters._
 
 object ServiceWorker:
-  private val cacheName = "sticky-icky-cache-v2"
+  private val cacheName = "sticky-icky-cache-v3"
 
   private val assetsToCache: js.Array[RequestInfo] =
     List[RequestInfo](
@@ -26,6 +26,14 @@ object ServiceWorker:
     ).toJSArray
 
   def main(args: Array[String]): Unit =
+    self.addEventListener(
+      "message",
+      (event: org.scalajs.dom.MessageEvent) => {
+        if event.data == "SKIP_WAITING" then
+          self.skipWaiting()
+      },
+    )
+
     self.addEventListener(
       "install",
       (event: ExtendableEvent) => {
@@ -90,7 +98,13 @@ object ServiceWorker:
 
   private def bypassCache(request: Request): Boolean =
     val path = new URL(request.url).pathname
-    path.startsWith("/api/") || path == "/discussions"
+    path.startsWith("/api/") ||
+      path == "/discussions" ||
+      path == "/sw.js" ||
+      path.endsWith(".js") ||
+      path.endsWith(".css") ||
+      path.endsWith(".html") ||
+      path.endsWith(".webmanifest")
 
   private def isAppShellRequest(request: Request): Boolean =
     val path = new URL(request.url).pathname
@@ -167,4 +181,3 @@ object ServiceWorker:
       )
       .getOrElse(fetch(request).toFuture)
   }
-
