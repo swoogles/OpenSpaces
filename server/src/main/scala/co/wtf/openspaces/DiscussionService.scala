@@ -50,7 +50,7 @@ case class DiscussionService(
       _ <- handleActionResult(action, None)
     yield action
 
-  /** Generate a random lightning action (submit or rename only) and broadcast. */
+  /** Generate a random lightning participation action and broadcast. */
   def randomLightningAction: Task[LightningTalkActionConfirmed] =
     for
       action <- lightningTalkService.randomLightningAction

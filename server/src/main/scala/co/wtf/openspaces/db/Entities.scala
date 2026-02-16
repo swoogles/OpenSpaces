@@ -65,12 +65,10 @@ case class TopicVoteRow(
 
 case class LightningTalkRow(
   id: Long,
-  topic: String,
   speaker: String,
   assignmentNight: Option[String],
   assignmentSlot: Option[Int],
   createdAt: OffsetDateTime,
-  updatedAt: OffsetDateTime,
   deletedAt: Option[OffsetDateTime],
   slackChannelId: Option[String],
   slackThreadTs: Option[String],

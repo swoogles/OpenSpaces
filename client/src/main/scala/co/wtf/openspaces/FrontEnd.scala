@@ -444,10 +444,10 @@ object FrontEnd extends ZIOAppDefault{
                 case LightningTalkActionConfirmedMessage(lightningEvent) =>
                   lightningEvent match
                     case LightningTalkActionConfirmed.Rejected(
-                          _: LightningTalkAction.Submit,
+                          _: LightningTalkAction.SetParticipation,
                         ) =>
                       connectionStatus.reportError(
-                        "Submit failed. You may already have a proposal.",
+                        "Lightning talk participation update failed.",
                       )
                     case LightningTalkActionConfirmed.Rejected(
                           LightningTalkAction.DrawForNextNight,

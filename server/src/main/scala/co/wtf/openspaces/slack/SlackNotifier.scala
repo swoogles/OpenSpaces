@@ -55,8 +55,6 @@ class SlackNotifierLive(
     action match
       case LightningTalkActionConfirmed.AddResult(proposal) =>
         handleLightningAdd(proposal, broadcast).fork.unit
-      case LightningTalkActionConfirmed.Rename(proposalId, _) =>
-        handleLightningRename(proposalId).fork.unit
       case LightningTalkActionConfirmed.Delete(proposalId) =>
         handleLightningDelete(proposalId).fork.unit
       case LightningTalkActionConfirmed.SetAssignment(proposalId, newAssignment) =>
@@ -138,16 +136,6 @@ class SlackNotifierLive(
     yield ()
     effect.catchAll(err => ZIO.logError(s"Slack integration failed for lightning proposal $proposalId: $err"))
 
-  private def handleLightningRename(proposalId: LightningTalkId): Task[Unit] =
-    val effect = for
-      row <- lightningTalkRepo.findById(proposalId.unwrap).someOrFail(new Exception(s"Lightning talk $proposalId not found"))
-      ts <- ZIO.fromOption(row.slackThreadTs).orElseFail(new Exception(s"No Slack thread for lightning talk $proposalId"))
-      channelId = row.slackChannelId.getOrElse(config.channelId)
-      blocks = buildLightningUpdateBlocks(row)
-      _ <- slackClient.updateMessage(channelId, ts, blocks)
-    yield ()
-    effect.catchAll(err => ZIO.logError(s"Slack rename failed for lightning talk $proposalId: $err"))
-
   private def handleLightningAssignmentUpdate(
     proposalId: LightningTalkId,
     assignment: Option[LightningAssignment],
@@ -199,22 +187,20 @@ class SlackNotifierLive(
     s"""[{"type":"section","text":{"type":"mrkdwn","text":"*$topicName*"},"accessory":{"type":"image","image_url":"$avatarUrl","alt_text":"$facilitator"}},{"type":"context","elements":[{"type":"mrkdwn","text":"Proposed by *$facilitator*$scheduleInfo · <$appLink|View in OpenSpaces>"}]}]"""
 
   private def buildLightningCreateBlocks(proposal: LightningTalkProposal): String =
-    val topicName = proposal.topicName.replace("\"", "\\\"")
     val speaker = proposal.speaker.unwrap.replace("\"", "\\\"")
     val avatarUrl = s"https://github.com/${proposal.speaker.unwrap}.png?size=100"
     val appLink = s"${config.appBaseUrl}"
 
-    s"""[{"type":"section","text":{"type":"mrkdwn","text":":zap: *$topicName*"},"accessory":{"type":"image","image_url":"$avatarUrl","alt_text":"$speaker"}},{"type":"context","elements":[{"type":"mrkdwn","text":"Lightning talk by *$speaker* · <$appLink|View in OpenSpaces>"}]}]"""
+    s"""[{"type":"section","text":{"type":"mrkdwn","text":":zap: *Lightning Talk Volunteer*"},"accessory":{"type":"image","image_url":"$avatarUrl","alt_text":"$speaker"}},{"type":"context","elements":[{"type":"mrkdwn","text":"*${speaker}* is willing to give a lightning talk · <$appLink|View in OpenSpaces>"}]}]"""
 
   private def buildLightningUpdateBlocks(row: LightningTalkRow): String =
-    val topicName = row.topic.replace("\"", "\\\"")
     val speaker = row.speaker.replace("\"", "\\\"")
     val avatarUrl = s"https://github.com/${row.speaker}.png?size=100"
     val appLink = s"${config.appBaseUrl}"
     val assignmentInfo = (row.assignmentNight, row.assignmentSlot) match
       case (Some(night), Some(slot)) => s" · :zap: $night Night slot #$slot"
       case _ => ""
-    s"""[{"type":"section","text":{"type":"mrkdwn","text":":zap: *$topicName*"},"accessory":{"type":"image","image_url":"$avatarUrl","alt_text":"$speaker"}},{"type":"context","elements":[{"type":"mrkdwn","text":"Lightning talk by *$speaker*$assignmentInfo · <$appLink|View in OpenSpaces>"}]}]"""
+    s"""[{"type":"section","text":{"type":"mrkdwn","text":":zap: *Lightning Talk Volunteer*"},"accessory":{"type":"image","image_url":"$avatarUrl","alt_text":"$speaker"}},{"type":"context","elements":[{"type":"mrkdwn","text":"*${speaker}* is willing to give a lightning talk$assignmentInfo · <$appLink|View in OpenSpaces>"}]}]"""
 
 
 class SlackNotifierNoOp extends SlackNotifier:

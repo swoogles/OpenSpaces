@@ -221,8 +221,8 @@ trait LightningTalkRepository:
 class LightningTalkRepositoryLive(ds: DataSource) extends LightningTalkRepository:
   def findById(id: Long): Task[Option[LightningTalkRow]] =
     transactZIO(ds):
-      sql"""SELECT id, topic, speaker, assignment_night, assignment_slot,
-                   created_at, updated_at, deleted_at,
+      sql"""SELECT id, speaker, assignment_night, assignment_slot,
+                   created_at, deleted_at,
                    slack_channel_id, slack_thread_ts, slack_permalink
             FROM lightning_talks
             WHERE id = $id"""
@@ -232,8 +232,8 @@ class LightningTalkRepositoryLive(ds: DataSource) extends LightningTalkRepositor
 
   def findBySpeakerActive(speaker: String): Task[Option[LightningTalkRow]] =
     transactZIO(ds):
-      sql"""SELECT id, topic, speaker, assignment_night, assignment_slot,
-                   created_at, updated_at, deleted_at,
+      sql"""SELECT id, speaker, assignment_night, assignment_slot,
+                   created_at, deleted_at,
                    slack_channel_id, slack_thread_ts, slack_permalink
             FROM lightning_talks
             WHERE speaker = $speaker
@@ -244,8 +244,8 @@ class LightningTalkRepositoryLive(ds: DataSource) extends LightningTalkRepositor
 
   def findAllActive: Task[Vector[LightningTalkRow]] =
     transactZIO(ds):
-      sql"""SELECT id, topic, speaker, assignment_night, assignment_slot,
-                   created_at, updated_at, deleted_at,
+      sql"""SELECT id, speaker, assignment_night, assignment_slot,
+                   created_at, deleted_at,
                    slack_channel_id, slack_thread_ts, slack_permalink
             FROM lightning_talks
             WHERE deleted_at IS NULL"""
@@ -255,13 +255,13 @@ class LightningTalkRepositoryLive(ds: DataSource) extends LightningTalkRepositor
   def insert(row: LightningTalkRow): Task[Unit] =
     transactZIO(ds):
       sql"""INSERT INTO lightning_talks (
-              id, topic, speaker, assignment_night, assignment_slot,
-              created_at, updated_at, deleted_at,
+              id, speaker, assignment_night, assignment_slot,
+              created_at, deleted_at,
               slack_channel_id, slack_thread_ts, slack_permalink
             ) VALUES (
-              ${row.id}, ${row.topic}, ${row.speaker},
+              ${row.id}, ${row.speaker},
               ${row.assignmentNight}, ${row.assignmentSlot},
-              ${row.createdAt}, ${row.updatedAt}, ${row.deletedAt},
+              ${row.createdAt}, ${row.deletedAt},
               ${row.slackChannelId}, ${row.slackThreadTs}, ${row.slackPermalink}
             )""".update.run()
       ()
@@ -269,8 +269,6 @@ class LightningTalkRepositoryLive(ds: DataSource) extends LightningTalkRepositor
   def update(row: LightningTalkRow): Task[Unit] =
     transactZIO(ds):
       sql"""UPDATE lightning_talks SET
-              topic = ${row.topic},
-              speaker = ${row.speaker},
               assignment_night = ${row.assignmentNight},
               assignment_slot = ${row.assignmentSlot},
               deleted_at = ${row.deletedAt}

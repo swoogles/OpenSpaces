@@ -100,10 +100,6 @@ case class LightningTalkState(
             }
           case LightningTalkActionConfirmed.Delete(proposalId) =>
             proposals - proposalId
-          case LightningTalkActionConfirmed.Rename(proposalId, newTopic) =>
-            proposals.updatedWith(proposalId) {
-              _.map(value => value.copy(topic = newTopic))
-            }
           case LightningTalkActionConfirmed.SetAssignment(
                 proposalId,
                 newAssignment,

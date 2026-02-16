@@ -12,7 +12,6 @@ object LightningTalkStateTest extends ZIOSpecDefault:
   ): LightningTalkProposal =
     LightningTalkProposal(
       LightningTalkId(id),
-      Topic(s"Lightning talk title $id"),
       Person(speaker),
       None,
       assignment,

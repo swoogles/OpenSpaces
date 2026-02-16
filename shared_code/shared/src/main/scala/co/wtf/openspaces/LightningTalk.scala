@@ -31,7 +31,6 @@ case class LightningAssignment(
 
 case class LightningTalkProposal(
   id: LightningTalkId,
-  topic: Topic,
   speaker: Person,
   speakerDisplayName: Option[String],
   assignment: Option[LightningAssignment],
@@ -39,7 +38,6 @@ case class LightningTalkProposal(
   slackThreadUrl: Option[String] = None,
 ) derives JsonCodec:
   val speakerName: String = speakerDisplayName.getOrElse(speaker.unwrap)
-  val topicName: String = topic.unwrap
 
 case class LightningDrawAssignment(
   proposalId: LightningTalkId,

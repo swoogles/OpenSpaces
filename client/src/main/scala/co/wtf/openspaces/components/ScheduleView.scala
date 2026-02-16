@@ -242,7 +242,7 @@ object LinearScheduleView:
                         case Some(proposal) =>
                           LightningTalkProposalCard(
                             proposal = proposal,
-                            metaText = s"by ${proposal.speakerName}",
+                            metaText = None,
                             rowClass = "LightningTalk-slot",
                             slotNumber = Some(slotNumber),
                           )

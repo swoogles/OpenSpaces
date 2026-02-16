@@ -117,14 +117,9 @@ object DiscussionActionConfirmed:
         )
 
 enum LightningTalkAction derives JsonCodec:
-  case Submit(
-    topic: Topic,
-    speaker: Person)
-  case Rename(
-    proposalId: LightningTalkId,
-    newTopic: Topic)
-  case Delete(
-    proposalId: LightningTalkId)
+  case SetParticipation(
+    speaker: Person,
+    participating: Boolean)
   case SetAssignment(
     proposalId: LightningTalkId,
     expectedCurrentAssignment: Option[LightningAssignment],
@@ -137,9 +132,6 @@ enum LightningTalkActionConfirmed derives JsonCodec:
   case SlackThreadLinked(
     proposalId: LightningTalkId,
     slackThreadUrl: String)
-  case Rename(
-    proposalId: LightningTalkId,
-    newTopic: Topic)
   case Delete(
     proposalId: LightningTalkId)
   case SetAssignment(

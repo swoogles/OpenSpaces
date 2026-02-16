@@ -3,7 +3,6 @@ package co.wtf.openspaces
 import co.wtf.openspaces.db.{LightningTalkRepository, LightningTalkRow, UserRepository}
 import neotype.unwrap
 import zio.*
-import zio.json.*
 import scala.util.Random as ScalaRandom
 
 case class LightningTalkService(
@@ -50,45 +49,28 @@ case class LightningTalkService(
     action: LightningTalkAction,
   ): Task[LightningTalkActionConfirmed] =
     action match
-      case submit @ LightningTalkAction.Submit(topic, speaker) =>
+      case setParticipation @ LightningTalkAction.SetParticipation(
+            speaker,
+            participating,
+          ) =>
         for
           _ <- ensureUserExists(speaker.unwrap)
           current <- state.get
-          result <- current.proposalForSpeaker(speaker) match
-            case Some(_) =>
-              ZIO.succeed(LightningTalkActionConfirmed.Rejected(submit))
-            case None =>
+          result <- (current.proposalForSpeaker(speaker), participating) match
+            case (Some(_), true) =>
+              ZIO.succeed(LightningTalkActionConfirmed.Rejected(setParticipation))
+            case (None, false) =>
+              ZIO.succeed(LightningTalkActionConfirmed.Rejected(setParticipation))
+            case (None, true) =>
               for
-                proposal <- createProposal(topic, speaker)
+                proposal <- createProposal(speaker)
                 _ <- persistProposal(proposal)
                 _ <- state.update(_(proposal))
               yield LightningTalkActionConfirmed.AddResult(proposal)
-        yield result
-
-      case rename @ LightningTalkAction.Rename(proposalId, newTopic) =>
-        for
-          current <- state.get
-          result <- current.proposals.get(proposalId) match
-            case None =>
-              ZIO.succeed(LightningTalkActionConfirmed.Rejected(rename))
-            case Some(existing) =>
+            case (Some(existing), false) =>
               for
-                _ <- updateProposal(existing.copy(topic = newTopic))
-                confirmed = LightningTalkActionConfirmed.Rename(proposalId, newTopic)
-                _ <- state.update(_(confirmed))
-              yield confirmed
-        yield result
-
-      case delete @ LightningTalkAction.Delete(proposalId) =>
-        for
-          current <- state.get
-          result <- current.proposals.get(proposalId) match
-            case None =>
-              ZIO.succeed(LightningTalkActionConfirmed.Rejected(delete))
-            case Some(_) =>
-              for
-                _ <- lightningTalkRepo.softDelete(proposalId.unwrap)
-                confirmed = LightningTalkActionConfirmed.Delete(proposalId)
+                _ <- lightningTalkRepo.softDelete(existing.id.unwrap)
+                confirmed = LightningTalkActionConfirmed.Delete(existing.id)
                 _ <- state.update(_(confirmed))
               yield confirmed
         yield result
@@ -153,12 +135,11 @@ case class LightningTalkService(
     for
       person <- randomPerson
       current <- state.get
-      topic <- DiscussionTopics.randomTopic
       action = current.proposalForSpeaker(person) match
-        case Some(existing) =>
-          LightningTalkAction.Rename(existing.id, topic)
+        case Some(_) =>
+          LightningTalkAction.SetParticipation(person, participating = false)
         case None =>
-          LightningTalkAction.Submit(topic, person)
+          LightningTalkAction.SetParticipation(person, participating = true)
       result <- applyAction(action)
     yield result
 
@@ -170,7 +151,7 @@ case class LightningTalkService(
       idx <- zio.Random.nextIntBounded(randomUserPool.size)
     yield randomUserPool(idx)
 
-  private def createProposal(topic: Topic, speaker: Person): Task[LightningTalkProposal] =
+  private def createProposal(speaker: Person): Task[LightningTalkProposal] =
     for
       id <- zio.Random.nextLong.map { n =>
         if n == Long.MinValue then 0L else math.abs(n)
@@ -179,7 +160,6 @@ case class LightningTalkService(
       createdAtEpochMs = java.lang.System.currentTimeMillis()
     yield LightningTalkProposal(
       id = LightningTalkId(id),
-      topic = topic,
       speaker = speaker,
       speakerDisplayName = speakerUser.flatMap(_.displayName),
       assignment = None,
@@ -205,12 +185,10 @@ case class LightningTalkService(
     )
     LightningTalkRow(
       id = proposal.id.unwrap,
-      topic = proposal.topic.unwrap,
       speaker = proposal.speaker.unwrap,
       assignmentNight = night,
       assignmentSlot = slot,
       createdAt = createdAt,
-      updatedAt = java.time.OffsetDateTime.now(),
       deletedAt = None,
       slackChannelId = None,
       slackThreadTs = None,
@@ -223,7 +201,6 @@ object LightningTalkService:
     speakerDisplayName: Option[String],
   ): Option[LightningTalkProposal] =
     for
-      topic <- Topic.make(row.topic).toOption
       assignment <- row.assignmentNight match
         case None =>
           Some(None)
@@ -235,7 +212,6 @@ object LightningTalkService:
           }
     yield LightningTalkProposal(
       id = LightningTalkId(row.id),
-      topic = topic,
       speaker = Person(row.speaker),
       speakerDisplayName = speakerDisplayName,
       assignment = assignment,
