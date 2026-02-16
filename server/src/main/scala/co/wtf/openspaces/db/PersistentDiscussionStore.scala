@@ -339,9 +339,14 @@ class PersistentDiscussionStore(
       case DiscussionAction.Vote(topicId, feedback) =>
         for
           _ <- ensureUserExists(actor)
-          confirmed = DiscussionActionConfirmed.fromDiscussionAction(action)
           _ <- persistEvent("Vote", topicId.unwrap, action.toJson, actor)
-          _ <- upsertVoteIfDiscussionExists(topicId, feedback)
+          voteResult <- upsertVoteIfDiscussionExists(topicId, feedback)
+          confirmed = DiscussionActionConfirmed.Vote(
+            topicId,
+            feedback.copy(
+              firstVotedAtEpochMs = voteResult.map(_.firstVotedAt.toInstant.toEpochMilli),
+            ),
+          )
           _ <- state.update(_.apply(confirmed))
         yield confirmed
 
@@ -407,7 +412,7 @@ class PersistentDiscussionStore(
     yield Discussion(
       topic,
       facilitator,
-      Set(Feedback(facilitator, VotePosition.Interested)),
+      Set(Feedback(facilitator, VotePosition.Interested, Some(java.lang.System.currentTimeMillis()))),
       TopicId(randomId),
       randomIcon,
       roomSlot,
@@ -439,7 +444,7 @@ class PersistentDiscussionStore(
         discussion.id.unwrap,
         feedback.voter.unwrap,
         feedback.position,
-      )
+      ).unit
     }
 
   private def updateDiscussionRoomSlot(topicId: TopicId, roomSlot: Option[RoomSlot]): Task[Unit] =
@@ -455,19 +460,19 @@ class PersistentDiscussionStore(
   private def upsertVoteIfDiscussionExists(
     topicId: TopicId,
     feedback: Feedback
-  ): Task[Unit] =
+  ): Task[Option[TopicVoteRow]] =
     for
       existing <- discussionRepo.findById(topicId.unwrap)
-      _ <- existing match
+      persisted <- existing match
         case Some(_) =>
           topicVoteRepo.upsertVote(
             topicId.unwrap,
             feedback.voter.unwrap,
             feedback.position,
-          )
+          ).map(Some(_))
         case None =>
-          ZIO.unit
-    yield ()
+          ZIO.none
+    yield persisted
 
   private def updateDiscussionTopic(topicId: TopicId, newTopic: Topic): Task[Unit] =
     for
@@ -504,7 +509,13 @@ object PersistentDiscussionStore:
       votesByTopic = voteRows.groupMap(_.topicId) { voteRow =>
         VotePosition.values
           .find(_.toString == voteRow.position)
-          .map(position => Feedback(Person(voteRow.githubUsername), position))
+          .map(position =>
+            Feedback(
+              Person(voteRow.githubUsername),
+              position,
+              Some(voteRow.firstVotedAt.toInstant.toEpochMilli),
+            ),
+          )
       }.view.mapValues(_.flatten.toSet).toMap
       // Get all unique facilitators
       facilitators = rows.map(_.facilitator).distinct

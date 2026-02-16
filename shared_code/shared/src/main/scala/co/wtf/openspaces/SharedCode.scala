@@ -52,7 +52,8 @@ object VotingState:
 
 case class Feedback(
   voter: Person,
-  position: VotePosition)
+  position: VotePosition,
+  firstVotedAtEpochMs: Option[Long] = None)
     derives JsonCodec
 
 case class Discussion(

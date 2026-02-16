@@ -153,8 +153,7 @@ object FrontEnd extends ZIOAppDefault{
         Signal.combine(
           discussionState.signal,
           name.signal,
-          votedTopicOrder.signal,
-        ).map { case (state, currentUser, voteOrder) =>
+        ).map { case (state, currentUser) =>
           // Keep a stable, deterministic order that does not depend on vote events.
           val allTopics = state.data.values.toList.sortBy(_.id.unwrap)
 
@@ -166,16 +165,17 @@ object FrontEnd extends ZIOAppDefault{
           // Take only the first unjudged topic (if any)
           val firstUnjudged = unjudged.headOption.toList
 
-          // First-voted topics bubble to the top of judged topics; others stay in stable ID order.
-          // This means first vote moves a topic up once, but subsequent vote toggles keep its position.
-          val orderIndex = voteOrder.zipWithIndex.toMap
+          // Sort judged topics by when the current user first voted (newest first).
+          // Topics missing a timestamp fall back to the oldest bucket and stable ID ordering.
           val sortedJudged = judged.sortBy { topic =>
-            orderIndex.get(topic.id) match
-              case Some(index) => (0, index.toLong)
-              case None => (1, topic.id.unwrap)
+            val firstVoteTs = topic.interestedParties
+              .find(_.voter == currentUser)
+              .flatMap(_.firstVotedAtEpochMs)
+              .getOrElse(Long.MinValue)
+            (-firstVoteTs, topic.id.unwrap)
           }
 
-          // Combine: first unjudged + judged topics with first-vote promotion
+          // Combine: first unjudged + judged topics sorted by first-vote time
           firstUnjudged ++ sortedJudged
         },
         None,

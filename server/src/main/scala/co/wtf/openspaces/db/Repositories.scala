@@ -173,7 +173,7 @@ object DiscussionRepository:
 
 trait TopicVoteRepository:
   def findAllForActiveDiscussions: Task[Vector[TopicVoteRow]]
-  def upsertVote(topicId: Long, githubUsername: String, position: VotePosition): Task[Unit]
+  def upsertVote(topicId: Long, githubUsername: String, position: VotePosition): Task[TopicVoteRow]
   def deleteVote(topicId: Long, githubUsername: String): Task[Unit]
 
 class TopicVoteRepositoryLive(ds: DataSource) extends TopicVoteRepository:
@@ -186,13 +186,18 @@ class TopicVoteRepositoryLive(ds: DataSource) extends TopicVoteRepository:
         .query[TopicVoteRow]
         .run()
 
-  def upsertVote(topicId: Long, githubUsername: String, position: VotePosition): Task[Unit] =
+  def upsertVote(topicId: Long, githubUsername: String, position: VotePosition): Task[TopicVoteRow] =
     transactZIO(ds):
       sql"""INSERT INTO topic_votes (topic_id, github_username, position)
             VALUES ($topicId, $githubUsername, ${position.toString})
             ON CONFLICT (topic_id, github_username)
             DO UPDATE SET position = EXCLUDED.position""".update.run()
-      ()
+      sql"""SELECT topic_id, github_username, position, first_voted_at
+            FROM topic_votes
+            WHERE topic_id = $topicId AND github_username = $githubUsername"""
+        .query[TopicVoteRow]
+        .run()
+        .head
 
   def deleteVote(topicId: Long, githubUsername: String): Task[Unit] =
     transactZIO(ds):
