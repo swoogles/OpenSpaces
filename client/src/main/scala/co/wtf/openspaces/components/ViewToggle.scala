@@ -8,6 +8,12 @@ import com.raquo.laminar.api.L.{*, given}
   * Admin tab is only visible when admin mode is enabled.
   */
 object ViewToggle:
+  private def tabClass(isActive: Boolean): String =
+    UiClasses.build(
+      "ViewToggle-button",
+      "ViewToggle-button--active" -> isActive,
+    )
+
   def apply(
     currentView: Var[AppView],
     adminModeEnabled: Signal[Boolean],
@@ -18,28 +24,19 @@ object ViewToggle:
       child.maybe <-- adminModeEnabled.map { enabled =>
         Option.when(enabled)(
           button(
-            cls <-- currentView.signal.map { view =>
-              if (view == AppView.Admin) "ViewToggle-button ViewToggle-button--active"
-              else "ViewToggle-button"
-            },
+            cls <-- currentView.signal.map(view => tabClass(view == AppView.Admin)),
             onClick --> Observer(_ => currentView.set(AppView.Admin)),
             "Admin",
           )
         )
       },
       button(
-        cls <-- currentView.signal.map { view =>
-          if (view == AppView.Topics) "ViewToggle-button ViewToggle-button--active"
-          else "ViewToggle-button"
-        },
+        cls <-- currentView.signal.map(view => tabClass(view == AppView.Topics)),
         onClick --> Observer(_ => currentView.set(AppView.Topics)),
         "Topics",
       ),
       button(
-        cls <-- currentView.signal.map { view =>
-          if (view == AppView.Schedule) "ViewToggle-button ViewToggle-button--active"
-          else "ViewToggle-button"
-        },
+        cls <-- currentView.signal.map(view => tabClass(view == AppView.Schedule)),
         onClick --> Observer(_ => currentView.set(AppView.Schedule)),
         "Schedule",
       ),

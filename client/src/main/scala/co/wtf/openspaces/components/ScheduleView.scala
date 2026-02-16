@@ -5,7 +5,7 @@ import com.raquo.laminar.api.L.{*, given}
 import org.scalajs.dom
 
 import co.wtf.openspaces.{
-  Discussion, DiscussionAction, DiscussionState, Person, RoomSlot,
+  DaySlots, Discussion, DiscussionAction, DiscussionState, Person, RoomSlot,
   GitHubAvatar, SvgIcon, GlyphiconUtils
 }
 import co.wtf.openspaces.util.ScrollPreserver
@@ -34,6 +34,14 @@ object ScheduleView:
     unscheduledMenuState: Var[Option[RoomSlot]],
     activeDiscussionMenuState: Var[Option[Discussion]],
   ): HtmlElement =
+    val rooms = fullSchedule
+      .now()
+      .slots
+      .headOption
+      .flatMap(_.slots.headOption)
+      .map(_.rooms)
+      .getOrElse(Nil)
+
     val showPopover: Observer[Discussion] =
       Observer { discussion =>
         popoverState.set(Some(discussion))
@@ -64,7 +72,7 @@ object ScheduleView:
       div(
         cls := "Targets",
         div(
-          cls := "ActiveDiscussion Topic",
+          cls := "ActiveDiscussion",
           handleActiveDiscussionLongPress,
           child <-- TopicCard(
             name,
@@ -79,15 +87,13 @@ object ScheduleView:
         cls := "Schedule",
         div(
           cls := "RoomHeaders",
-          div(cls := "Room1", "King"),
-          div(cls := "Room2", "Hawk"),
-          div(cls := "Room3", "Art"),
-          div(cls := "Room4", "Dance"),
+          rooms.map(room => div(cls := "RoomHeader", room.name)),
         ),
         div(
           cls := "TimeSlots",
           ScrollPreserver.timeSlotsIdAttr,
           SlotSchedules(
+            fullSchedule.now().slots,
             fullSchedule.signal,
             updateTargetDiscussion,
             activeDiscussion.signal,
@@ -105,6 +111,7 @@ object ScheduleView:
   */
 object SlotSchedules:
   def apply(
+    slots: List[DaySlots],
     $discussionState: Signal[DiscussionState],
     updateDiscussion: Observer[Discussion],
     activeDiscussion: StrictSignal[Option[Discussion]],
@@ -114,8 +121,6 @@ object SlotSchedules:
     topicUpdates: DiscussionAction => Unit,
     name: StrictSignal[Person],
   ): HtmlElement =
-    // Build the grid structure statically - slots don't change, only their content does
-    val slots = DiscussionState.timeSlotExamples
     div(
       slots.map { daySlot =>
         div(
@@ -193,7 +198,6 @@ object LinearScheduleView:
                       case None =>
                         div(
                           cls := "LinearEmptySlot",
-                          cursor := "pointer",
                           onClick.stopPropagation.mapTo(roomSlot) --> showUnscheduledMenu,
                           SvgIcon(GlyphiconUtils.plus),
                           span("Add topic"),

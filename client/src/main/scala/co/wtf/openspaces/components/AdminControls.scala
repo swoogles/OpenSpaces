@@ -14,6 +14,18 @@ import scala.util.{Failure, Success}
   * Extracted from AppState.scala for better code organization.
   */
 object AdminControls:
+  private def adminButtonClass(
+    isLoading: Boolean,
+    variantClass: Option[String] = None,
+    activeClass: Option[String] = None,
+    isActive: Boolean = false,
+  ): String =
+    UiClasses.join(
+      "AdminControls-button",
+      variantClass.getOrElse(""),
+      activeClass.filter(_ => isActive).getOrElse(""),
+      if isLoading then "AdminControls-button--loading" else "",
+    )
 
   def apply(
     $showAdminControls: Signal[Boolean],
@@ -32,7 +44,6 @@ object AdminControls:
     
     // Auto-schedule state
     val scheduleLoading: Var[Boolean] = Var(false)
-    val scheduleResult: Var[Option[String]] = Var(None)
     val scheduleChaosLoading: Var[Boolean] = Var(false)
     
     val deleteLoading: Var[Boolean] = Var(false)
@@ -83,7 +94,6 @@ object AdminControls:
 
     def runScheduling(): Unit =
       scheduleLoading.set(true)
-      scheduleResult.set(None)
       randomActionClient.runScheduling
         .onComplete {
           case Success(result) =>
@@ -133,9 +143,12 @@ object AdminControls:
       // Full chaos button
       button(
         cls <-- Signal.combine(isChaosActive.signal, chaosLoading.signal).map { 
-          case (_, true) => "AdminControls-button AdminControls-button--loading"
-          case (true, _) => "AdminControls-button AdminControls-button--active"
-          case (false, _) => "AdminControls-button"
+          case (isActive, isLoading) =>
+            adminButtonClass(
+              isLoading = isLoading,
+              activeClass = Some("AdminControls-button--active"),
+              isActive = isActive,
+            )
         },
         disabled <-- chaosLoading.signal,
         onClick --> { _ => toggleChaos() },
@@ -148,9 +161,12 @@ object AdminControls:
       // Schedule-only chaos button
       button(
         cls <-- Signal.combine(isScheduleChaosActive.signal, scheduleChaosLoading.signal).map { 
-          case (_, true) => "AdminControls-button AdminControls-button--loading"
-          case (true, _) => "AdminControls-button AdminControls-button--schedule-active"
-          case (false, _) => "AdminControls-button"
+          case (isActive, isLoading) =>
+            adminButtonClass(
+              isLoading = isLoading,
+              activeClass = Some("AdminControls-button--schedule-active"),
+              isActive = isActive,
+            )
         },
         disabled <-- scheduleChaosLoading.signal,
         onClick --> { _ => toggleScheduleChaos() },
@@ -163,8 +179,10 @@ object AdminControls:
       // Auto-schedule button
       button(
         cls <-- scheduleLoading.signal.map { loading =>
-          if loading then "AdminControls-button AdminControls-button--primary AdminControls-button--loading"
-          else "AdminControls-button AdminControls-button--primary"
+          adminButtonClass(
+            isLoading = loading,
+            variantClass = Some("AdminControls-button--primary"),
+          )
         },
         disabled <-- scheduleLoading.signal,
         onClick --> { _ => runScheduling() },
@@ -175,8 +193,10 @@ object AdminControls:
       ),
       button(
         cls <-- deleteLoading.signal.map { loading =>
-          if loading then "AdminControls-button AdminControls-button--danger AdminControls-button--loading"
-          else "AdminControls-button AdminControls-button--danger"
+          adminButtonClass(
+            isLoading = loading,
+            variantClass = Some("AdminControls-button--danger"),
+          )
         },
         disabled <-- deleteLoading.signal,
         onClick --> { _ => deleteAll() },
@@ -187,8 +207,10 @@ object AdminControls:
       ),
       button(
         cls <-- resetLoading.signal.map { loading =>
-          if loading then "AdminControls-button AdminControls-button--warning AdminControls-button--loading"
-          else "AdminControls-button AdminControls-button--warning"
+          adminButtonClass(
+            isLoading = loading,
+            variantClass = Some("AdminControls-button--warning"),
+          )
         },
         disabled <-- resetLoading.signal,
         onClick --> { _ => resetUser() },

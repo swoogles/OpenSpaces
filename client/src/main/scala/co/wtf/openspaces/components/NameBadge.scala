@@ -23,8 +23,10 @@ object NameBadge:
         // Sound toggle button
         button(
           cls <-- soundMuted.signal.map { muted =>
-            if muted then "sound-toggle sound-toggle--muted"
-            else "sound-toggle"
+            UiClasses.build(
+              "sound-toggle",
+              "sound-toggle--muted" -> muted,
+            )
           },
           title <-- soundMuted.signal.map { muted =>
             if muted then "Sound off - click to enable"
@@ -47,7 +49,6 @@ object NameBadge:
         span(
           cls := "ProfileIconButton",
           title := "Click to logout",
-          cursor := "pointer",
           child <-- name.signal.map { person =>
             GitHubAvatar(person, "github-avatar")
           },

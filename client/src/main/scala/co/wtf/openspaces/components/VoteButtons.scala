@@ -21,11 +21,6 @@ object VoteButtons:
     val isNotInterested =
       currentFeedback.exists(_.position == VotePosition.NotInterested)
     val votes = discussion.votes
-    val heatLevel = 
-      if (votes >= 5) "heat-hot"
-      else if (votes >= 3) "heat-warm"  
-      else if (votes >= 1) "heat-mild"
-      else "heat-cold"
     
     def handleVote(target: VotePosition): Unit =
       // Only allow voting if connection is ready (prevents actions during reconnect/sync)
@@ -41,9 +36,10 @@ object VoteButtons:
     div(
       cls := "VoteButtonRow",
       button(
-        cls := (
-          if isInterested then "VoteButton VoteButton--interested VoteButton--active"
-          else "VoteButton VoteButton--interested"
+        cls := UiClasses.build(
+          "VoteButton",
+          "VoteButton--interested" -> true,
+          "VoteButton--active" -> isInterested,
         ),
         onClick --> Observer { _ =>
           handleVote(VotePosition.Interested)
@@ -52,17 +48,17 @@ object VoteButtons:
       ),
       if (currentFeedback.isDefined) {
         span(
-          cls := s"VoteCount $heatLevel",
-          if (votes >= 5) "🔥 " else if (votes >= 3) "♨️ " else "",
+          cls := "VoteCount",
           votes.toString,
         )
       } else {
         span(cls := "VoteCount VoteCount--hidden", "?")
       },
       button(
-        cls := (
-          if isNotInterested then "VoteButton VoteButton--notinterested VoteButton--active"
-          else "VoteButton VoteButton--notinterested"
+        cls := UiClasses.build(
+          "VoteButton",
+          "VoteButton--notinterested" -> true,
+          "VoteButton--active" -> isNotInterested,
         ),
         onClick --> Observer { _ =>
           handleVote(VotePosition.NotInterested)

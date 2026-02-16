@@ -100,14 +100,6 @@ object SwipeableCard:
         else "translateX(0px)"
     }
     
-    val $revealOpacity: Signal[Double] = swipeState.signal.map { state =>
-      math.abs(state.progress).min(1.0)
-    }
-    
-    val $revealDirection: Signal[String] = swipeState.signal.map { state =>
-      if state.offsetX >= 0 then "right" else "left"
-    }
-    
     div(
       cls := "SwipeableCardContainer",
       // Left reveal (not interested - gray)

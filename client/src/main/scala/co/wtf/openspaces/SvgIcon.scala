@@ -2,6 +2,7 @@ package co.wtf.openspaces
 
 import com.raquo.laminar.api.L.*
 import neotype.unwrap
+import co.wtf.openspaces.components.UiClasses
 
 object GitHubAvatar {
 
@@ -10,7 +11,7 @@ object GitHubAvatar {
     clsName: String = "",
   ): HtmlElement =
     img(
-      cls := s"github-avatar $clsName",
+      cls := UiClasses.join("github-avatar", clsName),
       src := s"https://github.com/${facilitator.unwrap}.png?size=100",
       alt := s"${facilitator.unwrap}'s GitHub avatar",
       title := facilitator.unwrap,
@@ -37,7 +38,7 @@ object GitHubAvatar {
   ): HtmlElement =
     // Wrap in span so ::before/::after pseudo-elements work for X overlay
     span(
-      cls := s"avatar-wrapper ${votingState.cssClass} $additionalClasses".trim,
+      cls := UiClasses.join("avatar-wrapper", votingState.cssClass, additionalClasses),
       img(
         cls := "github-avatar",
         src := s"https://github.com/${facilitator.unwrap}.png?size=100",
@@ -57,7 +58,7 @@ object SvgIcon {
     clsName: String = "",
   ) =
     img(
-      cls := s"glyphicon $clsName",
+      cls := UiClasses.join("glyphicon", clsName),
       src := s"/glyphicons/${glyphicon.name}",
     )
 
@@ -78,10 +79,8 @@ object SvgIcon {
     topicName: String,
     additionalClasses: String = "",
   ): HtmlElement =
-    val allClasses =
-      s"glyphicon ${votingState.cssClass} $additionalClasses".trim
     img(
-      cls := allClasses,
+      cls := UiClasses.join("glyphicon", votingState.cssClass, additionalClasses),
       src := s"/glyphicons/${glyphicon.name}",
       // Accessible label combining topic name and voting state
       aria.label := s"$topicName - ${votingState.ariaLabel}",

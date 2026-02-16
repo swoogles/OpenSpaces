@@ -1,3 +1,9 @@
+.AppRoot,
+body {
+    background-color: #f4f8fc;
+    font-family: "Roboto", serif;
+}
+
 .PageContainer {
     background-color: #f4f8fc;
     gap: 5px;
@@ -118,6 +124,7 @@
     justify-content: center;
     border-radius: 50%;
     padding: 2px;
+    cursor: pointer;
     transition: box-shadow 0.2s ease, transform 0.1s ease;
 }
 
@@ -274,64 +281,6 @@
     line-height: 1;
     min-width: 24px;
     text-align: center;
-}
-
-/* Interest Heat Map - Accessible design using color + borders + icons + text */
-
-/* Cold: No votes - minimal styling */
-.TopicCard.heat-cold {
-    border-left: 3px solid #cbd5e0;
-}
-.VoteCount.heat-cold {
-    color: #718096;
-}
-
-/* Mild: 1-2 votes - slight warmth */
-.TopicCard.heat-mild {
-    border-left: 4px solid #68d391;
-}
-.VoteCount.heat-mild {
-    color: #276749;
-    font-weight: 600;
-}
-
-/* Warm: 3-4 votes - visible interest */
-.TopicCard.heat-warm {
-    border-left: 5px solid #f6ad55;
-}
-.VoteCount.heat-warm {
-    color: #c05621;
-    font-weight: 700;
-    font-size: 1.2rem;
-}
-
-/* Hot: 5+ votes - high interest */
-.TopicCard.heat-hot {
-    border-left: 6px solid #fc8181;
-    box-shadow: 0 2px 8px rgba(252, 129, 129, 0.3);
-}
-.VoteCount.heat-hot {
-    color: #c53030;
-    font-weight: 800;
-    font-size: 1.3rem;
-}
-
-/* High contrast mode support for heat levels */
-@media (prefers-contrast: more) {
-    .TopicCard.heat-cold {
-        border-left-width: 4px;
-    }
-    .TopicCard.heat-mild {
-        border-left-width: 5px;
-    }
-    .TopicCard.heat-warm {
-        border-left-width: 6px;
-        border-left-style: double;
-    }
-    .TopicCard.heat-hot {
-        border-left-width: 8px;
-        border-left-style: double;
-    }
 }
 
 .VoteButton {
@@ -494,12 +443,10 @@
     display: grid;
     grid-template-columns: 1fr 1fr 1fr 1fr;
     grid-area: RoomHeaders;
-    grid-template-areas:
-        "Room1 Room2 Room3 Room4";
 }
 
 /* Individual room header styling - shared emphasis pattern */
-.Room1, .Room2, .Room3, .Room4 {
+.RoomHeader {
     font-weight: 700;
     font-size: 1.1rem;
     text-align: center;
@@ -523,6 +470,18 @@
         "MainActive MainActive"
         "SecondaryActive VoteColumn"
         "ControlsActive ControlsActive";
+}
+
+.TopicCard--neutral {
+    background-color: #f8f9fa;
+}
+
+.TopicCard--interested {
+    background-color: #d4edda;
+}
+
+.TopicCard--notinterested {
+    background-color: #e2e3e5;
 }
 
 .ActiveDiscussion {
@@ -758,6 +717,12 @@
     /* Enables vertical scrolling when content exceeds max-height */
 }
 
+.Cell {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
 /* Time slot labels - emphasized for easy scanning */
 .TimeOfSlot {
     font-weight: 600;
@@ -917,6 +882,23 @@
 
 .Menu-cancelButton:hover {
     background-color: #e9ecef;
+}
+
+.Menu-textArea {
+    width: 100%;
+    min-height: 100px;
+    padding: 10px 12px;
+    border: 1px solid #d1d5db;
+    border-radius: 6px;
+    resize: vertical;
+    box-sizing: border-box;
+    font-size: 14px;
+}
+
+.Menu-error {
+    margin-top: 6px;
+    color: #b91c1c;
+    font-size: 13px;
 }
 
 /* Error Banner */
@@ -1283,6 +1265,14 @@
     padding: 4px 8px;
     border-radius: 4px;
     font-size: 12px;
+}
+
+.connection-icon {
+    line-height: 1;
+}
+
+.connection-message {
+    line-height: 1.2;
 }
 
 .connection-indicator-full.connection-connected {
@@ -1724,6 +1714,10 @@
     line-height: 1;
 }
 
+.VoteCount--hidden {
+    opacity: 0.45;
+}
+
 /* Adjust TopicCard - only left padding needed now */
 .TopicCard {
     position: relative;
@@ -1782,6 +1776,10 @@
 .TopicCard.vote-celebrating {
     animation: vote-poof 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
     z-index: 10;
+}
+
+.not-animating-anymore {
+    transition: none;
 }
 
 /* Particle container - appears over the card */
@@ -1994,6 +1992,19 @@
 .Toast-dismiss:hover {
     color: white;
     background: rgba(255, 255, 255, 0.1);
+}
+
+.emptySlotWithActiveDiscussion {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    opacity: 0.8;
+    transition: opacity 0.15s ease;
+}
+
+.emptySlotWithActiveDiscussion:hover {
+    opacity: 1;
 }
 
 @keyframes toastSlideIn {

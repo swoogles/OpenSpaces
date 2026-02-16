@@ -4,6 +4,7 @@ import com.raquo.laminar.api.L.*
 import com.raquo.laminar.nodes.ReactiveElement
 import io.laminext.websocket.WebSocket
 import org.scalajs.dom
+import co.wtf.openspaces.components.UiClasses
 
 import scala.concurrent.{ExecutionContext, Future}
 import scala.util.{Failure, Success, Try}
@@ -454,8 +455,7 @@ object ConnectionStatusIndicator:
   /** Small indicator dot for header/nav bar */
   def dot(state: Signal[ConnectionState]): HtmlElement =
     span(
-      cls := "connection-indicator-dot",
-      cls <-- state.map(_.cssClass),
+      cls <-- state.map(s => UiClasses.join("connection-indicator-dot", s.cssClass)),
       aria.label <-- state.map(s => s"Connection status: ${s.message}"),
       title <-- state.map(_.message),
       child.text <-- state.map(_.icon),
@@ -464,8 +464,7 @@ object ConnectionStatusIndicator:
   /** Full status display with icon and message */
   def full(state: Signal[ConnectionState]): HtmlElement =
     div(
-      cls := "connection-indicator-full",
-      cls <-- state.map(_.cssClass),
+      cls <-- state.map(s => UiClasses.join("connection-indicator-full", s.cssClass)),
       aria.live := "polite",
       span(cls := "connection-icon", child.text <-- state.map(_.icon)),
       span(cls := "connection-message", child.text <-- state.map(_.message)),
@@ -480,8 +479,7 @@ object ConnectionStatusBanner:
     onManualReconnect: Observer[Unit],
   ): HtmlElement =
     div(
-      cls := "connection-banner",
-      cls <-- state.map(_.cssClass),
+      cls <-- state.map(s => UiClasses.join("connection-banner", s.cssClass)),
       display <-- state.map(s => if s.shouldShowBanner then "flex" else "none"),
       aria.live := "assertive",
       role := "alert",
@@ -523,11 +521,13 @@ object ConnectionStatusBanner:
       }
     
     div(
-      cls := "connection-banner",
-      cls <-- connectionState.map(_.cssClass),
       cls <-- connectionState.combineWith(syncMessage).map {
-        case (ConnectionState.Connected, sync) if sync.nonEmpty => "connection-syncing"
-        case _ => ""
+        case (state, sync) =>
+          UiClasses.join(
+            "connection-banner",
+            state.cssClass,
+            if state == ConnectionState.Connected && sync.nonEmpty then "connection-syncing" else "",
+          )
       },
       display <-- shouldShow.map(show => if show then "flex" else "none"),
       aria.live := "assertive",

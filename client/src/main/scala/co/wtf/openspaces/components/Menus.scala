@@ -5,6 +5,64 @@ import neotype.*
 import co.wtf.openspaces.{Discussion, DiscussionAction, Person, RoomSlot, Topic, GitHubAvatar, GlyphiconUtils, SvgIcon}
 import co.wtf.openspaces.util.MenuPositioning
 
+private object MenuUi:
+  def shell(
+    title: String,
+    sections: Seq[Modifier[HtmlElement]],
+  ): HtmlElement =
+    val (x, y) = MenuPositioning.standardMenuPosition()
+    val mods = Seq[Modifier[HtmlElement]](
+      cls := "Menu",
+      left := s"${x}px",
+      top := s"${y}px",
+      onClick.preventDefault.stopPropagation --> Observer(_ => ()),
+      div(cls := "Menu-header", title),
+    ) ++ sections
+    div(mods)
+
+  def section(
+    label: String,
+    body: Seq[Modifier[HtmlElement]],
+    target: Boolean = false,
+  ): HtmlElement =
+    val mods = Seq[Modifier[HtmlElement]](
+      cls := UiClasses.build(
+        "Menu-section",
+        "Menu-section--target" -> target,
+      ),
+      div(cls := "Menu-label", label),
+    ) ++ body
+    div(mods)
+
+  def topicRow(
+    discussion: Discussion,
+    variantClass: String,
+  ): HtmlElement =
+    div(
+      cls := UiClasses.join("Menu-topic", variantClass),
+      GitHubAvatar(discussion.facilitator),
+      div(
+        div(cls := "Menu-topicName", discussion.topicName),
+        div(
+          cls := "Menu-roomSlot",
+          discussion.roomSlot
+            .map(_.displayString)
+            .getOrElse("Unscheduled"),
+        ),
+      ),
+    )
+
+  def actionButton(
+    className: String,
+    onTap: () => Unit,
+    body: Modifier[HtmlElement]*,
+  ): HtmlElement =
+    val mods = Seq[Modifier[HtmlElement]](
+      cls := className,
+      onClick --> Observer(_ => onTap()),
+    ) ++ body
+    button(mods)
+
 /** Swap action menu for swapping two scheduled topics */
 object Menu:
   def apply(
@@ -13,78 +71,45 @@ object Menu:
     topicUpdates: DiscussionAction => Unit,
     dismissMenu: Observer[Unit],
   ) =
-    val (x, y) = MenuPositioning.standardMenuPosition()
-    div(
-      cls := "Menu",
-      left := s"${x}px",
-      top := s"${y}px",
-      onClick.preventDefault.stopPropagation --> Observer(_ => ()),
-      div(cls := "Menu-header", "Actions"),
-      // Selected topic (current selection)
-      div(
-        cls := "Menu-section",
-        div(cls := "Menu-label", "Selected Topic:"),
+    MenuUi.shell(
+      "Actions",
+      Seq(
+        MenuUi.section(
+          "Selected Topic:",
+          Seq(MenuUi.topicRow(selectedDiscussion, "Menu-topic--selected")),
+        ),
+        MenuUi.section(
+          "Target Topic:",
+          Seq(MenuUi.topicRow(targetDiscussion, "Menu-topic--target")),
+          target = true,
+        ),
         div(
-          cls := "Menu-topic Menu-topic--selected",
-          GitHubAvatar(selectedDiscussion.facilitator),
-          div(
-            div(cls := "Menu-topicName", selectedDiscussion.topicName),
-            div(
-              cls := "Menu-roomSlot",
-              selectedDiscussion.roomSlot
-                .map(_.displayString)
-                .getOrElse("Unscheduled"),
-            ),
+          cls := "Menu-actions",
+          MenuUi.actionButton(
+            "Menu-swapButton",
+            () =>
+              (selectedDiscussion.roomSlot,
+               targetDiscussion.roomSlot,
+              ) match
+                case (Some(slot1), Some(slot2)) =>
+                  topicUpdates(
+                    DiscussionAction.SwapTopics(
+                      selectedDiscussion.id,
+                      slot1,
+                      targetDiscussion.id,
+                      slot2,
+                    ),
+                  )
+                  dismissMenu.onNext(())
+                case _ => (),
+            span("⇅"),
+            span("Swap Room Slots"),
           ),
-        ),
-      ),
-      // Target topic
-      div(
-        cls := "Menu-section Menu-section--target",
-        div(cls := "Menu-label", "Target Topic:"),
-        div(
-          cls := "Menu-topic Menu-topic--target",
-          GitHubAvatar(targetDiscussion.facilitator),
-          div(
-            div(cls := "Menu-topicName", targetDiscussion.topicName),
-            div(
-              cls := "Menu-roomSlot",
-              targetDiscussion.roomSlot
-                .map(_.displayString)
-                .getOrElse("Unscheduled"),
-            ),
+          MenuUi.actionButton(
+            "Menu-cancelButton",
+            () => dismissMenu.onNext(()),
+            "Cancel",
           ),
-        ),
-      ),
-      // Action buttons
-      div(
-        cls := "Menu-actions",
-        button(
-          cls := "Menu-swapButton",
-          onClick --> Observer { _ =>
-            // Both discussions must have room slots for swap to work
-            (selectedDiscussion.roomSlot,
-             targetDiscussion.roomSlot,
-            ) match
-              case (Some(slot1), Some(slot2)) =>
-                topicUpdates(
-                  DiscussionAction.SwapTopics(
-                    selectedDiscussion.id,
-                    slot1,
-                    targetDiscussion.id,
-                    slot2,
-                  ),
-                )
-                dismissMenu.onNext(())
-              case _ => () // Should not happen - UI prevents this
-          },
-          span("⇅"),
-          span("Swap Room Slots"),
-        ),
-        button(
-          cls := "Menu-cancelButton",
-          onClick.mapToUnit --> dismissMenu,
-          "Cancel",
         ),
       ),
     )
@@ -101,27 +126,18 @@ object UnscheduledDiscussionsMenu:
     activeDiscussion: Option[Discussion],
     currentView: AppView,
   ) =
-    val (x, y) = MenuPositioning.standardMenuPosition()
     val textVar = Var("")
     val errorVar = Var[Option[String]](None)
 
     def submitNewDiscussion() =
-      val topicAttempt =
-        Topic.make(textVar.now())
-
-      topicAttempt match
+      Topic.make(textVar.now()) match
         case Left(error) =>
           errorVar.set(Some(error))
         case Right(topic) =>
           val facilitatorName = facilitator.now()
-          if (facilitatorName.unwrap.trim.length < 2) {
-            errorVar.set(
-              Some(
-                "Please enter your name (2+ characters) before adding.",
-              ),
-            )
-          }
-          else {
+          if (facilitatorName.unwrap.trim.length < 2) then
+            errorVar.set(Some("Please enter your name (2+ characters) before adding."))
+          else
             topicUpdates(
               DiscussionAction.AddWithRoomSlot(
                 topic,
@@ -132,27 +148,63 @@ object UnscheduledDiscussionsMenu:
             textVar.set("")
             errorVar.set(None)
             dismissMenu.onNext(())
-          }
 
-    // Determine if we should show the "Move current topic here" option
-    // Only show if:
-    // 1. We're on the Admin view (where the selected topic is visible)
-    // 2. There's an active discussion that could be moved to this slot
-    val moveCurrentTopicOption: Option[HtmlElement] = 
-      if (currentView != AppView.Admin) None
-      else activeDiscussion.flatMap { discussion =>
-        // Only show if the active discussion is not already in this slot
-        if (discussion.roomSlot.contains(targetRoomSlot)) None
-        else
-          Some(
+    val moveCurrentTopicOption: Option[HtmlElement] =
+      if currentView != AppView.Admin then None
+      else
+        activeDiscussion.flatMap { discussion =>
+          if discussion.roomSlot.contains(targetRoomSlot) then None
+          else
+            Some(
+              MenuUi.section(
+                "Move Current Topic Here:",
+                Seq(
+                  div(
+                    cls := "Menu-actions",
+                    MenuUi.actionButton(
+                      "Menu-swapButton",
+                      () =>
+                        topicUpdates(
+                          DiscussionAction.SetRoomSlot(
+                            discussion.id,
+                            discussion.roomSlot,
+                            Some(targetRoomSlot),
+                          ),
+                        )
+                        dismissMenu.onNext(()),
+                      GitHubAvatar(discussion.facilitator),
+                      span(
+                        cls := "Menu-topicName",
+                        discussion.topicName,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            )
+        }
+
+    val moveExistingSection =
+      if unscheduledDiscussions.isEmpty then
+        MenuUi.section(
+          "Move Existing Unscheduled Topic:",
+          Seq(
             div(
-              cls := "Menu-section",
-              div(cls := "Menu-label", "Move Current Topic Here:"),
-              div(
-                cls := "Menu-actions",
-                button(
-                  cls := "Menu-swapButton",
-                  onClick --> Observer { _ =>
+              cls := "Menu-topic",
+              div(div(cls := "Menu-topicName", "No unscheduled discussions available")),
+            ),
+          ),
+        )
+      else
+        MenuUi.section(
+          "Move Existing Unscheduled Topic:",
+          Seq(
+            div(
+              cls := "Menu-actions",
+              unscheduledDiscussions.map { discussion =>
+                MenuUi.actionButton(
+                  "Menu-swapButton",
+                  () =>
                     topicUpdates(
                       DiscussionAction.SetRoomSlot(
                         discussion.id,
@@ -160,107 +212,58 @@ object UnscheduledDiscussionsMenu:
                         Some(targetRoomSlot),
                       ),
                     )
-                    dismissMenu.onNext(())
-                  },
+                    setActiveDiscussion.onNext(
+                      discussion.copy(roomSlot = Some(targetRoomSlot)),
+                    )
+                    dismissMenu.onNext(()),
                   GitHubAvatar(discussion.facilitator),
                   span(
                     cls := "Menu-topicName",
                     discussion.topicName,
                   ),
-                ),
-              ),
+                )
+              },
             ),
-          )
-    }
+          ),
+        )
 
-    div(
-      cls := "Menu",
-      left := s"${x}px",
-      top := s"${y}px",
-      onClick.preventDefault.stopPropagation --> Observer(_ => ()),
-      div(cls := "Menu-header", "Assign Discussion"),
-      div(
-        cls := "Menu-section",
-        div(cls := "Menu-label",
-            s"Room Slot: ${targetRoomSlot.displayString}",
+    MenuUi.shell(
+      "Assign Discussion",
+      Seq(
+        MenuUi.section(
+          s"Room Slot: ${targetRoomSlot.displayString}",
+          Seq.empty,
         ),
-      ),
-      // Move current topic option (if applicable)
-      moveCurrentTopicOption.getOrElse(span()),
-      div(
-        cls := "Menu-section",
-        div(cls := "Menu-label", "Create New Discussion:"),
-        textArea(
-          cls := "Menu-textArea",
-          placeholder := "Describe the discussion to schedule...",
-          value <-- textVar.signal,
-          onInput.mapToValue --> textVar,
-          onMountCallback(ctx => ctx.thisNode.ref.focus()),
-        ),
-        button(
-          cls := "Menu-swapButton",
-          onClick --> Observer { _ =>
-            submitNewDiscussion()
-          },
-          "Add & Assign",
-        ),
-        child <--
-          errorVar.signal.map {
-            case Some(errorMessage) =>
-              div(cls := "Menu-error", errorMessage)
-            case None =>
-              span()
-          },
-      ),
-      div(
-        cls := "Menu-section",
-        div(cls := "Menu-label", "Move Existing Unscheduled Topic:"),
-        if (unscheduledDiscussions.isEmpty) {
-          div(
-            cls := "Menu-topic",
-            div(
-              div(cls := "Menu-topicName",
-                  "No unscheduled discussions available",
-              ),
+        moveCurrentTopicOption.getOrElse(span()),
+        MenuUi.section(
+          "Create New Discussion:",
+          Seq(
+            textArea(
+              cls := "Menu-textArea",
+              placeholder := "Describe the discussion to schedule...",
+              value <-- textVar.signal,
+              onInput.mapToValue --> textVar,
+              onMountCallback(ctx => ctx.thisNode.ref.focus()),
             ),
-          )
-        }
-        else {
-          div(
-            cls := "Menu-actions",
-            unscheduledDiscussions.map { discussion =>
-              button(
-                cls := "Menu-swapButton",
-                onClick --> Observer { _ =>
-                  topicUpdates(
-                    DiscussionAction.SetRoomSlot(
-                      discussion.id,
-                      discussion.roomSlot,
-                      Some(targetRoomSlot),
-                    ),
-                  )
-                  // Set the discussion as active after assigning it to the room slot
-                  setActiveDiscussion.onNext(
-                    discussion.copy(roomSlot = Some(targetRoomSlot)),
-                  )
-                  dismissMenu.onNext(())
-                },
-                GitHubAvatar(discussion.facilitator),
-                span(
-                  cls := "Menu-topicName",
-                  discussion.topicName,
-                ),
-              )
+            MenuUi.actionButton(
+              "Menu-swapButton",
+              () => submitNewDiscussion(),
+              "Add & Assign",
+            ),
+            child <-- errorVar.signal.map {
+              case Some(errorMessage) => div(cls := "Menu-error", errorMessage)
+              case None => span()
             },
-          )
-        },
-      ),
-      div(
-        cls := "Menu-actions",
-        button(
-          cls := "Menu-cancelButton",
-          onClick.mapToUnit --> dismissMenu,
-          "Cancel",
+          ),
+        ),
+        moveExistingSection,
+        div(
+          cls := "Menu-actions",
+          MenuUi.actionButton(
+            "Menu-cancelButton",
+            () => dismissMenu.onNext(()),
+            "Cancel",
+          ),
         ),
       ),
     )
@@ -272,22 +275,13 @@ object ActiveDiscussionActionMenu:
     topicUpdates: DiscussionAction => Unit,
     dismissMenu: Observer[Unit],
   ) =
-    val (x, y) = MenuPositioning.standardMenuPosition()
-    val isScheduled = discussion.roomSlot.isDefined
-
-    val cancelButton =
-      button(
-        cls := "Menu-cancelButton",
-        onClick.mapToUnit --> dismissMenu,
-        "Close",
-      )
-
-    val actionElements: List[Modifier[HtmlElement]] =
-      if isScheduled then
-        List(
-          button(
-            cls := "Menu-swapButton",
-            onClick --> Observer { _ =>
+    val actionSection: HtmlElement =
+      if discussion.roomSlot.isDefined then
+        div(
+          cls := "Menu-actions",
+          MenuUi.actionButton(
+            "Menu-swapButton",
+            () =>
               topicUpdates(
                 DiscussionAction.SetRoomSlot(
                   discussion.id,
@@ -295,15 +289,19 @@ object ActiveDiscussionActionMenu:
                   None,
                 ),
               )
-              dismissMenu.onNext(())
-            },
+              dismissMenu.onNext(()),
             SvgIcon(GlyphiconUtils.minus),
             span("Unschedule topic"),
           ),
-          cancelButton,
+          MenuUi.actionButton(
+            "Menu-cancelButton",
+            () => dismissMenu.onNext(()),
+            "Close",
+          ),
         )
       else
-        List(
+        div(
+          cls := "Menu-actions",
           div(
             cls := "Menu-topic Menu-topic--selected",
             span(
@@ -311,33 +309,17 @@ object ActiveDiscussionActionMenu:
               "This discussion is not scheduled yet.",
             ),
           ),
-          cancelButton,
+          MenuUi.actionButton(
+            "Menu-cancelButton",
+            () => dismissMenu.onNext(()),
+            "Close",
+          ),
         )
 
-    val actionSection =
-      (cls := "Menu-actions") :: actionElements
-
-    div(
-      cls := "Menu",
-      left := s"${x}px",
-      top := s"${y}px",
-      onClick.preventDefault.stopPropagation --> Observer(_ => ()),
-      div(cls := "Menu-header", "Discussion actions"),
-      div(
-        cls := "Menu-topic Menu-topic--selected",
-        GitHubAvatar(discussion.facilitator),
-        div(
-          div(
-            cls := "Menu-topicName",
-            discussion.topicName,
-          ),
-          div(
-            cls := "Menu-roomSlot",
-            discussion.roomSlot
-              .map(_.displayString)
-              .getOrElse("Unscheduled"),
-          ),
-        ),
+    MenuUi.shell(
+      "Discussion actions",
+      Seq(
+        MenuUi.topicRow(discussion, "Menu-topic--selected"),
+        actionSection,
       ),
-      div(actionSection*),
     )
