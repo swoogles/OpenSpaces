@@ -86,22 +86,22 @@ object LightningTalksView:
           ),
         )
       },
-      // All proposals section (simple audit view)
-      div(
-        cls := "LightningTalk-list",
-        h4(cls := "TopicSection-title", "All Proposals"),
-        child <-- $proposalRows.map { proposals =>
-          if proposals.isEmpty then
-            div(cls := "TopicSection-empty", "No lightning talk proposals yet.")
-          else
-            div(
-              proposals.map { proposal =>
-                LightningTalkProposalCard(
-                  proposal = proposal,
-                  metaText = Some(LightningTalkProposalCard.locationLabel(proposal)),
-                )
-              },
-            )
-        },
-      ),
+      // All proposals section (simple audit view). TODO Restore as Admin only maybe?
+      // div(
+      //   cls := "LightningTalk-list",
+      //   h4(cls := "TopicSection-title", "All Interested Parties"),
+      //   child <-- $proposalRows.map { proposals =>
+      //     if proposals.isEmpty then
+      //       div(cls := "TopicSection-empty", "No lightning talk proposals yet.")
+      //     else
+      //       div(
+      //         proposals.map { proposal =>
+      //           LightningTalkProposalCard(
+      //             proposal = proposal,
+      //             metaText = Some(LightningTalkProposalCard.locationLabel(proposal)),
+      //           )
+      //         },
+      //       )
+      //   },
+      // ),
     )
