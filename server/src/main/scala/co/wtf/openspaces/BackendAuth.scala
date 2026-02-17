@@ -151,10 +151,17 @@ case class ApplicationState(
     val hash = sha256Hex(resourceBytes(s"public/$path")).take(16)
     s"/$path?v=$hash"
 
+  private val stylesUrl = immutableAssetUrl("styles.css")
+  private val clientJsUrl = immutableAssetUrl("client-fastopt.js")
+
+  println(
+    s"Static asset fingerprints: styles=$stylesUrl clientJs=$clientJsUrl",
+  )
+
   private val indexHtml: String =
     resourceText("public/index.html")
-      .replace("__STYLES_URL__", immutableAssetUrl("styles.css"))
-      .replace("__CLIENT_JS_URL__", immutableAssetUrl("client-fastopt.js"))
+      .replace("__STYLES_URL__", stylesUrl)
+      .replace("__CLIENT_JS_URL__", clientJsUrl)
 
   private def withNoStore(response: Response): Response =
     response
@@ -178,6 +185,13 @@ case class ApplicationState(
             .addHeader(Header.ContentType(MediaType.text.html)),
         ),
       ),
+      Method.HEAD / "" -> handler(
+        withNoStore(
+          Response
+            .text(indexHtml)
+            .addHeader(Header.ContentType(MediaType.text.html)),
+        ),
+      ),
       Method.GET / "index.html" -> handler(
         withNoStore(
           Response
@@ -185,7 +199,25 @@ case class ApplicationState(
             .addHeader(Header.ContentType(MediaType.text.html)),
         ),
       ),
+      Method.HEAD / "index.html" -> handler(
+        withNoStore(
+          Response
+            .text(indexHtml)
+            .addHeader(Header.ContentType(MediaType.text.html)),
+        ),
+      ),
       Method.GET / "client-fastopt.js" -> handler(
+        Handler
+          .fromResource("public/client-fastopt.js")
+          .map(
+            withImmutableCache(_)
+              .addHeader(
+                Header.Custom("Content-Type", "application/javascript; charset=utf-8"),
+              ),
+          )
+          .mapError(e => Response.text(e.getMessage)),
+      ),
+      Method.HEAD / "client-fastopt.js" -> handler(
         Handler
           .fromResource("public/client-fastopt.js")
           .map(
@@ -207,6 +239,17 @@ case class ApplicationState(
           )
           .mapError(e => Response.text(e.getMessage)),
       ),
+      Method.HEAD / "styles.css" -> handler(
+        Handler
+          .fromResource("public/styles.css")
+          .map(
+            withImmutableCache(_)
+              .addHeader(
+                Header.Custom("Content-Type", "text/css; charset=utf-8"),
+              ),
+          )
+          .mapError(e => Response.text(e.getMessage)),
+      ),
       Method.GET / "sw.js" -> handler(
         Handler
           .fromResource("public/sw.js")
@@ -218,7 +261,32 @@ case class ApplicationState(
           )
           .mapError(e => Response.text(e.getMessage)),
       ),
+      Method.HEAD / "sw.js" -> handler(
+        Handler
+          .fromResource("public/sw.js")
+          .map(
+            withNoStore(_)
+              .addHeader(
+                Header.Custom("Content-Type", "application/javascript; charset=utf-8"),
+              ),
+          )
+          .mapError(e => Response.text(e.getMessage)),
+      ),
       Method.GET / "manifest.webmanifest" -> handler(
+        Handler
+          .fromResource("public/manifest.webmanifest")
+          .map(
+            withNoStore(_)
+              .addHeader(
+                Header.Custom(
+                  "Content-Type",
+                  "application/manifest+json; charset=utf-8",
+                ),
+              ),
+          )
+          .mapError(e => Response.text(e.getMessage)),
+      ),
+      Method.HEAD / "manifest.webmanifest" -> handler(
         Handler
           .fromResource("public/manifest.webmanifest")
           .map(
