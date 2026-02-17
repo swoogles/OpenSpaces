@@ -17,7 +17,7 @@ object AdminControls:
   def apply(
     $showAdminControls: Signal[Boolean],
     topicUpdates: DiscussionAction => Unit,
-    connectionStatus: ConnectionStatusManager[WebSocketMessageFromServer, WebSocketMessageFromClient],
+    connectionStatus: ConnectionStatusManagerOpenSpaces,
     randomActionClient: RandomActionClient
   ): HtmlElement =
     import scala.concurrent.ExecutionContext.Implicits.global

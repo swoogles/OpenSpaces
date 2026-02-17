@@ -81,6 +81,30 @@ enum SyncState:
   /** Whether sync is in progress */
   def isSyncing: Boolean = this == Syncing
 
+trait ConnectionStatusManagerOpenSpaces:
+  val syncState: Var[SyncState]
+  val connectionEnabled: Var[Boolean]
+  val userError: Var[Option[String]]
+  val closeObserver: Observer[(dom.WebSocket, Boolean)]
+  val connectedObserver: Observer[dom.WebSocket]
+  val state: Signal[ConnectionState]
+  val syncMessage: Signal[String]
+
+  def reportError(message: String): Unit
+  def clearError(): Unit
+  def recordMessageReceived(): Unit
+  def setConnected(connected: Boolean): Unit
+  def onSync(operation: => Future[Unit]): Unit
+  def triggerSync(): Unit
+  def markStateSynchronized(): Unit
+  def forceReconnect(): Unit
+  def withErrorHandling[T](
+    operation: => Future[T],
+    errorPrefix: String = "Operation failed",
+  ): Future[Option[T]]
+  def bind[El <: ReactiveElement.Base]: Binder[El]
+  def checkReady(): Boolean
+
 /** Centralized manager for WebSocket connection state, sync, and error handling.
   *
   * This consolidates all reconnect/sync logic into one place:
@@ -108,7 +132,8 @@ class ConnectionStatusManager[Receive, Send](
   healthCheckIntervalMs: Int = 30 * 1000,
   maxSyncRetries: Int = 3,
   syncAckTimeoutMs: Int = 5000,
-)(using ec: ExecutionContext):
+)(using ec: ExecutionContext)
+    extends ConnectionStatusManagerOpenSpaces:
   
   // ============================================
   // Connection State

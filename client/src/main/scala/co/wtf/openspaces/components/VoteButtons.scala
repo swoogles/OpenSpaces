@@ -12,7 +12,7 @@ object VoteButtons:
     discussion: Discussion,
     name: StrictSignal[Person],
     topicUpdates: DiscussionAction => Unit,
-    connectionStatus: ConnectionStatusManager[WebSocketMessageFromServer, WebSocketMessageFromClient]
+    connectionStatus: ConnectionStatusManagerOpenSpaces
   ) =
     val currentFeedback =
       discussion.interestedParties.find(_.voter == name.now())
