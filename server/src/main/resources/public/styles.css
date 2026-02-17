@@ -149,7 +149,7 @@ body {
     flex-direction: column;
     gap: 12px;
     padding: 16px;
-    margin: 12px 2px 20px 2px;
+    margin: 12px 10px 20px 10px;
     background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
     border-radius: 16px;
     box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
@@ -252,7 +252,7 @@ body {
     display: flex;
     flex-direction: column;
     gap: 16px;
-    margin: 8px 2px 24px 2px;
+    margin: 8px 10px 24px 10px;
 }
 
 .TopicSection {
