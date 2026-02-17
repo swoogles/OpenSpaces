@@ -11,6 +11,15 @@ import scala.concurrent.Future
 import scala.scalajs.js
 import scala.scalajs.js.JSConverters._
 
+/* 
+Best-practice policy for your requirement
+
+- “If online, always latest app, if fingerprint is different. Don't redownload the identical app.”:
+    - HTML/network shell: network-first no-store
+    - API/auth: network-only
+    - static JS/CSS: only cache if fingerprinted
+    - media/images: stale-while-revalidate is fine
+*/
 object ServiceWorker:
   private val cacheName = "sticky-icky-cache"
 
