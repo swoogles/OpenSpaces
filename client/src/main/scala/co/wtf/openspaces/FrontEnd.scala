@@ -106,10 +106,7 @@ object FrontEnd extends ZIOAppDefault{
 
   val submitNewTopic: Observer[DiscussionAction] = Observer {
     case discussion @ (add: DiscussionAction.Add) =>
-      // Block submissions while not connected/synced
-      if !connectionStatus.checkReady() then
-        errorBanner.setError("Reconnecting... please wait and try again.")
-      else if (add.facilitator.unwrap.trim.length < 2)
+      if (add.facilitator.unwrap.trim.length < 2)
         errorBanner.setError("User name too short. Tell us who you are!")
       else
         errorBanner.clearError()
@@ -164,7 +161,7 @@ object FrontEnd extends ZIOAppDefault{
     div(
       TopicSubmission(submitNewTopic,
                       name.signal,
-                      errorBanner.errorObserver,
+                      connectionStatus,
       ),
       // Counter showing remaining topics to vote on
       div(

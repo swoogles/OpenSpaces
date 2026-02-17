@@ -3,6 +3,7 @@ package co.wtf.openspaces.components
 import com.raquo.laminar.api.L.{*, given}
 
 import co.wtf.openspaces.{DiscussionAction, Person, Topic}
+import co.wtf.openspaces.ConnectionStatusUI
 
 /** Topic submission form component.
   * 
@@ -13,10 +14,11 @@ object TopicSubmission:
   def apply(
     submitEffect: Observer[DiscussionAction],
     name: StrictSignal[Person],
-    setErrorMsg: Observer[Option[String]],
+    connectionStatus: ConnectionStatusUI,
   ): HtmlElement =
     val textVar = Var("")
     val isFocused = Var(false)
+    val validationError = Var(Option.empty[String])
     
     div(
       cls := "TopicSubmission",
@@ -29,11 +31,20 @@ object TopicSubmission:
           cls := "TopicSubmission-textArea",
           placeholder := "What topic would you like to discuss?",
           value <-- textVar,
-          onInput.mapToValue --> textVar,
+          onInput.mapToValue --> Observer { (value: String) =>
+            textVar.set(value)
+            validationError.set(None)
+          },
           onFocus --> Observer(_ => isFocused.set(true)),
           onBlur --> Observer(_ => isFocused.set(false)),
         ),
       ),
+      child.maybe <-- validationError.signal.map(_.map { msg =>
+        div(
+          cls := "TopicSubmission-inlineError",
+          msg,
+        )
+      }),
       button(
         cls := "TopicSubmission-button",
         onClick
@@ -42,10 +53,15 @@ object TopicSubmission:
             val res = Topic.make(s)
             res match
               case Left(value) =>
-                setErrorMsg.onNext(Some(value))
+                validationError.set(Some(value))
                 None
               case Right(value) =>
-                Some(value),
+                if !connectionStatus.checkReady() then
+                  validationError.set(Some("Reconnecting... please wait and try again."))
+                  None
+                else
+                  validationError.set(None)
+                  Some(value),
           )
           .filter(_.isDefined)
           .map(_.get)
