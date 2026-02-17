@@ -13,10 +13,16 @@ import java.time.{LocalDate, LocalDateTime}
 import java.util.UUID
 
 sealed trait WebSocketMessage derives JsonCodec, Schema
+sealed trait WebSocketMessageFromClient
+    extends WebSocketMessage
+    derives JsonCodec, Schema
+sealed trait WebSocketMessageFromServer
+    extends WebSocketMessage
+    derives JsonCodec, Schema
 
 case class Ticket(
   uuid: UUID)
-    extends WebSocketMessage
+    extends WebSocketMessageFromClient
     derives JsonCodec, Schema
 
 enum DiscussionAction derives JsonCodec:
@@ -150,16 +156,16 @@ enum LightningTalkActionConfirmed derives JsonCodec:
 
 case class DiscussionActionMessage(
   action: DiscussionAction,
-) extends WebSocketMessage derives JsonCodec
+) extends WebSocketMessageFromClient derives JsonCodec
 
 case class DiscussionActionConfirmedMessage(
   event: DiscussionActionConfirmed,
-) extends WebSocketMessage derives JsonCodec
+) extends WebSocketMessageFromServer derives JsonCodec
 
 case class LightningTalkActionMessage(
   action: LightningTalkAction,
-) extends WebSocketMessage derives JsonCodec
+) extends WebSocketMessageFromClient derives JsonCodec
 
 case class LightningTalkActionConfirmedMessage(
   event: LightningTalkActionConfirmed,
-) extends WebSocketMessage derives JsonCodec
+) extends WebSocketMessageFromServer derives JsonCodec

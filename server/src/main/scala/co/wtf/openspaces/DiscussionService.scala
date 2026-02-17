@@ -8,7 +8,7 @@ import zio.json.*
 
 private case class ChannelRegistry(
   connected: Set[OpenSpacesServerChannel],
-  pending: Map[OpenSpacesServerChannel, Vector[WebSocketMessage]],
+  pending: Map[OpenSpacesServerChannel, Vector[WebSocketMessageFromServer]],
 )
 
 case class DiscussionService(
@@ -19,7 +19,7 @@ case class DiscussionService(
   slackNotifier: SlackNotifier):
 
   def handleMessage(
-    message: WebSocketMessage,
+    message: WebSocketMessageFromClient,
     channel: OpenSpacesServerChannel,
   ): ZIO[Any, Throwable, Unit] =
     message match
@@ -141,7 +141,9 @@ case class DiscussionService(
         .run
       ZIO.foreachDiscard(buffered)(message => channel.send(message).ignore).run
 
-  private def broadcastToAll(message: WebSocketMessage): Task[Unit] =
+  private def broadcastToAll(
+    message: WebSocketMessageFromServer,
+  ): Task[Unit] =
     defer:
       // Update server's in-memory state for outbound confirmed actions.
       message match

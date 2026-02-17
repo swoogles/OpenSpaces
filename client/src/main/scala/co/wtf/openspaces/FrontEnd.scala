@@ -346,7 +346,7 @@ object FrontEnd extends ZIOAppDefault{
         div(
           ticketCenter(topicUpdates, discussionState, randomActionClient),
           topicUpdates.received --> Observer {
-            (event: WebSocketMessage) =>
+            (event: WebSocketMessageFromServer) =>
               connectionStatus.recordMessageReceived()
 
               event match
@@ -594,14 +594,14 @@ object FrontEnd extends ZIOAppDefault{
   private val MaxReconnectRetries = 10
   
   val topicUpdates
-    : WebSocket[WebSocketMessage, WebSocketMessage] = {
+    : WebSocket[WebSocketMessageFromServer, WebSocketMessageFromClient] = {
     // If I don't confine the scope of it, it clashes with laminar's `span`. Weird.
     import scala.concurrent.duration._
       WebSocket
       .url("/discussions")
-      .text[WebSocketMessage, WebSocketMessage](
+      .text[WebSocketMessageFromServer, WebSocketMessageFromClient](
         _.toJson,
-        _.fromJson[WebSocketMessage].left.map(Exception(_)),
+        _.fromJson[WebSocketMessageFromServer].left.map(Exception(_)),
       )
       .build(
         autoReconnect = true,
@@ -616,7 +616,7 @@ object FrontEnd extends ZIOAppDefault{
   // Connection status manager for monitoring WebSocket health, sync, and error handling
   // All reconnect/sync logic is consolidated here
   import scala.concurrent.ExecutionContext.Implicits.global
-  val connectionStatus: ConnectionStatusManager[WebSocketMessage, WebSocketMessage] = new ConnectionStatusManager(
+  val connectionStatus: ConnectionStatusManager[WebSocketMessageFromServer, WebSocketMessageFromClient] = new ConnectionStatusManager(
     topicUpdates,
     MaxReconnectRetries,
   )
@@ -631,7 +631,7 @@ object FrontEnd extends ZIOAppDefault{
     * Also handles rejected actions by re-authenticating and retrying.
     */
   def ticketCenter(
-    topicUpdates: WebSocket[WebSocketMessage, WebSocketMessage],
+    topicUpdates: WebSocket[WebSocketMessageFromServer, WebSocketMessageFromClient],
     discussionState: Var[DiscussionState],
     randomActionClient: RandomActionClient,
   ) =

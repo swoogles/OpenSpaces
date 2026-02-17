@@ -7,7 +7,7 @@ import zio.json.*
 case class OpenSpacesServerChannel(
   channel: WebSocketChannel):
   def send(
-    message: WebSocketMessage,
+    message: WebSocketMessageFromServer,
   ): ZIO[Any, Throwable, Unit] =
     channel.send(
       ChannelEvent.Read(WebSocketFrame.text(message.toJson)),

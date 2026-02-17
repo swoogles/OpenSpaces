@@ -21,7 +21,7 @@ case class BackendSocketApp(
         val openSpacesChannel = OpenSpacesServerChannel(channel)
         channel.receiveAll {
           case Read(WebSocketFrame.Text(text)) =>
-            text.fromJson[WebSocketMessage] match
+            text.fromJson[WebSocketMessageFromClient] match
               case Left(value) =>
                 ZIO.unit
               case Right(value) =>

@@ -65,8 +65,8 @@ object RandomActionApi {
   // Documentation-only representation of the primary WebSocket message contract.
   val discussionsWebSocket =
     Endpoint(RoutePattern.GET / "discussions")
-      .in[WebSocketMessage]
-      .out[WebSocketMessage]
+      .in[WebSocketMessageFromClient]
+      .out[WebSocketMessageFromServer]
 
   val endpoints =
     List(
