@@ -17,7 +17,7 @@ object LightningTalkProposalCard:
       case Some(assignment) =>
         s"${nightLabel(assignment.night)} slot #${assignment.slot.unwrap}"
       case None =>
-        "Unassigned"
+        "Waiting for a slot"
 
   def apply(
     proposal: LightningTalkProposal,

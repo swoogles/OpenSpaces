@@ -27,19 +27,10 @@ object LightningTalksView:
 
     div(
       cls := "LightningTalks",
-      h3(cls := "TopicSection-title", "Lightning Talks"),
-      p(
-        cls := "TopicSection-subtitle",
-        "Toggle if you're willing to give a lightning talk. Draw is random and fills the next available night.",
-      ),
       child <-- $myProposal.map {
         case Some(proposal) =>
           div(
             cls := "TopicSubmission",
-            div(
-              cls := "LightningTalk-myProposalNotice",
-              "You're currently signed up to give a lightning talk.",
-            ),
             LightningTalkProposalCard(
               proposal = proposal,
               metaText = Some(LightningTalkProposalCard.locationLabel(proposal)),
