@@ -18,7 +18,6 @@ case class DeleteTopicsResult(deleted: Int) derives Schema, JsonCodec
 case class RefreshStatus(status: String) derives Schema, JsonCodec
 
 object RandomActionApi {
-
   val ticketGet =
     Endpoint(RoutePattern.GET / "ticket")
       .header[String]("Authorization")
@@ -63,6 +62,12 @@ object RandomActionApi {
     Endpoint(RoutePattern.POST / "api" / "admin" / "schedule")
       .out[ScheduleResult]
 
+  // Documentation-only representation of the primary WebSocket message contract.
+  val discussionsWebSocket =
+    Endpoint(RoutePattern.GET / "discussions")
+      .in[WebSocketMessage]
+      .out[WebSocketMessage]
+
   val endpoints =
     List(
       ticketGet,
@@ -74,6 +79,7 @@ object RandomActionApi {
       randomScheduleToggle,
       deleteAllTopics,
       runScheduling,
+      discussionsWebSocket,
     )
 }
 
