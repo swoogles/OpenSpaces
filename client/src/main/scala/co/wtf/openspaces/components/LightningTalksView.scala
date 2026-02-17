@@ -13,7 +13,7 @@ object LightningTalksView:
     showAdminControls: Signal[Boolean],
     sendLightningAction: LightningTalkAction => Unit,
     setErrorMsg: Observer[Option[String]],
-    connectionStatus: ConnectionStatusManagerOpenSpaces,
+    connectionStatus: ConnectionStatusUI,
   ): HtmlElement =
     val $myProposal = Signal
       .combine(lightningTalkState.signal, name)

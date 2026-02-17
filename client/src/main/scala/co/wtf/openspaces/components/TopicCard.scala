@@ -21,7 +21,7 @@ object TopicCard:
     name: StrictSignal[Person],
     topicUpdates: DiscussionAction => Unit,
     signal: Signal[Option[Discussion]],
-    connectionStatus: ConnectionStatusManagerOpenSpaces,
+    connectionStatus: ConnectionStatusUI,
     transition: Option[Transition] = None,
     enableSwipe: Boolean = true,
     iconModifiers: Seq[Modifier[HtmlElement]] = Seq.empty,
@@ -165,7 +165,7 @@ object DiscussionSubview:
     name: StrictSignal[Person],
     topicUpdates: DiscussionAction => Unit,
     updateTargetDiscussion: Observer[Discussion],
-    connectionStatus: ConnectionStatusManagerOpenSpaces,
+    connectionStatus: ConnectionStatusUI,
     firstUnjudgedId: Signal[Option[TopicId]] = Signal.fromValue(None),
     showSwipeHint: Signal[Boolean] = Signal.fromValue(false),
   ): HtmlElement =

@@ -8,7 +8,7 @@ import io.laminext.websocket.*
   * Merges local errors with connectionStatus.userError for unified error display.
   */
 case class ErrorBanner(
-  connectionStatus: ConnectionStatusManagerOpenSpaces,
+  connectionStatus: ConnectionStatusUI,
   localError: Var[Option[String]] = Var(None)):
   
   /** Set a local error (for validation, etc.) */
@@ -26,7 +26,7 @@ case class ErrorBanner(
     div(
       child <--
         // Merge local errors with connectionStatus errors
-        localError.signal.combineWith(connectionStatus.userError.signal).map {
+        localError.signal.combineWith(connectionStatus.userErrorSignal).map {
           case (Some(msg), _) =>
             // Local error takes precedence
             div(

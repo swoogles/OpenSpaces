@@ -616,7 +616,7 @@ object FrontEnd extends ZIOAppDefault{
   // Connection status manager for monitoring WebSocket health, sync, and error handling
   // All reconnect/sync logic is consolidated here
   import scala.concurrent.ExecutionContext.Implicits.global
-  val connectionStatus: ConnectionStatusManagerOpenSpaces = new ConnectionStatusManager(
+  val connectionStatus: ConnectionStatusCoordinator = new ConnectionStatusManager(
     topicUpdates,
     MaxReconnectRetries,
   )

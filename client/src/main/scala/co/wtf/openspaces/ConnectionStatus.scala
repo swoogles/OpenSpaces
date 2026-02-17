@@ -81,17 +81,21 @@ enum SyncState:
   /** Whether sync is in progress */
   def isSyncing: Boolean = this == Syncing
 
-trait ConnectionStatusManagerOpenSpaces:
+trait ConnectionStatusUI:
+  val userErrorSignal: Signal[Option[String]]
+
+  def reportError(message: String): Unit
+  def clearError(): Unit
+  def checkReady(): Boolean
+
+trait ConnectionStatusCoordinator extends ConnectionStatusUI:
   val syncState: Var[SyncState]
   val connectionEnabled: Var[Boolean]
-  val userError: Var[Option[String]]
   val closeObserver: Observer[(dom.WebSocket, Boolean)]
   val connectedObserver: Observer[dom.WebSocket]
   val state: Signal[ConnectionState]
   val syncMessage: Signal[String]
 
-  def reportError(message: String): Unit
-  def clearError(): Unit
   def recordMessageReceived(): Unit
   def setConnected(connected: Boolean): Unit
   def onSync(operation: => Future[Unit]): Unit
@@ -133,7 +137,7 @@ class ConnectionStatusManager[Receive, Send](
   maxSyncRetries: Int = 3,
   syncAckTimeoutMs: Int = 5000,
 )(using ec: ExecutionContext)
-    extends ConnectionStatusManagerOpenSpaces:
+    extends ConnectionStatusCoordinator:
   
   // ============================================
   // Connection State
@@ -167,6 +171,7 @@ class ConnectionStatusManager[Receive, Send](
   
   /** Observable for user-visible errors (validation failures, action rejections, etc.) */
   val userError: Var[Option[String]] = Var(None)
+  val userErrorSignal: Signal[Option[String]] = userError.signal
   
   /** Report a user-visible error that should be shown in the ErrorBanner */
   def reportError(message: String): Unit =
