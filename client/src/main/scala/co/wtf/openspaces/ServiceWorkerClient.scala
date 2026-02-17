@@ -30,7 +30,12 @@ object ServiceWorkerClient:
       .toFuture
       .onComplete {
         case Success(registration) =>
-          registration.onupdatefound = (_: dom.Event) => ()
+          registration.onupdatefound = (_: dom.Event) =>
+            val installing = registration.installing
+            if installing != null then
+              installing.onstatechange = (_: dom.Event) =>
+                if installing.state == "installed" && registration.waiting != null then
+                  registration.waiting.postMessage("SKIP_WAITING")
           if registration.waiting != null then
             registration.waiting.postMessage("SKIP_WAITING")
           registration.update()
