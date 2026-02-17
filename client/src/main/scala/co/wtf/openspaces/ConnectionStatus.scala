@@ -248,8 +248,9 @@ class ConnectionStatusManager[Receive, Send](
     
     futureResult.onComplete {
       case Success(_) =>
-        // Verify still connected
-        if isConnectedVar.now() then
+        // Verify still connected and still waiting on sync.
+        // If a very fast StateReplace already arrived, syncState may already be Synced.
+        if isConnectedVar.now() && syncState.now() == SyncState.Syncing then
           awaitingStateReplace = true
           syncAckTimeoutHandle = Some(
             dom.window.setTimeout(
@@ -283,7 +284,7 @@ class ConnectionStatusManager[Receive, Send](
 
   /** Mark sync as complete once a fresh StateReplace snapshot is received. */
   def markStateSynchronized(): Unit =
-    if awaitingStateReplace && isConnectedVar.now() then
+    if isConnectedVar.now() && syncState.now() == SyncState.Syncing then
       clearSyncWaitState()
       syncState.set(SyncState.Synced)
       currentSyncAttempt = 0
@@ -331,10 +332,9 @@ class ConnectionStatusManager[Receive, Send](
         val awayDuration = System.currentTimeMillis().toDouble - hiddenTime
         val awaySeconds = (awayDuration / 1000).toInt
         
-        // Always force reconnect if away for more than 5 seconds
-        // This is aggressive but ensures we never have a zombie connection
-        // WebSocket connections can silently die while app is backgrounded
-        if awayDuration > 5000 then
+        // Force reconnect if away longer than configured stale threshold.
+        // This avoids aggressive reconnect churn on short focus changes.
+        if awayDuration > staleThresholdMs then
           println(s"User returned after $awaySeconds seconds - forcing reconnect for reliability")
           forceReconnect()
       }
