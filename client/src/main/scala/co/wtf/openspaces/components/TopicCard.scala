@@ -53,18 +53,20 @@ object TopicCard:
           },
           transition match
             case Some(value) => 
-              // Custom offset: entering cards come from well above (-100), leaving cards slide down (+80)
-              // This makes voted cards appear to slide into the "Viewed Topics" section below,
-              // while new cards clearly descend from above to take their place
-              val customOffset = List(
-                position.relative,
-                top <-- value.signal.map {
-                  case TransitionStatus.Inserting => -100.0  // Enter from well above
-                  case TransitionStatus.Removing => 80.0     // Exit downward
-                  case TransitionStatus.Active => 0.0
-                }.spring.px
+              // Use percentage-based translateY for height-relative animation:
+              // - Entering cards start 100% above (one full card height) and slide down
+              // - Leaving cards slide down 100% (one full card height) into the "Viewed Topics" below
+              // This avoids hardcoded pixel values and scales with actual card height
+              val $translateY = value.signal.map {
+                case TransitionStatus.Inserting => -100.0  // Start one card height above
+                case TransitionStatus.Removing => 100.0    // Exit one card height below
+                case TransitionStatus.Active => 0.0
+              }.spring
+              
+              Seq(
+                value.height,
+                transform <-- $translateY.map(pct => s"translateY($pct%)")
               )
-              Seq(value.height) ++ customOffset
             case None => cls:="not-animating-anymore"
           ,
           // Particle elements for celebration effect
