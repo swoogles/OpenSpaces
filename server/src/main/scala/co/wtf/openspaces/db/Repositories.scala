@@ -405,8 +405,11 @@ class HackathonProjectMemberRepositoryLive(ds: DataSource) extends HackathonProj
   def addMember(projectId: Long, username: String): Task[HackathonProjectMemberRow] =
     transactZIO(ds):
       val now = OffsetDateTime.now()
+      // UPSERT: if member previously left this project, rejoin by clearing left_at
       sql"""INSERT INTO hackathon_project_members (project_id, github_username, joined_at)
-            VALUES ($projectId, $username, $now)""".update.run()
+            VALUES ($projectId, $username, $now)
+            ON CONFLICT (project_id, github_username)
+            DO UPDATE SET joined_at = $now, left_at = NULL""".update.run()
       HackathonProjectMemberRow(projectId, username, now, None)
 
   def removeMember(projectId: Long, username: String): Task[Unit] =
