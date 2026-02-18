@@ -62,6 +62,14 @@ object RandomActionApi {
     Endpoint(RoutePattern.POST / "api" / "admin" / "schedule")
       .out[ScheduleResult]
 
+  val hackathonChaosGet =
+    Endpoint(RoutePattern.GET / "api" / "admin" / "hackathon-chaos")
+      .out[ActiveStatus]
+
+  val hackathonChaosToggle =
+    Endpoint(RoutePattern.POST / "api" / "admin" / "hackathon-chaos" / "toggle")
+      .out[ActiveStatus]
+
   // Documentation-only representation of the primary WebSocket message contract.
   val discussionsWebSocket =
     Endpoint(RoutePattern.GET / "discussions")
@@ -77,6 +85,8 @@ object RandomActionApi {
       randomActionToggle,
       randomScheduleGet,
       randomScheduleToggle,
+      hackathonChaosGet,
+      hackathonChaosToggle,
       deleteAllTopics,
       runScheduling,
       discussionsWebSocket,
@@ -136,4 +146,10 @@ executor: EndpointExecutor[Any, Unit, zio.Scope]
 
   def runScheduling: Future[ScheduleResult] =
     futureDumb(RandomActionApi.runScheduling.apply(()))
+
+  def hackathonChaosStatus: Future[ActiveStatus] =
+    futureDumb(RandomActionApi.hackathonChaosGet.apply(()))
+
+  def hackathonChaosToggle: Future[ActiveStatus] =
+    futureDumb(RandomActionApi.hackathonChaosToggle.apply(()))
 }

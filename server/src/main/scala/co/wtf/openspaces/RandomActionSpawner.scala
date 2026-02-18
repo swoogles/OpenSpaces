@@ -14,8 +14,10 @@ import zio.schema._
 case class RandomActionSpawner(
   discussionService: DiscussionService,
   schedulingService: SchedulingService,
+  hackathonProjectService: HackathonProjectService,
   chaosActiveRef: Ref[Boolean],
-  scheduleChaosActiveRef: Ref[Boolean]):
+  scheduleChaosActiveRef: Ref[Boolean],
+  hackathonChaosActiveRef: Ref[Boolean]):
   
   import co.wtf.openspaces.RandomActionApi._
 
@@ -28,6 +30,11 @@ case class RandomActionSpawner(
   def isScheduleChaosActive: UIO[Boolean] = scheduleChaosActiveRef.get
   def setScheduleChaosActive(value: Boolean): UIO[Boolean] = scheduleChaosActiveRef.set(value).as(value)
   def toggleScheduleChaos: UIO[Boolean] = scheduleChaosActiveRef.updateAndGet(!_)
+
+  // Hackathon chaos mode (create, join, leave, delete projects)
+  def isHackathonChaosActive: UIO[Boolean] = hackathonChaosActiveRef.get
+  def setHackathonChaosActive(value: Boolean): UIO[Boolean] = hackathonChaosActiveRef.set(value).as(value)
+  def toggleHackathonChaos: UIO[Boolean] = hackathonChaosActiveRef.updateAndGet(!_)
 
   def startSpawningRandomActions = {
     // Full chaos loop - fast (100ms)
@@ -50,7 +57,7 @@ case class RandomActionSpawner(
             .run
       }
 
-    // Schedule chaos loop - 2 second cadence
+    // Schedule chaos loop - 10 second cadence
     val scheduleChaosLoop =
       defer {
         val active = scheduleChaosActiveRef.get.run
@@ -58,6 +65,18 @@ case class RandomActionSpawner(
         ZIO.when(active) {
           discussionService.randomScheduleAction
             .debug("Random Schedule action")
+            .ignore
+        }.run
+      }
+
+    // Hackathon chaos loop - 3 second cadence
+    val hackathonChaosLoop =
+      defer {
+        val active = hackathonChaosActiveRef.get.run
+
+        ZIO.when(active) {
+          hackathonProjectService.randomHackathonAction
+            .debug("Random Hackathon action")
             .ignore
         }.run
       }
@@ -71,7 +90,11 @@ case class RandomActionSpawner(
       .repeat(Schedule.spaced(10.seconds) && Schedule.forever)
       .forkDaemon
 
-    fullChaosFiber *> scheduleChaosFiber
+    val hackathonChaosFiber = hackathonChaosLoop
+      .repeat(Schedule.spaced(3.seconds) && Schedule.forever)
+      .forkDaemon
+
+    fullChaosFiber *> scheduleChaosFiber *> hackathonChaosFiber
   }
 
   val routes: Routes[Any, Response] =
@@ -126,14 +149,28 @@ case class RandomActionSpawner(
             )
           }
       },
+
+      // Hackathon chaos endpoints
+      RandomActionApi.hackathonChaosGet.implement { _ =>
+        for
+          active <- isHackathonChaosActive
+        yield ActiveStatus(active)
+      },
+      RandomActionApi.hackathonChaosToggle.implement { _ =>
+        for
+          newState <- toggleHackathonChaos
+        yield ActiveStatus(newState)
+      },
     )
 
 object RandomActionSpawner:
-  def layer(initialActive: Boolean): ZLayer[DiscussionService & SchedulingService, Nothing, RandomActionSpawner] =
+  def layer(initialActive: Boolean): ZLayer[DiscussionService & SchedulingService & HackathonProjectService, Nothing, RandomActionSpawner] =
     ZLayer.fromZIO:
       for
         service <- ZIO.service[DiscussionService]
         scheduler <- ZIO.service[SchedulingService]
+        hackathonService <- ZIO.service[HackathonProjectService]
         chaosRef <- Ref.make(initialActive)
         scheduleChaosRef <- Ref.make(false)
-      yield RandomActionSpawner(service, scheduler, chaosRef, scheduleChaosRef)
+        hackathonChaosRef <- Ref.make(false)
+      yield RandomActionSpawner(service, scheduler, hackathonService, chaosRef, scheduleChaosRef, hackathonChaosRef)

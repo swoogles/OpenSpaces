@@ -11,30 +11,6 @@ case class LightningTalkService(
   userRepo: UserRepository,
   gitHubProfileService: GitHubProfileService,
 ):
-  // Pool of real GitHub users for random action generation.
-  // TODO Dedup with other user pools
-  private val randomUserPool: List[Person] = List(
-    Person("kitlangton"),
-    Person("jamesward"),
-    Person("BruceEckel"),
-    Person("cheshire137"),
-    Person("gaearon"),
-    Person("frenck"),
-    Person("charliermarsh"),
-    Person("peppy"),
-    Person("phodal"),
-    Person("dtolnay"),
-    Person("GrahamCampbell"),
-    Person("freekmurze"),
-    Person("Borda"),
-    Person("antfu"),
-    Person("lllyasviel"),
-    Person("fabpot"),
-    Person("himself65"),
-    Person("bradfitz"),
-    Person("ornicar"),
-  )
-
   def snapshot: UIO[LightningTalkState] =
     state.get
 
@@ -150,10 +126,8 @@ case class LightningTalkService(
     else
       gitHubProfileService.ensureUserWithDisplayName(username).unit
 
-  private def randomPerson: Task[Person] =
-    for
-      idx <- zio.Random.nextIntBounded(randomUserPool.size)
-    yield randomUserPool(idx)
+  private def randomPerson: UIO[Person] =
+    RandomUsers.randomPerson
 
   private def createProposal(speaker: Person): Task[LightningTalkProposal] =
     for

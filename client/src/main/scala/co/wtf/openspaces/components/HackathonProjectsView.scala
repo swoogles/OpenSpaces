@@ -256,10 +256,6 @@ object HackathonProjectCard:
       div(
         cls := "HackathonProjectCard-header",
         h4(cls := "HackathonProjectCard-title", project.titleText),
-        if isOwner && isMyProject then
-          span(cls := "HackathonProjectCard-ownerBadge", "👑 Owner")
-        else
-          span(),
       ),
       
       // Member info

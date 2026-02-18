@@ -29,6 +29,10 @@ object AdminControls:
     // Schedule-only chaos state
     val isScheduleChaosActive: Var[Boolean] = Var(false)
     
+    // Hackathon chaos state
+    val isHackathonChaosActive: Var[Boolean] = Var(false)
+    val hackathonChaosLoading: Var[Boolean] = Var(false)
+    
     // Auto-schedule state
     val scheduleLoading: Var[Boolean] = Var(false)
     val scheduleChaosLoading: Var[Boolean] = Var(false)
@@ -53,6 +57,9 @@ object AdminControls:
       // Schedule chaos status
       randomActionClient.randomScheduleStatus
         .foreach(status => isScheduleChaosActive.set(status.active))
+      // Hackathon chaos status
+      randomActionClient.hackathonChaosStatus
+        .foreach(status => isHackathonChaosActive.set(status.active))
     
     def toggleChaos(): Unit = {
       chaosLoading.set(true)
@@ -78,6 +85,18 @@ object AdminControls:
             scheduleChaosLoading.set(false)
         }
       }
+
+    def toggleHackathonChaos(): Unit = {
+      hackathonChaosLoading.set(true)
+      randomActionClient.hackathonChaosToggle
+        .onComplete {
+          case Success(status) =>
+            isHackathonChaosActive.set(status.active)
+            hackathonChaosLoading.set(false)
+          case Failure(_) =>
+            hackathonChaosLoading.set(false)
+        }
+    }
 
     def runScheduling(): Unit =
       scheduleLoading.set(true)
@@ -157,8 +176,26 @@ object AdminControls:
         onClick --> { _ => toggleScheduleChaos() },
         child.text <-- Signal.combine(isScheduleChaosActive.signal, scheduleChaosLoading.signal).map {
           case (_, true) => "⏳"
-          case (true, _) => "📅 Stop Schedule Chaos"
-          case (false, _) => "📅 Schedule Chaos"
+          case (true, _) => "📅 Stop Sched"
+          case (false, _) => "📅 Sched"
+        },
+      ),
+      // Hackathon chaos button
+      button(
+        cls := "AdminControls-button",
+        cls <-- Signal.combine(isHackathonChaosActive.signal, hackathonChaosLoading.signal).map {
+          case (isActive, _) =>
+            if isActive then "AdminControls-button--hackathon-active" else ""
+        },
+        cls <-- hackathonChaosLoading.signal.map { isLoading =>
+          if isLoading then "AdminControls-button--loading" else ""
+        },
+        disabled <-- hackathonChaosLoading.signal,
+        onClick --> { _ => toggleHackathonChaos() },
+        child.text <-- Signal.combine(isHackathonChaosActive.signal, hackathonChaosLoading.signal).map {
+          case (_, true) => "⏳"
+          case (true, _) => "🛠️ Stop Hack"
+          case (false, _) => "🛠️ Hack"
         },
       ),
       // Auto-schedule button

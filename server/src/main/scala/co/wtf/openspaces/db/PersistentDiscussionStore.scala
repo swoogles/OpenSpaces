@@ -72,34 +72,8 @@ class PersistentDiscussionStore(
     yield result
 
   // Pool of real GitHub users for random action generation
-  private val randomUserPool: List[Person] = List(
-    Person("kitlangton"),
-    Person("jamesward"),
-    Person("BruceEckel"),
-    // Randomly pulled from list of active creators
-    Person("cheshire137"),
-    Person("gaearon"),
-    Person("frenck"),
-    Person("charliermarsh"),
-    Person("peppy"),
-    Person("phodal"),
-    Person("dtolnay"),
-    Person("GrahamCampbell"),
-    Person("freekmurze"),
-    Person("Borda"),
-    Person("antfu"),
-    Person("lllyasviel"),
-    Person("fabpot"),
-    Person("himself65"),
-    Person("bradfitz"),
-    Person("ornicar"),
-    
-  )
-
-  private def randomPerson: Task[Person] =
-    for
-      idx <- Random.nextIntBounded(randomUserPool.size)
-    yield randomUserPool(idx)
+  private def randomPerson: UIO[Person] =
+    RandomUsers.randomPerson
 
   private def randomAddAction: Task[DiscussionAction] =
     for

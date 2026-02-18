@@ -181,6 +181,87 @@ case class HackathonProjectService(
       _ <- memberRepo.addMember(project.id.unwrap, project.owner.unwrap)
     yield ()
 
+  /** Generate a random hackathon action for chaos testing.
+    * Weighted distribution:
+    * - 40% create new project (if person has no project)
+    * - 35% join existing project
+    * - 20% leave current project
+    * - 5% delete own project (owner only)
+    */
+  def randomHackathonAction: Task[List[HackathonProjectActionConfirmed]] =
+    for
+      person <- RandomUsers.randomPerson
+      current <- state.get
+      roll <- zio.Random.nextIntBounded(100)
+      result <- (current.personCurrentProject(person), roll) match
+        // Person has no project
+        case (None, r) if r < 70 && current.projects.nonEmpty =>
+          // 70% join existing project
+          randomProject(current).flatMap {
+            case Some(project) =>
+              applyAction(HackathonProjectAction.Join(project.id, person))
+            case None =>
+              createRandomProject(person)
+          }
+        case (None, _) =>
+          // 30% create new project
+          createRandomProject(person)
+        
+        // Person has a project
+        case (Some(myProject), r) if r < 35 && current.projects.size > 1 =>
+          // 35% join different project
+          randomProjectExcluding(current, myProject.id).flatMap {
+            case Some(other) =>
+              applyAction(HackathonProjectAction.Join(other.id, person))
+            case None =>
+              ZIO.succeed(List.empty)
+          }
+        case (Some(myProject), r) if r < 55 =>
+          // 20% leave project
+          applyAction(HackathonProjectAction.Leave(myProject.id, person))
+        case (Some(myProject), r) if r < 60 && myProject.isOwner(person) =>
+          // 5% delete own project (owner only)
+          applyAction(HackathonProjectAction.Delete(myProject.id, person))
+        case _ =>
+          // Otherwise create new project (will be rejected if person already has one)
+          createRandomProject(person)
+    yield result
+
+  private def createRandomProject(person: Person): Task[List[HackathonProjectActionConfirmed]] =
+    for
+      titleIdx <- zio.Random.nextIntBounded(randomProjectTitles.size)
+      title = randomProjectTitles(titleIdx)
+      result <- applyAction(HackathonProjectAction.Create(title, person))
+    yield result
+
+  private def randomProject(state: HackathonProjectState): UIO[Option[HackathonProject]] =
+    val projects = state.projects.values.toList
+    if projects.isEmpty then ZIO.none
+    else zio.Random.nextIntBounded(projects.size).map(i => Some(projects(i)))
+
+  private def randomProjectExcluding(state: HackathonProjectState, excludeId: HackathonProjectId): UIO[Option[HackathonProject]] =
+    val projects = state.projects.values.filterNot(_.id == excludeId).toList
+    if projects.isEmpty then ZIO.none
+    else zio.Random.nextIntBounded(projects.size).map(i => Some(projects(i)))
+
+  private val randomProjectTitles: List[ProjectTitle] = List(
+    "AI-powered coffee maker",
+    "Distributed cat herding",
+    "Blockchain for breakfast",
+    "Serverless toaster",
+    "Machine learning linter",
+    "Kubernetes for houseplants",
+    "GraphQL pizza ordering",
+    "WebAssembly sudoku solver",
+    "Rust rewrite of everything",
+    "TypeScript type tetris",
+    "Docker compose symphony",
+    "Microservices for ants",
+    "Event sourcing diary",
+    "CQRS recipe book",
+    "Functional programming game",
+  ).flatMap(ProjectTitle.make(_).toOption)
+
   private def toRow(project: HackathonProject): HackathonProjectRow =
     val createdAt = java.time.OffsetDateTime.ofInstant(
       java.time.Instant.ofEpochMilli(project.createdAtEpochMs),

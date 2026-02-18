@@ -1333,7 +1333,7 @@ body {
 
 .ViewToggle-button {
     flex: 1;
-    padding: 12px 20px;
+    padding: 10px 10px;
     border: none;
     border-radius: 8px;
     background-color: transparent;
@@ -2537,4 +2537,11 @@ body {
 
 .ConfirmationModal-button:hover {
     opacity: 0.9;
+}
+
+/* Hackathon chaos button active state */
+.AdminControls-button--hackathon-active {
+    background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%) !important;
+    color: white !important;
+    border-color: #b45309 !important;
 }

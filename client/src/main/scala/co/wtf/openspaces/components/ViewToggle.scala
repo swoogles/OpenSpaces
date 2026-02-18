@@ -49,7 +49,7 @@ object ViewToggle:
           if view == AppView.Hackathon then "ViewToggle-button--active" else ""
         },
         onClick --> Observer(_ => currentView.set(AppView.Hackathon)),
-        "Hackathon",
+        "Hack",
       ),
       button(
         cls := "ViewToggle-button",
@@ -57,6 +57,6 @@ object ViewToggle:
           if view == AppView.Schedule then "ViewToggle-button--active" else ""
         },
         onClick --> Observer(_ => currentView.set(AppView.Schedule)),
-        "Schedule",
+        "Sched",
       ),
     )
