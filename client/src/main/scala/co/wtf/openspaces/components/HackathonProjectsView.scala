@@ -39,21 +39,48 @@ object HackathonProjectsView:
     val newProjectTitle: Var[String] = Var("")
     val showCreateForm: Var[Boolean] = Var(false)
     
-    // State for confirmation modal
+    // State for confirmation modals
     val pendingJoin: Var[Option[(HackathonProject, HackathonProject)]] = Var(None) // (leaving, joining)
+    val pendingCreate: Var[Option[(HackathonProject, ProjectTitle)]] = Var(None) // (leaving, newTitle)
 
     def handleCreateProject(): Unit =
       val title = newProjectTitle.now().trim
       ProjectTitle.make(title) match
         case Right(validTitle) =>
-          if !connectionStatus.checkReady() then
-            setErrorMsg.onNext(Some("Reconnecting... please wait and try again."))
-          else
-            sendHackathonAction(HackathonProjectAction.Create(validTitle, name.now()))
-            newProjectTitle.set("")
-            showCreateForm.set(false)
+          val currentUser = name.now()
+          val currentProject = hackathonProjectState.now().personCurrentProject(currentUser)
+          
+          currentProject match
+            case Some(existing) =>
+              // Show confirmation modal
+              pendingCreate.set(Some((existing, validTitle)))
+            case None =>
+              // Direct create
+              if !connectionStatus.checkReady() then
+                setErrorMsg.onNext(Some("Reconnecting... please wait and try again."))
+              else
+                sendHackathonAction(HackathonProjectAction.Create(validTitle, currentUser))
+                newProjectTitle.set("")
+                showCreateForm.set(false)
         case Left(error) =>
           setErrorMsg.onNext(Some(error))
+    
+    def confirmCreate(): Unit =
+      pendingCreate.now().foreach { case (leaving, newTitle) =>
+        if !connectionStatus.checkReady() then
+          setErrorMsg.onNext(Some("Reconnecting... please wait and try again."))
+        else
+          val currentUser = name.now()
+          // Leave current project first, then create new one
+          sendHackathonAction(HackathonProjectAction.Leave(leaving.id, currentUser))
+          sendHackathonAction(HackathonProjectAction.Create(newTitle, currentUser))
+          newProjectTitle.set("")
+          showCreateForm.set(false)
+      }
+      pendingCreate.set(None)
+    
+    def cancelCreate(): Unit =
+      pendingCreate.set(None)
 
     def handleJoinProject(project: HackathonProject): Unit =
       val currentUser = name.now()
@@ -91,7 +118,7 @@ object HackathonProjectsView:
     div(
       cls := "HackathonProjects",
       
-      // Confirmation modal
+      // Confirmation modal for joining
       child <-- pendingJoin.signal.map {
         case Some((leaving, joining)) =>
           val currentUser = name.now()
@@ -126,6 +153,49 @@ object HackathonProjectsView:
                   cls := "ConfirmationModal-button ConfirmationModal-button--confirm",
                   "Switch Project",
                   onClick --> Observer(_ => confirmJoin()),
+                ),
+              ),
+            ),
+          )
+        case None =>
+          div()
+      },
+      
+      // Confirmation modal for creating
+      child <-- pendingCreate.signal.map {
+        case Some((leaving, newTitle)) =>
+          val currentUser = name.now()
+          val isOwner = leaving.isOwner(currentUser)
+          val wouldDelete = leaving.wouldBeDeletedIfLeaves(currentUser)
+          
+          val warningText = 
+            if wouldDelete then
+              s"Your project '${leaving.titleText}' will be deleted since no one else has joined."
+            else if isOwner then
+              val nextOwner = leaving.nextOwner.map(_.unwrap).getOrElse("someone else")
+              s"You'll hand ownership of '${leaving.titleText}' to $nextOwner."
+            else
+              s"You'll leave '${leaving.titleText}'."
+          
+          div(
+            cls := "ConfirmationModal-overlay",
+            onClick --> Observer(_ => cancelCreate()),
+            div(
+              cls := "ConfirmationModal",
+              onClick.stopPropagation --> Observer.empty,
+              h3(cls := "ConfirmationModal-title", s"Create '${newTitle.unwrap}'?"),
+              p(cls := "ConfirmationModal-message", warningText),
+              div(
+                cls := "ConfirmationModal-buttons",
+                button(
+                  cls := "ConfirmationModal-button ConfirmationModal-button--cancel",
+                  "Cancel",
+                  onClick --> Observer(_ => cancelCreate()),
+                ),
+                button(
+                  cls := "ConfirmationModal-button ConfirmationModal-button--confirm",
+                  "Leave & Create",
+                  onClick --> Observer(_ => confirmCreate()),
                 ),
               ),
             ),
