@@ -8,7 +8,6 @@ import neotype.unwrap
 object LightningTalkProposalCard:
   def nightLabel(night: LightningTalkNight): String =
     night match
-      case LightningTalkNight.Monday   => "Monday Night"
       case LightningTalkNight.Tuesday  => "Tuesday Night"
       case LightningTalkNight.Thursday => "Thursday Night"
 

@@ -30,23 +30,23 @@ object LightningTalkStateTest extends ZIOSpecDefault:
           state.proposalForSpeaker(Person("bob")).contains(proposal2),
         )
       },
-      test("chooses next open assignment in Monday -> Tuesday -> Thursday order") {
-        val mondaySlots = (1 to 10).toList.map(slot =>
+      test("chooses next open assignment in Tuesday -> Thursday order") {
+        val tuesdaySlots = (1 to 10).toList.map(slot =>
           LightningAssignment(
-            LightningTalkNight.Monday,
+            LightningTalkNight.Tuesday,
             LightningTalkSlot.make(slot).toOption.get,
           ),
         )
-        val mondayProposals = mondaySlots.zipWithIndex.map { case (assignment, index) =>
+        val tuesdayProposals = tuesdaySlots.zipWithIndex.map { case (assignment, index) =>
           val proposal = makeProposal(index.toLong + 1L, s"user$index", index.toLong, Some(assignment))
           proposal.id -> proposal
         }.toMap
-        val state = LightningTalkState(mondayProposals)
+        val state = LightningTalkState(tuesdayProposals)
 
         assertTrue(
-          state.nextNightWithOpenSlot.contains(LightningTalkNight.Tuesday),
+          state.nextNightWithOpenSlot.contains(LightningTalkNight.Thursday),
           state.nextOpenAssignment.contains(
-            LightningAssignment(LightningTalkNight.Tuesday, LightningTalkSlot(1)),
+            LightningAssignment(LightningTalkNight.Thursday, LightningTalkSlot(1)),
           ),
         )
       },
@@ -55,11 +55,11 @@ object LightningTalkStateTest extends ZIOSpecDefault:
         val proposal2 = makeProposal(2L, "bob", 2000L)
         val state = LightningTalkState(Map(proposal1.id -> proposal1, proposal2.id -> proposal2))
         val drawResult = LightningTalkActionConfirmed.DrawForNightResult(
-          LightningTalkNight.Monday,
+          LightningTalkNight.Tuesday,
           List(
             LightningDrawAssignment(
               proposal1.id,
-              LightningAssignment(LightningTalkNight.Monday, LightningTalkSlot(1)),
+              LightningAssignment(LightningTalkNight.Tuesday, LightningTalkSlot(1)),
             ),
           ),
         )
@@ -67,23 +67,14 @@ object LightningTalkStateTest extends ZIOSpecDefault:
 
         assertTrue(
           updated.proposals(proposal1.id).assignment.contains(
-            LightningAssignment(LightningTalkNight.Monday, LightningTalkSlot(1)),
+            LightningAssignment(LightningTalkNight.Tuesday, LightningTalkSlot(1)),
           ),
           updated.proposals(proposal2.id).assignment.isEmpty,
         )
       },
       test("drawForNight rejects when requested night is not next open night") {
-        val mondayFull = (1 to 10).toList.map { slot =>
-          val proposalId = slot.toLong
-          val assignment =
-            LightningAssignment(
-              LightningTalkNight.Monday,
-              LightningTalkSlot(slot),
-            )
-          val proposal = makeProposal(proposalId, s"monday$slot", proposalId, Some(assignment))
-          proposal.id -> proposal
-        }.toMap
-        val state = LightningTalkState(mondayFull)
+        // With an empty state, Tuesday is next, so requesting Thursday should fail
+        val state = LightningTalkState(Map.empty)
 
         val result = LightningTalkDraw.drawForNight(
           state,
@@ -113,9 +104,9 @@ object LightningTalkStateTest extends ZIOSpecDefault:
         )
 
         assertTrue(
-          result.exists(_.night == LightningTalkNight.Monday),
+          result.exists(_.night == LightningTalkNight.Tuesday),
           result.exists(_.assignments.size == 2),
-          result.exists(_.assignments.head.assignment == LightningAssignment(LightningTalkNight.Monday, LightningTalkSlot(1))),
+          result.exists(_.assignments.head.assignment == LightningAssignment(LightningTalkNight.Tuesday, LightningTalkSlot(1))),
         )
       },
     )

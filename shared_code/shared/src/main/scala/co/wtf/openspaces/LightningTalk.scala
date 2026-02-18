@@ -18,11 +18,11 @@ object LightningTalkSlot extends Newtype[Int]:
       true
 
 enum LightningTalkNight derives JsonCodec:
-  case Monday, Tuesday, Thursday
+  case Tuesday, Thursday
 
 object LightningTalkNight:
   val ordered: List[LightningTalkNight] =
-    List(Monday, Tuesday, Thursday)
+    List(Tuesday, Thursday)
 
 case class LightningAssignment(
   night: LightningTalkNight,

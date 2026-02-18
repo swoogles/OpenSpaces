@@ -162,7 +162,6 @@ object SlotSchedules:
 object LinearScheduleView:
   private def lightningNightForDay(dayName: String): Option[LightningTalkNight] =
     dayName match
-      case "MONDAY"    => Some(LightningTalkNight.Monday)
       case "TUESDAY"   => Some(LightningTalkNight.Tuesday)
       case "THURSDAY"  => Some(LightningTalkNight.Thursday)
       case _           => None
