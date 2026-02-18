@@ -11,7 +11,17 @@ private case class ChannelRegistry(
   pending: Map[OpenSpacesServerChannel, Vector[WebSocketMessageFromServer]],
 )
 
-case class DiscussionService(
+/** Central session/connection manager for WebSocket clients.
+  *
+  * Responsibilities:
+  * - WebSocket channel registry (connected clients, pending messages)
+  * - Initial state sync on connect (discussions, lightning talks, hackathon projects)
+  * - Broadcast hub for all confirmed actions to connected clients + Slack
+  *
+  * All entity-specific services (DiscussionStore, LightningTalkService, HackathonProjectService)
+  * route their broadcasts through this service to ensure consistent delivery.
+  */
+case class SessionService(
   channelRegistry: Ref[ChannelRegistry],
   discussionStore: DiscussionStore,
   lightningTalkService: LightningTalkService,
@@ -345,11 +355,11 @@ case class DiscussionService(
       )
       .ignore
 
-object DiscussionService:
+object SessionService:
   val layer =
     ZLayer.fromZIO:
       defer:
-        DiscussionService(
+        SessionService(
           Ref.make(
             ChannelRegistry(
               connected = Set.empty,

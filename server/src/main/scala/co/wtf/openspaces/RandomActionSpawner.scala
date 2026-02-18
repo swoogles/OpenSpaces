@@ -12,7 +12,7 @@ import zio.http.endpoint._
 import zio.schema._
 
 case class RandomActionSpawner(
-  discussionService: DiscussionService,
+  discussionService: SessionService,
   schedulingService: SchedulingService,
   chaosActiveRef: Ref[Boolean],
   scheduleChaosActiveRef: Ref[Boolean],
@@ -163,10 +163,10 @@ case class RandomActionSpawner(
     )
 
 object RandomActionSpawner:
-  def layer(initialActive: Boolean): ZLayer[DiscussionService & SchedulingService, Nothing, RandomActionSpawner] =
+  def layer(initialActive: Boolean): ZLayer[SessionService & SchedulingService, Nothing, RandomActionSpawner] =
     ZLayer.fromZIO:
       for
-        service <- ZIO.service[DiscussionService]
+        service <- ZIO.service[SessionService]
         scheduler <- ZIO.service[SchedulingService]
         chaosRef <- Ref.make(initialActive)
         scheduleChaosRef <- Ref.make(false)

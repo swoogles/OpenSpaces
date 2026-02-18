@@ -71,7 +71,7 @@ object Backend extends ZIOAppDefault {
       Server.defaultWith(_.port(port)),
       ApplicationState.layer,
       BackendSocketApp.layer,
-      DiscussionService.layer,
+      SessionService.layer,
       SchedulingService.layer,
       LightningTalkService.layer,
       RandomActionSpawner.layer(initialActive = false),

@@ -12,7 +12,7 @@ import zio.http.ChannelEvent.{
 import zio.json.*
 
 case class BackendSocketApp(
-  discussionService: DiscussionService,
+  discussionService: SessionService,
   randomActionSpawner: RandomActionSpawner):
 
   val socketApp: WebSocketApp[Any] =

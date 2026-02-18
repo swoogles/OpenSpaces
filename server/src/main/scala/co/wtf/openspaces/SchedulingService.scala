@@ -7,7 +7,7 @@ import neotype.unwrap
 
 /** Auto-scheduler that assigns topics to room slots based on votes and conflict minimization. */
 case class SchedulingService(
-  discussionService: DiscussionService,
+  discussionService: SessionService,
   discussionStore: DiscussionStore
 ):
 
@@ -193,9 +193,9 @@ case class SchedulingSummary(
     s"scheduled=$scheduled, moved=$moved, unscheduled=$unscheduled"
 
 object SchedulingService:
-  val layer: ZLayer[DiscussionService & DiscussionStore, Nothing, SchedulingService] =
+  val layer: ZLayer[SessionService & DiscussionStore, Nothing, SchedulingService] =
     ZLayer.fromZIO:
       for
-        discussionService <- ZIO.service[DiscussionService]
+        discussionService <- ZIO.service[SessionService]
         discussionStore <- ZIO.service[DiscussionStore]
       yield SchedulingService(discussionService, discussionStore)
