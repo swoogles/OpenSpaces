@@ -52,8 +52,19 @@ object TopicCard:
               case None => ""
           },
           transition match
-            case Some(value) => Seq(value.height, value.offset(0, -30))  // Slide down from above
-            case None        => cls:="not-animating-anymore"
+            case Some(value) => 
+              // Custom offset: entering cards come from above (-30), leaving cards slide down (+60)
+              // This makes voted cards appear to slide into the "Viewed Topics" section below
+              val customOffset = List(
+                position.relative,
+                top <-- value.signal.map {
+                  case TransitionStatus.Inserting => -30.0  // Enter from above
+                  case TransitionStatus.Removing => 60.0    // Exit downward
+                  case TransitionStatus.Active => 0.0
+                }.spring.px
+              )
+              Seq(value.height) ++ customOffset
+            case None => cls:="not-animating-anymore"
           ,
           // Particle elements for celebration effect
           children <-- AppState.celebratingTopics.signal.map { celebrating =>
