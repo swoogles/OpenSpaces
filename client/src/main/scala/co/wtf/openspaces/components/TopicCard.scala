@@ -52,7 +52,7 @@ object TopicCard:
               case None => ""
           },
           transition match
-            case Some(value) => value.height
+            case Some(value) => Seq(value.height, value.offset(0, -30))  // Slide down from above
             case None        => cls:="not-animating-anymore"
           ,
           // Particle elements for celebration effect
