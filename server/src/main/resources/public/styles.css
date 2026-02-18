@@ -2193,3 +2193,348 @@ body {
         transform: translateY(0);
     }
 }
+
+/* ========================================
+   Hackathon Projects (Wednesday hackday)
+   ======================================== */
+
+.HackathonProjects {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    padding: 0 10px 70px 10px;
+}
+
+.HackathonProjects-sectionTitle {
+    font-size: 16px;
+    font-weight: 600;
+    color: #1a202c;
+    margin: 0 0 8px 0;
+}
+
+.HackathonProjects-subtitle {
+    color: #64748b;
+    font-size: 14px;
+    margin: 0;
+}
+
+.HackathonProjects-noProject {
+    background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%);
+    border: 1px solid #bae6fd;
+    border-radius: 12px;
+    padding: 16px;
+    text-align: center;
+}
+
+.HackathonProjects-myProject {
+    background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%);
+    border: 1px solid #bbf7d0;
+    border-radius: 12px;
+    padding: 12px;
+}
+
+/* Create project section */
+.HackathonProjects-create {
+    margin: 8px 0;
+}
+
+.HackathonProjects-createButton {
+    width: 100%;
+    padding: 14px 20px;
+    font-size: 16px;
+    font-weight: 600;
+    color: #fff;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    border: none;
+    border-radius: 12px;
+    cursor: pointer;
+    box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.HackathonProjects-createButton:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4);
+}
+
+.HackathonProjects-createForm {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    padding: 16px;
+    border-radius: 12px;
+}
+
+.HackathonProjects-input {
+    width: 100%;
+    padding: 14px 16px;
+    font-size: 16px;
+    border: 2px solid transparent;
+    border-radius: 10px;
+    background: rgba(255, 255, 255, 0.95);
+    box-sizing: border-box;
+}
+
+.HackathonProjects-input:focus {
+    outline: none;
+    border-color: #667eea;
+}
+
+.HackathonProjects-createFormButtons {
+    display: flex;
+    gap: 10px;
+}
+
+.HackathonProjects-submitButton,
+.HackathonProjects-cancelButton {
+    flex: 1;
+    padding: 12px 16px;
+    font-size: 15px;
+    font-weight: 600;
+    border-radius: 10px;
+    cursor: pointer;
+    transition: opacity 0.2s ease;
+}
+
+.HackathonProjects-submitButton {
+    background: #fff;
+    color: #667eea;
+    border: none;
+}
+
+.HackathonProjects-cancelButton {
+    background: transparent;
+    color: #fff;
+    border: 2px solid rgba(255, 255, 255, 0.5);
+}
+
+.HackathonProjects-submitButton:hover,
+.HackathonProjects-cancelButton:hover {
+    opacity: 0.9;
+}
+
+/* Project list */
+.HackathonProjects-list {
+    background: #ffffff;
+    border: 1px solid #d4e2ef;
+    border-radius: 14px;
+    padding: 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.HackathonProjects-empty {
+    color: #64748b;
+    text-align: center;
+    padding: 20px;
+    font-size: 14px;
+}
+
+/* Project Card */
+.HackathonProjectCard {
+    background: #f8fbff;
+    border: 1px solid #dbe7f3;
+    border-radius: 10px;
+    padding: 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.HackathonProjectCard--mine {
+    background: #f0fdf4;
+    border-color: #bbf7d0;
+}
+
+.HackathonProjectCard--large {
+    border-color: #fbbf24;
+}
+
+.HackathonProjectCard-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 8px;
+}
+
+.HackathonProjectCard-title {
+    margin: 0;
+    font-size: 16px;
+    font-weight: 600;
+    color: #1a202c;
+    flex: 1;
+    word-wrap: break-word;
+}
+
+.HackathonProjectCard-ownerBadge {
+    font-size: 12px;
+    background: #fef3c7;
+    color: #92400e;
+    padding: 2px 8px;
+    border-radius: 12px;
+    flex-shrink: 0;
+}
+
+/* Members section */
+.HackathonProjectCard-members {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.HackathonProjectCard-avatars {
+    display: flex;
+    align-items: center;
+}
+
+.HackathonProjectCard-avatar {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    border: 2px solid #fff;
+    margin-left: -8px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.HackathonProjectCard-avatar:first-child {
+    margin-left: 0;
+}
+
+.HackathonProjectCard-moreMembers {
+    font-size: 12px;
+    color: #64748b;
+    margin-left: 4px;
+}
+
+.HackathonProjectCard-memberCount {
+    font-size: 13px;
+    color: #64748b;
+}
+
+.HackathonProjectCard-largeWarning {
+    font-size: 12px;
+    color: #92400e;
+    background: #fef3c7;
+    padding: 6px 10px;
+    border-radius: 6px;
+}
+
+.HackathonProjectCard-slackLink {
+    font-size: 13px;
+    color: #667eea;
+    text-decoration: none;
+}
+
+.HackathonProjectCard-slackLink:hover {
+    text-decoration: underline;
+}
+
+/* Action buttons */
+.HackathonProjectCard-actions {
+    display: flex;
+    gap: 8px;
+    margin-top: 4px;
+}
+
+.HackathonProjectCard-joinButton,
+.HackathonProjectCard-leaveButton {
+    flex: 1;
+    padding: 10px 14px;
+    font-size: 14px;
+    font-weight: 600;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: opacity 0.2s ease, transform 0.2s ease;
+}
+
+.HackathonProjectCard-joinButton {
+    background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+    color: #fff;
+    border: none;
+}
+
+.HackathonProjectCard-joinButton:hover {
+    transform: translateY(-1px);
+    opacity: 0.95;
+}
+
+.HackathonProjectCard-leaveButton {
+    background: #f1f5f9;
+    color: #64748b;
+    border: 1px solid #e2e8f0;
+}
+
+.HackathonProjectCard-leaveButton:hover {
+    background: #e2e8f0;
+}
+
+/* Confirmation Modal */
+.ConfirmationModal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.5);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1002;
+    padding: 20px;
+}
+
+.ConfirmationModal {
+    background: #fff;
+    border-radius: 16px;
+    padding: 24px;
+    max-width: 360px;
+    width: 100%;
+    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.2);
+}
+
+.ConfirmationModal-title {
+    margin: 0 0 12px 0;
+    font-size: 18px;
+    font-weight: 600;
+    color: #1a202c;
+}
+
+.ConfirmationModal-message {
+    margin: 0 0 20px 0;
+    font-size: 14px;
+    color: #64748b;
+    line-height: 1.5;
+}
+
+.ConfirmationModal-buttons {
+    display: flex;
+    gap: 10px;
+}
+
+.ConfirmationModal-button {
+    flex: 1;
+    padding: 12px 16px;
+    font-size: 15px;
+    font-weight: 600;
+    border-radius: 10px;
+    cursor: pointer;
+    transition: opacity 0.2s ease;
+}
+
+.ConfirmationModal-button--cancel {
+    background: #f1f5f9;
+    color: #64748b;
+    border: 1px solid #e2e8f0;
+}
+
+.ConfirmationModal-button--confirm {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: #fff;
+    border: none;
+}
+
+.ConfirmationModal-button:hover {
+    opacity: 0.9;
+}
