@@ -14,6 +14,10 @@ object ToastManager:
   private val maxToasts = 3
   
   def show(message: String, icon: String = "📍"): Unit =
+    // DISABLED: Toast notifications are currently too noisy during chaos
+    // Remove the return below to re-enable
+    return
+    
     val id = nextId
     nextId += 1
     val toast = Toast(id, message, icon)
