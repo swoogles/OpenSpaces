@@ -53,13 +53,14 @@ object TopicCard:
           },
           transition match
             case Some(value) => 
-              // Custom offset: entering cards come from above (-30), leaving cards slide down (+60)
-              // This makes voted cards appear to slide into the "Viewed Topics" section below
+              // Custom offset: entering cards come from well above (-100), leaving cards slide down (+80)
+              // This makes voted cards appear to slide into the "Viewed Topics" section below,
+              // while new cards clearly descend from above to take their place
               val customOffset = List(
                 position.relative,
                 top <-- value.signal.map {
-                  case TransitionStatus.Inserting => -30.0  // Enter from above
-                  case TransitionStatus.Removing => 60.0    // Exit downward
+                  case TransitionStatus.Inserting => -100.0  // Enter from well above
+                  case TransitionStatus.Removing => 80.0     // Exit downward
                   case TransitionStatus.Active => 0.0
                 }.spring.px
               )
