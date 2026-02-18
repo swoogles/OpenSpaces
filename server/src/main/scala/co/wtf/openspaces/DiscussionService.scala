@@ -66,6 +66,13 @@ case class DiscussionService(
       _ <- handleLightningActionResult(action, None)
     yield action
 
+  /** Generate random hackathon project actions and broadcast. */
+  def randomHackathonAction: Task[List[HackathonProjectActionConfirmed]] =
+    for
+      actions <- hackathonProjectService.randomHackathonAction
+      _ <- ZIO.foreachDiscard(actions)(action => handleHackathonActionResult(action, None))
+    yield actions
+
   /** Generate a random schedule-only action (move/swap/unschedule) and broadcast */
   def randomScheduleAction: Task[DiscussionActionConfirmed] =
     for

@@ -62,10 +62,24 @@ case class HackathonProjectService(
               ZIO.succeed(List(HackathonProjectActionConfirmed.Rejected(join)))
             // Need to leave current project first
             case (Some(target), Some(curr)) =>
-              for
-                leaveResults <- handleLeave(curr, person)
-                joinResult <- handleJoin(target, person)
-              yield leaveResults :+ joinResult
+              // Re-verify target still exists right before committing
+              // This prevents race condition where target is deleted between check and join
+              state.get.flatMap { freshState =>
+                if !freshState.projects.contains(target.id) then
+                  ZIO.succeed(List(HackathonProjectActionConfirmed.Rejected(join)))
+                else
+                  for
+                    leaveResults <- handleLeave(curr, person)
+                    // Re-check once more after leave committed
+                    postLeaveState <- state.get
+                    joinResult <- if postLeaveState.projects.contains(target.id) then
+                      handleJoin(target, person)
+                    else
+                      // Target was deleted while we were leaving - rejoin original if possible
+                      // For now, just reject (user is orphaned but at least we don't crash)
+                      ZIO.succeed(HackathonProjectActionConfirmed.Rejected(join))
+                  yield leaveResults :+ joinResult
+              }
             // No current project, just join
             case (Some(target), None) =>
               handleJoin(target, person).map(List(_))

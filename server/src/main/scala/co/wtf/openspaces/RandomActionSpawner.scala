@@ -14,7 +14,6 @@ import zio.schema._
 case class RandomActionSpawner(
   discussionService: DiscussionService,
   schedulingService: SchedulingService,
-  hackathonProjectService: HackathonProjectService,
   chaosActiveRef: Ref[Boolean],
   scheduleChaosActiveRef: Ref[Boolean],
   hackathonChaosActiveRef: Ref[Boolean]):
@@ -75,7 +74,7 @@ case class RandomActionSpawner(
         val active = hackathonChaosActiveRef.get.run
 
         ZIO.when(active) {
-          hackathonProjectService.randomHackathonAction
+          discussionService.randomHackathonAction
             .debug("Random Hackathon action")
             .ignore
         }.run
@@ -164,13 +163,12 @@ case class RandomActionSpawner(
     )
 
 object RandomActionSpawner:
-  def layer(initialActive: Boolean): ZLayer[DiscussionService & SchedulingService & HackathonProjectService, Nothing, RandomActionSpawner] =
+  def layer(initialActive: Boolean): ZLayer[DiscussionService & SchedulingService, Nothing, RandomActionSpawner] =
     ZLayer.fromZIO:
       for
         service <- ZIO.service[DiscussionService]
         scheduler <- ZIO.service[SchedulingService]
-        hackathonService <- ZIO.service[HackathonProjectService]
         chaosRef <- Ref.make(initialActive)
         scheduleChaosRef <- Ref.make(false)
         hackathonChaosRef <- Ref.make(false)
-      yield RandomActionSpawner(service, scheduler, hackathonService, chaosRef, scheduleChaosRef, hackathonChaosRef)
+      yield RandomActionSpawner(service, scheduler, chaosRef, scheduleChaosRef, hackathonChaosRef)
