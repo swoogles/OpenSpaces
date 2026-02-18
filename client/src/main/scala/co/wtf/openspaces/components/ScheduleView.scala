@@ -19,6 +19,7 @@ enum AppView:
   case Topics
   case Schedule
   case LightningTalks
+  case Hackathon
 
 /** Schedule view showing the full grid of rooms and time slots.
   *

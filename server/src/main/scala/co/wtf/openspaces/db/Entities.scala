@@ -74,3 +74,23 @@ case class LightningTalkRow(
   slackThreadTs: Option[String],
   slackPermalink: Option[String],
 ) derives DbCodec
+
+// Hackathon Projects (Wednesday hackday)
+
+case class HackathonProjectRow(
+  id: Long,
+  title: String,
+  owner: String,
+  createdAt: OffsetDateTime,
+  deletedAt: Option[OffsetDateTime],
+  slackChannelId: Option[String],
+  slackThreadTs: Option[String],
+  slackPermalink: Option[String],
+) derives DbCodec
+
+case class HackathonProjectMemberRow(
+  projectId: Long,
+  githubUsername: String,
+  joinedAt: OffsetDateTime,
+  leftAt: Option[OffsetDateTime],
+) derives DbCodec

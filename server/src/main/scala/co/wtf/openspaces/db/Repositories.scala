@@ -298,3 +298,126 @@ class LightningTalkRepositoryLive(ds: DataSource) extends LightningTalkRepositor
 object LightningTalkRepository:
   val layer: ZLayer[DataSource, Nothing, LightningTalkRepository] =
     ZLayer.fromFunction(ds => LightningTalkRepositoryLive(ds))
+
+// Hackathon Projects (Wednesday hackday)
+
+trait HackathonProjectRepository:
+  def findById(id: Long): Task[Option[HackathonProjectRow]]
+  def findAllActive: Task[Vector[HackathonProjectRow]]
+  def insert(row: HackathonProjectRow): Task[Unit]
+  def update(row: HackathonProjectRow): Task[Unit]
+  def updateOwner(id: Long, newOwner: String): Task[Unit]
+  def softDelete(id: Long): Task[Unit]
+  def updateSlackThread(id: Long, channelId: String, threadTs: String, permalink: String): Task[Unit]
+
+class HackathonProjectRepositoryLive(ds: DataSource) extends HackathonProjectRepository:
+  def findById(id: Long): Task[Option[HackathonProjectRow]] =
+    transactZIO(ds):
+      sql"""SELECT id, title, owner, created_at, deleted_at,
+                   slack_channel_id, slack_thread_ts, slack_permalink
+            FROM hackathon_projects
+            WHERE id = $id"""
+        .query[HackathonProjectRow]
+        .run()
+        .headOption
+
+  def findAllActive: Task[Vector[HackathonProjectRow]] =
+    transactZIO(ds):
+      sql"""SELECT id, title, owner, created_at, deleted_at,
+                   slack_channel_id, slack_thread_ts, slack_permalink
+            FROM hackathon_projects
+            WHERE deleted_at IS NULL"""
+        .query[HackathonProjectRow]
+        .run()
+
+  def insert(row: HackathonProjectRow): Task[Unit] =
+    transactZIO(ds):
+      sql"""INSERT INTO hackathon_projects (
+              id, title, owner, created_at, deleted_at,
+              slack_channel_id, slack_thread_ts, slack_permalink
+            ) VALUES (
+              ${row.id}, ${row.title}, ${row.owner},
+              ${row.createdAt}, ${row.deletedAt},
+              ${row.slackChannelId}, ${row.slackThreadTs}, ${row.slackPermalink}
+            )""".update.run()
+      ()
+
+  def update(row: HackathonProjectRow): Task[Unit] =
+    transactZIO(ds):
+      sql"""UPDATE hackathon_projects SET
+              title = ${row.title},
+              owner = ${row.owner},
+              deleted_at = ${row.deletedAt}
+            WHERE id = ${row.id}""".update.run()
+      ()
+
+  def updateOwner(id: Long, newOwner: String): Task[Unit] =
+    transactZIO(ds):
+      sql"""UPDATE hackathon_projects SET owner = $newOwner WHERE id = $id""".update.run()
+      ()
+
+  def softDelete(id: Long): Task[Unit] =
+    transactZIO(ds):
+      sql"""UPDATE hackathon_projects SET deleted_at = NOW() WHERE id = $id""".update.run()
+      ()
+
+  def updateSlackThread(id: Long, channelId: String, threadTs: String, permalink: String): Task[Unit] =
+    transactZIO(ds):
+      sql"""UPDATE hackathon_projects SET
+              slack_channel_id = $channelId,
+              slack_thread_ts = $threadTs,
+              slack_permalink = $permalink
+            WHERE id = $id""".update.run()
+      ()
+
+object HackathonProjectRepository:
+  val layer: ZLayer[DataSource, Nothing, HackathonProjectRepository] =
+    ZLayer.fromFunction(ds => HackathonProjectRepositoryLive(ds))
+
+trait HackathonProjectMemberRepository:
+  def findActiveByProject(projectId: Long): Task[Vector[HackathonProjectMemberRow]]
+  def findActiveByUser(username: String): Task[Option[HackathonProjectMemberRow]]
+  def addMember(projectId: Long, username: String): Task[HackathonProjectMemberRow]
+  def removeMember(projectId: Long, username: String): Task[Unit]
+
+class HackathonProjectMemberRepositoryLive(ds: DataSource) extends HackathonProjectMemberRepository:
+  def findActiveByProject(projectId: Long): Task[Vector[HackathonProjectMemberRow]] =
+    transactZIO(ds):
+      sql"""SELECT project_id, github_username, joined_at, left_at
+            FROM hackathon_project_members
+            WHERE project_id = $projectId AND left_at IS NULL
+            ORDER BY joined_at"""
+        .query[HackathonProjectMemberRow]
+        .run()
+
+  def findActiveByUser(username: String): Task[Option[HackathonProjectMemberRow]] =
+    transactZIO(ds):
+      sql"""SELECT hpm.project_id, hpm.github_username, hpm.joined_at, hpm.left_at
+            FROM hackathon_project_members hpm
+            INNER JOIN hackathon_projects hp ON hp.id = hpm.project_id
+            WHERE hpm.github_username = $username
+              AND hpm.left_at IS NULL
+              AND hp.deleted_at IS NULL"""
+        .query[HackathonProjectMemberRow]
+        .run()
+        .headOption
+
+  def addMember(projectId: Long, username: String): Task[HackathonProjectMemberRow] =
+    transactZIO(ds):
+      val now = OffsetDateTime.now()
+      sql"""INSERT INTO hackathon_project_members (project_id, github_username, joined_at)
+            VALUES ($projectId, $username, $now)""".update.run()
+      HackathonProjectMemberRow(projectId, username, now, None)
+
+  def removeMember(projectId: Long, username: String): Task[Unit] =
+    transactZIO(ds):
+      sql"""UPDATE hackathon_project_members
+            SET left_at = NOW()
+            WHERE project_id = $projectId
+              AND github_username = $username
+              AND left_at IS NULL""".update.run()
+      ()
+
+object HackathonProjectMemberRepository:
+  val layer: ZLayer[DataSource, Nothing, HackathonProjectMemberRepository] =
+    ZLayer.fromFunction(ds => HackathonProjectMemberRepositoryLive(ds))

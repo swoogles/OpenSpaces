@@ -46,6 +46,14 @@ object ViewToggle:
       button(
         cls := "ViewToggle-button",
         cls <-- currentView.signal.map { view =>
+          if view == AppView.Hackathon then "ViewToggle-button--active" else ""
+        },
+        onClick --> Observer(_ => currentView.set(AppView.Hackathon)),
+        "Hackathon",
+      ),
+      button(
+        cls := "ViewToggle-button",
+        cls <-- currentView.signal.map { view =>
           if view == AppView.Schedule then "ViewToggle-button--active" else ""
         },
         onClick --> Observer(_ => currentView.set(AppView.Schedule)),

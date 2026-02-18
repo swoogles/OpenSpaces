@@ -89,7 +89,11 @@ object Backend extends ZIOAppDefault {
       DiscussionRepository.layer,
       TopicVoteRepository.layer,
       LightningTalkRepository.layer,
+      HackathonProjectRepository.layer,
+      HackathonProjectMemberRepository.layer,
       PersistentDiscussionStore.layer,
+      // Hackathon projects (Wednesday)
+      HackathonProjectService.layer,
       // Slack integration
       SlackConfigEnv.layer,
       SlackNotifier.layer,

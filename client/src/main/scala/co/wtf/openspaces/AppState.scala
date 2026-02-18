@@ -17,6 +17,9 @@ object AppState:
   val lightningTalkState: Var[LightningTalkState] =
     Var(LightningTalkState.empty)
 
+  val hackathonProjectState: Var[HackathonProjectState] =
+    Var(HackathonProjectState.empty)
+
   // ============================================
   // Vote Celebration (Sound + Visual Effects)
   // ============================================

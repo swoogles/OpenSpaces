@@ -1,7 +1,7 @@
 package co.wtf.openspaces.slack
 
 import co.wtf.openspaces.*
-import co.wtf.openspaces.db.{DiscussionRepository, LightningTalkRepository, LightningTalkRow}
+import co.wtf.openspaces.db.{DiscussionRepository, LightningTalkRepository, LightningTalkRow, HackathonProjectRepository, HackathonProjectRow}
 import neotype.unwrap
 import zio.*
 import zio.http.Client
@@ -16,12 +16,17 @@ trait SlackNotifier:
     action: LightningTalkActionConfirmed,
     broadcast: LightningTalkActionConfirmed => Task[Unit],
   ): Task[Unit]
+  def notifyHackathonProject(
+    action: HackathonProjectActionConfirmed,
+    broadcast: HackathonProjectActionConfirmed => Task[Unit],
+  ): Task[Unit]
 
 class SlackNotifierLive(
   slackClient: SlackClient,
   config: SlackConfig,
   discussionRepo: DiscussionRepository,
   lightningTalkRepo: LightningTalkRepository,
+  hackathonProjectRepo: HackathonProjectRepository,
 ) extends SlackNotifier:
 
   private val retryPolicy = Schedule.exponential(1.second) && Schedule.recurs(2)
@@ -63,6 +68,24 @@ class SlackNotifierLive(
         ZIO.foreachDiscard(assignments) { assignment =>
           handleLightningAssignmentUpdate(assignment.proposalId, Some(assignment.assignment))
         }.fork.unit
+      case _ =>
+        ZIO.unit
+
+  def notifyHackathonProject(
+    action: HackathonProjectActionConfirmed,
+    broadcast: HackathonProjectActionConfirmed => Task[Unit],
+  ): Task[Unit] =
+    action match
+      case HackathonProjectActionConfirmed.Created(project) =>
+        handleHackathonCreate(project, broadcast).fork.unit
+      case HackathonProjectActionConfirmed.Joined(projectId, person, _) =>
+        handleHackathonJoin(projectId, person).fork.unit
+      case HackathonProjectActionConfirmed.Left(projectId, person, newOwner) =>
+        handleHackathonLeave(projectId, person, newOwner).fork.unit
+      case HackathonProjectActionConfirmed.Renamed(projectId, newTitle) =>
+        handleHackathonRename(projectId, newTitle).fork.unit
+      case HackathonProjectActionConfirmed.Deleted(projectId) =>
+        handleHackathonDelete(projectId).fork.unit
       case _ =>
         ZIO.unit
 
@@ -202,6 +225,92 @@ class SlackNotifierLive(
       case _ => ""
     s"""[{"type":"section","text":{"type":"mrkdwn","text":":zap: *Lightning Talk Volunteer*"},"accessory":{"type":"image","image_url":"$avatarUrl","alt_text":"$speaker"}},{"type":"context","elements":[{"type":"mrkdwn","text":"*${speaker}* is willing to give a lightning talk$assignmentInfo · <$appLink|View in OpenSpaces>"}]}]"""
 
+  // Hackathon Project handlers
+
+  private def handleHackathonCreate(
+    project: HackathonProject,
+    broadcast: HackathonProjectActionConfirmed => Task[Unit],
+  ): Task[Unit] =
+    val blocks = buildHackathonCreateBlocks(project)
+    val projectId = project.id.unwrap
+
+    val effect = for
+      ref       <- slackClient.postMessage(config.hackathonChannelId, blocks).retry(retryPolicy)
+      permalink <- slackClient.getPermalink(config.hackathonChannelId, ref.ts).retry(retryPolicy)
+      _         <- hackathonProjectRepo.updateSlackThread(projectId, config.hackathonChannelId, ref.ts, permalink)
+      _         <- broadcast(HackathonProjectActionConfirmed.SlackThreadLinked(project.id, permalink))
+    yield ()
+
+    effect.catchAll(err => ZIO.logError(s"Slack integration failed for hackathon project $projectId: $err"))
+
+  private def handleHackathonJoin(projectId: HackathonProjectId, person: Person): Task[Unit] =
+    val effect = for
+      row <- hackathonProjectRepo.findById(projectId.unwrap).someOrFail(new Exception(s"Project $projectId not found"))
+      ts  <- ZIO.fromOption(row.slackThreadTs).orElseFail(new Exception(s"No Slack thread for project $projectId"))
+      channelId = row.slackChannelId.getOrElse(config.hackathonChannelId)
+      replyText = s":wave: *${person.unwrap}* joined the project"
+      _ <- slackClient.postReply(channelId, ts, replyText)
+    yield ()
+
+    effect.catchAll(err => ZIO.logError(s"Slack join notification failed for project $projectId: $err"))
+
+  private def handleHackathonLeave(
+    projectId: HackathonProjectId,
+    person: Person,
+    newOwner: Option[Person],
+  ): Task[Unit] =
+    val effect = for
+      row <- hackathonProjectRepo.findById(projectId.unwrap).someOrFail(new Exception(s"Project $projectId not found"))
+      ts  <- ZIO.fromOption(row.slackThreadTs).orElseFail(new Exception(s"No Slack thread for project $projectId"))
+      channelId = row.slackChannelId.getOrElse(config.hackathonChannelId)
+      leaveText = s":wave: *${person.unwrap}* left the project"
+      _ <- slackClient.postReply(channelId, ts, leaveText)
+      _ <- newOwner match
+        case Some(owner) =>
+          slackClient.postReply(channelId, ts, s":key: *${owner.unwrap}* is now leading this project")
+        case None =>
+          ZIO.unit
+    yield ()
+
+    effect.catchAll(err => ZIO.logError(s"Slack leave notification failed for project $projectId: $err"))
+
+  private def handleHackathonRename(projectId: HackathonProjectId, newTitle: ProjectTitle): Task[Unit] =
+    val effect = for
+      row <- hackathonProjectRepo.findById(projectId.unwrap).someOrFail(new Exception(s"Project $projectId not found"))
+      ts  <- ZIO.fromOption(row.slackThreadTs).orElseFail(new Exception(s"No Slack thread for project $projectId"))
+      channelId = row.slackChannelId.getOrElse(config.hackathonChannelId)
+      blocks = buildHackathonUpdateBlocks(row.copy(title = newTitle.unwrap))
+      _ <- slackClient.updateMessage(channelId, ts, blocks)
+    yield ()
+
+    effect.catchAll(err => ZIO.logError(s"Slack rename failed for hackathon project $projectId: $err"))
+
+  private def handleHackathonDelete(projectId: HackathonProjectId): Task[Unit] =
+    val effect = for
+      row <- hackathonProjectRepo.findById(projectId.unwrap).someOrFail(new Exception(s"Project $projectId not found"))
+      ts  <- ZIO.fromOption(row.slackThreadTs).orElseFail(new Exception(s"No Slack thread for project $projectId"))
+      channelId = row.slackChannelId.getOrElse(config.hackathonChannelId)
+      _ <- slackClient.deleteMessage(channelId, ts)
+    yield ()
+
+    effect.catchAll(err => ZIO.logError(s"Slack delete failed for hackathon project $projectId: $err"))
+
+  private def buildHackathonCreateBlocks(project: HackathonProject): String =
+    val title = project.title.unwrap.replace("\"", "\\\"")
+    val owner = project.ownerName.replace("\"", "\\\"")
+    val avatarUrl = s"https://github.com/${project.owner.unwrap}.png?size=100"
+    val appLink = s"${config.appBaseUrl}"
+
+    s"""[{"type":"section","text":{"type":"mrkdwn","text":":hammer_and_wrench: *$title*"},"accessory":{"type":"image","image_url":"$avatarUrl","alt_text":"$owner"}},{"type":"context","elements":[{"type":"mrkdwn","text":"Proposed by *$owner* · <$appLink|View in OpenSpaces>"}]}]"""
+
+  private def buildHackathonUpdateBlocks(row: HackathonProjectRow): String =
+    val title = row.title.replace("\"", "\\\"")
+    val owner = row.owner.replace("\"", "\\\"")
+    val avatarUrl = s"https://github.com/${row.owner}.png?size=100"
+    val appLink = s"${config.appBaseUrl}"
+
+    s"""[{"type":"section","text":{"type":"mrkdwn","text":":hammer_and_wrench: *$title*"},"accessory":{"type":"image","image_url":"$avatarUrl","alt_text":"$owner"}},{"type":"context","elements":[{"type":"mrkdwn","text":"Proposed by *$owner* · <$appLink|View in OpenSpaces>"}]}]"""
+
 
 class SlackNotifierNoOp extends SlackNotifier:
   def notifyDiscussion(
@@ -214,23 +323,39 @@ class SlackNotifierNoOp extends SlackNotifier:
     broadcast: LightningTalkActionConfirmed => Task[Unit],
   ): Task[Unit] =
     ZIO.unit
+  def notifyHackathonProject(
+    action: HackathonProjectActionConfirmed,
+    broadcast: HackathonProjectActionConfirmed => Task[Unit],
+  ): Task[Unit] =
+    ZIO.unit
 
 object SlackNotifier:
-  val layer: ZLayer[Option[SlackConfigEnv] & DiscussionRepository & LightningTalkRepository & Client, Nothing, SlackNotifier] =
+  val layer: ZLayer[Option[SlackConfigEnv] & DiscussionRepository & LightningTalkRepository & HackathonProjectRepository & Client, Nothing, SlackNotifier] =
     ZLayer.fromZIO:
       for
         maybeEnvConfig <- ZIO.service[Option[SlackConfigEnv]]
         discussionRepo <- ZIO.service[DiscussionRepository]
         lightningTalkRepo <- ZIO.service[LightningTalkRepository]
+        hackathonProjectRepo <- ZIO.service[HackathonProjectRepository]
         client         <- ZIO.service[Client]
         notifier <- maybeEnvConfig match
           case Some(envConfig) =>
-            resolveOrCreateChannel(client, envConfig).flatMap { channelId =>
-              val config = SlackConfig(envConfig.botToken, channelId, envConfig.channelName, envConfig.appBaseUrl)
-              ZIO.logInfo(s"Slack integration enabled for channel #${envConfig.channelName} ($channelId)") *>
-                ZIO.succeed(SlackNotifierLive(SlackClientLive(client, config), config, discussionRepo, lightningTalkRepo))
-            }.catchAll { err =>
-              ZIO.logError(s"Failed to initialize Slack channel: $err") *>
+            val effect = for
+              channelId <- resolveOrCreateChannel(client, envConfig.botToken, envConfig.channelName)
+              hackathonChannelId <- resolveOrCreateChannel(client, envConfig.botToken, envConfig.hackathonChannelName)
+              config = SlackConfig(
+                envConfig.botToken,
+                channelId,
+                envConfig.channelName,
+                hackathonChannelId,
+                envConfig.hackathonChannelName,
+                envConfig.appBaseUrl,
+              )
+              _ <- ZIO.logInfo(s"Slack integration enabled for channels #${envConfig.channelName} ($channelId) and #${envConfig.hackathonChannelName} ($hackathonChannelId)")
+            yield SlackNotifierLive(SlackClientLive(client, config), config, discussionRepo, lightningTalkRepo, hackathonProjectRepo)
+            
+            effect.catchAll { err =>
+              ZIO.logError(s"Failed to initialize Slack channels: $err") *>
                 ZIO.succeed(SlackNotifierNoOp())
             }
           case None =>
@@ -238,18 +363,18 @@ object SlackNotifier:
               ZIO.succeed(SlackNotifierNoOp())
       yield notifier
 
-  private def resolveOrCreateChannel(client: Client, envConfig: SlackConfigEnv): Task[String] =
+  private def resolveOrCreateChannel(client: Client, botToken: String, channelName: String): Task[String] =
     // Create a temporary SlackClient just for channel resolution
-    val tempConfig = SlackConfig(envConfig.botToken, "", envConfig.channelName, envConfig.appBaseUrl)
+    val tempConfig = SlackConfig(botToken, "", "", "", "", "")
     val slackClient = SlackClientLive(client, tempConfig)
     
     for
-      maybeChannelId <- slackClient.findChannelByName(envConfig.channelName)
+      maybeChannelId <- slackClient.findChannelByName(channelName)
       channelId <- maybeChannelId match
         case Some(id) =>
-          ZIO.logInfo(s"Found existing Slack channel #${envConfig.channelName} ($id)") *>
+          ZIO.logInfo(s"Found existing Slack channel #$channelName ($id)") *>
             ZIO.succeed(id)
         case None =>
-          ZIO.logInfo(s"Creating Slack channel #${envConfig.channelName}...") *>
-            slackClient.createChannel(envConfig.channelName)
+          ZIO.logInfo(s"Creating Slack channel #$channelName...") *>
+            slackClient.createChannel(channelName)
     yield channelId

@@ -10,7 +10,7 @@ import neotype.*
 
 // Import extracted utilities
 import co.wtf.openspaces.util.{SlotPositionTracker, SwapAnimationState, MenuPositioning, ScrollPreserver}
-import co.wtf.openspaces.components.{ToastManager, AdminControls, TopicSubmission, SwipeableCard, ErrorBanner, VoteButtons, ViewToggle, InlineEditableTitle, NameBadge, AdminModeToggle, Menu, UnscheduledDiscussionsMenu, ActiveDiscussionActionMenu, TopicCard, DiscussionSubview, ScheduleSlotComponent, SlotSchedule, ScheduleView, SlotSchedules, LinearScheduleView, LightningTalksView, AppView, activeDiscussionLongPressBinder}
+import co.wtf.openspaces.components.{ToastManager, AdminControls, TopicSubmission, SwipeableCard, ErrorBanner, VoteButtons, ViewToggle, InlineEditableTitle, NameBadge, AdminModeToggle, Menu, UnscheduledDiscussionsMenu, ActiveDiscussionActionMenu, TopicCard, DiscussionSubview, ScheduleSlotComponent, SlotSchedule, ScheduleView, SlotSchedules, LinearScheduleView, LightningTalksView, HackathonProjectsView, AppView, activeDiscussionLongPressBinder}
 import co.wtf.openspaces.AppState.*
 import co.wtf.openspaces.*
 import co.wtf.openspaces.services.{AudioService, AuthService}
@@ -52,6 +52,7 @@ object FrontEnd extends ZIOAppDefault{
   // App state moved to AppState.scala
   val discussionState = AppState.discussionState
   val lightningTalkState = AppState.lightningTalkState
+  val hackathonProjectState = AppState.hackathonProjectState
   val soundMuted = AppState.soundMuted
   val celebratingTopics = AppState.celebratingTopics
   val hasSeenSwipeHint = AppState.hasSeenSwipeHint
@@ -103,6 +104,13 @@ object FrontEnd extends ZIOAppDefault{
       topicUpdates.sendOne(LightningTalkActionMessage(action))
     else
       connectionStatus.reportError("Syncing latest lightning talks. Please wait a moment.")
+
+  val sendHackathonAction: HackathonProjectAction => Unit = action =>
+    if connectionStatus.checkReady() then
+      errorBanner.clearError()
+      topicUpdates.sendOne(HackathonProjectActionMessage(action))
+    else
+      connectionStatus.reportError("Syncing latest hackathon projects. Please wait a moment.")
 
   val submitNewTopic: Observer[DiscussionAction] = Observer {
     case discussion @ (add: DiscussionAction.Add) =>
@@ -464,6 +472,22 @@ object FrontEnd extends ZIOAppDefault{
                       connectionStatus.markStateSynchronized()
                     case _ => ()
                   lightningTalkState.update(existing => existing(lightningEvent))
+
+                case HackathonProjectActionConfirmedMessage(hackathonEvent) =>
+                  hackathonEvent match
+                    case HackathonProjectActionConfirmed.Rejected(_) =>
+                      connectionStatus.reportError(
+                        "Hackathon project action failed. Please try again.",
+                      )
+                    case HackathonProjectActionConfirmed.Unauthorized(_) =>
+                      connectionStatus.reportError(
+                        "Session expired. Re-authenticating...",
+                      )
+                    case HackathonProjectActionConfirmed.StateReplace(_) =>
+                      connectionStatus.markStateSynchronized()
+                    case _ => ()
+                  hackathonProjectState.update(existing => existing(hackathonEvent))
+
                 case _ =>
                   ()
           },
@@ -503,6 +527,14 @@ object FrontEnd extends ZIOAppDefault{
                   admin && enabled
                 },
                 sendLightningAction,
+                errorBanner.errorObserver,
+                connectionStatus,
+              )
+            case AppView.Hackathon =>
+              HackathonProjectsView(
+                hackathonProjectState,
+                name.signal,
+                sendHackathonAction,
                 errorBanner.errorObserver,
                 connectionStatus,
               )
@@ -701,15 +733,27 @@ object FrontEnd extends ZIOAppDefault{
                 "Re-authentication failed",
               )
             ).collect { case Some(result) => result }
+          case HackathonProjectActionConfirmedMessage(
+                HackathonProjectActionConfirmed.Unauthorized(hackathonAction),
+              ) =>
+            EventStream.fromFuture(
+              connectionStatus.withErrorHandling(
+                AuthService.fetchTicketAsync(randomActionClient)
+                  .map(ticket => (ticket, hackathonAction)),
+                "Re-authentication failed",
+              )
+            ).collect { case Some(result) => result }
           case _ =>
             EventStream.empty
-      } --> { case (ticket, discussionAction) =>
+      } --> { case (ticket, action) =>
         topicUpdates.sendOne(ticket)
-        discussionAction match
+        action match
           case action: DiscussionAction =>
             topicUpdates.sendOne(DiscussionActionMessage(action))
           case action: LightningTalkAction =>
             topicUpdates.sendOne(LightningTalkActionMessage(action))
+          case action: HackathonProjectAction =>
+            topicUpdates.sendOne(HackathonProjectActionMessage(action))
       },
     )
 }

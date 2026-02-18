@@ -15,6 +15,7 @@ case class DiscussionService(
   channelRegistry: Ref[ChannelRegistry],
   discussionStore: DiscussionStore,
   lightningTalkService: LightningTalkService,
+  hackathonProjectService: HackathonProjectService,
   authenticatedTicketService: AuthenticatedTicketService,
   slackNotifier: SlackNotifier):
 
@@ -41,6 +42,14 @@ case class DiscussionService(
           }
           else {
             handleUnticketedLightningAction(channel, lightningAction).run
+          }
+      case HackathonProjectActionMessage(hackathonAction) =>
+        defer:
+          if (channelRegistry.get.run.connected.contains(channel)) {
+            handleTicketedHackathonAction(channel, hackathonAction).run
+          }
+          else {
+            handleUnticketedHackathonAction(channel, hackathonAction).run
           }
 
   /** Generate a random action and broadcast to all connected clients */
@@ -93,6 +102,7 @@ case class DiscussionService(
         .run
       val state = discussionStore.snapshot.run
       val lightningState = lightningTalkService.snapshot.run
+      val hackathonState = hackathonProjectService.snapshot.run
       channel
         .send(
           DiscussionActionConfirmedMessage(
@@ -115,6 +125,23 @@ case class DiscussionService(
           LightningTalkActionConfirmedMessage(
             LightningTalkActionConfirmed.StateReplace(
               lightningState.proposals.values.toList,
+            ),
+          ),
+        )
+        .tapError(_ =>
+          channelRegistry.update(reg =>
+            reg.copy(
+              connected = reg.connected - channel,
+              pending = reg.pending - channel,
+            ),
+          ),
+        )
+        .run
+      channel
+        .send(
+          HackathonProjectActionConfirmedMessage(
+            HackathonProjectActionConfirmed.StateReplace(
+              hackathonState.projects.values.toList,
             ),
           ),
         )
@@ -151,6 +178,8 @@ case class DiscussionService(
           discussionStore.applyConfirmed(discussionConfirmed).run
         case LightningTalkActionConfirmedMessage(lightningConfirmed) =>
           lightningTalkService.applyConfirmed(lightningConfirmed).run
+        case HackathonProjectActionConfirmedMessage(hackathonConfirmed) =>
+          hackathonProjectService.applyConfirmed(hackathonConfirmed).run
         case _ =>
           ZIO.unit.run
       val channels = channelRegistry
@@ -264,6 +293,51 @@ case class DiscussionService(
       )
       .ignore
 
+  private def handleTicketedHackathonAction(
+    channel: OpenSpacesServerChannel,
+    hackathonAction: HackathonProjectAction,
+  ): ZIO[Any, Throwable, Unit] =
+    defer:
+      val actionResults = hackathonProjectService
+        .applyAction(hackathonAction)
+        .run
+      ZIO.foreachDiscard(actionResults)(result =>
+        handleHackathonActionResult(result, Some(channel))
+      ).run
+
+  private def handleHackathonActionResult(
+    actionResult: HackathonProjectActionConfirmed,
+    sourceChannel: Option[OpenSpacesServerChannel],
+  ): Task[Unit] =
+    actionResult match
+      case rejected @ HackathonProjectActionConfirmed.Rejected(_) =>
+        sourceChannel match
+          case Some(channel) => channel.send(HackathonProjectActionConfirmedMessage(rejected)).ignore
+          case None => ZIO.unit
+      case unauthorized @ HackathonProjectActionConfirmed.Unauthorized(_) =>
+        sourceChannel match
+          case Some(channel) => channel.send(HackathonProjectActionConfirmedMessage(unauthorized)).ignore
+          case None => ZIO.unit
+      case other =>
+        broadcastToAll(HackathonProjectActionConfirmedMessage(other)) *> slackNotifier.notifyHackathonProject(
+          other,
+          msg => broadcastToAll(HackathonProjectActionConfirmedMessage(msg)),
+        )
+
+  private def handleUnticketedHackathonAction(
+    channel: OpenSpacesServerChannel,
+    hackathonAction: HackathonProjectAction,
+  ): UIO[Unit] =
+    channel
+      .send(
+        HackathonProjectActionConfirmedMessage(
+          HackathonProjectActionConfirmed.Unauthorized(
+            hackathonAction,
+          ),
+        ),
+      )
+      .ignore
+
 object DiscussionService:
   val layer =
     ZLayer.fromZIO:
@@ -277,6 +351,7 @@ object DiscussionService:
           ).run,
           ZIO.service[DiscussionStore].run,
           ZIO.service[LightningTalkService].run,
+          ZIO.service[HackathonProjectService].run,
           ZIO.service[AuthenticatedTicketService].run,
           ZIO.service[SlackNotifier].run,
         )
