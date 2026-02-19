@@ -31,7 +31,7 @@ object VoteButtons:
         if !currentPosition.contains(target) then
           topicUpdates(DiscussionAction.Vote(discussion.id, Feedback(voter, target)))
       else
-        println("Connection not ready, ignoring vote action")
+        connectionStatus.reportError("Syncing latest topics. Please wait a moment.")
 
     div(
       cls := "VoteButtonRow",

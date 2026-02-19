@@ -117,10 +117,14 @@ object TopicCard:
                     case Right(validTopic) =>
                       topicUpdates(DiscussionAction.Rename(topic.id, validTopic))
                     case Left(_) => () // Invalid topic name, ignore
+                else
+                  connectionStatus.reportError("Syncing latest topics. Please wait a moment.")
               },
               () => {
                 if connectionStatus.checkReady() then
                   topicUpdates(DiscussionAction.Delete(topic.id))
+                else
+                  connectionStatus.reportError("Syncing latest topics. Please wait a moment.")
               }
             ),
           ),

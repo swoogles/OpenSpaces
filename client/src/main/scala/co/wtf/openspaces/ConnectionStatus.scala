@@ -155,6 +155,8 @@ class ConnectionStatusManager[Receive, Send](
   private var currentSyncAttempt: Int = 0
   private var awaitingStateReplace: Boolean = false
   private var syncAckTimeoutHandle: Option[Int] = None
+  private var syncRetryTimeoutHandle: Option[Int] = None
+  private var syncRunId: Long = 0L
   
   // ============================================
   // Reconnect Control
@@ -197,7 +199,7 @@ class ConnectionStatusManager[Receive, Send](
   def setConnected(connected: Boolean): Unit =
     isConnectedVar.set(connected)
     if !connected then
-      clearSyncWaitState()
+      invalidateSyncRun()
       syncState.set(SyncState.Idle)
       currentSyncAttempt = 0
   
@@ -230,10 +232,19 @@ class ConnectionStatusManager[Receive, Send](
       return
     
     syncOperation match
-      case Some(op) => executeSyncWithRetry(op, 0)
+      case Some(op) =>
+        invalidateSyncRun()
+        executeSyncWithRetry(op, 0, syncRunId)
       case None => println("No sync operation registered")
   
-  private def executeSyncWithRetry(operation: () => Future[Unit], attempt: Int): Unit =
+  private def executeSyncWithRetry(
+    operation: () => Future[Unit],
+    attempt: Int,
+    runId: Long,
+  ): Unit =
+    if runId != syncRunId then
+      return
+
     currentSyncAttempt = attempt
     val retryDelayMs = 2000 * math.pow(2, attempt).toInt // Exponential backoff: 2s, 4s, 8s
     clearSyncWaitState()
@@ -248,6 +259,8 @@ class ConnectionStatusManager[Receive, Send](
     
     futureResult.onComplete {
       case Success(_) =>
+        if runId != syncRunId then
+          return
         // Verify still connected and still waiting on sync.
         // If a very fast StateReplace already arrived, syncState may already be Synced.
         if isConnectedVar.now() && syncState.now() == SyncState.Syncing then
@@ -255,28 +268,42 @@ class ConnectionStatusManager[Receive, Send](
           syncAckTimeoutHandle = Some(
             dom.window.setTimeout(
               () =>
-                if awaitingStateReplace && syncState.now() == SyncState.Syncing then
-                  handleSyncFailure("Timed out waiting for server snapshot", attempt, retryDelayMs),
+                if runId == syncRunId && awaitingStateReplace && syncState.now() == SyncState.Syncing then
+                  handleSyncFailure("Timed out waiting for server snapshot", attempt, retryDelayMs, runId),
               syncAckTimeoutMs,
             ),
           )
+        else if !isConnectedVar.now() then
+          handleSyncFailure("Connection lost during sync", attempt, retryDelayMs, runId)
         else
-          handleSyncFailure("Connection lost during sync", attempt, retryDelayMs)
+          // Sync may already be marked as Synced by an early StateReplace.
+          ()
           
       case Failure(ex) =>
-        handleSyncFailure(ex.getMessage, attempt, retryDelayMs)
+        if runId == syncRunId then
+          handleSyncFailure(ex.getMessage, attempt, retryDelayMs, runId)
     }
   
-  private def handleSyncFailure(errorMsg: String, attempt: Int, retryDelayMs: Int): Unit =
+  private def handleSyncFailure(
+    errorMsg: String,
+    attempt: Int,
+    retryDelayMs: Int,
+    runId: Long,
+  ): Unit =
+    if runId != syncRunId then
+      return
+
     println(s"Sync failed: $errorMsg")
     clearSyncWaitState()
     if attempt + 1 < maxSyncRetries then
       println(s"Retrying sync in ${retryDelayMs}ms...")
       syncState.set(SyncState.Error(s"Retrying... (${attempt + 1}/$maxSyncRetries)"))
-      val _ = dom.window.setTimeout(
-        () => syncOperation.foreach(op => executeSyncWithRetry(op, attempt + 1)),
+      syncRetryTimeoutHandle = Some(dom.window.setTimeout(
+        () =>
+          if runId == syncRunId then
+            syncOperation.foreach(op => executeSyncWithRetry(op, attempt + 1, runId)),
         retryDelayMs
-      )
+      ))
     else
       println("Max sync retries reached, giving up")
       syncState.set(SyncState.Error(errorMsg))
@@ -284,7 +311,7 @@ class ConnectionStatusManager[Receive, Send](
 
   /** Mark sync as complete once a fresh StateReplace snapshot is received. */
   def markStateSynchronized(): Unit =
-    if isConnectedVar.now() && syncState.now() == SyncState.Syncing then
+    if isConnectedVar.now() && syncState.now() != SyncState.Synced then
       clearSyncWaitState()
       syncState.set(SyncState.Synced)
       currentSyncAttempt = 0
@@ -293,6 +320,12 @@ class ConnectionStatusManager[Receive, Send](
     awaitingStateReplace = false
     syncAckTimeoutHandle.foreach(dom.window.clearTimeout)
     syncAckTimeoutHandle = None
+    syncRetryTimeoutHandle.foreach(dom.window.clearTimeout)
+    syncRetryTimeoutHandle = None
+
+  private def invalidateSyncRun(): Unit =
+    syncRunId = syncRunId + 1
+    clearSyncWaitState()
   
   // ============================================
   // Reconnect Operations
@@ -303,7 +336,7 @@ class ConnectionStatusManager[Receive, Send](
     */
   def forceReconnect(): Unit =
     println("Force reconnecting WebSocket...")
-    clearSyncWaitState()
+    invalidateSyncRun()
     syncState.set(SyncState.Idle)
     reconnectAttemptVar.set(0)
     connectionEnabled.set(false)
@@ -429,6 +462,9 @@ class ConnectionStatusManager[Receive, Send](
         dom.window.addEventListener("offline", offlineHandler)
         dom.document.addEventListener("visibilitychange", visibilityHandler)
         dom.window.addEventListener("pageshow", pageshowHandler)
+        // Keep local connected tracking in lockstep with laminext's authoritative signal.
+        ws.isConnected.changes.foreach(setConnected)(ctx.owner)
+        setConnected(ws.isConnected.observe(ctx.owner).now())
         startHealthChecks()
         new com.raquo.airstream.ownership.Subscription(
           ctx.owner,
@@ -446,6 +482,7 @@ class ConnectionStatusManager[Receive, Send](
   /** Observer to handle WebSocket close events */
   val closeObserver: Observer[(dom.WebSocket, Boolean)] = Observer {
     case (_, willReconnect) =>
+      setConnected(false)
       if willReconnect then
         reconnectAttemptVar.update(_ + 1)
       else
@@ -454,6 +491,7 @@ class ConnectionStatusManager[Receive, Send](
 
   /** Observer to handle successful connection */
   val connectedObserver: Observer[dom.WebSocket] = Observer { _ =>
+    setConnected(true)
     reconnectAttemptVar.set(0)
   }
 

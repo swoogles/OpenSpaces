@@ -81,7 +81,7 @@ object SwipeableCard:
               val voter = name.now()
               topicUpdates(DiscussionAction.Vote(topic.id, Feedback(voter, position)))
             else
-              println("Connection not ready, ignoring vote action")
+              connectionStatus.reportError("Syncing latest topics. Please wait a moment.")
           case None =>
             // Rubber-band back
             ()
