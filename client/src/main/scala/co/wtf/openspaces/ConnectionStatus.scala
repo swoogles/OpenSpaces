@@ -81,20 +81,63 @@ enum SyncState:
   /** Whether sync is in progress */
   def isSyncing: Boolean = this == Syncing
 
+/** Unified UI/action state derived from connection + sync status. */
+enum SessionState:
+  case Ready
+  case Connecting(message: String)
+  case Syncing(message: String)
+  case Blocked(
+    message: String,
+    cssClass: String = "connection-disconnected",
+    icon: String = "○",
+    canRetry: Boolean = true,
+  )
+
+  def isReady: Boolean = this == Ready
+
+  def shouldShowBanner: Boolean = this match
+    case Ready                  => false
+    case Connecting(_)          => false
+    case _                      => true
+
+  def messageText: String = this match
+    case Ready              => "Connected"
+    case Connecting(msg)    => msg
+    case Syncing(msg)       => msg
+    case Blocked(msg, _, _, _) => msg
+
+  def indicatorCssClass: String = this match
+    case Ready              => "connection-connected"
+    case Connecting(_)      => "connection-connecting"
+    case Syncing(_)         => "connection-connecting"
+    case Blocked(_, css, _, _) => css
+
+  def indicatorIcon: String = this match
+    case Ready              => "●"
+    case Connecting(_)      => "◐"
+    case Syncing(_)         => "◐"
+    case Blocked(_, _, icon, _) => icon
+
 trait ConnectionStatusUI:
+  val sessionState: Signal[SessionState]
   val userErrorSignal: Signal[Option[String]]
 
   def reportError(message: String): Unit
   def clearError(): Unit
   def checkReady(): Boolean
+  def withReady(blockedMessage: String)(action: => Unit): Boolean =
+    if checkReady() then
+      clearError()
+      action
+      true
+    else
+      reportError(blockedMessage)
+      false
 
 trait ConnectionStatusCoordinator extends ConnectionStatusUI:
   val syncState: Var[SyncState]
   val connectionEnabled: Var[Boolean]
-  val closeObserver: Observer[(dom.WebSocket, Boolean)]
-  val connectedObserver: Observer[dom.WebSocket]
   val state: Signal[ConnectionState]
-  val syncMessage: Signal[String]
 
   def recordMessageReceived(): Unit
   def setConnected(connected: Boolean): Unit
@@ -386,13 +429,9 @@ class ConnectionStatusManager[Receive, Send](
       ))
   
   private def checkConnectionHealth(): Unit =
-    val timeSinceLastMessage = System.currentTimeMillis().toDouble - lastMessageTime
     val connected = isConnectedVar.now()
-    
-    if connected && timeSinceLastMessage > 2 * 60 * 1000 then
-      println(s"No messages received in ${(timeSinceLastMessage / 1000 / 60).toInt} minutes - connection may be stale")
-      forceReconnect()
-    else if !connected && reconnectAttemptVar.now() >= maxReconnectRetries then
+
+    if !connected && reconnectAttemptVar.now() >= maxReconnectRetries then
       println("Retries exhausted but still disconnected - attempting reconnect")
       forceReconnect()
 
@@ -479,22 +518,6 @@ class ConnectionStatusManager[Receive, Send](
         )
       }
 
-  /** Observer to handle WebSocket close events */
-  val closeObserver: Observer[(dom.WebSocket, Boolean)] = Observer {
-    case (_, willReconnect) =>
-      setConnected(false)
-      if willReconnect then
-        reconnectAttemptVar.update(_ + 1)
-      else
-        reconnectAttemptVar.set(0)
-  }
-
-  /** Observer to handle successful connection */
-  val connectedObserver: Observer[dom.WebSocket] = Observer { _ =>
-    setConnected(true)
-    reconnectAttemptVar.set(0)
-  }
-
   // ============================================
   // Reactive Signals
   // ============================================
@@ -502,7 +525,7 @@ class ConnectionStatusManager[Receive, Send](
   /** Reactive signal representing the current connection state */
   val state: Signal[ConnectionState] =
     Signal.combine(
-      ws.isConnected,
+      isConnectedVar.signal,
       ws.isConnecting,
       isOnlineVar.signal,
       reconnectAttemptVar.signal,
@@ -519,41 +542,88 @@ class ConnectionStatusManager[Receive, Send](
         ConnectionState.Disconnected
     }
 
+  private def currentConnectionStateNow: ConnectionState =
+    val isConnected = isConnectedVar.now()
+    val isConnecting = ws.isConnecting.observe(unsafeWindowOwner).now()
+    val isOnline = isOnlineVar.now()
+    val attempts = reconnectAttemptVar.now()
+    if isConnected then
+      ConnectionState.Connected
+    else if isConnecting then
+      ConnectionState.Connecting
+    else if !isOnline then
+      ConnectionState.Offline
+    else if attempts > 0 && attempts <= maxReconnectRetries then
+      ConnectionState.Reconnecting(attempts, maxReconnectRetries)
+    else
+      ConnectionState.Disconnected
+
   /** Signal for whether to show the warning banner */
   val shouldShowBanner: Signal[Boolean] = state.map(_.shouldShowBanner)
 
   /** Signal for whether the connection is healthy */
   val isHealthy: Signal[Boolean] = state.map(_.isHealthy)
   
-  /** Signal for whether the app is ready for user interactions.
-    * True when connected AND sync is complete (not idle, syncing, or error).
-    * Use this to block/disable interactions during reconnection.
-    */
-  val isReady: Signal[Boolean] = state.combineWith(syncState.signal).map {
-    case (ConnectionState.Connected, SyncState.Synced) => true
-    case _ => false
-  }
+  private def toSessionState(
+    connectionState: ConnectionState,
+    currentSyncState: SyncState,
+  ): SessionState =
+    connectionState match
+      case ConnectionState.Offline =>
+        SessionState.Blocked(
+          message = "No internet connection",
+          cssClass = "connection-offline",
+          icon = "◇",
+          canRetry = false,
+        )
+      case ConnectionState.Connecting | ConnectionState.Reconnecting(_, _) =>
+        SessionState.Connecting(connectionState.message)
+      case ConnectionState.Disconnected =>
+        SessionState.Blocked(
+          message = "Disconnected",
+          cssClass = "connection-disconnected",
+          icon = "○",
+          canRetry = true,
+        )
+      case ConnectionState.Connected =>
+        currentSyncState match
+          case SyncState.Synced =>
+            SessionState.Ready
+          case SyncState.Error(msg) =>
+            SessionState.Blocked(
+              message = s"Sync failed: $msg",
+              cssClass = "connection-disconnected",
+              icon = "○",
+              canRetry = true,
+            )
+          case SyncState.Syncing | SyncState.Idle =>
+            SessionState.Syncing("Syncing data...")
+
+  val sessionState: Signal[SessionState] =
+    state.combineWith(syncState.signal).map { case (connectionState, currentSyncState) =>
+      toSessionState(connectionState, currentSyncState)
+    }
+
+  /** Signal for whether the app is ready for user interactions. */
+  val isReady: Signal[Boolean] = sessionState.map(_.isReady)
   
   /** Check if app is ready for user interactions (synchronous check).
     * Use this in event handlers where you need an immediate boolean.
     */
   def checkReady(): Boolean =
-    isConnectedVar.now() && syncState.now() == SyncState.Synced
-  
-  /** Combined sync message signal for UI */
-  val syncMessage: Signal[String] = syncState.signal.map(_.message)
+    toSessionState(currentConnectionStateNow, syncState.now()).isReady
 
 /** UI component for displaying connection status */
 object ConnectionStatusIndicator:
 
   /** Small indicator dot for header/nav bar */
-  def dot(state: Signal[ConnectionState]): HtmlElement =
+  def dot(sessionState: Signal[SessionState]): HtmlElement =
     span(
       cls := "connection-indicator-dot",
-      cls <-- state.map(_.cssClass),
-      aria.label <-- state.map(s => s"Connection status: ${s.message}"),
-      title <-- state.map(_.message),
-      child.text <-- state.map(_.icon),
+      cls <-- sessionState.map(_.indicatorCssClass),
+      aria.label <-- sessionState.map(s => s"Connection status: ${s.messageText}"),
+      title <-- sessionState.map(_.messageText),
+      child.text <-- sessionState.map(_.indicatorIcon),
     )
 
   /** Full status display with icon and message */
@@ -597,43 +667,28 @@ object ConnectionStatusBanner:
       },
     )
 
-  /** Renders a banner that shows both connection and sync status */
+  /** Renders banner from unified session state. */
   def withSyncStatus(
-    connectionState: Signal[ConnectionState],
-    syncMessage: Signal[String],
+    sessionState: Signal[SessionState],
     onManualReconnect: Observer[Unit],
   ): HtmlElement =
-    val combinedMessage: Signal[String] = connectionState
-      .combineWith(syncMessage)
-      .map {
-        case (ConnectionState.Connected, sync) if sync.nonEmpty => sync
-        case (connState, _) => connState.message
-      }
-    
-    val shouldShow: Signal[Boolean] = connectionState
-      .combineWith(syncMessage)
-      .map {
-        case (connState, sync) =>
-          connState.shouldShowBanner || sync.nonEmpty
-      }
-    
     div(
       cls := "connection-banner",
-      cls <-- connectionState.map(_.cssClass),
-      cls <-- connectionState.combineWith(syncMessage).map {
-        case (ConnectionState.Connected, sync) if sync.nonEmpty => "connection-syncing"
-        case _ => ""
+      cls <-- sessionState.map(_.indicatorCssClass),
+      cls <-- sessionState.map {
+        case SessionState.Syncing(_) => "connection-syncing"
+        case _                       => ""
       },
-      display <-- shouldShow.map(show => if show then "flex" else "none"),
+      display <-- sessionState.map(s => if s.shouldShowBanner then "flex" else "none"),
       aria.live := "assertive",
       role := "alert",
       div(
         cls := "connection-banner-content",
-        span(cls := "connection-banner-icon", child.text <-- connectionState.map(_.icon)),
-        span(cls := "connection-banner-message", child.text <-- combinedMessage),
+        span(cls := "connection-banner-icon", child.text <-- sessionState.map(_.indicatorIcon)),
+        span(cls := "connection-banner-message", child.text <-- sessionState.map(_.messageText)),
       ),
-      child <-- connectionState.map {
-        case ConnectionState.Disconnected =>
+      child <-- sessionState.map {
+        case SessionState.Blocked(_, _, _, true) =>
           button(
             cls := "connection-banner-retry",
             onClick.mapToUnit --> onManualReconnect,

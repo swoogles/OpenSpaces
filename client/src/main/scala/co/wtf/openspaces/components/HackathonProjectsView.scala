@@ -55,27 +55,20 @@ object HackathonProjectsView:
               // Show confirmation modal
               pendingCreate.set(Some((existing, validTitle)))
             case None =>
-              // Direct create
-              if !connectionStatus.checkReady() then
-                setErrorMsg.onNext(Some("Reconnecting... please wait and try again."))
-              else
-                sendHackathonAction(HackathonProjectAction.Create(validTitle, currentUser))
-                newProjectTitle.set("")
-                showCreateForm.set(false)
+              sendHackathonAction(HackathonProjectAction.Create(validTitle, currentUser))
+              newProjectTitle.set("")
+              showCreateForm.set(false)
         case Left(error) =>
           setErrorMsg.onNext(Some(error))
     
     def confirmCreate(): Unit =
       pendingCreate.now().foreach { case (leaving, newTitle) =>
-        if !connectionStatus.checkReady() then
-          setErrorMsg.onNext(Some("Reconnecting... please wait and try again."))
-        else
-          val currentUser = name.now()
-          // Leave current project first, then create new one
-          sendHackathonAction(HackathonProjectAction.Leave(leaving.id, currentUser))
-          sendHackathonAction(HackathonProjectAction.Create(newTitle, currentUser))
-          newProjectTitle.set("")
-          showCreateForm.set(false)
+        val currentUser = name.now()
+        // Leave current project first, then create new one
+        sendHackathonAction(HackathonProjectAction.Leave(leaving.id, currentUser))
+        sendHackathonAction(HackathonProjectAction.Create(newTitle, currentUser))
+        newProjectTitle.set("")
+        showCreateForm.set(false)
       }
       pendingCreate.set(None)
     
@@ -91,18 +84,11 @@ object HackathonProjectsView:
           // Show confirmation modal
           pendingJoin.set(Some((existing, project)))
         case None =>
-          // Direct join
-          if !connectionStatus.checkReady() then
-            setErrorMsg.onNext(Some("Reconnecting... please wait and try again."))
-          else
-            sendHackathonAction(HackathonProjectAction.Join(project.id, currentUser))
+          sendHackathonAction(HackathonProjectAction.Join(project.id, currentUser))
 
     def confirmJoin(): Unit =
       pendingJoin.now().foreach { case (_, joining) =>
-        if !connectionStatus.checkReady() then
-          setErrorMsg.onNext(Some("Reconnecting... please wait and try again."))
-        else
-          sendHackathonAction(HackathonProjectAction.Join(joining.id, name.now()))
+        sendHackathonAction(HackathonProjectAction.Join(joining.id, name.now()))
       }
       pendingJoin.set(None)
 
@@ -110,10 +96,7 @@ object HackathonProjectsView:
       pendingJoin.set(None)
 
     def handleLeaveProject(project: HackathonProject): Unit =
-      if !connectionStatus.checkReady() then
-        setErrorMsg.onNext(Some("Reconnecting... please wait and try again."))
-      else
-        sendHackathonAction(HackathonProjectAction.Leave(project.id, name.now()))
+      sendHackathonAction(HackathonProjectAction.Leave(project.id, name.now()))
 
     div(
       cls := "HackathonProjects",

@@ -2,14 +2,14 @@ package co.wtf.openspaces.components
 
 import com.raquo.laminar.api.L.{*, given}
 import org.scalajs.dom
-import co.wtf.openspaces.{ConnectionState, Person, GitHubAvatar}
+import co.wtf.openspaces.{SessionState, Person, GitHubAvatar}
 import co.wtf.openspaces.ConnectionStatusIndicator
 import co.wtf.openspaces.services.AuthService
 
 object NameBadge:
   def apply(
     name: Var[Person],
-    connectionState: Signal[ConnectionState],
+    sessionState: Signal[SessionState],
     soundMuted: Var[Boolean],
   ) =
     div(
@@ -42,7 +42,7 @@ object NameBadge:
           },
         ),
         // Connection status indicator dot
-        ConnectionStatusIndicator.dot(connectionState),
+        ConnectionStatusIndicator.dot(sessionState),
         // Profile icon - click to logout
         span(
           cls := "ProfileIconButton",

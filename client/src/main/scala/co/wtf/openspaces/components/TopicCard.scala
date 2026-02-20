@@ -112,19 +112,17 @@ object TopicCard:
               topic,
               name.now(),
               newTitle => {
-                if connectionStatus.checkReady() then
+                connectionStatus.withReady("Syncing latest topics. Please wait a moment.") {
                   Topic.make(newTitle) match
                     case Right(validTopic) =>
                       topicUpdates(DiscussionAction.Rename(topic.id, validTopic))
                     case Left(_) => () // Invalid topic name, ignore
-                else
-                  connectionStatus.reportError("Syncing latest topics. Please wait a moment.")
+                }
               },
               () => {
-                if connectionStatus.checkReady() then
+                connectionStatus.withReady("Syncing latest topics. Please wait a moment.") {
                   topicUpdates(DiscussionAction.Delete(topic.id))
-                else
-                  connectionStatus.reportError("Syncing latest topics. Please wait a moment.")
+                }
               }
             ),
           ),
