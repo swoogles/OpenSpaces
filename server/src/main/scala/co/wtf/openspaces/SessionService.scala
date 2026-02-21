@@ -1,5 +1,6 @@
 package co.wtf.openspaces
 
+import co.wtf.openspaces.db.ConfirmedActionRepository
 import co.wtf.openspaces.slack.SlackNotifier
 import zio.*
 import zio.direct.*
@@ -27,7 +28,8 @@ case class SessionService(
   lightningTalkService: LightningTalkService,
   hackathonProjectService: HackathonProjectService,
   authenticatedTicketService: AuthenticatedTicketService,
-  slackNotifier: SlackNotifier):
+  slackNotifier: SlackNotifier,
+  confirmedActionRepository: ConfirmedActionRepository):
 
   def handleMessage(
     message: WebSocketMessageFromClient,
@@ -90,7 +92,9 @@ case class SessionService(
       _ <- handleActionResult(action, None)
     yield action
 
-  /** Delete all topics using the standard delete logic (broadcasts to all clients) */
+  /** Delete all topics using the standard delete logic (broadcasts to all clients).
+    * Also truncates the confirmed_actions log.
+    */
   def deleteAllTopics: Task[Int] =
     for
       state <- discussionStore.snapshot
@@ -101,6 +105,7 @@ case class SessionService(
           _ <- broadcastToAll(DiscussionActionConfirmedMessage(result))
         yield ()
       }
+      _ <- confirmedActionRepository.truncate
     yield topicIds.size
 
   private def handleTicket(
@@ -189,6 +194,9 @@ case class SessionService(
     message: WebSocketMessageFromServer,
   ): Task[Unit] =
     defer:
+      // Persist to confirmed_actions log (fire-and-forget, skip Rejected/Unauthorized/StateReplace)
+      persistIfLoggable(message).ignore.run
+
       // Update server's in-memory state for outbound confirmed actions.
       message match
         case DiscussionActionConfirmedMessage(discussionConfirmed) =>
@@ -214,6 +222,41 @@ case class SessionService(
           channel.send(message).ignore,
         )
         .run
+
+  /** Persist action to confirmed_actions log, skipping Rejected/Unauthorized/StateReplace. */
+  private def persistIfLoggable(message: WebSocketMessageFromServer): Task[Unit] =
+    message match
+      case DiscussionActionConfirmedMessage(action) =>
+        action match
+          case _: DiscussionActionConfirmed.Rejected     => ZIO.unit
+          case _: DiscussionActionConfirmed.Unauthorized => ZIO.unit
+          case _: DiscussionActionConfirmed.StateReplace => ZIO.unit
+          case _ =>
+            val actionType = action.getClass.getSimpleName.stripSuffix("$")
+            confirmedActionRepository
+              .append("Discussion", actionType, action.toJson)
+              .unit
+      case LightningTalkActionConfirmedMessage(action) =>
+        action match
+          case _: LightningTalkActionConfirmed.Rejected     => ZIO.unit
+          case _: LightningTalkActionConfirmed.Unauthorized => ZIO.unit
+          case _: LightningTalkActionConfirmed.StateReplace => ZIO.unit
+          case _ =>
+            val actionType = action.getClass.getSimpleName.stripSuffix("$")
+            confirmedActionRepository
+              .append("LightningTalk", actionType, action.toJson)
+              .unit
+      case HackathonProjectActionConfirmedMessage(action) =>
+        action match
+          case _: HackathonProjectActionConfirmed.Rejected     => ZIO.unit
+          case _: HackathonProjectActionConfirmed.Unauthorized => ZIO.unit
+          case _: HackathonProjectActionConfirmed.StateReplace => ZIO.unit
+          case _ =>
+            val actionType = action.getClass.getSimpleName.stripSuffix("$")
+            confirmedActionRepository
+              .append("HackathonProject", actionType, action.toJson)
+              .unit
+      case _ => ZIO.unit
 
   def removeChannel(channel: OpenSpacesServerChannel): UIO[Unit] =
     channelRegistry
@@ -371,4 +414,5 @@ object SessionService:
           ZIO.service[HackathonProjectService].run,
           ZIO.service[AuthenticatedTicketService].run,
           ZIO.service[SlackNotifier].run,
+          ZIO.service[ConfirmedActionRepository].run,
         )

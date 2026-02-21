@@ -91,6 +91,7 @@ object Backend extends ZIOAppDefault {
       LightningTalkRepository.layer,
       HackathonProjectRepository.layer,
       HackathonProjectMemberRepository.layer,
+      ConfirmedActionRepository.layer,
       PersistentDiscussionStore.layer,
       // Hackathon projects (Wednesday)
       HackathonProjectService.layer,

@@ -424,3 +424,38 @@ class HackathonProjectMemberRepositoryLive(ds: DataSource) extends HackathonProj
 object HackathonProjectMemberRepository:
   val layer: ZLayer[DataSource, Nothing, HackathonProjectMemberRepository] =
     ZLayer.fromFunction(ds => HackathonProjectMemberRepositoryLive(ds))
+
+// Confirmed action log (for visualization and replay)
+
+trait ConfirmedActionRepository:
+  def append(entityType: String, actionType: String, payload: String): Task[ConfirmedActionRow]
+  def findAll: Task[Vector[ConfirmedActionRow]]
+  def truncate: Task[Unit]
+
+class ConfirmedActionRepositoryLive(ds: DataSource) extends ConfirmedActionRepository:
+  def append(entityType: String, actionType: String, payload: String): Task[ConfirmedActionRow] =
+    transactZIO(ds):
+      val now = OffsetDateTime.now()
+      val id = sql"""
+        INSERT INTO confirmed_actions (created_at, entity_type, action_type, payload)
+        VALUES ($now, $entityType, $actionType, $payload::jsonb)
+        RETURNING id
+      """.query[Long].run().head
+      ConfirmedActionRow(id, now, entityType, actionType, payload)
+
+  def findAll: Task[Vector[ConfirmedActionRow]] =
+    transactZIO(ds):
+      sql"""SELECT id, created_at, entity_type, action_type, payload::text
+            FROM confirmed_actions
+            ORDER BY id"""
+        .query[ConfirmedActionRow]
+        .run()
+
+  def truncate: Task[Unit] =
+    transactZIO(ds):
+      sql"TRUNCATE confirmed_actions".update.run()
+      ()
+
+object ConfirmedActionRepository:
+  val layer: ZLayer[DataSource, Nothing, ConfirmedActionRepository] =
+    ZLayer.fromFunction(ds => ConfirmedActionRepositoryLive(ds))

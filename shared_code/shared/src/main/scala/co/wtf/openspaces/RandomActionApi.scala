@@ -17,6 +17,19 @@ case class ScheduleResult(scheduled: Int, moved: Int, unscheduled: Int) derives 
 case class DeleteTopicsResult(deleted: Int) derives Schema, JsonCodec
 case class RefreshStatus(status: String) derives Schema, JsonCodec
 
+// Confirmed action log entry for visualization/replay
+case class ConfirmedActionEntry(
+  id: Long,
+  createdAtEpochMs: Long,
+  entityType: String,
+  actionType: String,
+  payload: String,  // JSON string
+) derives Schema, JsonCodec
+
+case class ConfirmedActionsResponse(
+  actions: List[ConfirmedActionEntry],
+) derives Schema, JsonCodec
+
 object RandomActionApi {
   val ticketGet =
     Endpoint(RoutePattern.GET / "ticket")
@@ -70,6 +83,10 @@ object RandomActionApi {
     Endpoint(RoutePattern.POST / "api" / "admin" / "hackathon-chaos" / "toggle")
       .out[ActiveStatus]
 
+  val confirmedActionsGet =
+    Endpoint(RoutePattern.GET / "api" / "admin" / "confirmed-actions")
+      .out[ConfirmedActionsResponse]
+
   // Documentation-only representation of the primary WebSocket message contract.
   val discussionsWebSocket =
     Endpoint(RoutePattern.GET / "discussions")
@@ -89,6 +106,7 @@ object RandomActionApi {
       hackathonChaosToggle,
       deleteAllTopics,
       runScheduling,
+      confirmedActionsGet,
       discussionsWebSocket,
     )
 }

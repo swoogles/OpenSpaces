@@ -94,3 +94,12 @@ case class HackathonProjectMemberRow(
   joinedAt: OffsetDateTime,
   leftAt: Option[OffsetDateTime],
 ) derives DbCodec
+
+// Confirmed action log (for visualization and replay)
+case class ConfirmedActionRow(
+  id: Long,
+  createdAt: OffsetDateTime,
+  entityType: String,   // 'Discussion', 'LightningTalk', 'HackathonProject'
+  actionType: String,   // 'Vote', 'AddResult', 'Created', etc.
+  payload: String,      // JSON string
+) derives DbCodec

@@ -1,5 +1,6 @@
 package co.wtf.openspaces
 
+import co.wtf.openspaces.db.ConfirmedActionRepository
 import zio.*
 import zio.http.*
 import zio.json.*
@@ -14,6 +15,7 @@ import zio.schema._
 case class RandomActionSpawner(
   discussionService: SessionService,
   schedulingService: SchedulingService,
+  confirmedActionRepository: ConfirmedActionRepository,
   chaosActiveRef: Ref[Boolean],
   scheduleChaosActiveRef: Ref[Boolean],
   hackathonChaosActiveRef: Ref[Boolean]):
@@ -160,15 +162,35 @@ case class RandomActionSpawner(
           newState <- toggleHackathonChaos
         yield ActiveStatus(newState)
       },
+
+      // Confirmed actions log
+      RandomActionApi.confirmedActionsGet.implement { _ =>
+        confirmedActionRepository.findAll
+          .map(rows =>
+            ConfirmedActionsResponse(
+              rows.map(row =>
+                ConfirmedActionEntry(
+                  id = row.id,
+                  createdAtEpochMs = row.createdAt.toInstant.toEpochMilli,
+                  entityType = row.entityType,
+                  actionType = row.actionType,
+                  payload = row.payload,
+                )
+              ).toList
+            )
+          )
+          .orDie
+      },
     )
 
 object RandomActionSpawner:
-  def layer(initialActive: Boolean): ZLayer[SessionService & SchedulingService, Nothing, RandomActionSpawner] =
+  def layer(initialActive: Boolean): ZLayer[SessionService & SchedulingService & ConfirmedActionRepository, Nothing, RandomActionSpawner] =
     ZLayer.fromZIO:
       for
         service <- ZIO.service[SessionService]
         scheduler <- ZIO.service[SchedulingService]
+        confirmedActionRepo <- ZIO.service[ConfirmedActionRepository]
         chaosRef <- Ref.make(initialActive)
         scheduleChaosRef <- Ref.make(false)
         hackathonChaosRef <- Ref.make(false)
-      yield RandomActionSpawner(service, scheduler, chaosRef, scheduleChaosRef, hackathonChaosRef)
+      yield RandomActionSpawner(service, scheduler, confirmedActionRepo, chaosRef, scheduleChaosRef, hackathonChaosRef)
