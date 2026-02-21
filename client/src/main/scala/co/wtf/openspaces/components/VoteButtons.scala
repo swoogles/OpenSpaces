@@ -23,13 +23,15 @@ object VoteButtons:
     val votes = discussion.votes
     
     def handleVote(target: VotePosition): Unit =
-      connectionStatus.withReady("Syncing latest topics. Please wait a moment.") {
+      // Only allow voting if connection is ready (prevents actions during reconnect/sync)
+      if connectionStatus.checkReady() then
         val voter = name.now()
         val currentPosition = currentFeedback.map(_.position)
         // Only update if switching to a different position (no going back to neutral)
         if !currentPosition.contains(target) then
           topicUpdates(DiscussionAction.Vote(discussion.id, Feedback(voter, target)))
-      }
+      else
+        connectionStatus.reportError("Syncing latest topics. Please wait a moment.")
 
     div(
       cls := "VoteButtonRow",

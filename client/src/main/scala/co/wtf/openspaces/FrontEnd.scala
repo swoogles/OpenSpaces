@@ -92,19 +92,25 @@ object FrontEnd extends ZIOAppDefault{
     ErrorBanner(connectionStatus)
 
   val sendDiscussionAction: DiscussionAction => Unit = action =>
-    connectionStatus.withReady("Syncing latest topics. Please wait a moment.") {
+    if connectionStatus.checkReady() then
+      errorBanner.clearError()
       topicUpdates.sendOne(DiscussionActionMessage(action))
-    }
+    else
+      connectionStatus.reportError("Syncing latest topics. Please wait a moment.")
 
   val sendLightningAction: LightningTalkAction => Unit = action =>
-    connectionStatus.withReady("Syncing latest lightning talks. Please wait a moment.") {
+    if connectionStatus.checkReady() then
+      errorBanner.clearError()
       topicUpdates.sendOne(LightningTalkActionMessage(action))
-    }
+    else
+      connectionStatus.reportError("Syncing latest lightning talks. Please wait a moment.")
 
   val sendHackathonAction: HackathonProjectAction => Unit = action =>
-    connectionStatus.withReady("Syncing latest hackathon projects. Please wait a moment.") {
+    if connectionStatus.checkReady() then
+      errorBanner.clearError()
       topicUpdates.sendOne(HackathonProjectActionMessage(action))
-    }
+    else
+      connectionStatus.reportError("Syncing latest hackathon projects. Please wait a moment.")
 
   val submitNewTopic: Observer[DiscussionAction] = Observer {
     case discussion @ (add: DiscussionAction.Add) =>
@@ -278,9 +284,18 @@ object FrontEnd extends ZIOAppDefault{
       },
       // Connection status monitoring
       connectionStatus.bind,
+      topicUpdates.closed --> Observer { (event: (dom.WebSocket, Boolean)) =>
+        connectionStatus.closeObserver.onNext(event)
+        connectionStatus.setConnected(false)
+      },
+      topicUpdates.connected --> Observer { (ws: dom.WebSocket) =>
+        connectionStatus.connectedObserver.onNext(ws)
+        connectionStatus.setConnected(true)
+      },
       // Connection status banner (shows when disconnected/reconnecting/syncing)
       ConnectionStatusBanner.withSyncStatus(
-        connectionStatus.sessionState,
+        connectionStatus.state,
+        connectionStatus.syncMessage,
         Observer(_ => connectionStatus.forceReconnect()),
       ),
       // Toast notifications for schedule changes
@@ -479,7 +494,7 @@ object FrontEnd extends ZIOAppDefault{
           errorBanner.component,
           // Admin mode toggle at the very top (only visible to admins)
           AdminModeToggle(isAdmin, adminModeEnabled),
-          NameBadge(name, connectionStatus.sessionState, soundMuted),
+          NameBadge(name, connectionStatus.state, soundMuted),
           // Admin controls (only visible when admin AND admin mode enabled)
           AdminControls(
             isAdmin.combineWith(adminModeEnabled.signal).map { case (admin, enabled) => admin && enabled },
