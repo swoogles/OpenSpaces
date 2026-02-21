@@ -278,14 +278,8 @@ object FrontEnd extends ZIOAppDefault{
       },
       // Connection status monitoring
       connectionStatus.bind,
-      topicUpdates.closed --> Observer { (event: (dom.WebSocket, Boolean)) =>
-        connectionStatus.closeObserver.onNext(event)
-        connectionStatus.setConnected(false)
-      },
-      topicUpdates.connected --> Observer { (ws: dom.WebSocket) =>
-        connectionStatus.connectedObserver.onNext(ws)
-        connectionStatus.setConnected(true)
-      },
+      topicUpdates.closed --> connectionStatus.closeObserver,
+      topicUpdates.connected --> connectionStatus.connectedObserver,
       // Connection status banner (shows when disconnected/reconnecting/syncing)
       ConnectionStatusBanner.withSyncStatus(
         connectionStatus.state,

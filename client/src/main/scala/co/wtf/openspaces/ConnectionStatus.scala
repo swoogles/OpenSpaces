@@ -466,7 +466,10 @@ class ConnectionStatusManager[Receive, Send](
   // Lifecycle Binders
   // ============================================
   
-  /** Binder to attach event listeners to the DOM lifecycle */
+  /** Binder to attach event listeners to the DOM lifecycle.
+    * Note: Connection state (isConnectedVar) is updated via closeObserver/connectedObserver
+    * which are bound in FrontEnd. This binder handles browser events only.
+    */
   def bind[El <: ReactiveElement.Base]: Binder[El] =
     (element: El) =>
       ReactiveElement.bindSubscriptionUnsafe(element) { ctx =>
@@ -474,9 +477,6 @@ class ConnectionStatusManager[Receive, Send](
         dom.window.addEventListener("offline", offlineHandler)
         dom.document.addEventListener("visibilitychange", visibilityHandler)
         dom.window.addEventListener("pageshow", pageshowHandler)
-        // Keep local connected tracking in lockstep with laminext's authoritative signal.
-        ws.isConnected.changes.foreach(setConnected)(ctx.owner)
-        setConnected(ws.isConnected.observe(ctx.owner).now())
         startHealthChecks()
         new com.raquo.airstream.ownership.Subscription(
           ctx.owner,
