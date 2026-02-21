@@ -358,31 +358,37 @@ class ConnectionStatusManager[Receive, Send](
   // Event Handlers
   // ============================================
   
-  // ============================================
-  // Browser Event Buses (Laminar-idiomatic)
-  // ============================================
-  
-  /** Bus for online/offline status changes */
-  private val onlineStatusBus: EventBus[Boolean] = new EventBus[Boolean]
-  
-  /** Bus for visibility state changes */
-  private val visibilityBus: EventBus[String] = new EventBus[String]
-  
-  /** Bus for pageshow events (bfcache restoration) */
-  private val pageshowBus: EventBus[Boolean] = new EventBus[Boolean]
-  
-  // Native event handlers that emit to buses
   private val onlineHandler: scalajs.js.Function1[dom.Event, Unit] = _ =>
-    onlineStatusBus.emit(true)
+    isOnlineVar.set(true)
+    println("Network online - triggering reconnect")
+    forceReconnect()
     
   private val offlineHandler: scalajs.js.Function1[dom.Event, Unit] = _ =>
-    onlineStatusBus.emit(false)
+    isOnlineVar.set(false)
   
   private val visibilityHandler: scalajs.js.Function1[dom.Event, Unit] = _ =>
-    visibilityBus.emit(dom.document.visibilityState.asInstanceOf[String])
+    if dom.document.visibilityState == "hidden" then
+      lastHiddenTime = Some(System.currentTimeMillis().toDouble)
+      healthCheckHandle.foreach(dom.window.clearInterval(_))
+      healthCheckHandle = None
+    else if dom.document.visibilityState == "visible" then
+      startHealthChecks()
+      lastHiddenTime.foreach { hiddenTime =>
+        val awayDuration = System.currentTimeMillis().toDouble - hiddenTime
+        val awaySeconds = (awayDuration / 1000).toInt
+        
+        // Force reconnect if away longer than configured stale threshold.
+        // This avoids aggressive reconnect churn on short focus changes.
+        if awayDuration > staleThresholdMs then
+          println(s"User returned after $awaySeconds seconds - forcing reconnect for reliability")
+          forceReconnect()
+      }
+      lastHiddenTime = None
   
   private val pageshowHandler: scalajs.js.Function1[dom.PageTransitionEvent, Unit] = event =>
-    if event.persisted then pageshowBus.emit(true)
+    if event.persisted then
+      println("Page restored from bfcache - triggering reconnect")
+      forceReconnect()
   
   private def startHealthChecks(): Unit =
     if healthCheckHandle.isEmpty then
@@ -460,53 +466,18 @@ class ConnectionStatusManager[Receive, Send](
   // Lifecycle Binders
   // ============================================
   
-  /** Binder to attach browser event subscriptions to element lifecycle.
+  /** Binder to attach event listeners to the DOM lifecycle.
     * Note: Connection state (isConnectedVar) is updated via closeObserver/connectedObserver
     * which are bound in FrontEnd. This binder handles browser events only.
     */
   def bind[El <: ReactiveElement.Base]: Binder[El] =
     (element: El) =>
       ReactiveElement.bindSubscriptionUnsafe(element) { ctx =>
-        // Add native event listeners (they emit to EventBuses)
         dom.window.addEventListener("online", onlineHandler)
         dom.window.addEventListener("offline", offlineHandler)
         dom.document.addEventListener("visibilitychange", visibilityHandler)
         dom.window.addEventListener("pageshow", pageshowHandler)
-        
-        // Subscribe to online/offline events via EventBus
-        onlineStatusBus.events.foreach { online =>
-          isOnlineVar.set(online)
-          if online then
-            println("Network online - triggering reconnect")
-            forceReconnect()
-        }(ctx.owner)
-        
-        // Subscribe to visibility changes via EventBus
-        visibilityBus.events.foreach { state =>
-          if state == "hidden" then
-            lastHiddenTime = Some(System.currentTimeMillis().toDouble)
-            healthCheckHandle.foreach(dom.window.clearInterval(_))
-            healthCheckHandle = None
-          else if state == "visible" then
-            startHealthChecks()
-            lastHiddenTime.foreach { hiddenTime =>
-              val awayDuration = System.currentTimeMillis().toDouble - hiddenTime
-              val awaySeconds = (awayDuration / 1000).toInt
-              if awayDuration > staleThresholdMs then
-                println(s"User returned after $awaySeconds seconds - forcing reconnect for reliability")
-                forceReconnect()
-            }
-            lastHiddenTime = None
-        }(ctx.owner)
-        
-        // Subscribe to pageshow events via EventBus
-        pageshowBus.events.foreach { _ =>
-          println("Page restored from bfcache - triggering reconnect")
-          forceReconnect()
-        }(ctx.owner)
-        
         startHealthChecks()
-        
         new com.raquo.airstream.ownership.Subscription(
           ctx.owner,
           cleanup = () => {
