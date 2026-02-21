@@ -75,10 +75,13 @@ object SwipeableCard:
       if state.isDragging then
         state.voteDirection match
           case Some(position) =>
-            connectionStatus.withReady("Syncing latest topics. Please wait a moment.") {
+            // Only commit the vote if connection is ready
+            // This prevents actions during sync/reconnect which would be rejected
+            if connectionStatus.checkReady() then
               val voter = name.now()
               topicUpdates(DiscussionAction.Vote(topic.id, Feedback(voter, position)))
-            }
+            else
+              connectionStatus.reportError("Syncing latest topics. Please wait a moment.")
           case None =>
             // Rubber-band back
             ()
