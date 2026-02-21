@@ -87,6 +87,18 @@ trait ConnectionStatusUI:
   def reportError(message: String): Unit
   def clearError(): Unit
   def checkReady(): Boolean
+  
+  /** Execute action only if ready, otherwise report error.
+    * Returns true if action was executed.
+    */
+  def withReady(blockedMessage: String)(action: => Unit): Boolean =
+    if checkReady() then
+      clearError()
+      action
+      true
+    else
+      reportError(blockedMessage)
+      false
 
 trait ConnectionStatusCoordinator extends ConnectionStatusUI:
   val syncState: Var[SyncState]

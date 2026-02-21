@@ -92,25 +92,19 @@ object FrontEnd extends ZIOAppDefault{
     ErrorBanner(connectionStatus)
 
   val sendDiscussionAction: DiscussionAction => Unit = action =>
-    if connectionStatus.checkReady() then
-      errorBanner.clearError()
+    connectionStatus.withReady("Syncing latest topics. Please wait a moment.") {
       topicUpdates.sendOne(DiscussionActionMessage(action))
-    else
-      connectionStatus.reportError("Syncing latest topics. Please wait a moment.")
+    }
 
   val sendLightningAction: LightningTalkAction => Unit = action =>
-    if connectionStatus.checkReady() then
-      errorBanner.clearError()
+    connectionStatus.withReady("Syncing latest lightning talks. Please wait a moment.") {
       topicUpdates.sendOne(LightningTalkActionMessage(action))
-    else
-      connectionStatus.reportError("Syncing latest lightning talks. Please wait a moment.")
+    }
 
   val sendHackathonAction: HackathonProjectAction => Unit = action =>
-    if connectionStatus.checkReady() then
-      errorBanner.clearError()
+    connectionStatus.withReady("Syncing latest hackathon projects. Please wait a moment.") {
       topicUpdates.sendOne(HackathonProjectActionMessage(action))
-    else
-      connectionStatus.reportError("Syncing latest hackathon projects. Please wait a moment.")
+    }
 
   val submitNewTopic: Observer[DiscussionAction] = Observer {
     case discussion @ (add: DiscussionAction.Add) =>
