@@ -10,7 +10,7 @@ import neotype.*
 
 // Import extracted utilities
 import co.wtf.openspaces.util.{SlotPositionTracker, SwapAnimationState, MenuPositioning, ScrollPreserver}
-import co.wtf.openspaces.components.{ToastManager, AdminControls, TopicSubmission, SwipeableCard, ErrorBanner, VoteButtons, ViewToggle, InlineEditableTitle, NameBadge, AdminModeToggle, Menu, UnscheduledDiscussionsMenu, ActiveDiscussionActionMenu, TopicCard, DiscussionSubview, ScheduleSlotComponent, SlotSchedule, ScheduleView, SlotSchedules, LinearScheduleView, LightningTalksView, HackathonProjectsView, AppView, activeDiscussionLongPressBinder}
+import co.wtf.openspaces.components.{ToastManager, AdminControls, TopicSubmission, SwipeableCard, ErrorBanner, VoteButtons, ViewToggle, InlineEditableTitle, NameBadge, AdminModeToggle, LoadingPreviewToggle, Menu, UnscheduledDiscussionsMenu, ActiveDiscussionActionMenu, TopicCard, DiscussionSubview, ScheduleSlotComponent, SlotSchedule, ScheduleView, SlotSchedules, LinearScheduleView, LightningTalksView, HackathonProjectsView, AppView, activeDiscussionLongPressBinder}
 import co.wtf.openspaces.AppState.*
 import co.wtf.openspaces.*
 import co.wtf.openspaces.services.{AudioService, AuthService}
@@ -264,6 +264,12 @@ object FrontEnd extends ZIOAppDefault{
   val app =
     div(
       cls := "PageContainer",
+      // Hide loading screen when app mounts
+      onMountCallback { _ =>
+        Option(dom.document.getElementById("loading-screen")).foreach { el =>
+          el.classList.add("hidden")
+        }
+      },
       // Initialize audio on first user interaction (required by browser autoplay policy)
       onClick --> Observer(_ => initAudioOnGesture()),
       onTouchStart --> Observer(_ => initAudioOnGesture()),
@@ -482,6 +488,7 @@ object FrontEnd extends ZIOAppDefault{
           errorBanner.component,
           // Admin mode toggle at the very top (only visible to admins)
           AdminModeToggle(isAdmin, adminModeEnabled),
+          LoadingPreviewToggle(isAdmin, AppState.showLoadingPreview),
           NameBadge(name, connectionStatus.state, soundMuted),
           // Admin controls (only visible when admin AND admin mode enabled)
           AdminControls(

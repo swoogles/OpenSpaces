@@ -99,3 +99,6 @@ object AppState:
   adminModeEnabled.signal.foreach { enabled =>
     SafeStorage.setItem("adminModeEnabled", enabled.toString)
   }(unsafeWindowOwner)
+
+  // Loading screen preview toggle (admin only)
+  val showLoadingPreview: Var[Boolean] = Var(false)

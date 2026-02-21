@@ -91,3 +91,32 @@ object AdminModeToggle:
         span("Admin Mode"),
       ),
     )
+
+object LoadingPreviewToggle:
+  import org.scalajs.dom
+  
+  def apply(
+    $isAdmin: Signal[Boolean],
+    showLoadingPreview: Var[Boolean],
+  ) =
+    div(
+      cls := "AdminModeToggle", // Reuse same styling
+      // Only show for admins
+      display <-- $isAdmin.map(if _ then "flex" else "none"),
+      label(
+        cls := "AdminModeToggle-label",
+        input(
+          typ := "checkbox",
+          checked <-- showLoadingPreview.signal,
+          onChange.mapToChecked --> { checked =>
+            showLoadingPreview.set(checked)
+            // Toggle the loading screen visibility
+            Option(dom.document.getElementById("loading-screen")).foreach { el =>
+              if checked then el.classList.remove("hidden")
+              else el.classList.add("hidden")
+            }
+          },
+        ),
+        span("Loading Preview"),
+      ),
+    )
