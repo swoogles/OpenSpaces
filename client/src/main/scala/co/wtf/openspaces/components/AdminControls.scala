@@ -121,23 +121,20 @@ object AdminControls:
 
     def resetUser(): Unit =
       if dom.window.confirm("Reset your user? This will delete your topics, remove your votes, and reset your swipe hint.") then
-        // Resilience check: ensure connection is ready before sending
-        if !connectionStatus.checkReady() then
-          connectionStatus.reportError("Cannot reset user while disconnected. Please wait for reconnection.")
-          return
-          
-        resetLoading.set(true)
-        val user = AppState.name.now()
-        
-        // Send single reset action to server (handles topic deletion + vote clearing)
-        topicUpdates(DiscussionAction.ResetUser(user))
-        
-        // Reset client-side state
-        AppState.showSwipeHint.set(true)
-        AppState.hasSeenSwipeHint.set(false)
-        SafeStorage.setItem("hasSeenSwipeHint", "false")
-        
-        resetLoading.set(false)
+        connectionStatus.withReady("Cannot reset user while disconnected. Please wait for reconnection.") {
+          resetLoading.set(true)
+          val user = AppState.name.now()
+
+          // Send single reset action to server (handles topic deletion + vote clearing)
+          topicUpdates(DiscussionAction.ResetUser(user))
+
+          // Reset client-side state
+          AppState.showSwipeHint.set(true)
+          AppState.hasSeenSwipeHint.set(false)
+          SafeStorage.setItem("hasSeenSwipeHint", "false")
+
+          resetLoading.set(false)
+        }
     
     div(
       cls := "AdminControls",

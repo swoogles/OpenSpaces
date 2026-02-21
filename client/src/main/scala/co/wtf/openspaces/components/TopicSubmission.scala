@@ -56,12 +56,14 @@ object TopicSubmission:
                 validationError.set(Some(value))
                 None
               case Right(value) =>
-                if !connectionStatus.checkReady() then
+                if connectionStatus.withReady("Reconnecting... please wait and try again.") {
+                  ()
+                } then
+                  validationError.set(None)
+                  Some(value)
+                else
                   validationError.set(Some("Reconnecting... please wait and try again."))
                   None
-                else
-                  validationError.set(None)
-                  Some(value),
           )
           .filter(_.isDefined)
           .map(_.get)

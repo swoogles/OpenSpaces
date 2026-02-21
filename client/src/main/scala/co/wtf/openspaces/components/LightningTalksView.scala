@@ -39,15 +39,12 @@ object LightningTalksView:
             button(
               cls := "TopicSubmission-button",
               onClick --> Observer { _ =>
-                if !connectionStatus.checkReady() then
-                  setErrorMsg.onNext(Some("Reconnecting... please wait and try again."))
-                else
-                  sendLightningAction(
-                    LightningTalkAction.SetParticipation(
-                      name.now(),
-                      participating = false,
-                    ),
-                  )
+                sendLightningAction(
+                  LightningTalkAction.SetParticipation(
+                    name.now(),
+                    participating = false,
+                  ),
+                )
               },
               span("I'm no longer available"),
             ),
@@ -58,15 +55,12 @@ object LightningTalksView:
             button(
               cls := "TopicSubmission-button",
               onClick --> Observer { _ =>
-                if !connectionStatus.checkReady() then
-                  setErrorMsg.onNext(Some("Reconnecting... please wait and try again."))
-                else
-                  sendLightningAction(
-                    LightningTalkAction.SetParticipation(
-                      name.now(),
-                      participating = true,
-                    ),
-                  )
+                sendLightningAction(
+                  LightningTalkAction.SetParticipation(
+                    name.now(),
+                    participating = true,
+                  ),
+                )
               },
               span("I'm willing to give a lightning talk"),
             ),
