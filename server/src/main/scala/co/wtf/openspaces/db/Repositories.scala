@@ -428,24 +428,24 @@ object HackathonProjectMemberRepository:
 // Confirmed action log (for visualization and replay)
 
 trait ConfirmedActionRepository:
-  def append(entityType: String, actionType: String, payload: String): Task[ConfirmedActionRow]
+  def append(entityType: String, actionType: String, payload: String, actor: Option[String]): Task[ConfirmedActionRow]
   def findAll: Task[Vector[ConfirmedActionRow]]
   def truncate: Task[Unit]
 
 class ConfirmedActionRepositoryLive(ds: DataSource) extends ConfirmedActionRepository:
-  def append(entityType: String, actionType: String, payload: String): Task[ConfirmedActionRow] =
+  def append(entityType: String, actionType: String, payload: String, actor: Option[String]): Task[ConfirmedActionRow] =
     transactZIO(ds):
       val now = OffsetDateTime.now()
       val id = sql"""
-        INSERT INTO confirmed_actions (created_at, entity_type, action_type, payload)
-        VALUES ($now, $entityType, $actionType, $payload::jsonb)
+        INSERT INTO confirmed_actions (created_at, entity_type, action_type, payload, actor)
+        VALUES ($now, $entityType, $actionType, $payload::jsonb, $actor)
         RETURNING id
       """.query[Long].run().head
-      ConfirmedActionRow(id, now, entityType, actionType, payload)
+      ConfirmedActionRow(id, now, entityType, actionType, payload, actor)
 
   def findAll: Task[Vector[ConfirmedActionRow]] =
     transactZIO(ds):
-      sql"""SELECT id, created_at, entity_type, action_type, payload::text
+      sql"""SELECT id, created_at, entity_type, action_type, payload::text, actor
             FROM confirmed_actions
             ORDER BY id"""
         .query[ConfirmedActionRow]

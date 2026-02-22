@@ -175,6 +175,7 @@ case class RandomActionSpawner(
                   entityType = row.entityType,
                   actionType = row.actionType,
                   payload = row.payload,
+                  actor = row.actor,
                 )
               ).toList
             )

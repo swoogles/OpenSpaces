@@ -102,4 +102,5 @@ case class ConfirmedActionRow(
   entityType: String,   // 'Discussion', 'LightningTalk', 'HackathonProject'
   actionType: String,   // 'Vote', 'AddResult', 'Created', etc.
   payload: String,      // JSON string
+  actor: Option[String], // GitHub username of the actor
 ) derives DbCodec

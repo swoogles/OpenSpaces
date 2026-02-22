@@ -2606,3 +2606,66 @@ body {
     color: white !important;
     border-color: #b45309 !important;
 }
+
+/* =================================
+   Replay View (Tetris Visualization)
+   ================================= */
+
+.ReplayView {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: #0f172a;
+    overflow: hidden;
+    z-index: 100;
+}
+
+.ReplayView-progress {
+    position: absolute;
+    top: 10px;
+    left: 10px;
+    color: #94a3b8;
+    font-size: 14px;
+    font-family: monospace;
+    z-index: 101;
+    background: rgba(15, 23, 42, 0.8);
+    padding: 8px 12px;
+    border-radius: 8px;
+}
+
+.ReplayView-error {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    color: #ef4444;
+    font-size: 18px;
+    text-align: center;
+    padding: 20px;
+    background: rgba(15, 23, 42, 0.9);
+    border-radius: 12px;
+    border: 1px solid #ef4444;
+}
+
+.ReplayView-grid {
+    position: relative;
+    width: 100%;
+    height: 100%;
+}
+
+.ReplayView-avatar {
+    border-radius: 4px;
+    overflow: hidden;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+}
+
+.ReplayView-avatar img {
+    display: block;
+    border-radius: 4px;
+}
+
+.ReplayView-avatar--falling {
+    /* Falling animation handled via inline styles */
+}

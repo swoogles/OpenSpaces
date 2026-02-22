@@ -24,6 +24,7 @@ case class ConfirmedActionEntry(
   entityType: String,
   actionType: String,
   payload: String,  // JSON string
+  actor: Option[String],  // GitHub username
 ) derives Schema, JsonCodec
 
 case class ConfirmedActionsResponse(
