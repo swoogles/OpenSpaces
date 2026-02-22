@@ -8,8 +8,6 @@ import zio.*
 object RandomUsers:
   val pool: List[Person] = List(
     Person("kitlangton"),
-    Person("jamesward"),
-    Person("BruceEckel"),
     Person("cheshire137"),
     Person("gaearon"),
     Person("frenck"),
