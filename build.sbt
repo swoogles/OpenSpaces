@@ -4,8 +4,8 @@ ThisBuild / organization     := "com.billding"
 ThisBuild / organizationName := "billding"
 ThisBuild / testFrameworks += new TestFramework("zio.test.sbt.ZTestFramework")
 ThisBuild / libraryDependencies ++=Seq(
-  "dev.zio" %%% "zio-test" % "2.1.11" % Test,
-  "dev.zio" %%% "zio-test-sbt" % "2.1.16" % Test,
+  "dev.zio" %%% "zio-test" % "2.1.23" % Test,
+  "dev.zio" %%% "zio-test-sbt" % "2.1.23" % Test,
   "dev.zio" %%% "zio-json" % "0.7.38",
 )
 
