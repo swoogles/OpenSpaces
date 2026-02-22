@@ -3,54 +3,144 @@ package co.wtf.openspaces.components
 import com.raquo.laminar.api.L.{*, given}
 import org.scalajs.dom
 import zio.json.*
-import scala.scalajs.js
+
 import scala.scalajs.js.timers.*
 
 import co.wtf.openspaces.{ConfirmedActionEntry, ConfirmedActionsResponse}
 
 /** Tetris-style visualization of conference participation.
-  * 
-  * Shows GitHub avatars falling into a grid, one action at a time.
-  * Avatars stack in columns like Tetris pieces.
+  *
+  * Replays confirmed actions by dropping actor avatars into random columns.
+  * Avatars fall smoothly from above the screen and stack from the bottom.
   */
 object ReplayView:
-  // Animation configuration (easy to tweak)
-  private val FallDurationMs = 500
-  private val DelayBetweenActionsMs = 100
-  private val AvatarSize = 20
+  private val FallDurationMs = 700
+  private val DelayBetweenActionsMs = 120
+  private val BoardResetDelayMs = 220
+  private val AvatarSizePx = 22
 
-  // State for a falling/landed avatar
   case class FallingAvatar(
-    id: Int,           // Unique ID for tracking
+    id: Int,
     actor: String,
-    actionType: String,
-    entityType: String,
-    col: Int,          // Column (x position)
-    landingRow: Int,   // Row where it will land (from bottom, 0 = bottom row)
+    actionLabel: String,
+    col: Int,
+    landingRow: Int,
+    dropDistancePx: Int,
   )
 
   def apply(): Element =
-    // State
-    val actions: Var[List[ConfirmedActionEntry]] = Var(Nil)
-    val avatars: Var[List[FallingAvatar]] = Var(Nil)
-    val isPlaying: Var[Boolean] = Var(false)
-    val currentIndex: Var[Int] = Var(0)
-    val gridDimensions: Var[(Int, Int)] = Var((0, 0)) // (cols, rows)
-    val errorMessage: Var[Option[String]] = Var(None)
-    val nextId: Var[Int] = Var(0)
-    
-    // Track how many avatars have landed in each column (for stacking)
-    val columnHeights: Var[Map[Int, Int]] = Var(Map.empty)
+    val actions = Var(List.empty[ConfirmedActionEntry])
+    val avatars = Var(List.empty[FallingAvatar])
+    val isPlaying = Var(false)
+    val currentIndex = Var(0)
+    val errorMessage = Var(Option.empty[String])
 
-    // Calculate grid dimensions based on viewport
-    def calculateGridDimensions(): (Int, Int) =
-      val viewportWidth = dom.window.innerWidth.toInt
-      val viewportHeight = dom.window.innerHeight.toInt
-      val cols = viewportWidth / AvatarSize
-      val rows = viewportHeight / AvatarSize
+    val nextId = Var(0)
+    val boardDimensions = Var((1, 1)) // (cols, rows)
+    val columnHeights = Var(Map.empty[Int, Int])
+
+    var playbackTimer: Option[SetTimeoutHandle] = None
+
+    def clearPlaybackTimer(): Unit =
+      playbackTimer.foreach(clearTimeout)
+      playbackTimer = None
+
+    def scheduleNext(delayMs: Int)(f: => Unit): Unit =
+      clearPlaybackTimer()
+      playbackTimer = Some(setTimeout(delayMs.toDouble)(f))
+
+    def calculateBoardDimensions(): (Int, Int) =
+      val width = dom.window.innerWidth.toInt.max(AvatarSizePx)
+      val height = dom.window.innerHeight.toInt.max(AvatarSizePx)
+      val cols = (width / AvatarSizePx).max(1)
+      val rows = (height / AvatarSizePx).max(1)
       (cols, rows)
 
-    // Fetch confirmed actions from API
+    def getRandomAvailableColumn(cols: Int, rows: Int): Option[Int] =
+      val heights = columnHeights.now()
+      val available = (0 until cols).filter(col => heights.getOrElse(col, 0) < rows).toVector
+      if available.isEmpty then None
+      else
+        val idx = (Math.random() * available.size).toInt
+        Some(available(idx))
+
+    def resetBoardState(): Unit =
+      avatars.set(Nil)
+      columnHeights.set(Map.empty)
+
+    def spawnAvatar(action: ConfirmedActionEntry): Boolean =
+      val (cols, rows) = boardDimensions.now()
+      val actor = action.actor.getOrElse("")
+      if actor.isBlank then
+        false
+      else
+        getRandomAvailableColumn(cols, rows) match
+          case None =>
+            false
+          case Some(col) =>
+            val landingRow = columnHeights.now().getOrElse(col, 0)
+            columnHeights.update(heights => heights + (col -> (landingRow + 1)))
+
+            val id = nextId.now()
+            nextId.update(_ + 1)
+
+            val actionLabel = s"${action.entityType}.${action.actionType}"
+            val dropDistance = rows * AvatarSizePx + AvatarSizePx
+
+            avatars.update(_ :+ FallingAvatar(
+              id = id,
+              actor = actor,
+              actionLabel = actionLabel,
+              col = col,
+              landingRow = landingRow,
+              dropDistancePx = dropDistance,
+            ))
+            true
+
+    def playNextAction(): Unit =
+      if !isPlaying.now() then
+        return
+
+      val idx = currentIndex.now()
+      val all = actions.now()
+
+      if idx >= all.size then
+        isPlaying.set(false)
+        clearPlaybackTimer()
+        return
+
+      val action = all(idx)
+
+      action.actor match
+        case Some(actor) if actor.nonEmpty =>
+          if spawnAvatar(action) then
+            currentIndex.update(_ + 1)
+            scheduleNext(DelayBetweenActionsMs) {
+              playNextAction()
+            }
+          else
+            // Board is full: clear and continue replay from the same action.
+            resetBoardState()
+            scheduleNext(BoardResetDelayMs) {
+              playNextAction()
+            }
+
+        case _ =>
+          // Skip actions without actor info.
+          currentIndex.update(_ + 1)
+          scheduleNext(DelayBetweenActionsMs) {
+            playNextAction()
+          }
+
+    def startPlayback(): Unit =
+      clearPlaybackTimer()
+      boardDimensions.set(calculateBoardDimensions())
+      resetBoardState()
+      nextId.set(0)
+      currentIndex.set(0)
+      isPlaying.set(true)
+      playNextAction()
+
     def fetchActions(): Unit =
       val xhr = new dom.XMLHttpRequest()
       xhr.open("GET", "/api/admin/confirmed-actions")
@@ -58,15 +148,13 @@ object ReplayView:
         if xhr.status == 200 then
           xhr.responseText.fromJson[ConfirmedActionsResponse] match
             case Right(response) =>
-              // Filter to only actions with actors
-              val actionsWithActors = response.actions.filter(_.actor.isDefined)
-              actions.set(actionsWithActors)
+              val filtered = response.actions.filter(_.actor.exists(_.nonEmpty))
+              actions.set(filtered)
               errorMessage.set(None)
-              // Auto-start playback
-              if actionsWithActors.nonEmpty then
+              if filtered.nonEmpty then
                 startPlayback()
-            case Left(error) =>
-              errorMessage.set(Some(s"Failed to parse response: $error"))
+            case Left(err) =>
+              errorMessage.set(Some(s"Failed to parse response: $err"))
         else
           errorMessage.set(Some(s"Failed to fetch actions: ${xhr.status}"))
       }
@@ -75,147 +163,64 @@ object ReplayView:
       }
       xhr.send()
 
-    // Find a random column that isn't full
-    def getRandomAvailableColumn(cols: Int, rows: Int): Option[Int] =
-      val heights = columnHeights.now()
-      val availableCols = (0 until cols).filter(col => heights.getOrElse(col, 0) < rows).toList
-      if availableCols.isEmpty then None
-      else
-        val idx = (Math.random() * availableCols.size).toInt
-        Some(availableCols(idx))
-
-    // Start the animated playback
-    def startPlayback(): Unit =
-      isPlaying.set(true)
-      currentIndex.set(0)
-      avatars.set(Nil)
-      columnHeights.set(Map.empty)
-      nextId.set(0)
-      
-      val dims = calculateGridDimensions()
-      gridDimensions.set(dims)
-      
-      playNextAction()
-
-    // Play the next action in the sequence
-    def playNextAction(): Unit =
-      val idx = currentIndex.now()
-      val allActions = actions.now()
-      val (cols, rows) = gridDimensions.now()
-      
-      if idx >= allActions.size then
-        isPlaying.set(false)
-        return
-      
-      val action = allActions(idx)
-      action.actor match
-        case Some(actor) =>
-          getRandomAvailableColumn(cols, rows) match
-            case Some(col) =>
-              // Get current height of this column and increment it
-              val currentHeight = columnHeights.now().getOrElse(col, 0)
-              columnHeights.update(h => h + (col -> (currentHeight + 1)))
-              
-              // Landing row (from bottom: 0 = bottom, 1 = one above bottom, etc.)
-              val landingRow = currentHeight
-              
-              // Create the avatar
-              val id = nextId.now()
-              nextId.update(_ + 1)
-              
-              val avatar = FallingAvatar(
-                id = id,
-                actor = actor,
-                actionType = action.actionType,
-                entityType = action.entityType,
-                col = col,
-                landingRow = landingRow,
-              )
-              avatars.update(_ :+ avatar)
-              
-              // Schedule next action (after delay, not after fall completes)
-              currentIndex.update(_ + 1)
-              setTimeout(DelayBetweenActionsMs.toDouble) {
-                if isPlaying.now() then playNextAction()
-              }
-            case None =>
-              // All columns full
-              isPlaying.set(false)
-        case None =>
-          // Skip actions without actors
-          currentIndex.update(_ + 1)
-          playNextAction()
-
-    // GitHub avatar URL
     def avatarUrl(username: String): String =
-      s"https://github.com/$username.png?size=${AvatarSize * 2}"
+      s"https://github.com/$username.png?size=${AvatarSizePx * 2}"
 
     div(
       cls := "ReplayView",
-      // Fetch actions on mount
       onMountCallback { _ =>
         fetchActions()
       },
-      // Error display
-      child.maybe <-- errorMessage.signal.map(_.map { error =>
+      onUnmountCallback { _ =>
+        isPlaying.set(false)
+        clearPlaybackTimer()
+      },
+      child.maybe <-- errorMessage.signal.map(_.map(error =>
         div(cls := "ReplayView-error", error)
-      }),
-      // Progress indicator
+      )),
       div(
         cls := "ReplayView-progress",
         child.text <-- Signal.combine(currentIndex.signal, actions.signal).map {
-          case (idx, acts) =>
-            val withActors = acts.count(_.actor.isDefined)
-            s"$idx / $withActors actions"
+          case (idx, all) => s"$idx / ${all.size} actions"
         },
       ),
-      // Grid container - position relative so absolute children work
       div(
         cls := "ReplayView-grid",
-        position.relative,
-        width := "100%",
-        height := "100%",
-        overflow.hidden,
-        children <-- Signal.combine(avatars.signal, gridDimensions.signal).map {
-          case (avs, (cols, rows)) =>
-            val viewportHeight = dom.window.innerHeight.toInt
-            avs.map { avatar =>
-              // Calculate pixel positions
-              val xPos = avatar.col * AvatarSize
-              // Landing Y: bottom of screen minus (row + 1) * size
-              // Row 0 = bottom, so landingY = viewportHeight - AvatarSize
-              // Row 1 = one above, so landingY = viewportHeight - 2*AvatarSize
-              val landingY = viewportHeight - ((avatar.landingRow + 1) * AvatarSize)
-              val startY = -AvatarSize // Start above viewport
-              
-              div(
-                cls := "ReplayView-avatar",
-                position.absolute,
-                left := s"${xPos}px",
-                width := s"${AvatarSize}px",
-                height := s"${AvatarSize}px",
-                top := s"${startY}px", // Start position
-                // Use onMountCallback to trigger animation after render
-                onMountCallback { ctx =>
-                  val el = ctx.thisNode.ref
-                  // Double requestAnimationFrame ensures the initial position is painted first
-                  dom.window.requestAnimationFrame { _ =>
-                    dom.window.requestAnimationFrame { _ =>
-                      el.style.transition = s"top ${FallDurationMs}ms linear"
-                      el.style.top = s"${landingY}px"
-                    }
-                  }
-                },
-                img(
-                  src := avatarUrl(avatar.actor),
-                  alt := avatar.actor,
-                  title := s"${avatar.actor}: ${avatar.entityType}.${avatar.actionType}",
-                  widthAttr := AvatarSize,
-                  heightAttr := AvatarSize,
-                  borderRadius := "2px",
-                ),
+        onMountCallback { _ =>
+          boardDimensions.set(calculateBoardDimensions())
+        },
+        windowEvents(_.onResize) --> Observer { _ =>
+          boardDimensions.set(calculateBoardDimensions())
+        },
+        children <-- avatars.signal.split(_.id) { (_, initial, avatarSignal) =>
+          div(
+            cls := "ReplayView-avatar",
+            position.absolute,
+            left := s"${initial.col * AvatarSizePx}px",
+            bottom := s"${initial.landingRow * AvatarSizePx}px",
+            width := s"${AvatarSizePx}px",
+            height := s"${AvatarSizePx}px",
+            transform := s"translateY(-${initial.dropDistancePx}px)",
+            onMountCallback { ctx =>
+              val el = ctx.thisNode.ref
+              dom.window.requestAnimationFrame { _ =>
+                dom.window.requestAnimationFrame { _ =>
+                  el.style.transition = s"transform ${FallDurationMs}ms linear"
+                  el.style.transform = "translateY(0px)"
+                }
+              }
+            },
+            child <-- avatarSignal.map { avatar =>
+              img(
+                src := avatarUrl(avatar.actor),
+                alt := avatar.actor,
+                title := s"${avatar.actor}: ${avatar.actionLabel}",
+                widthAttr := AvatarSizePx,
+                heightAttr := AvatarSizePx,
+                borderRadius := "3px",
               )
-            }
+            },
+          )
         },
       ),
     )
