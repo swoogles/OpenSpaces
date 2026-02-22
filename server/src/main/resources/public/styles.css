@@ -54,8 +54,6 @@
 }
 
 html {
-     -webkit-filter: grayscale(100%); 
-     filter: grayscale(100%); 
     background-color: var(--color-white);
     text-align: center;
     height: 100%;
