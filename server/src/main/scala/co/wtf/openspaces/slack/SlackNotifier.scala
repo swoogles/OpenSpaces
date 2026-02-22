@@ -60,8 +60,8 @@ class SlackNotifierLive(
     action match
       case LightningTalkActionConfirmed.AddResult(proposal) =>
         handleLightningAdd(proposal, broadcast).fork.unit
-      case LightningTalkActionConfirmed.Delete(proposalId) =>
-        handleLightningDelete(proposalId).fork.unit
+      case LightningTalkActionConfirmed.Delete(proposalId, slackChannelId, slackThreadTs) =>
+        handleLightningDelete(proposalId, slackChannelId, slackThreadTs).fork.unit
       case LightningTalkActionConfirmed.SetAssignment(proposalId, newAssignment) =>
         handleLightningAssignmentUpdate(proposalId, newAssignment).fork.unit
       case LightningTalkActionConfirmed.DrawForNightResult(_, assignments) =>
@@ -180,14 +180,19 @@ class SlackNotifierLive(
     yield ()
     effect.catchAll(err => ZIO.logError(s"Slack assignment update failed for lightning talk $proposalId: $err"))
 
-  private def handleLightningDelete(proposalId: LightningTalkId): Task[Unit] =
-    val effect = for
-      row <- lightningTalkRepo.findById(proposalId.unwrap).someOrFail(new Exception(s"Lightning talk $proposalId not found"))
-      ts <- ZIO.fromOption(row.slackThreadTs).orElseFail(new Exception(s"No Slack thread for lightning talk $proposalId"))
-      channelId = row.slackChannelId.getOrElse(config.channelId)
-      _ <- slackClient.deleteMessage(channelId, ts)
-    yield ()
-    effect.catchAll(err => ZIO.logError(s"Slack delete failed for lightning talk $proposalId: $err"))
+  private def handleLightningDelete(
+    proposalId: LightningTalkId,
+    slackChannelId: Option[String],
+    slackThreadTs: Option[String],
+  ): Task[Unit] =
+    slackThreadTs match
+      case Some(ts) =>
+        val channelId = slackChannelId.getOrElse(config.channelId)
+        slackClient
+          .deleteMessage(channelId, ts)
+          .catchAll(err => ZIO.logError(s"Slack delete failed for lightning talk $proposalId: $err"))
+      case None =>
+        ZIO.unit
 
   private def buildCreateBlocks(discussion: Discussion): String =
     val topicName = discussion.topicName.replace("\"", "\\\"")

@@ -98,7 +98,7 @@ case class LightningTalkState(
             proposals.updatedWith(proposalId) {
               _.map(value => value.copy(slackThreadUrl = Some(slackThreadUrl)))
             }
-          case LightningTalkActionConfirmed.Delete(proposalId) =>
+          case LightningTalkActionConfirmed.Delete(proposalId, _, _) =>
             proposals - proposalId
           case LightningTalkActionConfirmed.SetAssignment(
                 proposalId,

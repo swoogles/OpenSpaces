@@ -46,8 +46,13 @@ case class LightningTalkService(
               yield LightningTalkActionConfirmed.AddResult(proposal)
             case (Some(existing), false) =>
               for
-                _ <- lightningTalkRepo.softDelete(existing.id.unwrap)
-                confirmed = LightningTalkActionConfirmed.Delete(existing.id)
+                row <- lightningTalkRepo.findById(existing.id.unwrap)
+                _ <- lightningTalkRepo.delete(existing.id.unwrap)
+                confirmed = LightningTalkActionConfirmed.Delete(
+                  existing.id,
+                  row.flatMap(_.slackChannelId),
+                  row.flatMap(_.slackThreadTs),
+                )
                 _ <- state.update(_(confirmed))
               yield confirmed
         yield result
@@ -167,7 +172,6 @@ case class LightningTalkService(
       assignmentNight = night,
       assignmentSlot = slot,
       createdAt = createdAt,
-      deletedAt = None,
       slackChannelId = None,
       slackThreadTs = None,
       slackPermalink = proposal.slackThreadUrl,
@@ -202,7 +206,7 @@ object LightningTalkService:
     gitHubProfileService: GitHubProfileService,
   ): Task[LightningTalkState] =
     for
-      rows <- lightningTalkRepo.findAllActive
+      rows <- lightningTalkRepo.findAll
       speakers = rows.map(_.speaker).distinct
       userRows <- ZIO.foreach(speakers)(speaker =>
         gitHubProfileService.ensureUserWithDisplayName(speaker).either.map(_.toOption),

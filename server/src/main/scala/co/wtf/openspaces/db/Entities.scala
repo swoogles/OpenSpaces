@@ -69,7 +69,6 @@ case class LightningTalkRow(
   assignmentNight: Option[String],
   assignmentSlot: Option[Int],
   createdAt: OffsetDateTime,
-  deletedAt: Option[OffsetDateTime],
   slackChannelId: Option[String],
   slackThreadTs: Option[String],
   slackPermalink: Option[String],

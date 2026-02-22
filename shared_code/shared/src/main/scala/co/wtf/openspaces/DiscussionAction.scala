@@ -140,7 +140,9 @@ enum LightningTalkActionConfirmed derives JsonCodec:
     proposalId: LightningTalkId,
     slackThreadUrl: String)
   case Delete(
-    proposalId: LightningTalkId)
+    proposalId: LightningTalkId,
+    slackChannelId: Option[String],
+    slackThreadTs: Option[String])
   case SetAssignment(
     proposalId: LightningTalkId,
     newAssignment: Option[LightningAssignment])

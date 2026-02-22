@@ -362,16 +362,16 @@ object TestLayers:
     def findById(
       id: Long,
     ): Task[Option[co.wtf.openspaces.db.LightningTalkRow]] = ZIO.none
-    def findBySpeakerActive(
+    def findBySpeaker(
       speaker: String,
     ): Task[Option[co.wtf.openspaces.db.LightningTalkRow]] = ZIO.none
-    def findAllActive: Task[Vector[co.wtf.openspaces.db.LightningTalkRow]] =
+    def findAll: Task[Vector[co.wtf.openspaces.db.LightningTalkRow]] =
       ZIO.succeed(Vector.empty)
     def insert(row: co.wtf.openspaces.db.LightningTalkRow): Task[Unit] =
       ZIO.unit
     def update(row: co.wtf.openspaces.db.LightningTalkRow): Task[Unit] =
       ZIO.unit
-    def softDelete(id: Long): Task[Unit] = ZIO.unit
+    def delete(id: Long): Task[Unit] = ZIO.unit
     def updateSlackThread(
       proposalId: Long,
       channelId: String,
