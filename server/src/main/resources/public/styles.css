@@ -1,3 +1,58 @@
+/* ============================================
+   Color System - Semantic Variables
+   ============================================ 
+   
+   18 semantic color tokens for the entire app.
+   All hex values should reference these variables.
+*/
+:root {
+    /* Brand/Primary */
+    --color-primary: #667eea;
+    --color-primary-dark: #764ba2;
+    
+    /* Text Hierarchy */
+    --color-text: #1a202c;
+    --color-text-secondary: #4a5568;
+    --color-text-muted: #718096;
+    --color-text-subtle: #64748b;
+    
+    /* Backgrounds */
+    --color-white: #ffffff;
+    --color-bg-page: #f4f8fc;
+    --color-bg-surface: #edf2f7;
+    --color-bg-elevated: #f8fbff;
+    --color-bg-dark: #0f172a;
+    
+    /* Borders */
+    --color-border: #e2e8f0;
+    --color-border-strong: #cbd5e0;
+    --color-border-section: #d4e2ef;
+    
+    /* Status - Success */
+    --color-success: #22c55e;
+    --color-success-muted: #38a169;
+    --color-success-light: #d4edda;
+    
+    /* Status - Error */
+    --color-error: #ef4444;
+    --color-error-dark: #c53030;
+    --color-error-light: #fed7d7;
+    
+    /* Status - Warning */
+    --color-warning: #f59e0b;
+    --color-warning-dark: #92400e;
+    --color-warning-light: #fef3c7;
+    
+    /* Interactive/Info */
+    --color-interactive: #4a90d9;
+    --color-interactive-hover: #3a7fc8;
+    
+    /* Special UI */
+    --color-card-scheduled: #C6DAD7;
+    --color-vote-interested: #e74c3c;
+    --color-vote-neutral: #7f8c8d;
+}
+
 html {
      -webkit-filter: grayscale(100%); 
      filter: grayscale(100%); 
@@ -18,7 +73,7 @@ html {
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    background: linear-gradient(135deg, var(--color-primary) 0%, var(--color-primary-dark) 100%);
     z-index: 9999;
     transition: opacity 0.3s ease-out;
 }
@@ -31,7 +86,7 @@ html {
 .loading-wtf {
     font-size: clamp(80px, 25vw, 200px);
     font-weight: 900;
-    color: white;
+    color: var(--color-white);
     text-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
     animation: wtf-ripple 2s ease-in-out infinite;
     letter-spacing: 0.05em;
@@ -68,12 +123,12 @@ html {
 
 .AppRoot,
 body {
-    background-color: #f4f8fc;
+    background-color: var(--color-bg-page);
     font-family: "Roboto", serif;
 }
 
 .PageContainer {
-    background-color: #f4f8fc;
+    background-color: var(--color-bg-page);
     gap: 5px;
     justify-items: center;
 }
@@ -88,7 +143,7 @@ body {
     justify-content: center;
     min-height: 100vh;
     padding: 24px;
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    background: linear-gradient(135deg, var(--color-primary) 0%, var(--color-primary-dark) 100%);
     text-align: center;
 }
 
@@ -103,7 +158,7 @@ body {
 .LoginScreen-content {
     max-width: 420px;
     padding: 40px 32px;
-    background: white;
+    background: var(--color-white);
     border-radius: 20px;
     box-shadow: 0 12px 40px rgba(0, 0, 0, 0.15);
 }
@@ -112,18 +167,18 @@ body {
     margin: 0 0 16px 0;
     font-size: 28px;
     font-weight: 700;
-    color: #1a202c;
+    color: var(--color-text);
 }
 
 .LoginScreen-description {
     margin: 0 0 28px 0;
     font-size: 16px;
     line-height: 1.6;
-    color: #4a5568;
+    color: var(--color-text-secondary);
 }
 
 .LoginScreen-description strong {
-    color: #667eea;
+    color: var(--color-primary);
 }
 
 .LoginScreen-button {
@@ -135,7 +190,7 @@ body {
     padding: 16px 24px;
     font-size: 18px;
     font-weight: 600;
-    color: white;
+    color: var(--color-white);
     background: linear-gradient(135deg, #24292e 0%, #1a1e22 100%);
     border: none;
     border-radius: 12px;
@@ -166,7 +221,7 @@ body {
 /* ============================================ */
 
 .Banner {
-    background-color: #FFFFFF;
+    background-color: var(--color-white);
     width: 100%;
     display: flex;
     justify-content: space-between;
@@ -218,7 +273,7 @@ body {
     gap: 12px;
     padding: 16px;
     margin: 12px 10px 20px 10px;
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    background: linear-gradient(135deg, var(--color-primary) 0%, var(--color-primary-dark) 100%);
     border-radius: 16px;
     box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
     transition: transform 0.2s ease, box-shadow 0.2s ease;
@@ -244,7 +299,7 @@ body {
     font-family: 'Roboto', -apple-system, BlinkMacSystemFont, sans-serif;
     font-size: 16px;
     line-height: 1.5;
-    color: #1a202c;
+    color: var(--color-text);
     background-color: rgba(255, 255, 255, 0.95);
     border: 2px solid transparent;
     border-radius: 12px;
@@ -254,13 +309,13 @@ body {
 }
 
 .TopicSubmission-textArea::placeholder {
-    color: #718096;
+    color: var(--color-text-muted);
     font-style: italic;
 }
 
 .TopicSubmission-textArea:focus {
     outline: none;
-    border-color: #fff;
+    border-color: var(--color-white);
     box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.3);
 }
 
@@ -269,7 +324,7 @@ body {
     border-radius: 10px;
     background-color: rgba(127, 29, 29, 0.25);
     border: 1px solid rgba(254, 202, 202, 0.55);
-    color: #fff1f2;
+    color: var(--color-white);
     font-size: 14px;
     font-weight: 600;
     line-height: 1.3;
@@ -285,8 +340,8 @@ body {
     font-family: 'Roboto', -apple-system, BlinkMacSystemFont, sans-serif;
     font-size: 16px;
     font-weight: 600;
-    color: #667eea;
-    background: linear-gradient(135deg, #fff 0%, #f7fafc 100%);
+    color: var(--color-primary);
+    background: linear-gradient(135deg, var(--color-white) 0%, var(--color-bg-page) 100%);
     border: none;
     border-radius: 12px;
     cursor: pointer;
@@ -295,7 +350,7 @@ body {
 }
 
 .TopicSubmission-button:hover {
-    background: linear-gradient(135deg, #fff 0%, #edf2f7 100%);
+    background: linear-gradient(135deg, var(--color-white) 0%, var(--color-bg-surface) 100%);
     transform: translateY(-1px);
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
 }
@@ -324,8 +379,8 @@ body {
 }
 
 .TopicSection {
-    background: #ffffff;
-    border: 1px solid #d4e2ef;
+    background: var(--color-white);
+    border: 1px solid var(--color-border-section);
     border-radius: 14px;
     padding: 12px;
     box-shadow: 0 2px 8px rgba(15, 23, 42, 0.06);
@@ -333,23 +388,23 @@ body {
 
 .TopicSection-title {
     margin: 0;
-    color: #1f3553;
+    color: var(--color-text);
     font-size: 16px;
     font-weight: 700;
 }
 
 .TopicSection-subtitle {
     margin: 4px 0 10px 0;
-    color: #516a84;
+    color: var(--color-text-secondary);
     font-size: 13px;
     line-height: 1.35;
 }
 
 .TopicSection-empty {
     padding: 10px 8px;
-    color: #5b7188;
+    color: var(--color-text-muted);
     font-size: 13px;
-    background: #f3f7fb;
+    background: var(--color-bg-surface);
     border-radius: 10px;
 }
 
@@ -369,9 +424,9 @@ body {
 }
 
 .LightningTalk-myProposalNotice {
-    color: #856404;
-    background: #fff8dc;
-    border: 1px solid #ffe69c;
+    color: var(--color-warning-dark);
+    background: var(--color-warning-light);
+    border: 1px solid var(--color-warning);
     border-radius: 10px;
     padding: 8px 10px;
     font-size: 13px;
@@ -379,8 +434,8 @@ body {
 
 .LightningTalk-list,
 .LightningTalk-night {
-    background: #ffffff;
-    border: 1px solid #d4e2ef;
+    background: var(--color-white);
+    border: 1px solid var(--color-border-section);
     border-radius: 14px;
     padding: 10px;
     box-shadow: 0 2px 8px rgba(15, 23, 42, 0.06);
@@ -394,10 +449,10 @@ body {
     display: grid;
     gap: 8px;
     align-items: center;
-    border: 1px solid #dbe7f3;
+    border: 1px solid var(--color-border-section);
     border-radius: 10px;
     padding: 8px;
-    background: #f8fbff;
+    background: var(--color-bg-elevated);
 }
 
 .LightningTalk-row {
@@ -409,7 +464,7 @@ body {
 }
 
 .LightningTalk-slotNumber {
-    color: #3b5f8a;
+    color: var(--color-interactive);
     font-size: 13px;
     font-weight: 800;
     min-width: 26px;
@@ -424,19 +479,19 @@ body {
 }
 
 .LightningTalk-main--empty {
-    color: #6f859d;
+    color: var(--color-text-muted);
     font-style: italic;
 }
 
 .LightningTalk-title {
-    color: #1f3553;
+    color: var(--color-text);
     font-size: 14px;
     font-weight: 700;
     line-height: 1.3;
 }
 
 .LightningTalk-meta {
-    color: #5b7188;
+    color: var(--color-text-muted);
     font-size: 12px;
 }
 
@@ -453,9 +508,9 @@ body {
 }
 
 .LightningTalk-actionButton {
-    background: #edf3fa;
-    border: 1px solid #c8d8e8;
-    color: #234464;
+    background: var(--color-bg-surface);
+    border: 1px solid var(--color-border-strong);
+    color: var(--color-text-secondary);
     border-radius: 8px;
     padding: 5px 8px;
     font-size: 12px;
@@ -463,20 +518,20 @@ body {
 }
 
 .LightningTalk-actionButton--danger {
-    background: #fff2f2;
-    border-color: #ffbfbf;
-    color: #a61d24;
+    background: var(--color-error-light);
+    border-color: var(--color-error);
+    color: var(--color-error-dark);
 }
 
 .UnjudgedCounter {
     text-align: center;
     padding: 8px 16px;
     margin: 8px 16px;
-    background-color: #e8f4f8;
+    background-color: var(--color-bg-surface);
     border-radius: 8px;
     font-size: 14px;
     font-weight: 500;
-    color: #2c5282;
+    color: var(--color-interactive);
 }
 
 .TopicBody {}
@@ -508,7 +563,7 @@ body {
 .VoteCount {
     font-weight: 600;
     font-size: 1.1rem;
-    color: #1f2933;
+    color: var(--color-text);
     line-height: 1;
     min-width: 24px;
     text-align: center;
@@ -536,7 +591,7 @@ body {
 
 /* Interested (heart) button */
 .VoteButton--interested {
-    color: #e74c3c;
+    color: var(--color-vote-interested);
 }
 
 .VoteButton--interested:hover {
@@ -545,7 +600,7 @@ body {
 
 .VoteButton--interested.VoteButton--active {
     background-color: rgba(231, 76, 60, 0.15);
-    border-color: #e74c3c;
+    border-color: var(--color-vote-interested);
     box-shadow: 0 0 0 2px rgba(231, 76, 60, 0.2);
 }
 
@@ -555,7 +610,7 @@ body {
 
 /* Not interested (no symbol) button */
 .VoteButton--notinterested {
-    color: #7f8c8d;
+    color: var(--color-vote-neutral);
 }
 
 .VoteButton--notinterested:hover {
@@ -564,7 +619,7 @@ body {
 
 .VoteButton--notinterested.VoteButton--active {
     background-color: rgba(127, 140, 141, 0.15);
-    border-color: #7f8c8d;
+    border-color: var(--color-vote-neutral);
     box-shadow: 0 0 0 2px rgba(127, 140, 141, 0.2);
 }
 
@@ -704,15 +759,15 @@ body {
 }
 
 .TopicCard--neutral {
-    background-color: #f8f9fa;
+    background-color: var(--color-bg-page);
 }
 
 .TopicCard--interested {
-    background-color: #d4edda;
+    background-color: var(--color-success-light);
 }
 
 .TopicCard--notinterested {
-    background-color: #e2e3e5;
+    background-color: var(--color-border);
 }
 
 .ActiveDiscussion {
@@ -727,7 +782,7 @@ body {
     font-size: 1rem;
     line-height: 1.3;
     padding: 8px 10px 4px 10px;
-    color: #1a202c;
+    color: var(--color-text);
     min-width: 0;
     overflow-wrap: break-word;
     word-wrap: break-word;
@@ -757,9 +812,9 @@ body {
     height: 28px;
     padding: 0;
     font-size: 16px;
-    color: #667eea;
-    background: #f0f4ff;
-    border: 1px solid #c3d0f5;
+    color: var(--color-primary);
+    background: var(--color-bg-surface);
+    border: 1px solid var(--color-border-strong);
     border-radius: 6px;
     cursor: pointer;
     display: flex;
@@ -775,8 +830,8 @@ body {
 }
 
 .InlineEditableTitle-editBtn:hover {
-    background: #e0e8ff;
-    border-color: #667eea;
+    background: var(--color-bg-page);
+    border-color: var(--color-primary);
 }
 
 .InlineEditableTitle-editBtn:active {
@@ -795,9 +850,9 @@ body {
     height: 28px;
     padding: 0;
     font-size: 14px;
-    color: #e53e3e;
-    background: #fff5f5;
-    border: 1px solid #fed7d7;
+    color: var(--color-error);
+    background: var(--color-error-light);
+    border: 1px solid var(--color-error-light);
     border-radius: 6px;
     cursor: pointer;
     display: flex;
@@ -812,8 +867,8 @@ body {
 }
 
 .InlineEditableTitle-deleteBtn:hover {
-    background: #fed7d7;
-    border-color: #e53e3e;
+    background: var(--color-error-light);
+    border-color: var(--color-error);
 }
 
 .InlineEditableTitle-deleteBtn:active {
@@ -832,9 +887,9 @@ body {
     padding: 6px 10px;
     font: inherit;
     font-weight: 600;
-    color: #1a202c;
-    background-color: white;
-    border: 2px solid #667eea;
+    color: var(--color-text);
+    background-color: var(--color-white);
+    border: 2px solid var(--color-primary);
     border-radius: 6px;
     outline: none;
     box-sizing: border-box;
@@ -846,9 +901,9 @@ body {
     height: 28px;
     padding: 0;
     font-size: 14px;
-    color: #718096;
-    background: #f7fafc;
-    border: 1px solid #e2e8f0;
+    color: var(--color-text-muted);
+    background: var(--color-bg-page);
+    border: 1px solid var(--color-border);
     border-radius: 6px;
     cursor: pointer;
     display: flex;
@@ -857,8 +912,8 @@ body {
 }
 
 .InlineEditableTitle-cancelBtn:hover {
-    background: #edf2f7;
-    color: #4a5568;
+    background: var(--color-bg-surface);
+    color: var(--color-text-secondary);
 }
 
 .SecondaryActive {
@@ -881,7 +936,7 @@ body {
 /* Facilitator name styling */
 .FacilitatorName {
     font-size: 0.85rem;
-    color: #4a5568;
+    color: var(--color-text-secondary);
     font-weight: 500;
     background-color: rgba(255, 255, 255, 0.6);
     padding: 2px 8px;
@@ -892,7 +947,7 @@ body {
 /* Room slot styling */
 .RoomSlot {
     font-size: 0.8rem;
-    color: #2d3748;
+    color: var(--color-text);
     font-weight: 600;
     background-color: rgba(74, 144, 217, 0.15);
     padding: 2px 8px;
@@ -903,7 +958,7 @@ body {
 .RoomSlot--unscheduled {
     background-color: rgba(203, 213, 224, 0.4);
     border-color: rgba(160, 174, 192, 0.4);
-    color: #718096;
+    color: var(--color-text-muted);
     font-style: italic;
 }
 
@@ -976,7 +1031,7 @@ body {
 /* Menu */
 .Menu {
     position: fixed;
-    background-color: #fff;
+    background-color: var(--color-white);
     border-radius: 8px;
     padding: 16px;
     width: min(350px, calc(100vw - 20px));
@@ -985,7 +1040,7 @@ body {
     overflow-y: auto;
     box-shadow: 0 8px 16px rgba(0, 0, 0, 0.15), 0 2px 6px rgba(0, 0, 0, 0.1);
     z-index: 1001;
-    border: 2px solid #4a90d9;
+    border: 2px solid var(--color-interactive);
     box-sizing: border-box;
 }
 
@@ -1022,7 +1077,7 @@ body {
     font-weight: bold;
     font-size: 16px;
     margin-bottom: 12px;
-    border-bottom: 1px solid #ddd;
+    border-bottom: 1px solid var(--color-border);
     padding-bottom: 8px;
 }
 
@@ -1036,7 +1091,7 @@ body {
 
 .Menu-label {
     font-size: 12px;
-    color: #666;
+    color: var(--color-text-subtle);
     margin-bottom: 4px;
 }
 
@@ -1057,11 +1112,11 @@ body {
 }
 
 .Menu-topic--selected {
-    background-color: #e8f4fc;
+    background-color: var(--color-bg-surface);
 }
 
 .Menu-topic--target {
-    background-color: #fcf4e8;
+    background-color: var(--color-warning-light);
 }
 
 .Menu-topicName {
@@ -1073,7 +1128,7 @@ body {
 
 .Menu-roomSlot {
     font-size: 12px;
-    color: #666;
+    color: var(--color-text-subtle);
 }
 
 .Menu-actions {
@@ -1085,8 +1140,8 @@ body {
 .Menu-swapButton {
     width: 100%;
     padding: 12px 16px;
-    background-color: #4a90d9;
-    color: #fff;
+    background-color: var(--color-interactive);
+    color: var(--color-white);
     border: none;
     border-radius: 4px;
     cursor: pointer;
@@ -1098,28 +1153,28 @@ body {
 }
 
 .Menu-swapButton:hover {
-    background-color: #3a7fc8;
+    background-color: var(--color-interactive-hover);
 }
 
 .Menu-cancelButton {
     width: 100%;
     padding: 10px 16px;
-    background-color: #f8f9fa;
-    color: #333;
-    border: 1px solid #ddd;
+    background-color: var(--color-bg-page);
+    color: var(--color-text);
+    border: 1px solid var(--color-border);
     border-radius: 4px;
     cursor: pointer;
 }
 
 .Menu-cancelButton:hover {
-    background-color: #e9ecef;
+    background-color: var(--color-bg-surface);
 }
 
 .Menu-textArea {
     width: 100%;
     min-height: 100px;
     padding: 10px 12px;
-    border: 1px solid #d1d5db;
+    border: 1px solid var(--color-border-strong);
     border-radius: 6px;
     resize: vertical;
     box-sizing: border-box;
@@ -1128,7 +1183,7 @@ body {
 
 .Menu-error {
     margin-top: 6px;
-    color: #b91c1c;
+    color: var(--color-error-dark);
     font-size: 13px;
 }
 
@@ -1137,12 +1192,12 @@ body {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    background-color: #f8d7da;
-    border: 1px solid #f5c6cb;
+    background-color: var(--color-error-light);
+    border: 1px solid var(--color-error);
     border-radius: 4px;
     padding: 12px 16px;
     margin: 8px 0;
-    color: #721c24;
+    color: var(--color-error-dark);
 }
 
 .ErrorBanner-message {
@@ -1152,7 +1207,7 @@ body {
 .ErrorBanner-dismiss {
     background: none;
     border: none;
-    color: #721c24;
+    color: var(--color-error-dark);
     font-size: 20px;
     cursor: pointer;
     padding: 0 0 0 16px;
@@ -1160,7 +1215,7 @@ body {
 }
 
 .ErrorBanner-dismiss:hover {
-    color: #491217;
+    color: var(--color-error-dark);
 }
 
 /* Swap Animation Styles */
@@ -1220,7 +1275,7 @@ body {
     left: 50%;
     width: 90%;
     height: 3px;
-    background-color: rgba(220, 38, 38, 0.85); /* Red with some transparency */
+    background-color: rgba(220, 38, 38, 0.85);
     border-radius: 2px;
     pointer-events: none; /* Don't interfere with clicks */
     z-index: 1;
@@ -1268,7 +1323,7 @@ body {
     .avatar-wrapper.vote-state-against::before,
     .avatar-wrapper.vote-state-against::after {
         height: 4px;
-        background-color: rgba(185, 28, 28, 0.95); /* Darker red for contrast */
+        background-color: rgba(185, 28, 28, 0.95);
     }
 }
 
@@ -1284,10 +1339,10 @@ body {
 
 .AdminControls-button {
     padding: 8px 16px;
-    border: 2px solid #cbd5e0;
+    border: 2px solid var(--color-border-strong);
     border-radius: 8px;
-    background-color: #f7fafc;
-    color: #4a5568;
+    background-color: var(--color-bg-page);
+    color: var(--color-text-secondary);
     font-size: 14px;
     font-weight: 600;
     cursor: pointer;
@@ -1295,64 +1350,64 @@ body {
 }
 
 .AdminControls-button:hover {
-    background-color: #edf2f7;
-    border-color: #a0aec0;
+    background-color: var(--color-bg-surface);
+    border-color: var(--color-border-strong);
 }
 
 .AdminControls-button--active {
-    background-color: #c6f6d5;
-    border-color: #68d391;
-    color: #276749;
+    background-color: var(--color-success-light);
+    border-color: var(--color-success);
+    color: var(--color-success-muted);
 }
 
 .AdminControls-button--active:hover {
-    background-color: #9ae6b4;
+    background-color: var(--color-success-light);
 }
 
 .AdminControls-button--schedule-active {
-    background-color: #bee3f8;
-    border-color: #63b3ed;
-    color: #2b6cb0;
+    background-color: var(--color-bg-surface);
+    border-color: var(--color-interactive);
+    color: var(--color-interactive);
 }
 
 .AdminControls-button--schedule-active:hover {
-    background-color: #90cdf4;
+    background-color: var(--color-bg-surface);
 }
 
 .AdminControls-button--danger {
-    border-color: #fc8181;
-    color: #c53030;
+    border-color: var(--color-error);
+    color: var(--color-error-dark);
 }
 
 .AdminControls-button--danger:hover {
-    background-color: #fed7d7;
+    background-color: var(--color-error-light);
 }
 
 .AdminControls-button--warning {
-    border-color: #f6ad55;
-    color: #c05621;
+    border-color: var(--color-warning);
+    color: var(--color-warning-dark);
 }
 
 .AdminControls-button--warning:hover {
-    background-color: #feebc8;
+    background-color: var(--color-warning-light);
 }
 
 .AdminControls-button--primary {
-    border-color: #667eea;
-    color: #5a67d8;
-    background-color: #ebf4ff;
+    border-color: var(--color-primary);
+    color: var(--color-primary);
+    background-color: var(--color-bg-surface);
 }
 
 .AdminControls-button--primary:hover {
-    background-color: #c3dafe;
+    background-color: var(--color-bg-surface);
 }
 
 .AdminControls-version {
     padding: 8px 12px;
     font-size: 12px;
     font-family: monospace;
-    color: #718096;
-    background-color: #edf2f7;
+    color: var(--color-text-muted);
+    background-color: var(--color-bg-surface);
     border-radius: 6px;
     align-self: center;
 }
@@ -1371,8 +1426,8 @@ body {
     display: flex;
     justify-content: flex-end;
     padding: 4px 16px;
-    background-color: #fef3c7;
-    border-bottom: 1px solid #f59e0b;
+    background-color: var(--color-warning-light);
+    border-bottom: 1px solid var(--color-warning);
 }
 
 .AdminModeToggle-label {
@@ -1381,7 +1436,7 @@ body {
     gap: 6px;
     font-size: 12px;
     font-weight: 600;
-    color: #92400e;
+    color: var(--color-warning-dark);
     cursor: pointer;
 }
 
@@ -1392,7 +1447,7 @@ body {
 /* View Toggle - Segmented Control */
 .ViewToggle {
     display: flex;
-    background-color: #e4e9f0;
+    background-color: var(--color-bg-surface);
     border-radius: 10px;
     padding: 4px;
     margin: 12px 16px;
@@ -1405,7 +1460,7 @@ body {
     border: none;
     border-radius: 8px;
     background-color: transparent;
-    color: #4a5568;
+    color: var(--color-text-secondary);
     font-size: 15px;
     font-weight: 600;
     cursor: pointer;
@@ -1418,13 +1473,13 @@ body {
 }
 
 .ViewToggle-button--active {
-    background-color: #ffffff;
-    color: #1a202c;
+    background-color: var(--color-white);
+    color: var(--color-text);
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 
 .ViewToggle-button--active:hover {
-    background-color: #ffffff;
+    background-color: var(--color-white);
 }
 
 /* Slack thread link */
@@ -1471,21 +1526,21 @@ body {
 }
 
 .connection-indicator-dot.connection-connected {
-    color: #22c55e; /* Green */
+    color: var(--color-success);
 }
 
 .connection-indicator-dot.connection-connecting,
 .connection-indicator-dot.connection-reconnecting {
-    color: #f59e0b; /* Amber */
+    color: var(--color-warning);
     animation: connection-pulse 1.5s ease-in-out infinite;
 }
 
 .connection-indicator-dot.connection-disconnected {
-    color: #ef4444; /* Red */
+    color: var(--color-error);
 }
 
 .connection-indicator-dot.connection-offline {
-    color: #6b7280; /* Gray */
+    color: var(--color-text-muted);
 }
 
 /* Full indicator (icon + message) */
@@ -1507,20 +1562,20 @@ body {
 }
 
 .connection-indicator-full.connection-connected {
-    color: #22c55e;
+    color: var(--color-success);
 }
 
 .connection-indicator-full.connection-connecting,
 .connection-indicator-full.connection-reconnecting {
-    color: #f59e0b;
+    color: var(--color-warning);
 }
 
 .connection-indicator-full.connection-disconnected {
-    color: #ef4444;
+    color: var(--color-error);
 }
 
 .connection-indicator-full.connection-offline {
-    color: #6b7280;
+    color: var(--color-text-muted);
 }
 
 /* Connection banner (warning bar at top) */
@@ -1537,21 +1592,21 @@ body {
 }
 
 .connection-banner.connection-reconnecting {
-    background-color: #fef3c7; /* Amber-100 */
-    color: #92400e; /* Amber-800 */
-    border-bottom: 2px solid #f59e0b;
+    background-color: var(--color-warning-light);
+    color: var(--color-warning-dark);
+    border-bottom: 2px solid var(--color-warning);
 }
 
 .connection-banner.connection-disconnected {
-    background-color: #fee2e2; /* Red-100 */
-    color: #991b1b; /* Red-800 */
-    border-bottom: 2px solid #ef4444;
+    background-color: var(--color-error-light);
+    color: var(--color-error-dark);
+    border-bottom: 2px solid var(--color-error);
 }
 
 .connection-banner.connection-offline {
-    background-color: #f3f4f6; /* Gray-100 */
-    color: #374151; /* Gray-700 */
-    border-bottom: 2px solid #6b7280;
+    background-color: var(--color-bg-surface);
+    color: var(--color-text-secondary);
+    border-bottom: 2px solid var(--color-text-muted);
 }
 
 .connection-banner-content {
@@ -1578,8 +1633,8 @@ body {
     padding: 6px 12px;
     border: none;
     border-radius: 4px;
-    background-color: #ef4444;
-    color: white;
+    background-color: var(--color-error);
+    color: var(--color-white);
     font-size: 12px;
     font-weight: 600;
     cursor: pointer;
@@ -1587,7 +1642,7 @@ body {
 }
 
 .connection-banner-retry:hover {
-    background-color: #dc2626;
+    background-color: var(--color-error-dark);
 }
 
 /* Pulse animation for connecting/reconnecting states */
@@ -1602,9 +1657,9 @@ body {
 
 /* Syncing state (connected but loading data) */
 .connection-banner.connection-syncing {
-    background-color: #dbeafe; /* Blue-100 */
-    color: #1e40af; /* Blue-800 */
-    border-bottom: 2px solid #3b82f6;
+    background-color: var(--color-bg-surface);
+    color: var(--color-interactive);
+    border-bottom: 2px solid var(--color-interactive);
 }
 
 .connection-banner.connection-syncing .connection-banner-icon {
@@ -1632,14 +1687,14 @@ body {
 .LinearDayHeader {
     font-size: 1.5rem;
     font-weight: 700;
-    color: #1a202c;
+    color: var(--color-text);
     padding: 12px 16px;
-    border-bottom: 2px solid #e2e8f0;
+    border-bottom: 2px solid var(--color-border);
     margin-bottom: 0;
     /* Sticky behavior */
     position: sticky;
     top: 0;
-    background-color: #f4f8fc;
+    background-color: var(--color-bg-page);
     z-index: 20;
 }
 
@@ -1654,9 +1709,9 @@ body {
 .LinearTimeHeader {
     font-size: 1.1rem;
     font-weight: 600;
-    color: #4a5568;
+    color: var(--color-text-secondary);
     padding: 8px 12px;
-    background-color: #edf2f7;
+    background-color: var(--color-bg-surface);
     border-radius: 4px;
     margin-bottom: 12px;
     /* Sticky behavior - sits below day header */
@@ -1667,8 +1722,8 @@ body {
 }
 
 .LinearTimeHeader--lightning {
-    background-color: #fff4d6;
-    color: #7c5310;
+    background-color: var(--color-warning-light);
+    color: var(--color-warning-dark);
 }
 
 .LightningTalk-night--schedule {
@@ -1678,20 +1733,20 @@ body {
 .LinearRoomSlot {
     margin-bottom: 12px;
     padding-left: 12px;
-    border-left: 3px solid #cbd5e0;
+    border-left: 3px solid var(--color-border-strong);
 }
 
 .LinearRoomName {
     font-size: 0.85rem;
     font-weight: 600;
-    color: #718096;
+    color: var(--color-text-muted);
     text-transform: uppercase;
     letter-spacing: 0.5px;
     margin-bottom: 6px;
 }
 
 .LinearTopicCard {
-    background-color: #C6DAD7;
+    background-color: var(--color-card-scheduled);
     border-radius: 8px;
     padding: 12px;
     display: flex;
@@ -1702,7 +1757,7 @@ body {
 .LinearTopicTitle {
     font-weight: 600;
     font-size: 1rem;
-    color: #1a202c;
+    color: var(--color-text);
     line-height: 1.3;
 }
 
@@ -1727,12 +1782,12 @@ body {
 
 .LinearFacilitator {
     font-size: 0.85rem;
-    color: #4a5568;
+    color: var(--color-text-secondary);
 }
 
 .LinearVotes {
     font-size: 0.8rem;
-    color: #718096;
+    color: var(--color-text-muted);
     background-color: rgba(255,255,255,0.5);
     padding: 2px 6px;
     border-radius: 4px;
@@ -1755,25 +1810,25 @@ body {
 
 .LinearVoteBtn {
     padding: 6px 12px;
-    border: 1px solid #cbd5e0;
+    border: 1px solid var(--color-border-strong);
     border-radius: 4px;
-    background-color: white;
+    background-color: var(--color-white);
     cursor: pointer;
     font-size: 1rem;
 }
 
 .LinearVoteBtn--active {
-    background-color: #fed7d7;
-    border-color: #fc8181;
-    color: #c53030;
+    background-color: var(--color-error-light);
+    border-color: var(--color-error);
+    color: var(--color-error-dark);
 }
 
 .LinearEmptySlot {
     padding: 16px;
-    background-color: #f7fafc;
-    border: 2px dashed #cbd5e0;
+    background-color: var(--color-bg-page);
+    border: 2px dashed var(--color-border-strong);
     border-radius: 8px;
-    color: #a0aec0;
+    color: var(--color-text-muted);
     text-align: center;
     font-style: italic;
     display: flex;
@@ -1784,9 +1839,9 @@ body {
 }
 
 .LinearEmptySlot:hover {
-    background-color: #edf2f7;
-    border-color: #4299e1;
-    color: #4299e1;
+    background-color: var(--color-bg-surface);
+    border-color: var(--color-interactive);
+    color: var(--color-interactive);
 }
 
 .LinearEmptySlot svg {
@@ -1837,14 +1892,14 @@ body {
 
 .SwipeReveal--left {
     left: 0;
-    background: linear-gradient(90deg, #e2e8f0 0%, #edf2f7 100%);
+    background: linear-gradient(90deg, var(--color-border) 0%, var(--color-bg-surface) 100%);
     justify-content: flex-end;
     padding-right: 20px;
 }
 
 .SwipeReveal--right {
     right: 0;
-    background: linear-gradient(270deg, #c6f6d5 0%, #d4edda 100%);
+    background: linear-gradient(270deg, var(--color-success-light) 0%, var(--color-success-light) 100%);
     justify-content: flex-start;
     padding-left: 20px;
 }
@@ -1856,11 +1911,11 @@ body {
 }
 
 .SwipeReveal--left .SwipeRevealIcon {
-    color: #718096;
+    color: var(--color-text-muted);
 }
 
 .SwipeReveal--right .SwipeRevealIcon {
-    color: #38a169;
+    color: var(--color-success-muted);
 }
 
 /* Threshold indicators - subtle lines that appear near commit point */
@@ -1877,12 +1932,12 @@ body {
 
 .SwipeThresholdIndicator--left {
     left: 35%;
-    background-color: #a0aec0;
+    background-color: var(--color-border-strong);
 }
 
 .SwipeThresholdIndicator--right {
     right: 35%;
-    background-color: #68d391;
+    background-color: var(--color-success);
 }
 
 /* Visual feedback when past threshold */
@@ -1938,13 +1993,13 @@ body {
 /* Interested (heart) - green theme */
 .VoteIndicator--interested {
     background-color: rgba(56, 161, 105, 0.15);
-    color: #38a169;
+    color: var(--color-success-muted);
 }
 
 /* Not interested (X) - gray theme */
 .VoteIndicator--notinterested {
     background-color: rgba(113, 128, 150, 0.15);
-    color: #718096;
+    color: var(--color-text-muted);
 }
 
 .VoteIndicator-icon {
@@ -2058,10 +2113,10 @@ body {
 }
 
 /* Individual particle positions - CSS custom properties set by JS */
-.vote-particle:nth-child(1) { --particle-end: translate(-30px, -30px); background: #f59e0b; }
+.vote-particle:nth-child(1) { --particle-end: translate(-30px, -30px); background: var(--color-warning); }
 .vote-particle:nth-child(2) { --particle-end: translate(30px, -30px); background: #10b981; }
 .vote-particle:nth-child(3) { --particle-end: translate(-35px, 0px); background: #3b82f6; }
-.vote-particle:nth-child(4) { --particle-end: translate(35px, 0px); background: #ef4444; }
+.vote-particle:nth-child(4) { --particle-end: translate(35px, 0px); background: var(--color-error); }
 .vote-particle:nth-child(5) { --particle-end: translate(-25px, 25px); background: #8b5cf6; }
 .vote-particle:nth-child(6) { --particle-end: translate(25px, 25px); background: #ec4899; }
 
@@ -2075,10 +2130,10 @@ body {
 
 /* Not interested - cooler/neutral particles */
 .TopicCard.vote-celebrating--notinterested .vote-particle:nth-child(1) { background: #94a3b8; }
-.TopicCard.vote-celebrating--notinterested .vote-particle:nth-child(2) { background: #64748b; }
+.TopicCard.vote-celebrating--notinterested .vote-particle:nth-child(2) { background: var(--color-text-subtle); }
 .TopicCard.vote-celebrating--notinterested .vote-particle:nth-child(3) { background: #475569; }
 .TopicCard.vote-celebrating--notinterested .vote-particle:nth-child(4) { background: #94a3b8; }
-.TopicCard.vote-celebrating--notinterested .vote-particle:nth-child(5) { background: #64748b; }
+.TopicCard.vote-celebrating--notinterested .vote-particle:nth-child(5) { background: var(--color-text-subtle); }
 .TopicCard.vote-celebrating--notinterested .vote-particle:nth-child(6) { background: #475569; }
 
 /* Respect reduced motion preferences */
@@ -2196,8 +2251,8 @@ body {
     align-items: center;
     gap: 10px;
     padding: 12px 16px;
-    background: #1a202c;
-    color: white;
+    background: var(--color-text);
+    color: var(--color-white);
     border-radius: 10px;
     box-shadow: 0 4px 20px rgba(0, 0, 0, 0.25);
     font-size: 14px;
@@ -2234,7 +2289,7 @@ body {
 }
 
 .Toast-dismiss:hover {
-    color: white;
+    color: var(--color-white);
     background: rgba(255, 255, 255, 0.1);
 }
 
@@ -2276,27 +2331,27 @@ body {
 .HackathonProjects-sectionTitle {
     font-size: 16px;
     font-weight: 600;
-    color: #1a202c;
+    color: var(--color-text);
     margin: 0 0 8px 0;
 }
 
 .HackathonProjects-subtitle {
-    color: #64748b;
+    color: var(--color-text-subtle);
     font-size: 14px;
     margin: 0;
 }
 
 .HackathonProjects-noProject {
-    background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%);
-    border: 1px solid #bae6fd;
+    background: linear-gradient(135deg, var(--color-bg-surface) 0%, var(--color-bg-page) 100%);
+    border: 1px solid var(--color-border-section);
     border-radius: 12px;
     padding: 16px;
     text-align: center;
 }
 
 .HackathonProjects-myProject {
-    background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%);
-    border: 1px solid #bbf7d0;
+    background: linear-gradient(135deg, var(--color-success-light) 0%, var(--color-success-light) 100%);
+    border: 1px solid var(--color-success);
     border-radius: 12px;
     padding: 12px;
 }
@@ -2311,8 +2366,8 @@ body {
     padding: 14px 20px;
     font-size: 16px;
     font-weight: 600;
-    color: #fff;
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: var(--color-white);
+    background: linear-gradient(135deg, var(--color-primary) 0%, var(--color-primary-dark) 100%);
     border: none;
     border-radius: 12px;
     cursor: pointer;
@@ -2329,7 +2384,7 @@ body {
     display: flex;
     flex-direction: column;
     gap: 10px;
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    background: linear-gradient(135deg, var(--color-primary) 0%, var(--color-primary-dark) 100%);
     padding: 16px;
     border-radius: 12px;
 }
@@ -2346,7 +2401,7 @@ body {
 
 .HackathonProjects-input:focus {
     outline: none;
-    border-color: #667eea;
+    border-color: var(--color-primary);
 }
 
 .HackathonProjects-createFormButtons {
@@ -2366,14 +2421,14 @@ body {
 }
 
 .HackathonProjects-submitButton {
-    background: #fff;
-    color: #667eea;
+    background: var(--color-white);
+    color: var(--color-primary);
     border: none;
 }
 
 .HackathonProjects-cancelButton {
     background: transparent;
-    color: #fff;
+    color: var(--color-white);
     border: 2px solid rgba(255, 255, 255, 0.5);
 }
 
@@ -2384,8 +2439,8 @@ body {
 
 /* Project list */
 .HackathonProjects-list {
-    background: #ffffff;
-    border: 1px solid #d4e2ef;
+    background: var(--color-white);
+    border: 1px solid var(--color-border-section);
     border-radius: 14px;
     padding: 12px;
     display: flex;
@@ -2394,7 +2449,7 @@ body {
 }
 
 .HackathonProjects-empty {
-    color: #64748b;
+    color: var(--color-text-subtle);
     text-align: center;
     padding: 20px;
     font-size: 14px;
@@ -2402,8 +2457,8 @@ body {
 
 /* Project Card */
 .HackathonProjectCard {
-    background: #f8fbff;
-    border: 1px solid #dbe7f3;
+    background: var(--color-bg-elevated);
+    border: 1px solid var(--color-border-section);
     border-radius: 10px;
     padding: 12px;
     display: flex;
@@ -2412,12 +2467,12 @@ body {
 }
 
 .HackathonProjectCard--mine {
-    background: #f0fdf4;
-    border-color: #bbf7d0;
+    background: var(--color-success-light);
+    border-color: var(--color-success);
 }
 
 .HackathonProjectCard--large {
-    border-color: #fbbf24;
+    border-color: var(--color-warning);
 }
 
 .HackathonProjectCard-header {
@@ -2431,15 +2486,15 @@ body {
     margin: 0;
     font-size: 16px;
     font-weight: 600;
-    color: #1a202c;
+    color: var(--color-text);
     flex: 1;
     word-wrap: break-word;
 }
 
 .HackathonProjectCard-ownerBadge {
     font-size: 12px;
-    background: #fef3c7;
-    color: #92400e;
+    background: var(--color-warning-light);
+    color: var(--color-warning-dark);
     padding: 2px 8px;
     border-radius: 12px;
     flex-shrink: 0;
@@ -2461,7 +2516,7 @@ body {
     width: 28px;
     height: 28px;
     border-radius: 50%;
-    border: 2px solid #fff;
+    border: 2px solid var(--color-white);
     margin-left: -8px;
     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
 }
@@ -2472,26 +2527,26 @@ body {
 
 .HackathonProjectCard-moreMembers {
     font-size: 12px;
-    color: #64748b;
+    color: var(--color-text-subtle);
     margin-left: 4px;
 }
 
 .HackathonProjectCard-memberCount {
     font-size: 13px;
-    color: #64748b;
+    color: var(--color-text-subtle);
 }
 
 .HackathonProjectCard-largeWarning {
     font-size: 12px;
-    color: #92400e;
-    background: #fef3c7;
+    color: var(--color-warning-dark);
+    background: var(--color-warning-light);
     padding: 6px 10px;
     border-radius: 6px;
 }
 
 .HackathonProjectCard-slackLink {
     font-size: 13px;
-    color: #667eea;
+    color: var(--color-primary);
     text-decoration: none;
 }
 
@@ -2518,8 +2573,8 @@ body {
 }
 
 .HackathonProjectCard-joinButton {
-    background: linear-gradient(135deg, #10b981 0%, #059669 100%);
-    color: #fff;
+    background: linear-gradient(135deg, var(--color-success) 0%, var(--color-success-muted) 100%);
+    color: var(--color-white);
     border: none;
 }
 
@@ -2529,13 +2584,13 @@ body {
 }
 
 .HackathonProjectCard-leaveButton {
-    background: #f1f5f9;
-    color: #64748b;
-    border: 1px solid #e2e8f0;
+    background: var(--color-bg-surface);
+    color: var(--color-text-subtle);
+    border: 1px solid var(--color-border);
 }
 
 .HackathonProjectCard-leaveButton:hover {
-    background: #e2e8f0;
+    background: var(--color-border);
 }
 
 /* Confirmation Modal */
@@ -2554,7 +2609,7 @@ body {
 }
 
 .ConfirmationModal {
-    background: #fff;
+    background: var(--color-white);
     border-radius: 16px;
     padding: 24px;
     max-width: 360px;
@@ -2566,13 +2621,13 @@ body {
     margin: 0 0 12px 0;
     font-size: 18px;
     font-weight: 600;
-    color: #1a202c;
+    color: var(--color-text);
 }
 
 .ConfirmationModal-message {
     margin: 0 0 20px 0;
     font-size: 14px;
-    color: #64748b;
+    color: var(--color-text-subtle);
     line-height: 1.5;
 }
 
@@ -2592,14 +2647,14 @@ body {
 }
 
 .ConfirmationModal-button--cancel {
-    background: #f1f5f9;
-    color: #64748b;
-    border: 1px solid #e2e8f0;
+    background: var(--color-bg-surface);
+    color: var(--color-text-subtle);
+    border: 1px solid var(--color-border);
 }
 
 .ConfirmationModal-button--confirm {
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    color: #fff;
+    background: linear-gradient(135deg, var(--color-primary) 0%, var(--color-primary-dark) 100%);
+    color: var(--color-white);
     border: none;
 }
 
@@ -2609,9 +2664,9 @@ body {
 
 /* Hackathon chaos button active state */
 .AdminControls-button--hackathon-active {
-    background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%) !important;
-    color: white !important;
-    border-color: #b45309 !important;
+    background: linear-gradient(135deg, var(--color-warning) 0%, var(--color-warning-dark) 100%) !important;
+    color: var(--color-white) !important;
+    border-color: var(--color-warning-dark) !important;
 }
 
 /* =================================
@@ -2623,7 +2678,7 @@ body {
     inset: 0;
     width: 100vw;
     height: 100dvh;
-    background: #0f172a;
+    background: var(--color-bg-dark);
     overflow: hidden;
     z-index: 100;
 }
@@ -2632,7 +2687,7 @@ body {
     position: absolute;
     top: 10px;
     left: 10px;
-    color: #94a3b8;
+    color: var(--color-text-muted);
     font-size: 14px;
     font-family: monospace;
     z-index: 101;
@@ -2646,13 +2701,13 @@ body {
     top: 50%;
     left: 50%;
     transform: translate(-50%, -50%);
-    color: #ef4444;
+    color: var(--color-error);
     font-size: 18px;
     text-align: center;
     padding: 20px;
     background: rgba(15, 23, 42, 0.9);
     border-radius: 12px;
-    border: 1px solid #ef4444;
+    border: 1px solid var(--color-error);
 }
 
 .ReplayView-grid {
