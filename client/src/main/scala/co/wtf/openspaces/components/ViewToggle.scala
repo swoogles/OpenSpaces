@@ -27,19 +27,6 @@ object ViewToggle:
           )
         )
       },
-      // Replay button - only when admin mode is enabled
-      child.maybe <-- adminModeEnabled.map { enabled =>
-        Option.when(enabled)(
-          button(
-            cls := "ViewToggle-button",
-            cls <-- currentView.signal.map { view =>
-              if view == AppView.Replay then "ViewToggle-button--active" else ""
-            },
-            onClick --> Observer(_ => currentView.set(AppView.Replay)),
-            "Replay",
-          )
-        )
-      },
       button(
         cls := "ViewToggle-button",
         cls <-- currentView.signal.map { view =>

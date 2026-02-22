@@ -18,7 +18,8 @@ object AdminControls:
     $showAdminControls: Signal[Boolean],
     topicUpdates: DiscussionAction => Unit,
     connectionStatus: ConnectionStatusUI,
-    randomActionClient: RandomActionClient
+    randomActionClient: RandomActionClient,
+    openReplayView: Observer[Unit],
   ): HtmlElement =
     import scala.concurrent.ExecutionContext.Implicits.global
     
@@ -199,6 +200,12 @@ object AdminControls:
         },
       ),
       // Auto-schedule button
+      button(
+        cls := "AdminControls-button",
+        cls := "AdminControls-button--primary",
+        onClick.mapToUnit --> openReplayView,
+        "▶ Replay",
+      ),
       button(
         cls := "AdminControls-button",
         cls := "AdminControls-button--primary",
