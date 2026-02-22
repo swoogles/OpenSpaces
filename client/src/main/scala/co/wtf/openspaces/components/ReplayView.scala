@@ -39,6 +39,7 @@ object ReplayView:
     val boardDimensions = Var((1, 1)) // (cols, rows)
     val columnHeights = Var(Map.empty[Int, Int])
 
+    var gridElement: Option[dom.html.Div] = None
     var playbackTimer: Option[SetTimeoutHandle] = None
 
     def clearPlaybackTimer(): Unit =
@@ -49,12 +50,19 @@ object ReplayView:
       clearPlaybackTimer()
       playbackTimer = Some(setTimeout(delayMs.toDouble)(f))
 
-    def calculateBoardDimensions(): (Int, Int) =
-      val width = dom.window.innerWidth.toInt.max(AvatarSizePx)
-      val height = dom.window.innerHeight.toInt.max(AvatarSizePx)
+    def calculateBoardDimensions(widthPx: Int, heightPx: Int): (Int, Int) =
+      val width = widthPx.max(AvatarSizePx)
+      val height = heightPx.max(AvatarSizePx)
       val cols = (width / AvatarSizePx).max(1)
       val rows = (height / AvatarSizePx).max(1)
       (cols, rows)
+
+    def refreshBoardDimensions(): Unit =
+      val (width, height) =
+        gridElement
+          .map(el => (el.clientWidth.toInt, el.clientHeight.toInt))
+          .getOrElse((dom.window.innerWidth.toInt, dom.window.innerHeight.toInt))
+      boardDimensions.set(calculateBoardDimensions(width, height))
 
     def getRandomAvailableColumn(cols: Int, rows: Int): Option[Int] =
       val heights = columnHeights.now()
@@ -134,7 +142,7 @@ object ReplayView:
 
     def startPlayback(): Unit =
       clearPlaybackTimer()
-      boardDimensions.set(calculateBoardDimensions())
+      refreshBoardDimensions()
       resetBoardState()
       nextId.set(0)
       currentIndex.set(0)
@@ -186,11 +194,15 @@ object ReplayView:
       ),
       div(
         cls := "ReplayView-grid",
-        onMountCallback { _ =>
-          boardDimensions.set(calculateBoardDimensions())
+        onMountCallback { ctx =>
+          gridElement = Some(ctx.thisNode.ref)
+          refreshBoardDimensions()
+        },
+        onUnmountCallback { _ =>
+          gridElement = None
         },
         windowEvents(_.onResize) --> Observer { _ =>
-          boardDimensions.set(calculateBoardDimensions())
+          refreshBoardDimensions()
         },
         children <-- avatars.signal.split(_.id) { (_, initial, avatarSignal) =>
           div(
