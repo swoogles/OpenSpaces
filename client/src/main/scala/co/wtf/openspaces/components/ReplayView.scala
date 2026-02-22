@@ -11,7 +11,7 @@ import co.wtf.openspaces.{ConfirmedActionEntry, ConfirmedActionsResponse}
 /** Tetris-style visualization of conference participation.
   * 
   * Shows GitHub avatars falling into a grid, one action at a time.
-  * Each avatar represents a confirmed action by a user.
+  * Avatars stack in columns like Tetris pieces.
   */
 object ReplayView:
   // Animation configuration (easy to tweak)
@@ -19,29 +19,33 @@ object ReplayView:
   private val DelayBetweenActionsMs = 100
   private val AvatarSize = 20
 
-  // State for an avatar in the grid
-  case class GridCell(
+  // State for a falling/landed avatar
+  case class FallingAvatar(
+    id: Int,           // Unique ID for tracking
     actor: String,
     actionType: String,
     entityType: String,
-    isFalling: Boolean,
-    finalRow: Int,
-    finalCol: Int,
+    col: Int,          // Column (x position)
+    landingRow: Int,   // Row where it will land (from bottom, 0 = bottom row)
   )
 
   def apply(): Element =
     // State
     val actions: Var[List[ConfirmedActionEntry]] = Var(Nil)
-    val grid: Var[List[GridCell]] = Var(Nil)
+    val avatars: Var[List[FallingAvatar]] = Var(Nil)
     val isPlaying: Var[Boolean] = Var(false)
     val currentIndex: Var[Int] = Var(0)
     val gridDimensions: Var[(Int, Int)] = Var((0, 0)) // (cols, rows)
     val errorMessage: Var[Option[String]] = Var(None)
+    val nextId: Var[Int] = Var(0)
+    
+    // Track how many avatars have landed in each column (for stacking)
+    val columnHeights: Var[Map[Int, Int]] = Var(Map.empty)
 
     // Calculate grid dimensions based on viewport
     def calculateGridDimensions(): (Int, Int) =
       val viewportWidth = dom.window.innerWidth.toInt
-      val viewportHeight = dom.window.innerHeight.toInt - 100 // Leave room for header
+      val viewportHeight = dom.window.innerHeight.toInt
       val cols = viewportWidth / AvatarSize
       val rows = viewportHeight / AvatarSize
       (cols, rows)
@@ -71,24 +75,22 @@ object ReplayView:
       }
       xhr.send()
 
-    // Generate a random position in the grid that isn't taken
-    def getRandomPosition(occupiedPositions: Set[(Int, Int)], cols: Int, rows: Int): Option[(Int, Int)] =
-      val allPositions = for
-        col <- 0 until cols
-        row <- 0 until rows
-      yield (col, row)
-      
-      val available = allPositions.filterNot(occupiedPositions.contains).toList
-      if available.isEmpty then None
+    // Find a random column that isn't full
+    def getRandomAvailableColumn(cols: Int, rows: Int): Option[Int] =
+      val heights = columnHeights.now()
+      val availableCols = (0 until cols).filter(col => heights.getOrElse(col, 0) < rows).toList
+      if availableCols.isEmpty then None
       else
-        val idx = (Math.random() * available.size).toInt
-        Some(available(idx))
+        val idx = (Math.random() * availableCols.size).toInt
+        Some(availableCols(idx))
 
     // Start the animated playback
     def startPlayback(): Unit =
       isPlaying.set(true)
       currentIndex.set(0)
-      grid.set(Nil)
+      avatars.set(Nil)
+      columnHeights.set(Map.empty)
+      nextId.set(0)
       
       val dims = calculateGridDimensions()
       gridDimensions.set(dims)
@@ -105,46 +107,39 @@ object ReplayView:
         isPlaying.set(false)
         return
       
-      val currentGrid = grid.now()
-      val occupiedPositions = currentGrid.map(c => (c.finalCol, c.finalRow)).toSet
-      
-      // Check if grid is full
-      if occupiedPositions.size >= cols * rows then
-        isPlaying.set(false)
-        return
-      
       val action = allActions(idx)
       action.actor match
         case Some(actor) =>
-          getRandomPosition(occupiedPositions, cols, rows) match
-            case Some((col, row)) =>
-              // Add the new cell in falling state
-              val newCell = GridCell(
+          getRandomAvailableColumn(cols, rows) match
+            case Some(col) =>
+              // Get current height of this column and increment it
+              val currentHeight = columnHeights.now().getOrElse(col, 0)
+              columnHeights.update(h => h + (col -> (currentHeight + 1)))
+              
+              // Landing row (from bottom: 0 = bottom, 1 = one above bottom, etc.)
+              val landingRow = currentHeight
+              
+              // Create the avatar
+              val id = nextId.now()
+              nextId.update(_ + 1)
+              
+              val avatar = FallingAvatar(
+                id = id,
                 actor = actor,
                 actionType = action.actionType,
                 entityType = action.entityType,
-                isFalling = true,
-                finalRow = row,
-                finalCol = col,
+                col = col,
+                landingRow = landingRow,
               )
-              grid.update(_ :+ newCell)
+              avatars.update(_ :+ avatar)
               
-              // After fall duration, mark as landed
-              setTimeout(FallDurationMs.toDouble) {
-                grid.update(_.map { cell =>
-                  if cell.finalCol == col && cell.finalRow == row then
-                    cell.copy(isFalling = false)
-                  else cell
-                })
-              }
-              
-              // Schedule next action
+              // Schedule next action (after delay, not after fall completes)
               currentIndex.update(_ + 1)
               setTimeout(DelayBetweenActionsMs.toDouble) {
                 if isPlaying.now() then playNextAction()
               }
             case None =>
-              // Grid is full
+              // All columns full
               isPlaying.set(false)
         case None =>
           // Skip actions without actors
@@ -153,7 +148,7 @@ object ReplayView:
 
     // GitHub avatar URL
     def avatarUrl(username: String): String =
-      s"https://github.com/$username.png?size=$AvatarSize"
+      s"https://github.com/$username.png?size=${AvatarSize * 2}"
 
     div(
       cls := "ReplayView",
@@ -170,39 +165,54 @@ object ReplayView:
         cls := "ReplayView-progress",
         child.text <-- Signal.combine(currentIndex.signal, actions.signal).map {
           case (idx, acts) =>
-            val total = acts.size
             val withActors = acts.count(_.actor.isDefined)
-            s"$idx / $withActors actions (${acts.size} total)"
+            s"$idx / $withActors actions"
         },
       ),
-      // Grid container
+      // Grid container - position relative so absolute children work
       div(
         cls := "ReplayView-grid",
-        children <-- Signal.combine(grid.signal, gridDimensions.signal).map {
-          case (cells, (cols, rows)) =>
-            cells.map { cell =>
-              val finalTop = cell.finalRow * AvatarSize
+        position.relative,
+        width := "100%",
+        height := "100%",
+        overflow.hidden,
+        children <-- Signal.combine(avatars.signal, gridDimensions.signal).map {
+          case (avs, (cols, rows)) =>
+            val viewportHeight = dom.window.innerHeight.toInt
+            avs.map { avatar =>
+              // Calculate pixel positions
+              val xPos = avatar.col * AvatarSize
+              // Landing Y: bottom of screen minus (row + 1) * size
+              // Row 0 = bottom, so landingY = viewportHeight - AvatarSize
+              // Row 1 = one above, so landingY = viewportHeight - 2*AvatarSize
+              val landingY = viewportHeight - ((avatar.landingRow + 1) * AvatarSize)
+              val startY = -AvatarSize // Start above viewport
+              
               div(
                 cls := "ReplayView-avatar",
-                // Start at top of screen, will animate to final position
                 position.absolute,
-                left := s"${cell.finalCol * AvatarSize}px",
+                left := s"${xPos}px",
                 width := s"${AvatarSize}px",
                 height := s"${AvatarSize}px",
-                top := s"${-AvatarSize}px",
-                Modifier { el =>
-                  // After mount, trigger animation on next frame
+                top := s"${startY}px", // Start position
+                // Use onMountCallback to trigger animation after render
+                onMountCallback { ctx =>
+                  val el = ctx.thisNode.ref
+                  // Double requestAnimationFrame ensures the initial position is painted first
                   dom.window.requestAnimationFrame { _ =>
-                    el.ref.style.transition = s"top ${FallDurationMs}ms linear"
-                    el.ref.style.top = s"${finalTop}px"
+                    dom.window.requestAnimationFrame { _ =>
+                      el.style.transition = s"top ${FallDurationMs}ms linear"
+                      el.style.top = s"${landingY}px"
+                    }
                   }
                 },
                 img(
-                  src := avatarUrl(cell.actor),
-                  alt := cell.actor,
-                  title := s"${cell.actor}: ${cell.entityType}.${cell.actionType}",
+                  src := avatarUrl(avatar.actor),
+                  alt := avatar.actor,
+                  title := s"${avatar.actor}: ${avatar.entityType}.${avatar.actionType}",
                   widthAttr := AvatarSize,
                   heightAttr := AvatarSize,
+                  borderRadius := "2px",
                 ),
               )
             }
