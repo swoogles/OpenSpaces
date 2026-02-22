@@ -130,8 +130,8 @@ body {
 }
 
 .PageContainer {
+    width: 100%;
     gap: 5px;
-    justify-items: center;
 }
 
 /* ============================================
@@ -365,13 +365,15 @@ body {
 .TopicsContainer {
     display: grid;
     gap: 10px;
+    width: 100%;
 }
 
 .TopicGroups {
     display: flex;
     flex-direction: column;
     gap: 16px;
-    margin: 8px 10px 24px 10px;
+    width: 100%;
+    padding: 8px 10px 24px 10px;
 }
 
 .TopicSection {
@@ -408,7 +410,8 @@ body {
     display: flex;
     flex-direction: column;
     gap: 12px;
-    padding-bottom: 70px;
+    width: 100%;
+    padding: 0 10px 70px 10px;
 }
 
 .LightningTalk-adminControls {
@@ -1637,6 +1640,7 @@ body {
 }
 /* Linear Schedule View */
 .LinearScheduleView {
+    width: 100%;
     padding: 0 16px 16px;
 }
 
@@ -2282,6 +2286,7 @@ body {
     display: flex;
     flex-direction: column;
     gap: 16px;
+    width: 100%;
     padding: 0 10px 70px 10px;
 }
 
