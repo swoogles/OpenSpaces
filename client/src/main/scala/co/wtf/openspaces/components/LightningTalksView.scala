@@ -36,6 +36,7 @@ object LightningTalksView:
               metaText = Some(LightningTalkProposalCard.locationLabel(proposal)),
               rowClass = "LightningTalk-row LightningTalk-row--myProposal",
             ),
+            span("Spots will be randomly assigned...sometime. TBD."),
             button(
               cls := "TopicSubmission-button",
               onClick --> Observer { _ =>
@@ -49,7 +50,7 @@ object LightningTalksView:
                     ),
                   )
               },
-              span("I'm no longer available"),
+              span("Nevermind, I would prefer to not give a lightning talk."),
             ),
           )
         case None =>
