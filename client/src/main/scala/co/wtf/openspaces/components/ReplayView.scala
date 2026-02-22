@@ -181,18 +181,22 @@ object ReplayView:
         children <-- Signal.combine(grid.signal, gridDimensions.signal).map {
           case (cells, (cols, rows)) =>
             cells.map { cell =>
-              val topPosition = if cell.isFalling then -AvatarSize else cell.finalRow * AvatarSize
+              val finalTop = cell.finalRow * AvatarSize
               div(
                 cls := "ReplayView-avatar",
-                cls := (if cell.isFalling then "ReplayView-avatar--falling" else ""),
-                styleAttr := s"""
-                  position: absolute;
-                  left: ${cell.finalCol * AvatarSize}px;
-                  top: ${topPosition}px;
-                  width: ${AvatarSize}px;
-                  height: ${AvatarSize}px;
-                  transition: top ${FallDurationMs}ms linear;
-                """,
+                // Start at top of screen, will animate to final position
+                position.absolute,
+                left := s"${cell.finalCol * AvatarSize}px",
+                width := s"${AvatarSize}px",
+                height := s"${AvatarSize}px",
+                top := s"${-AvatarSize}px",
+                Modifier { el =>
+                  // After mount, trigger animation on next frame
+                  dom.window.requestAnimationFrame { _ =>
+                    el.ref.style.transition = s"top ${FallDurationMs}ms linear"
+                    el.ref.style.top = s"${finalTop}px"
+                  }
+                },
                 img(
                   src := avatarUrl(cell.actor),
                   alt := cell.actor,
