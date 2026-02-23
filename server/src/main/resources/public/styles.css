@@ -132,6 +132,10 @@ html {
     background-color: var(--color-white);
     text-align: center;
     height: 100%;
+    --gap-tight: var(--pad-xs);
+    --gap-default: var(--pad-sm);
+    --gap-room: var(--pad-md);
+    --gap-loose: var(--pad-lg);
 }
 
 :is(
@@ -192,7 +196,67 @@ html {
     .HackathonProjectCard-actions
 ) {
     display: flex;
-    gap: var(--pad-sm);
+    gap: var(--gap-default);
+}
+
+:is(
+    .PageContainer,
+    .VoteButtonRow,
+    .InlineEditableTitle-actions,
+    .ViewToggle,
+    .VoteIndicator
+) {
+    gap: var(--gap-tight);
+}
+
+:is(
+    .TopicsContainer,
+    .HackathonProjects-createForm,
+    .HackathonProjects-createFormButtons,
+    .HackathonProjects-list,
+    .HackathonProjectCard,
+    .HackathonProjectCard-members,
+    .ConfirmationModal-buttons
+) {
+    gap: var(--gap-room);
+}
+
+:is(
+    .LoginScreen-button,
+    .Flex,
+    .TopicSubmission,
+    .TopicGroups,
+    .LightningTalks,
+    .connection-banner,
+    .LinearTopicRow,
+    .HackathonProjects
+) {
+    gap: var(--gap-loose);
+}
+
+:is(
+    .container,
+    .UserProfileSection,
+    .LightningTalk-list,
+    .LightningTalk-night,
+    .LightningTalk-row,
+    .LightningTalk-slot,
+    .LightningTalk-main,
+    .LightningTalk-metaRow,
+    .LightningTalk-actions,
+    .VoteChevronStack,
+    .InlineEditableTitle-displayRow,
+    .SecondaryActive > span,
+    .Menu-actions,
+    .AdminControls,
+    .AdminModeToggle-label,
+    .connection-banner-content,
+    .LinearTopicCard,
+    .LinearTopicMeta,
+    .LinearEmptySlot,
+    .HackathonProjectCard-header
+) {
+    gap: var(--gap-default);
 }
 
 :is(
@@ -338,7 +402,6 @@ button {
     width: 100%;
     max-width: 420px;
     margin-inline: auto;
-    gap: var(--pad-xs);
 }
 
 .LoginScreen {
@@ -380,7 +443,6 @@ button {
 
 .LoginScreen-button {
     display: inline-flex;
-    gap: var(--pad-lg);
     width: 100%;
     padding: var(--pad-lg) var(--pad-lg);
     font-size: var(--font-size-2xl);
@@ -424,7 +486,6 @@ button {
 
 .UserProfileSection {
     display: flex;
-    gap: var(--pad-sm);
     padding-right: var(--pad-md);
 }
 
@@ -445,11 +506,9 @@ button {
 
 .Flex {
     display: flex;
-    gap: var(--pad-lg);
 }
 
 .TopicSubmission {
-    gap: var(--pad-lg);
     padding: var(--pad-lg);
     margin: var(--pad-md) var(--pad-md) var(--pad-lg) var(--pad-md);
     background: linear-gradient(135deg, var(--color-primary) 0%, var(--color-primary-dark) 100%);
@@ -529,14 +588,12 @@ button {
 
 .TopicsContainer {
     display: grid;
-    gap: var(--pad-md);
     width: 100%;
 }
 
 .TopicGroups {
     display: flex;
     flex-direction: column;
-    gap: var(--pad-lg);
     width: 100%;
     padding: var(--pad-sm) var(--pad-md) var(--pad-lg) var(--pad-md);
 }
@@ -564,7 +621,6 @@ button {
 }
 
 .LightningTalks {
-    gap: var(--pad-lg);
 }
 
 .LightningTalk-adminControls {
@@ -589,13 +645,11 @@ button {
     box-shadow: var(--shadow-sm);
     display: flex;
     flex-direction: column;
-    gap: var(--pad-sm);
 }
 
 .LightningTalk-row,
 .LightningTalk-slot {
     display: grid;
-    gap: var(--pad-sm);
     border: 1px solid var(--color-border-section);
     border-radius: var(--radius-md);
     padding: var(--pad-sm);
@@ -619,7 +673,6 @@ button {
 .LightningTalk-main {
     display: flex;
     flex-direction: row;
-    gap: var(--pad-sm);
     flex-wrap: wrap;
 }
 
@@ -639,13 +692,11 @@ button {
 
 .LightningTalk-metaRow {
     display: inline-flex;
-    gap: var(--pad-sm);
     max-width: 100%;
 }
 
 .LightningTalk-actions {
     display: flex;
-    gap: var(--pad-sm);
 }
 
 .LightningTalk-actionButton {
@@ -679,14 +730,12 @@ button {
 .VoteChevronStack {
     display: flex;
     flex-direction: column;
-    gap: var(--pad-sm);
     width: 100%;
 }
 
 .VoteButtonRow {
     display: flex;
     flex-direction: row;
-    gap: var(--pad-xs);
     padding: var(--pad-xs);
 }
 
@@ -802,7 +851,6 @@ button {
     grid-template-areas:
         "Targets"
         "Schedule";
-    gap: var(--pad-sm);
 }
 
 .Schedule {
@@ -810,7 +858,7 @@ button {
     grid-template-columns: 2fr 4fr;
     grid-template-rows: 1fr 9fr;
     grid-auto-rows: min-content;
-    gap: var(--pad-md) 0;
+    gap: var(--gap-room) 0;
     grid-template-areas:
         "deadspace RoomHeaders"
         "TimeSlots TimeSlots";
@@ -892,7 +940,6 @@ button {
 .InlineEditableTitle-displayRow {
     display: flex;
     align-items: flex-start;
-    gap: var(--pad-sm);
 }
 
 .InlineEditableTitle-text {
@@ -937,7 +984,6 @@ button {
 
 .InlineEditableTitle-actions {
     display: flex;
-    gap: var(--pad-xs);
     flex-shrink: 0;
 }
 
@@ -979,14 +1025,12 @@ button {
     padding: var(--pad-xs) var(--pad-md) var(--pad-sm) var(--pad-md);
     display: flex;
     flex-wrap: wrap;
-    gap: var(--pad-sm);
     min-width: 0;
     overflow: hidden;
 }
 
 .SecondaryActive > span {
     display: flex;
-    gap: var(--pad-sm);
 }
 
 .FacilitatorName {
@@ -1126,7 +1170,6 @@ button {
     padding: var(--pad-md);
     border-radius: var(--radius-md);
     display: flex;
-    gap: var(--pad-sm);
     min-width: 0;
     
 }
@@ -1156,7 +1199,6 @@ button {
 }
 
 .Menu-actions {
-    gap: var(--pad-sm);
 }
 
 .Menu-swapButton {
@@ -1322,7 +1364,6 @@ button {
 .AdminControls {
     display: flex;
     flex-wrap: wrap;
-    gap: var(--pad-sm);
     margin: var(--pad-sm) var(--pad-lg);
 }
 
@@ -1404,7 +1445,6 @@ button {
 
 .AdminModeToggle-label {
     display: flex;
-    gap: var(--pad-sm);
     color: var(--color-warning-dark);
 }
 
@@ -1414,7 +1454,6 @@ button {
     border-radius: var(--radius-md);
     padding: var(--pad-xs);
     margin: var(--pad-md) var(--pad-lg);
-    gap: var(--pad-xs);
 }
 
 .ViewToggle-button {
@@ -1485,7 +1524,6 @@ button {
 
 .connection-banner {
     display: none;
-    gap: var(--pad-lg);
     width: 100%;
 }
 
@@ -1510,7 +1548,6 @@ button {
 
 .connection-banner-content {
     display: flex;
-    gap: var(--pad-sm);
 }
 
 .connection-banner-icon {
@@ -1620,7 +1657,6 @@ button {
     padding: var(--pad-md);
     display: flex;
     flex-direction: column;
-    gap: var(--pad-sm);
 }
 
 .LinearTopicTitle {
@@ -1630,13 +1666,11 @@ button {
 .LinearTopicRow {
     display: flex;
     justify-content: space-between;
-    gap: var(--pad-lg);
 }
 
 .LinearTopicMeta {
     display: flex;
     flex-wrap: wrap;
-    gap: var(--pad-sm);
 }
 
 .LinearTopicMeta .github-avatar {
@@ -1675,7 +1709,6 @@ button {
     color: var(--color-text-muted);
     font-style: italic;
     display: flex;
-    gap: var(--pad-sm);
     transition: all 0.2s ease;
 }
 
@@ -1800,7 +1833,6 @@ button {
     top: 0;
     bottom: 0;
     width: 32px;
-    gap: var(--pad-xs);
     opacity: 0;
     pointer-events: none;
     transition: opacity 0.3s ease;
@@ -2029,7 +2061,6 @@ button {
 }
 
 .HackathonProjects {
-    gap: var(--pad-lg);
 }
 
 :is(.LightningTalks, .HackathonProjects) {
@@ -2080,7 +2111,6 @@ button {
 }
 
 .HackathonProjects-createForm {
-    gap: var(--pad-md);
     background: linear-gradient(135deg, var(--color-primary) 0%, var(--color-primary-dark) 100%);
     padding: var(--pad-lg);
     border-radius: var(--radius-md);
@@ -2100,7 +2130,6 @@ button {
 
 .HackathonProjects-createFormButtons {
     display: flex;
-    gap: var(--pad-md);
 }
 
 .HackathonProjects-submitButton,
@@ -2130,7 +2159,6 @@ button {
 
 .HackathonProjects-list {
     padding: var(--pad-md);
-    gap: var(--pad-md);
 }
 
 .HackathonProjects-empty {
@@ -2143,7 +2171,6 @@ button {
     border: 1px solid var(--color-border-section);
     border-radius: var(--radius-md);
     padding: var(--pad-md);
-    gap: var(--pad-md);
 }
 
 .HackathonProjectCard--mine {
@@ -2159,7 +2186,6 @@ button {
     display: flex;
     justify-content: space-between;
     align-items: flex-start;
-    gap: var(--pad-sm);
 }
 
 .HackathonProjectCard-title {
@@ -2178,7 +2204,6 @@ button {
 
 .HackathonProjectCard-members {
     display: flex;
-    gap: var(--pad-md);
 }
 
 .HackathonProjectCard-avatars {
@@ -2287,7 +2312,6 @@ button {
 
 .ConfirmationModal-buttons {
     display: flex;
-    gap: var(--pad-md);
 }
 
 .ConfirmationModal-button {
