@@ -10,17 +10,23 @@
   "background_color": "#f4f8fc",
   "icons": [
     {
-      "src": "images/BILLDING_LogoMark-256.png",
-      "sizes": "256x256",
+      "src": "images/wtf-web-nodate-192.png",
+      "sizes": "192x192",
       "type": "image/png",
-      "purpose": "any maskable"
+      "purpose": "any"
     },
     {
-      "src": "images/BILLDING_LogoMark-500.png",
-      "sizes": "500x500",
-      "type": "image/png"
+      "src": "images/wtf-web-nodate-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "images/wtf-web-nodate-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
     }
   ]
 }
-
 
