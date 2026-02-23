@@ -55,9 +55,8 @@
     --radius-md: 8px;
     --radius-full: 50%;
 
-    
-    --layout-align-items: center;
-    --layout-justify-content: center;
+    --align-center: center;
+    --justify-center: center;
 
     
     --pad-0: 0;
@@ -133,8 +132,6 @@ html {
     background-color: var(--color-white);
     text-align: center;
     height: 100%;
-    --app-align-items: var(--layout-align-items);
-    --app-justify-content: var(--layout-justify-content);
 }
 
 :is(
@@ -162,8 +159,8 @@ html {
     .emptySlotWithActiveDiscussion,
     .ConfirmationModal-overlay
 ) {
-    align-items: var(--app-align-items);
-    justify-content: var(--app-justify-content);
+    align-items: var(--align-center);
+    justify-content: var(--justify-center);
 }
 
 :is(
@@ -295,14 +292,40 @@ html {
     font-style: italic;
 }
 
-.AppRoot,
 body {
+    margin: 0;
     font-size: var(--font-size-md);
     background-color: var(--color-bg-page);
     font-family: "Roboto", serif; 
     font-weight: var(--font-weight-medium);
     color: var(--color-text);
     line-height: var(--line-height-normal);
+}
+
+:is(
+    .LightningTalk-meta,
+    .LightningTalk-actionButton,
+    .Menu-label,
+    .Menu-roomSlot,
+    .AdminControls-version,
+    .AdminModeToggle-label,
+    .connection-indicator-dot,
+    .connection-banner-retry,
+    .HackathonProjectCard-ownerBadge,
+    .HackathonProjectCard-moreMembers,
+    .HackathonProjectCard-largeWarning
+) {
+    font-size: var(--font-size-xs);
+}
+
+:is(
+    .VoteCount,
+    .RoomHeader,
+    .DayHeader,
+    .LinearTimeHeader,
+    .VoteIndicator-icon
+) {
+    font-size: var(--font-size-subhead);
 }
 
 input,
@@ -343,7 +366,6 @@ button {
     margin: 0 0 var(--pad-lg) 0;
     font-size: var(--font-size-display);
     font-weight: var(--font-weight-bold);
-    color: var(--color-text);
 }
 
 .LoginScreen-description {
@@ -403,7 +425,7 @@ button {
 .UserProfileSection {
     display: flex;
     gap: var(--pad-sm);
-    padding-right: 12px;
+    padding-right: var(--pad-md);
 }
 
 .ProfileIconButton {
@@ -453,7 +475,6 @@ button {
     width: 100%;
     min-height: 80px;
     padding: var(--pad-md) var(--pad-lg); 
-    line-height: var(--line-height-normal);
     background-color: rgba(255, 255, 255, 0.95);
     border: 2px solid transparent;
     border-radius: var(--radius-md);
@@ -527,21 +548,17 @@ button {
 
 .TopicSection-title {
     margin: 0;
-    color: var(--color-text);
     font-weight: var(--font-weight-bold);
 }
 
 .TopicSection-subtitle {
     margin: var(--pad-xs) 0 var(--pad-md) 0;
     color: var(--color-text-secondary);
-    font-size: var(--font-size-sm);
-    line-height: 1.35;
 }
 
 .TopicSection-empty {
     padding: var(--pad-md) var(--pad-sm);
     color: var(--color-text-muted);
-    font-size: var(--font-size-sm);
     background: var(--color-bg-surface);
     border-radius: var(--radius-md);
 }
@@ -564,7 +581,6 @@ button {
     border: 1px solid var(--color-warning);
     border-radius: var(--radius-md);
     padding: var(--pad-sm) var(--pad-md);
-    font-size: var(--font-size-sm);
 }
 
 .LightningTalk-list,
@@ -596,7 +612,6 @@ button {
 
 .LightningTalk-slotNumber {
     color: var(--color-interactive);
-    font-size: var(--font-size-sm);
     font-weight: 800;
     min-width: 26px;
 }
@@ -614,14 +629,12 @@ button {
 }
 
 .LightningTalk-title {
-    color: var(--color-text);
     font-weight: var(--font-weight-bold);
     line-height: var(--line-height-tight);
 }
 
 .LightningTalk-meta {
     color: var(--color-text-muted);
-    font-size: var(--font-size-xs);
 }
 
 .LightningTalk-metaRow {
@@ -641,7 +654,6 @@ button {
     color: var(--color-text-secondary);
     border-radius: var(--radius-md);
     padding: var(--pad-xs) var(--pad-sm);
-    font-size: var(--font-size-xs);
     font-weight: var(--font-weight-bold);
 }
 
@@ -679,9 +691,6 @@ button {
 }
 
 .VoteCount {
-    font-size: var(--font-size-subhead);
-    color: var(--color-text);
-    line-height: 1;
     min-width: 24px;
 }
 
@@ -827,7 +836,6 @@ button {
 
 .RoomHeader {
     font-weight: var(--font-weight-bold);
-    font-size: var(--font-size-subhead);
     padding: var(--pad-sm);
     text-transform: uppercase;
     letter-spacing: 0.5px;
@@ -871,7 +879,6 @@ button {
     grid-area: MainActive;
     line-height: var(--line-height-tight);
     padding: var(--pad-sm) var(--pad-md) var(--pad-xs) var(--pad-md);
-    color: var(--color-text);
     min-width: 0;
     overflow-wrap: break-word;
     word-wrap: break-word;
@@ -944,15 +951,12 @@ button {
     border-color: var(--color-error);
 }
 
-.InlineEditableTitle-editRow {
-}
 
 .InlineEditableTitle-input {
     flex: 1;
     min-width: 0;
     padding: var(--pad-sm) var(--pad-md);
     font: inherit;
-    color: var(--color-text);
     background-color: var(--color-white);
     border: 2px solid var(--color-primary);
     border-radius: var(--radius-md);
@@ -996,7 +1000,6 @@ button {
 
 .RoomSlot {
     font-size: var(--font-size-note);
-    color: var(--color-text);
     background-color: rgba(74, 144, 217, 0.15);
     padding: var(--pad-xs) var(--pad-sm);
     border-radius: var(--radius-sm);
@@ -1056,7 +1059,6 @@ button {
 
 .DayHeader {
     font-weight: var(--font-weight-bold);
-    font-size: var(--font-size-subhead);
     text-transform: uppercase;
     letter-spacing: 0.5px;
     padding: var(--pad-md) var(--pad-sm) var(--pad-sm) var(--pad-sm);
@@ -1080,12 +1082,9 @@ button {
 @media (max-width: 400px) {
     .Menu {
         padding: var(--pad-md);
-        left: 10px !important;
-        right: 10px !important;
+        left: var(--pad-sm) !important;
+        right: var(--pad-sm) !important;
         width: auto !important;
-    }
-
-    .Menu-header {
     }
 
     .Menu-topicName {
@@ -1107,7 +1106,7 @@ button {
     font-weight: var(--font-weight-bold);
     margin-bottom: var(--pad-md);
     border-bottom: 1px solid var(--color-border);
-    padding-bottom: 8px;
+    padding-bottom: var(--pad-sm);
 }
 
 .Menu-section {
@@ -1119,7 +1118,6 @@ button {
 }
 
 .Menu-label {
-    font-size: var(--font-size-xs);
     color: var(--color-text-subtle);
     margin-bottom: var(--pad-xs);
 }
@@ -1154,7 +1152,6 @@ button {
 }
 
 .Menu-roomSlot {
-    font-size: var(--font-size-xs);
     color: var(--color-text-subtle);
 }
 
@@ -1178,7 +1175,6 @@ button {
 .Menu-cancelButton {
     width: 100%;
     background-color: var(--color-bg-page);
-    color: var(--color-text);
     border: 1px solid var(--color-border);
     border-radius: var(--radius-sm);
 }
@@ -1199,7 +1195,6 @@ button {
 .Menu-error {
     margin-top: var(--pad-sm);
     color: var(--color-error-dark);
-    font-size: var(--font-size-sm);
 }
 
 .ErrorBanner {
@@ -1223,7 +1218,6 @@ button {
     color: var(--color-error-dark);
     font-size: var(--font-size-3xl);
     padding: 0 0 0 var(--pad-lg);
-    line-height: 1;
 }
 
 .ErrorBanner-dismiss:hover {
@@ -1384,7 +1378,6 @@ button {
 
 .AdminControls-version {
     padding: var(--pad-sm) var(--pad-md);
-    font-size: var(--font-size-xs);
     font-family: monospace;
     color: var(--color-text-muted);
     background-color: var(--color-bg-surface);
@@ -1412,11 +1405,7 @@ button {
 .AdminModeToggle-label {
     display: flex;
     gap: var(--pad-sm);
-    font-size: var(--font-size-xs);
     color: var(--color-warning-dark);
-}
-
-.AdminModeToggle-label input {
 }
 
 .ViewToggle {
@@ -1445,7 +1434,6 @@ button {
 
 .ViewToggle-button--active {
     background-color: var(--color-white);
-    color: var(--color-text);
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 
@@ -1486,7 +1474,6 @@ button {
     display: inline-flex;
     width: 20px;
     height: 20px;
-    font-size: var(--font-size-xs);
     margin-left: var(--pad-sm);
     border-radius: var(--radius-full);
 }
@@ -1545,7 +1532,6 @@ button {
     border-radius: var(--radius-sm);
     background-color: var(--color-error);
     color: var(--color-white);
-    font-size: var(--font-size-xs);
 }
 
 .connection-banner-retry:hover {
@@ -1594,7 +1580,6 @@ button {
 }
 
 .LinearTimeHeader {
-    font-size: var(--font-size-subhead);
     color: var(--color-text-secondary);
     padding: var(--pad-sm) var(--pad-md);
     background-color: var(--color-bg-surface);
@@ -1617,7 +1602,7 @@ button {
 
 .LinearRoomSlot {
     margin-bottom: var(--pad-md);
-    padding-left: 12px;
+    padding-left: var(--pad-md);
     border-left: 3px solid var(--color-border-strong);
 }
 
@@ -1639,7 +1624,6 @@ button {
 }
 
 .LinearTopicTitle {
-    color: var(--color-text);
     line-height: var(--line-height-tight);
 }
 
@@ -1682,8 +1666,6 @@ button {
     height: 18px;
 }
 
-.LinearTopicActions {
-}
 
 .LinearEmptySlot {
     padding: var(--pad-lg);
@@ -1746,14 +1728,14 @@ button {
     left: 0;
     background: linear-gradient(90deg, var(--color-border) 0%, var(--color-bg-surface) 100%);
     justify-content: flex-end;
-    padding-right: 20px;
+    padding-right: calc(var(--pad-lg) + var(--pad-xs));
 }
 
 .SwipeReveal--right {
     right: 0;
     background: linear-gradient(270deg, var(--color-success-light) 0%, var(--color-success-light) 100%);
     justify-content: flex-start;
-    padding-left: 20px;
+    padding-left: calc(var(--pad-lg) + var(--pad-xs));
 }
 
 .SwipeRevealIcon {
@@ -1840,13 +1822,10 @@ button {
 }
 
 .VoteIndicator-icon {
-    font-size: var(--font-size-subhead);
-    line-height: 1;
 }
 
 .VoteIndicator-count {
     font-size: var(--font-size-caption);
-    line-height: 1;
 }
 
 .VoteCount--hidden {
@@ -1855,13 +1834,13 @@ button {
 
 .TopicCard {
     position: relative;
-    padding-left: 36px !important;
-    padding-right: 12px !important;
+    padding-left: calc(var(--pad-lg) * 2 + var(--pad-xs)) !important;
+    padding-right: var(--pad-md) !important;
 }
 
 .SwipeableCardContent .TopicCard {
-    padding-left: 36px !important;
-    padding-right: 12px !important;
+    padding-left: calc(var(--pad-lg) * 2 + var(--pad-xs)) !important;
+    padding-right: var(--pad-md) !important;
 }
 
 @keyframes vote-poof {
@@ -2059,7 +2038,6 @@ button {
 }
 
 .HackathonProjects-sectionTitle {
-    color: var(--color-text);
     margin: 0 0 var(--pad-sm) 0;
 }
 
@@ -2186,13 +2164,11 @@ button {
 
 .HackathonProjectCard-title {
     margin: 0;
-    color: var(--color-text);
     flex: 1;
     word-wrap: break-word;
 }
 
 .HackathonProjectCard-ownerBadge {
-    font-size: var(--font-size-xs);
     background: var(--color-warning-light);
     color: var(--color-warning-dark);
     padding: var(--pad-xs) var(--pad-sm);
@@ -2223,18 +2199,15 @@ button {
 }
 
 .HackathonProjectCard-moreMembers {
-    font-size: var(--font-size-xs);
     color: var(--color-text-subtle);
     margin-left: var(--pad-xs);
 }
 
 .HackathonProjectCard-memberCount {
-    font-size: var(--font-size-sm);
     color: var(--color-text-subtle);
 }
 
 .HackathonProjectCard-largeWarning {
-    font-size: var(--font-size-xs);
     color: var(--color-warning-dark);
     background: var(--color-warning-light);
     padding: var(--pad-sm) var(--pad-md);
@@ -2242,7 +2215,6 @@ button {
 }
 
 .HackathonProjectCard-slackLink {
-    font-size: var(--font-size-sm);
     color: var(--color-primary);
     text-decoration: none;
 }
@@ -2306,13 +2278,11 @@ button {
 .ConfirmationModal-title {
     margin: 0 0 var(--pad-md) 0;
     font-size: var(--font-size-2xl);
-    color: var(--color-text);
 }
 
 .ConfirmationModal-message {
     margin: 0 0 var(--pad-lg) 0;
     color: var(--color-text-subtle);
-    line-height: var(--line-height-normal);
 }
 
 .ConfirmationModal-buttons {
@@ -2400,8 +2370,4 @@ button {
 .ReplayView-avatar img {
     display: block;
     border-radius: var(--radius-sm);
-}
-
-.ReplayView-avatar--falling {
-    
 }
