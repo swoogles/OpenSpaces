@@ -10,6 +10,7 @@ import co.wtf.openspaces.{
 import co.wtf.openspaces.discussions.VotePosition
 import co.wtf.openspaces.discussions.Discussion
 import co.wtf.openspaces.discussions.DiscussionAction
+import co.wtf.openspaces.discussions.Feedback
 import co.wtf.openspaces.AppState
 import co.wtf.openspaces.*
 import co.wtf.openspaces.components.{InlineEditableTitle, SwipeableCard}
@@ -169,7 +170,17 @@ object TopicCard:
 
         // Wrap with swipe functionality if enabled
         if enableSwipe then
-          SwipeableCard(topic, name, topicUpdates, cardContent, connectionStatus)
+          SwipeableCard(
+            cardContent = cardContent,
+            onAction = Observer { (position: VotePosition) =>
+              if connectionStatus.checkReady() then
+                topicUpdates(DiscussionAction.Vote(topic.id, Feedback(name.now(), position)))
+              else
+                connectionStatus.reportError("Syncing latest topics. Please wait a moment.")
+            },
+            leftAction = Some(SwipeableCard.Action(VotePosition.NotInterested, "✗")),
+            rightAction = Some(SwipeableCard.Action(VotePosition.Interested, "♥")),
+          )
         else
           cardContent
 

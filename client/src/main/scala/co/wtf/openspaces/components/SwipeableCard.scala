@@ -4,11 +4,8 @@ import com.raquo.laminar.api.L.{*, given}
 import org.scalajs.dom
 import org.scalajs.dom.window
 
-import co.wtf.openspaces.Person
-import co.wtf.openspaces.discussions.{Discussion, DiscussionAction, Feedback, VotePosition}
-
-import co.wtf.openspaces.*
-import io.laminext.websocket.*
+enum SwipeDirection:
+  case Left, Right
 
 /** Swipe state for tracking drag gestures */
 case class SwipeState(
@@ -19,45 +16,43 @@ case class SwipeState(
 ):
   /** Horizontal offset from start position */
   def offsetX: Double = if isDragging then currentX - startX else 0
-  
+
   /** Progress toward threshold (-1 to 1, negative = left, positive = right) */
-  def progress: Double = 
+  def progress: Double =
     val threshold = cardWidth * 0.35
     (offsetX / threshold).max(-1.5).min(1.5)
-  
+
   /** Whether we've crossed the commit threshold */
   def isPastThreshold: Boolean = math.abs(progress) >= 1.0
-  
-  /** The vote direction if past threshold */
-  def voteDirection: Option[VotePosition] =
-    if !isPastThreshold then None
-    else if offsetX > 0 then Some(VotePosition.Interested)
-    else Some(VotePosition.NotInterested)
 
-/** Swipeable wrapper for topic cards that enables swipe-to-vote.
-  * 
-  * - Swipe right → Interested (green)
-  * - Swipe left → Not Interested (gray)
-  * - Visual feedback: color gradient + icon reveal during drag
-  * - Threshold at ~35% of card width
-  * - Rubber-bands back if released before threshold
-  * 
-  * Extracted from FrontEnd.scala for better code organization.
+  /** Swipe direction if past threshold */
+  def swipeDirection: Option[SwipeDirection] =
+    if !isPastThreshold then None
+    else if offsetX > 0 then Some(SwipeDirection.Right)
+    else Some(SwipeDirection.Left)
+
+/** Generic swipeable wrapper for cards.
+  *
+  * Configure optional left/right actions and handle typed actions in `onAction`.
   */
 object SwipeableCard:
-  
-  def apply(
-    topic: Discussion,
-    name: StrictSignal[Person],
-    topicUpdates: DiscussionAction => Unit,
+
+  case class Action[A](
+    value: A,
+    icon: String,
+  )
+
+  def apply[A](
     cardContent: HtmlElement,
-    connectionStatus: ConnectionStatusUI
+    onAction: Observer[A],
+    leftAction: Option[Action[A]] = None,
+    rightAction: Option[Action[A]] = None,
   ): HtmlElement =
     val swipeState: Var[SwipeState] = Var(SwipeState())
-    
+
     // Animation state for rubber-band effect
     val isAnimating: Var[Boolean] = Var(false)
-    
+
     def handleDragStart(clientX: Double, element: dom.Element): Unit =
       if !isAnimating.now() then
         val rect = element.getBoundingClientRect()
@@ -71,29 +66,22 @@ object SwipeableCard:
     def handleDragMove(clientX: Double): Unit =
       if swipeState.now().isDragging then
         swipeState.update(_.copy(currentX = clientX))
-    
+
     def handleDragEnd(): Unit =
       val state = swipeState.now()
       if state.isDragging then
-        state.voteDirection match
-          case Some(position) =>
-            // Only commit the vote if connection is ready
-            // This prevents actions during sync/reconnect which would be rejected
-            if connectionStatus.checkReady() then
-              val voter = name.now()
-              topicUpdates(DiscussionAction.Vote(topic.id, Feedback(voter, position)))
-            else
-              connectionStatus.reportError("Syncing latest topics. Please wait a moment.")
-          case None =>
-            // Rubber-band back
-            ()
-        
+        val maybeAction = state.swipeDirection.flatMap {
+          case SwipeDirection.Left => leftAction
+          case SwipeDirection.Right => rightAction
+        }
+        maybeAction.foreach(action => onAction.onNext(action.value))
+
         // Reset with animation
         isAnimating.set(true)
         swipeState.set(SwipeState())
         // Clear animation flag after transition
         val _ = window.setTimeout(() => isAnimating.set(false), 300)
-    
+
     // Calculate dynamic styles based on swipe state
     val $transform: Signal[String] = swipeState.signal.combineWith(isAnimating.signal).map {
       case (state, animating) =>
@@ -101,38 +89,38 @@ object SwipeableCard:
         else if state.isDragging then s"translateX(${state.offsetX}px)"
         else "translateX(0px)"
     }
-    
+
     div(
       cls := "SwipeableCardContainer",
       // Left reveal (not interested - gray)
       div(
         cls := "SwipeReveal SwipeReveal--left",
         opacity <-- swipeState.signal.map { state =>
-          if state.offsetX < 0 then math.abs(state.progress).min(1.0) else 0
+          if leftAction.isDefined && state.offsetX < 0 then math.abs(state.progress).min(1.0) else 0
         },
         // Icon scales up as you approach threshold
         div(
           cls := "SwipeRevealIcon",
           transform <-- swipeState.signal.map { state =>
-            val scale = if state.offsetX < 0 then math.abs(state.progress).min(1.0) else 0
+            val scale = if leftAction.isDefined && state.offsetX < 0 then math.abs(state.progress).min(1.0) else 0
             s"scale($scale)"
           },
-          "✗",
+          leftAction.map(_.icon).getOrElse(""),
         ),
       ),
       // Right reveal (interested - green)
       div(
         cls := "SwipeReveal SwipeReveal--right",
         opacity <-- swipeState.signal.map { state =>
-          if state.offsetX > 0 then state.progress.min(1.0) else 0
+          if rightAction.isDefined && state.offsetX > 0 then state.progress.min(1.0) else 0
         },
         div(
           cls := "SwipeRevealIcon",
           transform <-- swipeState.signal.map { state =>
-            val scale = if state.offsetX > 0 then state.progress.min(1.0) else 0
+            val scale = if rightAction.isDefined && state.offsetX > 0 then state.progress.min(1.0) else 0
             s"scale($scale)"
           },
-          "♥",
+          rightAction.map(_.icon).getOrElse(""),
         ),
       ),
       // The actual card content (slides)
@@ -197,7 +185,7 @@ object SwipeableCard:
       div(
         cls := "SwipeThresholdIndicator SwipeThresholdIndicator--left",
         opacity <-- swipeState.signal.map { state =>
-          if state.offsetX < 0 && math.abs(state.progress) > 0.7 then 
+          if leftAction.isDefined && state.offsetX < 0 && math.abs(state.progress) > 0.7 then
             (math.abs(state.progress) - 0.7) / 0.3
           else 0
         },
@@ -205,7 +193,7 @@ object SwipeableCard:
       div(
         cls := "SwipeThresholdIndicator SwipeThresholdIndicator--right",
         opacity <-- swipeState.signal.map { state =>
-          if state.offsetX > 0 && state.progress > 0.7 then 
+          if rightAction.isDefined && state.offsetX > 0 && state.progress > 0.7 then
             (state.progress - 0.7) / 0.3
           else 0
         },

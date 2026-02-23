@@ -5,6 +5,7 @@ import neotype.*
 import org.scalajs.dom
 
 import co.wtf.openspaces.*
+import co.wtf.openspaces.components.SwipeableCard
 import co.wtf.openspaces.hackathon.*
 
 /** Hackathon Projects view for Wednesday hackday.
@@ -43,6 +44,7 @@ object HackathonProjectsView:
     // State for confirmation modals
     val pendingJoin: Var[Option[(HackathonProject, HackathonProject)]] = Var(None) // (leaving, joining)
     val pendingCreate: Var[Option[(HackathonProject, ProjectTitle)]] = Var(None) // (leaving, newTitle)
+    val pendingLeave: Var[Option[HackathonProject]] = Var(None)
 
     def handleCreateProject(): Unit =
       val title = newProjectTitle.now().trim
@@ -111,10 +113,19 @@ object HackathonProjectsView:
       pendingJoin.set(None)
 
     def handleLeaveProject(project: HackathonProject): Unit =
-      if !connectionStatus.checkReady() then
-        setErrorMsg.onNext(Some("Reconnecting... please wait and try again."))
-      else
-        sendHackathonAction(HackathonProjectAction.Leave(project.id, name.now()))
+      pendingLeave.set(Some(project))
+
+    def confirmLeave(): Unit =
+      pendingLeave.now().foreach { project =>
+        if !connectionStatus.checkReady() then
+          setErrorMsg.onNext(Some("Reconnecting... please wait and try again."))
+        else
+          sendHackathonAction(HackathonProjectAction.Leave(project.id, name.now()))
+      }
+      pendingLeave.set(None)
+
+    def cancelLeave(): Unit =
+      pendingLeave.set(None)
 
     div(
       cls := "HackathonProjects",
@@ -204,6 +215,49 @@ object HackathonProjectsView:
         case None =>
           div()
       },
+
+      // Confirmation modal for leaving/deleting
+      child <-- pendingLeave.signal.map {
+        case Some(project) =>
+          val currentUser = name.now()
+          val wouldDelete = project.wouldBeDeletedIfLeaves(currentUser)
+          val nextOwner = project.nextOwner.map(_.unwrap).getOrElse("someone else")
+          val title = if wouldDelete then s"Delete '${project.titleText}'?" else s"Leave '${project.titleText}'?"
+          val warningText =
+            if wouldDelete then
+              "This project will be deleted since no one else has joined."
+            else if project.isOwner(currentUser) then
+              s"You'll hand ownership to $nextOwner."
+            else
+              "You'll leave this project."
+          val confirmText = if wouldDelete then "Delete Project" else "Leave Project"
+
+          div(
+            cls := "ConfirmationModal-overlay",
+            onClick --> Observer(_ => cancelLeave()),
+            div(
+              cls := "ConfirmationModal",
+              onClick.stopPropagation --> Observer.empty,
+              h3(cls := "ConfirmationModal-title", title),
+              p(cls := "ConfirmationModal-message", warningText),
+              div(
+                cls := "ConfirmationModal-buttons",
+                button(
+                  cls := "ConfirmationModal-button ConfirmationModal-button--cancel",
+                  "Cancel",
+                  onClick --> Observer(_ => cancelLeave()),
+                ),
+                button(
+                  cls := "ConfirmationModal-button ConfirmationModal-button--confirm",
+                  confirmText,
+                  onClick --> Observer(_ => confirmLeave()),
+                ),
+              ),
+            ),
+          )
+        case None =>
+          div()
+      },
       
       // My current project section
       child <-- $myProject.map {
@@ -217,8 +271,6 @@ object HackathonProjectsView:
               isMyProject = true,
               onLeave = Some(() => handleLeaveProject(project)),
               onJoin = None,
-              sendHackathonAction = sendHackathonAction,
-              connectionStatus = connectionStatus,
             ),
           )
         case None =>
@@ -294,8 +346,6 @@ object HackathonProjectsView:
                   isMyProject = false,
                   onLeave = None,
                   onJoin = Some(() => handleJoinProject(project)),
-                  sendHackathonAction = sendHackathonAction,
-                  connectionStatus = connectionStatus,
                 )
               },
             )
@@ -305,20 +355,20 @@ object HackathonProjectsView:
 
 /** Card component for displaying a hackathon project */
 object HackathonProjectCard:
+  enum SwipeAction:
+    case LeaveProject, JoinProject
+
   def apply(
     project: HackathonProject,
     currentUser: Person,
     isMyProject: Boolean,
     onLeave: Option[() => Unit],
     onJoin: Option[() => Unit],
-    sendHackathonAction: HackathonProjectAction => Unit,
-    connectionStatus: ConnectionStatusUI,
   ): HtmlElement =
-    val isOwner = project.isOwner(currentUser)
     val memberCount = project.memberCount
     val isLarge = project.isLargeGroup
-    
-    div(
+
+    val cardContent = div(
       cls := "HackathonProjectCard",
       cls := (if isMyProject then "HackathonProjectCard--mine" else ""),
       cls := (if isLarge then "HackathonProjectCard--large" else ""),
@@ -373,24 +423,21 @@ object HackathonProjectCard:
           "💬 Discuss in Slack",
         )
       }.getOrElse(span()),
-      
-      // Action buttons
-      div(
-        cls := "HackathonProjectCard-actions",
-        onLeave.map { leave =>
-          button(
-            cls := "HackathonProjectCard-leaveButton",
-            if isOwner && project.nextOwner.isEmpty then "🗑️ Delete Project"
-            else "👋 Leave Project",
-            onClick --> Observer(_ => leave()),
-          )
-        }.getOrElse(span()),
-        onJoin.map { join =>
-          button(
-            cls := "HackathonProjectCard-joinButton",
-            "🤝 Join Project",
-            onClick --> Observer(_ => join()),
-          )
-        }.getOrElse(span()),
-      ),
     )
+
+    val leftSwipeAction = onLeave.map(_ => SwipeableCard.Action(SwipeAction.LeaveProject, "👋"))
+    val rightSwipeAction = onJoin.map(_ => SwipeableCard.Action(SwipeAction.JoinProject, "🤝"))
+    val hasSwipeActions = leftSwipeAction.isDefined || rightSwipeAction.isDefined
+
+    if hasSwipeActions then
+      SwipeableCard[SwipeAction](
+        cardContent = cardContent,
+        onAction = Observer {
+          case SwipeAction.LeaveProject => onLeave.foreach(_())
+          case SwipeAction.JoinProject => onJoin.foreach(_())
+        },
+        leftAction = leftSwipeAction,
+        rightAction = rightSwipeAction,
+      )
+    else
+      cardContent
