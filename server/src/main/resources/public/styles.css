@@ -141,7 +141,6 @@ html {
     .LoginScreen-button,
     .ProfileIconButton,
     .TopicSubmission-button,
-    .VoteButtonRow,
     .VoteButton,
     .InlineEditableTitle-editBtn,
     .InlineEditableTitle-deleteBtn,
@@ -663,68 +662,10 @@ button {
     max-width: 100%;
 }
 
-.VoteButtonRow {
-    display: flex;
-    flex-direction: row;
-    padding: var(--pad-xs);
-}
-
 .VoteCount {
     min-width: 24px;
 }
 
-.VoteButton {
-    background-color: transparent;
-    border: 2px solid transparent;
-    border-radius: var(--radius-md);
-    padding: var(--pad-sm);
-    transition: all 0.15s ease;
-    display: flex;
-}
-
-.VoteButton:hover {
-    background-color: rgba(0, 0, 0, 0.05);
-}
-
-.VoteButton:active {
-    transform: scale(0.95);
-}
-
-.VoteButton--interested {
-    color: var(--color-vote-interested);
-}
-
-.VoteButton--interested:hover {
-    background-color: rgba(231, 76, 60, 0.1);
-}
-
-.VoteButton--interested.VoteButton--active {
-    background-color: rgba(231, 76, 60, 0.15);
-    border-color: var(--color-vote-interested);
-    box-shadow: 0 0 0 2px rgba(231, 76, 60, 0.2);
-}
-
-.VoteButton--interested.VoteButton--active .VoteIcon {
-    filter: drop-shadow(0 0 2px rgba(231, 76, 60, 0.5));
-}
-
-.VoteButton--notinterested {
-    color: var(--color-vote-neutral);
-}
-
-.VoteButton--notinterested:hover {
-    background-color: rgba(127, 140, 141, 0.1);
-}
-
-.VoteButton--notinterested.VoteButton--active {
-    background-color: rgba(127, 140, 141, 0.15);
-    border-color: var(--color-vote-neutral);
-    box-shadow: 0 0 0 2px rgba(127, 140, 141, 0.2);
-}
-
-.VoteButton--notinterested.VoteButton--active .VoteIcon {
-    filter: drop-shadow(0 0 2px rgba(127, 140, 141, 0.5));
-}
 
 .VoteIcon {
     width: 24px;
