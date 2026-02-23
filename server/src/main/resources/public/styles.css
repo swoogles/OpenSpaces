@@ -109,6 +109,8 @@
 html {
     background-color: var(--color-white);
     text-align: center;
+    justify-content: center;
+    horiz-align: center;
     height: 100%;
     --app-align-items: var(--layout-align-items);
     --app-justify-content: var(--layout-justify-content);
@@ -273,7 +275,6 @@ html {
     margin-top: calc(var(--pad-lg) + var(--pad-sm));
     font-size: clamp(14px, 3vw, 18px);
     color: rgba(255, 255, 255, 0.85);
-    text-align: center;
     max-width: 400px;
     padding: 0 var(--pad-lg);
     font-style: italic;
@@ -295,7 +296,6 @@ body {
     min-height: 100vh;
     padding: var(--pad-lg);
     background: linear-gradient(135deg, var(--color-primary) 0%, var(--color-primary-dark) 100%);
-    text-align: center;
 }
 
 .LoginScreen-logo {
@@ -370,7 +370,6 @@ body {
     width: 100%;
     display: flex;
     justify-content: space-between;
-    align-items: center;
 }
 
 .LogoImg {
@@ -380,7 +379,6 @@ body {
 
 .UserProfileSection {
     display: flex;
-    align-items: center;
     gap: var(--pad-sm);
     padding-right: 12px;
 }
@@ -565,7 +563,6 @@ body {
 .LightningTalk-slot {
     display: grid;
     gap: var(--pad-sm);
-    align-items: center;
     border: 1px solid var(--color-border-section);
     border-radius: var(--radius-md);
     padding: var(--pad-sm);
@@ -590,7 +587,6 @@ body {
 .LightningTalk-main {
     display: flex;
     flex-direction: row;
-    align-items: center;
     gap: var(--pad-sm);
     flex-wrap: wrap;
 }
@@ -614,7 +610,6 @@ body {
 
 .LightningTalk-metaRow {
     display: inline-flex;
-    align-items: center;
     gap: var(--pad-sm);
     max-width: 100%;
 }
@@ -641,7 +636,6 @@ body {
 }
 
 .UnjudgedCounter {
-    text-align: center;
     padding: var(--pad-sm) var(--pad-lg);
     margin: var(--pad-sm) var(--pad-lg);
     background-color: var(--color-bg-surface);
@@ -676,7 +670,6 @@ body {
     color: var(--color-text);
     line-height: 1;
     min-width: 24px;
-    text-align: center;
 }
 
 .VoteButton {
@@ -822,7 +815,6 @@ body {
 .RoomHeader {
     font-weight: 700;
     font-size: 1.1rem;
-    text-align: center;
     padding: var(--pad-sm);
     text-transform: uppercase;
     letter-spacing: 0.5px;
@@ -944,7 +936,6 @@ body {
 }
 
 .InlineEditableTitle-editRow {
-    align-items: center;
 }
 
 .InlineEditableTitle-input {
@@ -977,7 +968,6 @@ body {
     padding: var(--pad-xs) var(--pad-md) var(--pad-sm) var(--pad-md);
     display: flex;
     flex-wrap: wrap;
-    align-items: center;
     gap: var(--pad-sm);
     min-width: 0;
     overflow: hidden;
@@ -985,7 +975,6 @@ body {
 
 .SecondaryActive > span {
     display: flex;
-    align-items: center;
     gap: var(--pad-sm);
 }
 
@@ -1018,28 +1007,24 @@ body {
 
 .ControlsActive {
     grid-area: ControlsActive;
-    align-items: center;
 }
 
 .VoteColumn {
     grid-area: VoteColumn;
     display: flex;
     align-items: stretch;
-    justify-content: center;
 }
 
 .glyphicon {
     height: 32px;
     width: 32px;
     vertical-align: middle;
-    horiz-align: center;
 }
 
 .github-avatar {
     height: 32px;
     width: 32px;
     vertical-align: middle;
-    horiz-align: center;
     border-radius: var(--radius-full);
     object-fit: cover;
 }
@@ -1064,7 +1049,6 @@ body {
     font-size: 1rem;
     padding: var(--pad-sm) var(--pad-md);
     display: flex;
-    align-items: center;
 }
 
 .DayHeader {
@@ -1144,7 +1128,6 @@ body {
     padding: var(--pad-md);
     border-radius: var(--radius-md);
     display: flex;
-    align-items: center;
     gap: var(--pad-sm);
     min-width: 0;
     
@@ -1223,7 +1206,6 @@ body {
 
 .ErrorBanner {
     display: flex;
-    align-items: center;
     justify-content: space-between;
     background-color: var(--color-error-light);
     border: 1px solid var(--color-error);
@@ -1348,7 +1330,6 @@ body {
 .AdminControls {
     display: flex;
     flex-wrap: wrap;
-    justify-content: center;
     gap: var(--pad-sm);
     margin: var(--pad-sm) var(--pad-lg);
     max-width: 100%;
@@ -1435,7 +1416,6 @@ body {
 
 .AdminModeToggle-label {
     display: flex;
-    align-items: center;
     gap: var(--pad-sm);
     font-size: 12px;
     font-weight: 600;
@@ -1464,7 +1444,6 @@ body {
     font-size: 15px;
     font-weight: 600;
     transition: all 0.2s ease;
-    text-align: center;
 }
 
 .ViewToggle-button:hover {
@@ -1483,7 +1462,6 @@ body {
 
 .SlackThreadLink {
     display: inline-flex;
-    align-items: center;
     margin-left: var(--pad-sm);
     text-decoration: none;
     opacity: 0.7;
@@ -1554,7 +1532,6 @@ body {
 
 .connection-banner-content {
     display: flex;
-    align-items: center;
     gap: var(--pad-sm);
 }
 
@@ -1684,14 +1661,12 @@ body {
 .LinearTopicRow {
     display: flex;
     justify-content: space-between;
-    align-items: center;
     gap: var(--pad-lg);
 }
 
 .LinearTopicMeta {
     display: flex;
     flex-wrap: wrap;
-    align-items: center;
     gap: var(--pad-sm);
 }
 
@@ -1715,7 +1690,6 @@ body {
 
 .LinearSlackLink {
     display: flex;
-    align-items: center;
 }
 
 .LinearSlackLink .SlackIcon {
@@ -1746,7 +1720,6 @@ body {
     border: 2px dashed var(--color-border-strong);
     border-radius: var(--radius-md);
     color: var(--color-text-muted);
-    text-align: center;
     font-style: italic;
     display: flex;
     gap: var(--pad-sm);
@@ -2110,7 +2083,6 @@ body {
 
 .Toast {
     display: flex;
-    align-items: center;
     gap: var(--pad-md);
     background: var(--color-text);
     color: var(--color-white);
@@ -2199,7 +2171,6 @@ body {
     border: 1px solid var(--color-border-section);
     border-radius: var(--radius-md);
     padding: var(--pad-lg);
-    text-align: center;
 }
 
 .HackathonProjects-myProject {
@@ -2288,7 +2259,6 @@ body {
 
 .HackathonProjects-empty {
     color: var(--color-text-subtle);
-    text-align: center;
     padding: var(--pad-lg);
     font-size: 14px;
 }
@@ -2337,13 +2307,11 @@ body {
 
 .HackathonProjectCard-members {
     display: flex;
-    align-items: center;
     gap: var(--pad-md);
 }
 
 .HackathonProjectCard-avatars {
     display: flex;
-    align-items: center;
 }
 
 .HackathonProjectCard-avatar {
@@ -2522,7 +2490,6 @@ body {
     transform: translate(-50%, -50%);
     color: var(--color-error);
     font-size: 18px;
-    text-align: center;
     padding: var(--pad-lg);
     background: rgba(15, 23, 42, 0.9);
     border-radius: var(--radius-md);
