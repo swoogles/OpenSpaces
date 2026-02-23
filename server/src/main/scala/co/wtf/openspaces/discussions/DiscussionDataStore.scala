@@ -102,6 +102,31 @@ class DiscussionDataStore(
               .updateAndGet(s => s(confirmedAction))
               .run
             confirmedAction
+      case setLocked @ DiscussionAction.SetLockedTimeslot(
+            topicId,
+            expectedCurrentLockedTimeslot,
+            newLockedTimeslot,
+          ) =>
+        defer:
+          val currentState = discussionDatabase.get.run
+          val existingTopic = currentState.data.get(topicId)
+          val actualCurrentLockedTimeslot =
+            existingTopic.map(_.lockedTimeslot)
+          val currentMatches = actualCurrentLockedTimeslot.contains(
+            expectedCurrentLockedTimeslot,
+          )
+          val lockWithoutSlot =
+            newLockedTimeslot && existingTopic.flatMap(_.roomSlot).isEmpty
+
+          if !currentMatches || lockWithoutSlot then
+            DiscussionActionConfirmed.Rejected(setLocked)
+          else
+            val confirmedAction =
+              DiscussionActionConfirmed.fromDiscussionAction(setLocked)
+            discussionDatabase
+              .updateAndGet(s => s(confirmedAction))
+              .run
+            confirmedAction
       // TODO Case for voting - IF a topic was deleted, the vote should be rejected.
 
       case other =>
@@ -308,6 +333,7 @@ class DiscussionDataStore(
       TopicId(randomId),
       randomIcon,
       roomSlot,
+      lockedTimeslot = false,
       None,
       None,
       createdAtEpochMs,

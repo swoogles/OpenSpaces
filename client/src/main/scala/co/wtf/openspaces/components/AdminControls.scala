@@ -38,6 +38,7 @@ object AdminControls:
     // Auto-schedule state
     val scheduleLoading: Var[Boolean] = Var(false)
     val scheduleChaosLoading: Var[Boolean] = Var(false)
+    val scheduleSummary: Var[String] = Var("")
     
     val deleteLoading: Var[Boolean] = Var(false)
     val resetLoading: Var[Boolean] = Var(false)
@@ -104,9 +105,13 @@ object AdminControls:
       scheduleLoading.set(true)
       randomActionClient.runScheduling
         .onComplete {
-          case Success(_) =>
+          case Success(result) =>
+            scheduleSummary.set(
+              s"Sched ${result.scheduled} • Move ${result.moved} • Unsched ${result.unscheduled} • Locked ${result.lockedExcluded}",
+            )
             scheduleLoading.set(false)
           case Failure(_) =>
+            scheduleSummary.set("Scheduling failed.")
             scheduleLoading.set(false)
         }
 
@@ -247,5 +252,9 @@ object AdminControls:
       span(
         cls := "AdminControls-version",
         child.text <-- deployedVersion.signal.map(v => s"v$v"),
+      ),
+      span(
+        cls := "AdminControls-version",
+        child.text <-- scheduleSummary.signal,
       ),
     )

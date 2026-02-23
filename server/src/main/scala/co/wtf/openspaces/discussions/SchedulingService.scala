@@ -21,6 +21,7 @@ case class SchedulingService(
       state <- discussionStore.snapshot
       discussions = state.data.values.toList
       slots = state.slots
+      lockedExcluded = discussions.count(_.lockedTimeslot)
       
       // Extract all rooms and time slots
       allRooms = slots.flatMap(_.slots.flatMap(_.rooms)).distinct.sortBy(-_.capacity)
@@ -51,7 +52,8 @@ case class SchedulingService(
         unscheduled = actions.count {
           case DiscussionAction.SetRoomSlot(_, Some(_), None) => true
           case _ => false
-        }
+        },
+        lockedExcluded = lockedExcluded,
       )
       _ <- ZIO.logInfo(s"Scheduling complete: $summary")
     yield summary
@@ -65,19 +67,24 @@ case class SchedulingService(
   ): List[DiscussionAction] =
     
     // Phase 1: Partition topics
-    val frozen = discussions.filter(d => 
+    val frozen = discussions.filter(d =>
       d.roomSlot.exists(rs => frozenSlots.contains(rs.timeSlot))
     )
-    val movable = discussions.filterNot(frozen.contains)
+    val locked = discussions.filter(_.lockedTimeslot)
+    val immovableIds = (frozen ++ locked).map(_.id).toSet
+    val movable = discussions.filterNot(d => immovableIds.contains(d.id))
     
     // Phase 2: Rank topics by votes (desc), then by id (asc for FCFS)
     val ranked = movable.sortBy(d => (-d.votes, d.id.unwrap))
     
     // Phase 3: Compute available slots (unfrozen)
+    val lockedSlots = locked.flatMap(_.roomSlot).toSet
     val availableSlots: List[RoomSlot] = for
       ts <- timeSlots if !frozenSlots.contains(ts)
       room <- rooms.sortBy(-_.capacity)
-    yield RoomSlot(room, ts)
+      slot = RoomSlot(room, ts)
+      if !lockedSlots.contains(slot)
+    yield slot
     
     // Phase 4: Greedy assignment with conflict minimization
     val assignments = assignTopics(ranked, availableSlots)
@@ -86,7 +93,7 @@ case class SchedulingService(
     val rightSized = rightSizeRooms(assignments, rooms, discussions)
     
     // Phase 6: Compute diff (actions needed)
-    computeActions(discussions, rightSized, frozen.map(_.id).toSet)
+    computeActions(discussions, rightSized, immovableIds)
 
   /** Greedy assignment: process topics by vote count, assign to slot with fewest conflicts */
   private def assignTopics(
@@ -188,10 +195,11 @@ case class SchedulingService(
 case class SchedulingSummary(
   scheduled: Int,
   moved: Int,
-  unscheduled: Int
+  unscheduled: Int,
+  lockedExcluded: Int,
 ):
   override def toString: String =
-    s"scheduled=$scheduled, moved=$moved, unscheduled=$unscheduled"
+    s"scheduled=$scheduled, moved=$moved, unscheduled=$unscheduled, lockedExcluded=$lockedExcluded"
 
 object SchedulingService:
   val layer: ZLayer[SessionService & DiscussionStore, Nothing, SchedulingService] =

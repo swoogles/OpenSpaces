@@ -37,6 +37,7 @@ case class DiscussionRow(
   facilitator: String,
   glyphicon: String,
   roomSlot: Option[String],       // JSON string
+  isLockedTimeslot: Boolean,
   createdAt: OffsetDateTime,
   updatedAt: OffsetDateTime,
   deletedAt: Option[OffsetDateTime],
@@ -51,10 +52,11 @@ object DiscussionRow:
     topic: String,
     facilitator: String,
     glyphicon: String,
-    roomSlot: Option[String]
+    roomSlot: Option[String],
+    isLockedTimeslot: Boolean,
   ): DiscussionRow =
     val now = OffsetDateTime.now()
-    DiscussionRow(id, topic, facilitator, glyphicon, roomSlot, now, now, None, None, None, None)
+    DiscussionRow(id, topic, facilitator, glyphicon, roomSlot, isLockedTimeslot, now, now, None, None, None, None)
 
 case class TopicVoteRow(
   topicId: Long,

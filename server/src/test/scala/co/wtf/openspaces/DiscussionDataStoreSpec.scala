@@ -78,4 +78,69 @@ object DiscussionDataStoreSpec extends ZIOSpecDefault:
           state.data == discussionState.data,
         )
       },
+      test("SetLockedTimeslot updates topic when scheduled and version matches") {
+        val topic       = Topic.unsafeMake("Lock me")
+        val facilitator = Person("Facilitator")
+        val existingDiscussion =
+          Discussion(
+            topic,
+            facilitator,
+            TopicId(99),
+            GlyphiconUtils.names(1),
+            roomSlot = Some(sampleRoomSlot),
+          )
+        val discussionState =
+          DiscussionState(
+            slots,
+            Map(existingDiscussion.id -> existingDiscussion),
+          )
+        val action = DiscussionAction.SetLockedTimeslot(
+          existingDiscussion.id,
+          expectedCurrentLockedTimeslot = false,
+          newLockedTimeslot = true,
+        )
+
+        for {
+          dataStore <- makeDataStore(discussionState)
+          confirmed <- dataStore.applyAction(action)
+          state     <- dataStore.snapshot
+        } yield assertTrue(
+          confirmed == DiscussionActionConfirmed.SetLockedTimeslot(
+            existingDiscussion.id,
+            lockedTimeslot = true,
+          ),
+          state.data(existingDiscussion.id).lockedTimeslot,
+        )
+      },
+      test("SetLockedTimeslot is rejected when topic has no room slot") {
+        val topic       = Topic.unsafeMake("Unsheduled topic")
+        val facilitator = Person("Facilitator")
+        val existingDiscussion =
+          Discussion(
+            topic,
+            facilitator,
+            TopicId(100),
+            GlyphiconUtils.names(2),
+            roomSlot = None,
+          )
+        val discussionState =
+          DiscussionState(
+            slots,
+            Map(existingDiscussion.id -> existingDiscussion),
+          )
+        val action = DiscussionAction.SetLockedTimeslot(
+          existingDiscussion.id,
+          expectedCurrentLockedTimeslot = false,
+          newLockedTimeslot = true,
+        )
+
+        for {
+          dataStore <- makeDataStore(discussionState)
+          confirmed <- dataStore.applyAction(action)
+          state     <- dataStore.snapshot
+        } yield assertTrue(
+          confirmed == DiscussionActionConfirmed.Rejected(action),
+          !state.data(existingDiscussion.id).lockedTimeslot,
+        )
+      },
     )

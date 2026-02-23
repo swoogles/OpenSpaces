@@ -787,6 +787,7 @@ button {
     --entity-card-padding: 0;
     --entity-card-radius: var(--radius-sm);
     display: grid;
+    position: relative;
     grid-template-columns: 1fr auto;
     grid-template-rows: auto auto auto;
     grid-template-areas:
@@ -805,6 +806,43 @@ button {
 
 .TopicCard--notinterested {
     --entity-card-bg: var(--color-border);
+}
+
+.TopicCard--locked {
+    box-shadow: inset 0 0 0 1px rgba(13, 148, 136, 0.45);
+}
+
+.TopicCardLockButton {
+    position: absolute;
+    top: 6px;
+    right: 6px;
+    width: 24px;
+    height: 24px;
+    border-radius: var(--radius-full);
+    border: 1px solid var(--color-border-strong);
+    background: rgba(255, 255, 255, 0.88);
+    color: var(--color-text-secondary);
+    font-size: 12px;
+    line-height: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    z-index: 3;
+}
+
+.TopicCardLockButton--locked {
+    border-color: #0d9488;
+    color: #0f766e;
+    background: rgba(204, 251, 241, 0.95);
+}
+
+.TopicCardLockButton--unlocked {
+    opacity: 0.75;
+}
+
+.TopicCardLockButton--disabled {
+    opacity: 0.4;
 }
 
 .ActiveDiscussion {

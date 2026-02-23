@@ -116,6 +116,7 @@ class DiscussionRepositoryLive(ds: DataSource) extends DiscussionRepository:
   def findById(id: Long): Task[Option[DiscussionRow]] =
     transactZIO(ds):
       sql"""SELECT id, topic, facilitator, glyphicon, room_slot::text,
+                   is_locked_timeslot,
                    created_at, updated_at, deleted_at,
                    slack_channel_id, slack_thread_ts, slack_permalink
             FROM discussions WHERE id = $id"""
@@ -126,6 +127,7 @@ class DiscussionRepositoryLive(ds: DataSource) extends DiscussionRepository:
   def findAllActive: Task[Vector[DiscussionRow]] =
     transactZIO(ds):
       sql"""SELECT id, topic, facilitator, glyphicon, room_slot::text,
+                   is_locked_timeslot,
                    created_at, updated_at, deleted_at,
                    slack_channel_id, slack_thread_ts, slack_permalink
             FROM discussions WHERE deleted_at IS NULL"""
@@ -134,9 +136,10 @@ class DiscussionRepositoryLive(ds: DataSource) extends DiscussionRepository:
 
   def insert(row: DiscussionRow): Task[Unit] =
     transactZIO(ds):
-      sql"""INSERT INTO discussions (id, topic, facilitator, glyphicon, room_slot, created_at, updated_at, deleted_at, slack_channel_id, slack_thread_ts, slack_permalink)
+      sql"""INSERT INTO discussions (id, topic, facilitator, glyphicon, room_slot, is_locked_timeslot, created_at, updated_at, deleted_at, slack_channel_id, slack_thread_ts, slack_permalink)
             VALUES (${row.id}, ${row.topic}, ${row.facilitator}, ${row.glyphicon},
                     ${row.roomSlot}::jsonb,
+                    ${row.isLockedTimeslot},
                     ${row.createdAt}, ${row.updatedAt}, ${row.deletedAt},
                     ${row.slackChannelId}, ${row.slackThreadTs}, ${row.slackPermalink})""".update.run()
       ()
@@ -148,6 +151,7 @@ class DiscussionRepositoryLive(ds: DataSource) extends DiscussionRepository:
               facilitator = ${row.facilitator},
               glyphicon = ${row.glyphicon},
               room_slot = ${row.roomSlot}::jsonb,
+              is_locked_timeslot = ${row.isLockedTimeslot},
               deleted_at = ${row.deletedAt}
             WHERE id = ${row.id}""".update.run()
       ()

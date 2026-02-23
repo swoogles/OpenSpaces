@@ -32,6 +32,10 @@ enum DiscussionAction derives JsonCodec:
     topicId: TopicId,
     expectedCurrentRoomSlot: Option[RoomSlot],
     newRoomSlot: Option[RoomSlot])
+  case SetLockedTimeslot(
+    topicId: TopicId,
+    expectedCurrentLockedTimeslot: Boolean,
+    newLockedTimeslot: Boolean)
   case SwapTopics(
     topic1: TopicId,
     expectedRoomSlot1: RoomSlot,
@@ -54,6 +58,9 @@ enum DiscussionActionConfirmed derives JsonCodec:
   case SetRoomSlot(
     topicId: TopicId,
     newRoomSlot: Option[RoomSlot])
+  case SetLockedTimeslot(
+    topicId: TopicId,
+    lockedTimeslot: Boolean)
   case SwapTopics(
     topic1: TopicId,
     newRoomSlot1: RoomSlot,
@@ -96,6 +103,13 @@ object DiscussionActionConfirmed:
         DiscussionActionConfirmed.Rename(topicId, newTopic)
       case DiscussionAction.SetRoomSlot(topicId, _, newRoomSlot) =>
         DiscussionActionConfirmed.SetRoomSlot(topicId, newRoomSlot)
+      case DiscussionAction.SetLockedTimeslot(topicId,
+                                              _,
+                                              newLockedTimeslot,
+          ) =>
+        DiscussionActionConfirmed.SetLockedTimeslot(topicId,
+                                                    newLockedTimeslot,
+        )
       case DiscussionAction.SwapTopics(topic1,
                                         expected1,
                                         topic2,

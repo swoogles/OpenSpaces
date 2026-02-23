@@ -13,7 +13,11 @@ import scala.concurrent.ExecutionContext.Implicits.global
 
 case class ActiveStatus(active: Boolean) derives Schema, JsonCodec
 case class VersionInfo(version: String) derives Schema, JsonCodec
-case class ScheduleResult(scheduled: Int, moved: Int, unscheduled: Int) derives Schema, JsonCodec
+case class ScheduleResult(
+  scheduled: Int,
+  moved: Int,
+  unscheduled: Int,
+  lockedExcluded: Int) derives Schema, JsonCodec
 case class DeleteTopicsResult(deleted: Int) derives Schema, JsonCodec
 case class RefreshStatus(status: String) derives Schema, JsonCodec
 

@@ -330,6 +330,37 @@ class PersistentDiscussionStore(
               _ <- state.update(_.apply(confirmed))
             yield confirmed
         yield result
+      case setLocked @ DiscussionAction.SetLockedTimeslot(
+            topicId,
+            expectedCurrentLockedTimeslot,
+            newLockedTimeslot,
+          ) =>
+        for
+          _            <- ensureUserExists(actor)
+          currentState <- state.get
+          existingTopic = currentState.data.get(topicId)
+          actualCurrentLockedTimeslot = existingTopic.map(_.lockedTimeslot)
+          currentMatches = actualCurrentLockedTimeslot.contains(
+            expectedCurrentLockedTimeslot,
+          )
+          lockWithoutSlot =
+            newLockedTimeslot && existingTopic.flatMap(_.roomSlot).isEmpty
+          result <- if !currentMatches || lockWithoutSlot then
+            ZIO.succeed(DiscussionActionConfirmed.Rejected(setLocked))
+          else
+            val confirmed = DiscussionActionConfirmed.fromDiscussionAction(
+              setLocked,
+            )
+            for
+              _ <- persistEvent("SetLockedTimeslot",
+                                topicId.unwrap,
+                                action.toJson,
+                                actor,
+              )
+              _ <- updateDiscussionLockedTimeslot(topicId, newLockedTimeslot)
+              _ <- state.update(_.apply(confirmed))
+            yield confirmed
+        yield result
 
       case DiscussionAction.Vote(topicId, feedback) =>
         for
@@ -415,6 +446,7 @@ class PersistentDiscussionStore(
       TopicId(randomId),
       randomIcon,
       roomSlot,
+      lockedTimeslot = false,
       displayName,
       None,
       createdAtEpochMs
@@ -434,7 +466,8 @@ class PersistentDiscussionStore(
       topic = discussion.topic.unwrap,
       facilitator = discussion.facilitator.unwrap,
       glyphicon = discussion.glyphicon.name,
-      roomSlot = discussion.roomSlot.map(_.toJson)
+      roomSlot = discussion.roomSlot.map(_.toJson),
+      isLockedTimeslot = discussion.lockedTimeslot,
     )
     discussionRepo.insert(row)
 
@@ -484,6 +517,21 @@ class PersistentDiscussionStore(
           ZIO.unit
     yield ()
 
+  private def updateDiscussionLockedTimeslot(
+    topicId: TopicId,
+    lockedTimeslot: Boolean,
+  ): Task[Unit] =
+    for
+      existing <- discussionRepo.findById(topicId.unwrap)
+      _ <- existing match
+        case Some(row) =>
+          discussionRepo.update(
+            row.copy(isLockedTimeslot = lockedTimeslot),
+          )
+        case None =>
+          ZIO.unit
+    yield ()
+
   /** Extract actor (GitHub username) from the action */
   private def extractActor(action: DiscussionAction): String =
     action match
@@ -494,6 +542,7 @@ class PersistentDiscussionStore(
       case DiscussionAction.ResetUser(person)                => person.unwrap
       case DiscussionAction.Rename(_, _)                     => "system" // TODO: track who renamed
       case DiscussionAction.SetRoomSlot(_, _, _)             => "system" // TODO: track who scheduled
+      case DiscussionAction.SetLockedTimeslot(_, _, _)       => "system" // TODO: track who locked
       case DiscussionAction.SwapTopics(_, _, _, _)           => "system"
 
 object PersistentDiscussionStore:
@@ -538,6 +587,7 @@ object PersistentDiscussionStore:
           TopicId(row.id),
           glyphicon,
           roomSlot,
+          row.isLockedTimeslot,
           userMap.get(row.facilitator).flatten,
           row.slackPermalink,
           row.createdAt.toInstant.toEpochMilli

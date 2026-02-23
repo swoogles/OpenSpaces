@@ -148,6 +148,7 @@ case class RandomActionSpawner(
               scheduled = summary.scheduled,
               moved = summary.moved,
               unscheduled = summary.unscheduled,
+              lockedExcluded = summary.lockedExcluded,
             )
           }
       },

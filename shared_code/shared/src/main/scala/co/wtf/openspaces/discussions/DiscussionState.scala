@@ -40,6 +40,12 @@ case class DiscussionState(
             data.updatedWith(topicId) {
               _.map(value => value.copy(roomSlot = newRoomSlot))
             }
+          case DiscussionActionConfirmed.SetLockedTimeslot(topicId,
+                                                           lockedTimeslot,
+              ) =>
+            data.updatedWith(topicId) {
+              _.map(value => value.copy(lockedTimeslot = lockedTimeslot))
+            }
           case DiscussionActionConfirmed.Delete(topicId) =>
             data.filterNot(_._2.id == topicId)
           case DiscussionActionConfirmed.Vote(topicId, newFeedback) =>

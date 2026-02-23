@@ -39,6 +39,7 @@ object ScheduleView:
     activeDiscussion: Var[Option[Discussion]],
     topicUpdates: DiscussionAction => Unit,
     name: StrictSignal[Person],
+    isAdmin: Signal[Boolean],
     updateTargetDiscussion: Observer[Discussion],
     popoverState: Var[Option[Discussion]],
     swapMenuState: Var[Option[(Discussion, Discussion)]],
@@ -89,6 +90,7 @@ object ScheduleView:
             name,
             topicUpdates,
             activeDiscussion.signal,
+            isAdmin,
             connectionStatus,
             iconModifiers = Seq(handleActiveDiscussionLongPress),
           ),
@@ -179,6 +181,7 @@ object LinearScheduleView:
     $lightningTalkState: Signal[LightningTalkState],
     topicUpdates: DiscussionAction => Unit,
     name: StrictSignal[Person],
+    isAdmin: Signal[Boolean],
     unscheduledMenuState: Var[Option[RoomSlot]],
   ): HtmlElement =
     val showUnscheduledMenu: Observer[RoomSlot] =
@@ -220,6 +223,7 @@ object LinearScheduleView:
                             name,
                             topicUpdates,
                             Signal.fromValue(Some(disc)),
+                            isAdmin,
                             connectionStatus,
                           ),
                         )

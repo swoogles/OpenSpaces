@@ -25,13 +25,14 @@ object TopicCard:
     name: StrictSignal[Person],
     topicUpdates: DiscussionAction => Unit,
     signal: Signal[Option[Discussion]],
+    isAdmin: Signal[Boolean],
     connectionStatus: ConnectionStatusUI,
     transition: Option[Transition] = None,
     enableSwipe: Boolean = true,
     iconModifiers: Seq[Modifier[HtmlElement]] = Seq.empty,
   ): Signal[HtmlElement] =
-    signal.map {
-      case Some(topic) =>
+    Signal.combine(signal, isAdmin).map {
+      case (Some(topic), admin) =>
         val votes = topic.votes
 
         // Background color based on the user's personal vote
@@ -48,6 +49,7 @@ object TopicCard:
         val cardContent = div(
           cls := "TopicCard",
           cls := voteBackgroundClass,
+          if topic.lockedTimeslot then cls := "TopicCard--locked" else emptyMod,
           // Celebration animation class when vote is confirmed
           cls <-- AppState.celebratingTopics.signal.map { celebrating =>
             celebrating.get(topic.id) match
@@ -109,6 +111,38 @@ object TopicCard:
             else
               span(),
           ),
+          if admin then
+            button(
+              cls := "TopicCardLockButton",
+              cls := (if topic.lockedTimeslot then "TopicCardLockButton--locked"
+                      else "TopicCardLockButton--unlocked"),
+              if topic.roomSlot.isEmpty then cls := "TopicCardLockButton--disabled"
+              else emptyMod,
+              title := (
+                if topic.roomSlot.isEmpty then
+                  "Schedule topic first to lock its timeslot"
+                else if topic.lockedTimeslot then
+                  "Unlock timeslot for auto-scheduling"
+                else
+                  "Lock timeslot from auto-scheduling"
+              ),
+              disabled := topic.roomSlot.isEmpty,
+              onClick.stopPropagation --> Observer { _ =>
+                if connectionStatus.checkReady() then
+                  topicUpdates(
+                    DiscussionAction.SetLockedTimeslot(
+                      topic.id,
+                      topic.lockedTimeslot,
+                      !topic.lockedTimeslot,
+                    ),
+                  )
+                else
+                  connectionStatus.reportError("Syncing latest topics. Please wait a moment.")
+              },
+              if topic.lockedTimeslot then "🔒" else "🔓",
+            )
+          else
+            span(),
           div(
             cls := "MainActive",
             // Inline editable topic name (only for the facilitator)
@@ -184,7 +218,7 @@ object TopicCard:
         else
           cardContent
 
-      case None =>
+      case (None, _) =>
         div("nothing")
     }
 
@@ -195,6 +229,7 @@ object DiscussionSubview:
     topicsOfInterest: Signal[List[Discussion]],
     votePosition: Option[VotePosition],
     name: StrictSignal[Person],
+    isAdmin: Signal[Boolean],
     topicUpdates: DiscussionAction => Unit,
     updateTargetDiscussion: Observer[Discussion],
     connectionStatus: ConnectionStatusUI,
@@ -225,6 +260,7 @@ object DiscussionSubview:
                   name,
                   topicUpdates,
                   signal.map(Some(_)),
+                  isAdmin,
                   connectionStatus,
                   Some(transition),
                 ),

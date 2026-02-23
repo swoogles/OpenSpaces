@@ -182,6 +182,7 @@ object FrontEnd extends ZIOAppDefault{
             $nextUnjudgedTopic,
             None,
             name.signal,
+            isAdmin,
             sendDiscussionAction,
             updateTargetDiscussion,
             connectionStatus,
@@ -200,6 +201,7 @@ object FrontEnd extends ZIOAppDefault{
             $votedTopics,
             None,
             name.signal,
+            isAdmin,
             sendDiscussionAction,
             updateTargetDiscussion,
             connectionStatus,
@@ -355,6 +357,12 @@ object FrontEnd extends ZIOAppDefault{
                       connectionStatus.reportError(
                         "Schedule change failed: topic or slot changed. Please try again.",
                       )
+                    case DiscussionActionConfirmed.Rejected(
+                          _: DiscussionAction.SetLockedTimeslot,
+                        ) =>
+                      connectionStatus.reportError(
+                        "Lock update failed. Schedule may have changed.",
+                      )
                     case DiscussionActionConfirmed.Unauthorized(_) =>
                       connectionStatus.reportError(
                         "Session expired. Re-authenticating...",
@@ -496,6 +504,7 @@ object FrontEnd extends ZIOAppDefault{
                 activeDiscussion,
                 sendDiscussionAction,
                 name.signal,
+                isAdmin,
                 setActiveDiscussion,
                 popoverState,
                 swapMenuState,
@@ -529,6 +538,7 @@ object FrontEnd extends ZIOAppDefault{
                 lightningTalkState.signal,
                 sendDiscussionAction,
                 name.signal,
+                isAdmin,
                 unscheduledMenuState,
               )
             case AppView.Replay =>
@@ -590,6 +600,8 @@ object FrontEnd extends ZIOAppDefault{
       case DiscussionActionConfirmed.Rename(topicId, _) =>
         (Some(topicId), false)
       case DiscussionActionConfirmed.SetRoomSlot(topicId, _) =>
+        (Some(topicId), false)
+      case DiscussionActionConfirmed.SetLockedTimeslot(topicId, _) =>
         (Some(topicId), false)
       case DiscussionActionConfirmed.SwapTopics(topic1, _, _, _) =>
         (Some(topic1), false)
