@@ -317,6 +317,8 @@ button {
 
 .PageContainer {
     width: 100%;
+    max-width: 420px;
+    margin-inline: auto;
     gap: var(--pad-xs);
 }
 
@@ -335,7 +337,6 @@ button {
 }
 
 .LoginScreen-content {
-    max-width: 420px;
     padding: var(--pad-lg) var(--pad-lg);
     background: var(--color-white);
     border-radius: var(--radius-md);
@@ -1164,7 +1165,6 @@ button {
     font-weight: bold;
     word-wrap: break-word;
     overflow-wrap: break-word;
-    max-width: 100%;
 }
 
 .Menu-roomSlot {
@@ -1344,7 +1344,6 @@ button {
     flex-wrap: wrap;
     gap: var(--pad-sm);
     margin: var(--pad-sm) var(--pad-lg);
-    max-width: 100%;
 }
 
 .AdminControls-button {
