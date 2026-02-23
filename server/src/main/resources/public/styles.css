@@ -99,14 +99,23 @@
 
 /* Card - shared card container styles */
 .Card {
-    background: var(--color-white);
-    border: 1px solid var(--color-border-section);
-    border-radius: var(--radius-md);
     padding: var(--pad-md);
 }
 
 .Card--elevated {
     box-shadow: var(--shadow-sm);
+}
+
+:is(
+    .Card,
+    .TopicSection,
+    .LightningTalk-list,
+    .LightningTalk-night,
+    .HackathonProjects-list
+) {
+    background: var(--color-white);
+    border: 1px solid var(--color-border-section);
+    border-radius: var(--radius-md);
 }
 
 html {
@@ -201,7 +210,7 @@ html {
     color: rgba(255, 255, 255, 0.85);
     text-align: center;
     max-width: 400px;
-    padding: 0 20px;
+    padding: 0 var(--pad-lg);
     font-style: italic;
 }
 
@@ -241,7 +250,7 @@ body {
     max-width: 420px;
     padding: var(--pad-lg) var(--pad-lg);
     background: var(--color-white);
-    border-radius: 20px;
+    border-radius: var(--radius-md);
     box-shadow: 0 12px 40px rgba(0, 0, 0, 0.15);
 }
 
@@ -452,9 +461,6 @@ body {
 }
 
 .TopicSection {
-    background: var(--color-white);
-    border: 1px solid var(--color-border-section);
-    border-radius: var(--radius-md);
     padding: var(--pad-md);
     box-shadow: var(--shadow-sm);
 }
@@ -485,8 +491,6 @@ body {
     display: flex;
     flex-direction: column;
     gap: 12px;
-    width: 100%;
-    padding: 0 10px 70px 10px;
 }
 
 .LightningTalk-adminControls {
@@ -508,9 +512,6 @@ body {
 
 .LightningTalk-list,
 .LightningTalk-night {
-    background: var(--color-white);
-    border: 1px solid var(--color-border-section);
-    border-radius: var(--radius-md);
     padding: var(--pad-md);
     box-shadow: var(--shadow-sm);
     display: flex;
@@ -1230,7 +1231,7 @@ body {
     color: var(--color-error-dark);
     font-size: 20px;
     cursor: pointer;
-    padding: 0 0 0 16px;
+    padding: 0 0 0 var(--pad-lg);
     line-height: 1;
 }
 
@@ -1619,7 +1620,7 @@ body {
 /* Linear Schedule View */
 .LinearScheduleView {
     width: 100%;
-    padding: 0 16px 16px;
+    padding: 0 var(--pad-lg) var(--pad-lg);
 }
 
 .LinearDay {
@@ -2254,8 +2255,11 @@ body {
     display: flex;
     flex-direction: column;
     gap: 16px;
+}
+
+:is(.LightningTalks, .HackathonProjects) {
     width: 100%;
-    padding: 0 10px 70px 10px;
+    padding: 0 var(--pad-md) calc(var(--pad-lg) * 4) var(--pad-md);
 }
 
 .HackathonProjects-sectionTitle {
@@ -2368,9 +2372,6 @@ body {
 
 /* Project list */
 .HackathonProjects-list {
-    background: var(--color-white);
-    border: 1px solid var(--color-border-section);
-    border-radius: var(--radius-md);
     padding: var(--pad-md);
     display: flex;
     flex-direction: column;
