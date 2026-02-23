@@ -1,5 +1,6 @@
 package co.wtf.openspaces
 
+import co.wtf.openspaces.auth.AuthenticatedTicketService
 import co.wtf.openspaces.db.ConfirmedActionRepository
 import co.wtf.openspaces.discussions.{DiscussionAction, DiscussionActionConfirmed, DiscussionState, DiscussionStore}
 import co.wtf.openspaces.hackathon.*

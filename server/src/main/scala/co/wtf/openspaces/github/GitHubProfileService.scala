@@ -1,4 +1,4 @@
-package co.wtf.openspaces
+package co.wtf.openspaces.github
 
 import co.wtf.openspaces.db.{UserRepository, UserRow}
 import zio.*

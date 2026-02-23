@@ -2,6 +2,7 @@ package co.wtf.openspaces
 
 import com.raquo.laminar.api.L.*
 import neotype.unwrap
+import co.wtf.openspaces.discussions.VotingState
 
 object GitHubAvatar {
 

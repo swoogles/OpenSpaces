@@ -1,7 +1,7 @@
 package co.wtf.openspaces.components
 
 import com.raquo.laminar.api.L.{*, given}
-// AppView is in components.ScheduleView
+// AppView is defined in ScheduleView.scala in the same package
 
 /** Segmented control for switching between views.
   * Modern pill-style toggle that's obvious on mobile.

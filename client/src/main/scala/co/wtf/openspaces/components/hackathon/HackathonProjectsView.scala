@@ -1,4 +1,4 @@
-package co.wtf.openspaces.components
+package co.wtf.openspaces.components.hackathon
 
 import com.raquo.laminar.api.L.{*, given}
 import neotype.*

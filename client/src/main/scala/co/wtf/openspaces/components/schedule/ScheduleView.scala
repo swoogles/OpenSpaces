@@ -6,13 +6,18 @@ import org.scalajs.dom
 import neotype.unwrap
 
 import co.wtf.openspaces.{
-  DaySlots, Discussion, Person, RoomSlot,
+  Person, RoomSlot,
   SvgIcon, GlyphiconUtils
 }
+import co.wtf.openspaces.discussions.DaySlots
+import co.wtf.openspaces.discussions.Discussion
 import co.wtf.openspaces.discussions.{DiscussionAction, DiscussionState}
 import co.wtf.openspaces.lighting_talks.{LightningTalkNight, LightningTalkProposal, LightningTalkState}
 import co.wtf.openspaces.util.ScrollPreserver
 import co.wtf.openspaces.FrontEnd.connectionStatus
+import co.wtf.openspaces.components.lightning_talks.LightningTalkProposalCard
+import co.wtf.openspaces.components.discussions.TopicCard
+import co.wtf.openspaces.components.schedule.ScheduleSlotComponent
 
 /** App view mode enum.
   */

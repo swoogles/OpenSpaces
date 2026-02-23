@@ -2,7 +2,8 @@ package co.wtf.openspaces.services
 
 import org.scalajs.dom
 
-import co.wtf.openspaces.{AppState, TopicId, VotePosition}
+import co.wtf.openspaces.{AppState, TopicId}
+import co.wtf.openspaces.discussions.VotePosition
 
 object AudioService:
   // Shared AudioContext - created lazily on first user interaction

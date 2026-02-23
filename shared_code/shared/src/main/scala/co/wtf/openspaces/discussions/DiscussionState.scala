@@ -1,6 +1,6 @@
 package co.wtf.openspaces.discussions
 
-import co.wtf.openspaces.{DaySlots, TimeSlotForAllRooms, TimeSlot, Room, TopicId, Discussion, RoomSlot}
+import co.wtf.openspaces.{TimeSlot, Room, TopicId, RoomSlot}
 import co.wtf.openspaces.discussions.DiscussionActionConfirmed.Rejected
 
 import java.time.LocalDate

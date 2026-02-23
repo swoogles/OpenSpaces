@@ -1,13 +1,14 @@
-package co.wtf.openspaces.components
+package co.wtf.openspaces.components.schedule
 
 import animus.*
 import com.raquo.laminar.api.L.{*, given}
 import org.scalajs.dom
 
 import co.wtf.openspaces.{
-  Discussion, Person, RoomSlot, TimeSlotForAllRooms,
-  VotingState, GitHubAvatar, SvgIcon, GlyphiconUtils
+  Person, RoomSlot, GitHubAvatar, SvgIcon, GlyphiconUtils
 }
+import co.wtf.openspaces.discussions.{TimeSlotForAllRooms, VotingState}
+import co.wtf.openspaces.discussions.Discussion
 import co.wtf.openspaces.discussions.{DiscussionAction, DiscussionState}
 import co.wtf.openspaces.util.{SlotPositionTracker, SwapAnimationState}
 

@@ -1,5 +1,6 @@
 package co.wtf.openspaces
 
+import co.wtf.openspaces.auth.AuthenticatedTicketService
 import co.wtf.openspaces.db.UserRepository
 import zio.*
 import zio.direct.*

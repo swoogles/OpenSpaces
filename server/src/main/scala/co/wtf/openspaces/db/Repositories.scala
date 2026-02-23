@@ -1,7 +1,7 @@
 package co.wtf.openspaces.db
 
 import com.augustnagro.magnum.*
-import co.wtf.openspaces.VotePosition
+import co.wtf.openspaces.discussions.VotePosition
 import zio.*
 
 import java.time.OffsetDateTime

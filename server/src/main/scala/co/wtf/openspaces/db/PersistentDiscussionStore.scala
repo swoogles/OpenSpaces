@@ -1,7 +1,8 @@
 package co.wtf.openspaces.db
 
 import co.wtf.openspaces.*
-import co.wtf.openspaces.discussions.{DiscussionAction, DiscussionActionConfirmed, DiscussionState, DiscussionStore, DiscussionTopics}
+import co.wtf.openspaces.discussions.{Discussion, DiscussionAction, DiscussionActionConfirmed, DiscussionState, DiscussionStore, DiscussionTopics, Feedback, VotePosition}
+import co.wtf.openspaces.github.GitHubProfileService
 import neotype.unwrap
 import zio.*
 import zio.json.*

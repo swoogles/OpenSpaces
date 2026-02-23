@@ -4,6 +4,10 @@ import neotype.*
 import neotype.interop.ziojson.given
 import zio.json.*
 
+// TODO Maybe rename "Content" ? Something like that, as I expect it to play the roles of:
+// discussion title
+// hackathon title
+// meal plan
 type TopicId = TopicId.Type
 object TopicId extends Newtype[Long]
 

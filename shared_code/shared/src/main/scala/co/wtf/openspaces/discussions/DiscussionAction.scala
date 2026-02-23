@@ -1,6 +1,6 @@
 package co.wtf.openspaces.discussions
 
-import co.wtf.openspaces.{Person, Topic, TopicId, RoomSlot, Discussion, Feedback}
+import co.wtf.openspaces.{Person, Topic, TopicId, RoomSlot}
 import neotype.*
 import neotype.given
 import neotype.interop.zioschema.given

@@ -1,16 +1,18 @@
-package co.wtf.openspaces.components
+package co.wtf.openspaces.components.discussions
 
 import animus.*
 import com.raquo.laminar.api.L.{*, given}
 import org.scalajs.dom
 
 import co.wtf.openspaces.{
-  Discussion, Person, Topic, TopicId, VotePosition,
-  GitHubAvatar
+  Person, Topic, TopicId, GitHubAvatar
 }
+import co.wtf.openspaces.discussions.VotePosition
+import co.wtf.openspaces.discussions.Discussion
 import co.wtf.openspaces.discussions.DiscussionAction
 import co.wtf.openspaces.AppState
 import co.wtf.openspaces.*
+import co.wtf.openspaces.components.{InlineEditableTitle, SwipeableCard}
 import io.laminext.websocket.*
 
 /** Topic card component showing a discussion with vote state and inline editing.

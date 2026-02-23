@@ -1,6 +1,7 @@
 package co.wtf.openspaces
 
 import co.wtf.openspaces.db.ConfirmedActionRepository
+import co.wtf.openspaces.discussions.SchedulingService
 import zio.*
 import zio.http.*
 import zio.json.*

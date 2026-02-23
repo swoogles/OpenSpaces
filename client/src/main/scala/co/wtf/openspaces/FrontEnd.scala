@@ -13,12 +13,19 @@ import co.wtf.openspaces.hackathon.*
 
 // Import extracted utilities
 import co.wtf.openspaces.util.{SlotPositionTracker, SwapAnimationState, MenuPositioning, ScrollPreserver}
-import co.wtf.openspaces.components.{ToastManager, AdminControls, TopicSubmission, SwipeableCard, ErrorBanner, VoteButtons, ViewToggle, InlineEditableTitle, NameBadge, AdminModeToggle, LoadingPreviewToggle, Menu, UnscheduledDiscussionsMenu, ActiveDiscussionActionMenu, TopicCard, DiscussionSubview, ScheduleSlotComponent, SlotSchedule, ScheduleView, SlotSchedules, LinearScheduleView, LightningTalksView, HackathonProjectsView, ReplayView, AppView, activeDiscussionLongPressBinder}
+import co.wtf.openspaces.components.{ToastManager, AdminControls, SwipeableCard, ErrorBanner, VoteButtons, ViewToggle, InlineEditableTitle, NameBadge, AdminModeToggle, LoadingPreviewToggle, Menu, UnscheduledDiscussionsMenu, ActiveDiscussionActionMenu, ScheduleView, LinearScheduleView, ReplayView, AppView, SlotSchedules, activeDiscussionLongPressBinder}
+import co.wtf.openspaces.components.schedule.{ScheduleSlotComponent, SlotSchedule}
+import co.wtf.openspaces.components.discussions.{TopicCard, DiscussionSubview}
+import co.wtf.openspaces.components.discussions.TopicSubmission
+import co.wtf.openspaces.components.lightning_talks.LightningTalksView
+import co.wtf.openspaces.components.hackathon.HackathonProjectsView
 import co.wtf.openspaces.AppState.*
 import co.wtf.openspaces.*
 import co.wtf.openspaces.services.{AudioService, AuthService}
 import zio.http.endpoint.{Endpoint, EndpointExecutor}
 import co.wtf.openspaces.lighting_talks.*
+import co.wtf.openspaces.discussions.Discussion
+import co.wtf.openspaces.discussions.VotePosition
 
 /** FrontEnd.scala - Main entry point and app composition
   * 

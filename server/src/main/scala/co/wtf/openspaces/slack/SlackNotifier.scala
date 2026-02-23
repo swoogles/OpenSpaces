@@ -2,7 +2,7 @@ package co.wtf.openspaces.slack
 
 import co.wtf.openspaces.*
 import co.wtf.openspaces.db.{DiscussionRepository, LightningTalkRepository, LightningTalkRow, HackathonProjectRepository, HackathonProjectRow}
-import co.wtf.openspaces.discussions.DiscussionActionConfirmed
+import co.wtf.openspaces.discussions.{Discussion, DiscussionActionConfirmed}
 import co.wtf.openspaces.hackathon.*
 import co.wtf.openspaces.lighting_talks.*
 import neotype.unwrap

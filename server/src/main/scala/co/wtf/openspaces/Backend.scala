@@ -1,6 +1,9 @@
 package co.wtf.openspaces
 
+import co.wtf.openspaces.auth.AuthenticatedTicketService
 import co.wtf.openspaces.db._
+import co.wtf.openspaces.discussions.SchedulingService
+import co.wtf.openspaces.github.GitHubProfileService
 import co.wtf.openspaces.hackathon.HackathonProjectService
 import co.wtf.openspaces.lightning_talks.LightningTalkService
 import co.wtf.openspaces.slack._

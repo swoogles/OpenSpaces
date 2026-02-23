@@ -2,7 +2,8 @@ package co.wtf.openspaces.components
 
 import com.raquo.laminar.api.L.{*, given}
 import org.scalajs.dom
-import co.wtf.openspaces.{Discussion, Person}
+import co.wtf.openspaces.{Person}
+import co.wtf.openspaces.discussions.Discussion
 
 /** Inline editable title for topic cards.
   * Shows as plain text with an edit button for the facilitator.

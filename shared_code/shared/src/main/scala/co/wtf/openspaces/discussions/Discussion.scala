@@ -1,59 +1,11 @@
-package co.wtf.openspaces
+package co.wtf.openspaces.discussions
 
-import co.wtf.openspaces.VotePosition.Interested
-import neotype.*
-import neotype.given
+import co.wtf.openspaces.{Glyphicon, GlyphiconUtils, Person, Topic, TopicId, Room, RoomSlot, TimeSlot}
+import co.wtf.openspaces.discussions.VotePosition.Interested
+import neotype.unwrap
 import neotype.interop.ziojson.given
 import zio.json.*
-
-import java.time.{LocalDate, LocalDateTime}
-import java.util.UUID
-
-// TODO Conver to newType, like Topic, but without the length requirement
-type Person = Person.Type
-object Person extends Newtype[String]
-
-enum VotePosition derives JsonCodec:
-  case Interested, NotInterested
-
-/** Represents the user's voting state for a topic, used for styling.
-  *   - VotedFor: User has voted in favor (most visible)
-  *   - NotVoted: User has not voted (neutral)
-  *   - VotedAgainst: User has voted against (least visible)
-  */
-enum VotingState:
-  case VotedFor, NotVoted, VotedAgainst
-
-  /** Returns the CSS class name for this voting state */
-  def cssClass: String = this match
-    case VotedFor      => "vote-state-for"
-    case NotVoted      => "vote-state-neutral"
-    case VotedAgainst  => "vote-state-against"
-
-  /** Returns an accessible label describing this voting state */
-  def ariaLabel: String = this match
-    case VotedFor      => "You voted for this topic"
-    case NotVoted      => "You have not voted on this topic"
-    case VotedAgainst  => "You voted against this topic"
-
-object VotingState:
-  /** Determines the voting state for a given user and discussion */
-  def forUser(
-    discussion: Discussion,
-    user: Person,
-  ): VotingState =
-    discussion.interestedParties.find(_.voter == user) match
-      case Some(feedback) =>
-        feedback.position match
-          case VotePosition.Interested    => VotedFor
-          case VotePosition.NotInterested => VotedAgainst
-      case None => NotVoted
-
-case class Feedback(
-  voter: Person,
-  position: VotePosition,
-  firstVotedAtEpochMs: Option[Long] = None)
-    derives JsonCodec
+import java.time.LocalDateTime
 
 case class Discussion(
   topic: Topic,
@@ -179,44 +131,3 @@ object Discussion:
       None,
       0L,
     )
-
-case class Room(
-  id: Int,
-  name: String,
-  capacity: Int)
-    derives JsonCodec
-
-object Room:
-  val king = Room(0, "King", 30)
-  val artGallery = Room(1, "Art Gallery", 20)
-  val hawk = Room(2, "Hawk", 15)
-  val danceHall = Room(3, "Dance Hall", 10)
-
-case class TimeSlot(
-  s: String,
-//                     id: String,
-  startTime: LocalDateTime, // TODO Restore this. Required for dealing with topics showing up on multiple days
-  endTime: LocalDateTime, // TODO Restore this.
-) derives JsonCodec
-
-case class ScheduledDiscussion(
-  discussion: Discussion,
-  room: Room,
-  timeSlot: TimeSlot)
-    derives JsonCodec
-
-case class RoomSlot(
-  room: Room,
-  timeSlot: TimeSlot)
-    derives JsonCodec:
-  def displayString: String = timeSlot.s + " " + room.name
-
-case class TimeSlotForAllRooms(
-  time: TimeSlot,
-  rooms: List[Room])
-    derives JsonCodec
-
-case class DaySlots(
-  date: LocalDate,
-  slots: List[TimeSlotForAllRooms])
-    derives JsonCodec

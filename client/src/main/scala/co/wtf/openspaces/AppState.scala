@@ -8,6 +8,8 @@ import co.wtf.openspaces.hackathon.*
 import co.wtf.openspaces.services.AuthService
 import co.wtf.openspaces.components.AppView
 import co.wtf.openspaces.lighting_talks.LightningTalkState
+import co.wtf.openspaces.discussions.Discussion
+import co.wtf.openspaces.discussions.VotePosition
 
 /** Centralized app state (Vars + derived signals) */
 object AppState:
