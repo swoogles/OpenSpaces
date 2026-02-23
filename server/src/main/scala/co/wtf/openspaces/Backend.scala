@@ -58,7 +58,7 @@ object Backend extends ZIOAppDefault {
     
     defer:
       val statefulRoutes =
-        ZIO.serviceWith[ApplicationState](_.authRoutes).run
+        ZIO.serviceWith[ApplicationState](_.routes).run
       val socketRoutes =
         ZIO.serviceWith[BackendSocketApp](_.socketRoutes).run
       val randomActionRoutes =
