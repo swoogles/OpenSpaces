@@ -5,6 +5,7 @@ import neotype.*
 import org.scalajs.dom
 
 import co.wtf.openspaces.*
+import co.wtf.openspaces.hackathon.*
 
 /** Hackathon Projects view for Wednesday hackday.
   * 

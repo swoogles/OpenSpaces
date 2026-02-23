@@ -8,6 +8,8 @@ import zio.json.*
 import zio.*
 import neotype.*
 
+import co.wtf.openspaces.hackathon.*
+
 // Import extracted utilities
 import co.wtf.openspaces.util.{SlotPositionTracker, SwapAnimationState, MenuPositioning, ScrollPreserver}
 import co.wtf.openspaces.components.{ToastManager, AdminControls, TopicSubmission, SwipeableCard, ErrorBanner, VoteButtons, ViewToggle, InlineEditableTitle, NameBadge, AdminModeToggle, LoadingPreviewToggle, Menu, UnscheduledDiscussionsMenu, ActiveDiscussionActionMenu, TopicCard, DiscussionSubview, ScheduleSlotComponent, SlotSchedule, ScheduleView, SlotSchedules, LinearScheduleView, LightningTalksView, HackathonProjectsView, ReplayView, AppView, activeDiscussionLongPressBinder}

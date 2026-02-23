@@ -7,6 +7,7 @@ import co.wtf.openspaces.db.{
   HackathonProjectMemberRow,
   UserRepository,
 }
+import co.wtf.openspaces.hackathon.*
 import neotype.unwrap
 import zio.*
 

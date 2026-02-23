@@ -46,21 +46,34 @@ case class DiscussionState(
             data.updatedWith(topicId) {
               _.map(value =>
                 value.copy(interestedParties =
-                  value.interestedParties.filterNot(_.voter == newFeedback.voter) + newFeedback,
+                  value.interestedParties.filterNot(
+                    _.voter == newFeedback.voter,
+                  ) + newFeedback,
                 ),
               )
             }
-          case DiscussionActionConfirmed.ResetUser(person, deletedTopicIds, clearedVoteTopicIds) =>
+          case DiscussionActionConfirmed.ResetUser(person,
+                                                   deletedTopicIds,
+                                                   clearedVoteTopicIds,
+              ) =>
             // Remove deleted topics and clear votes from affected topics
-            val afterDeletes = data.filterNot { case (id, _) => deletedTopicIds.contains(id) }
-            clearedVoteTopicIds.foldLeft(afterDeletes) { (acc, topicId) =>
-              acc.updatedWith(topicId) {
-                _.map(value =>
-                  value.copy(interestedParties =
-                    value.interestedParties.filterNot(_.voter == person),
-                  ),
-                )
-              }
+            val afterDeletes = data.filterNot { case (id, _) =>
+              deletedTopicIds.contains(id)
+            }
+            clearedVoteTopicIds.foldLeft(afterDeletes) {
+              (
+                acc,
+                topicId,
+              ) =>
+                acc.updatedWith(topicId) {
+                  _.map(value =>
+                    value.copy(interestedParties =
+                      value.interestedParties.filterNot(
+                        _.voter == person,
+                      ),
+                    ),
+                  )
+                }
             }
           case DiscussionActionConfirmed.Rename(topicId, newTopic) =>
             data.updatedWith(topicId) {
@@ -83,9 +96,12 @@ case class DiscussionState(
           case DiscussionActionConfirmed.AddResult(discussion) =>
             data + (discussion.id -> discussion)
 
-          case DiscussionActionConfirmed.SlackThreadLinked(topicId, slackThreadUrl) =>
+          case DiscussionActionConfirmed
+                .SlackThreadLinked(topicId, slackThreadUrl) =>
             data.updatedWith(topicId) {
-              _.map(value => value.copy(slackThreadUrl = Some(slackThreadUrl)))
+              _.map(value =>
+                value.copy(slackThreadUrl = Some(slackThreadUrl)),
+              )
             }
           case DiscussionActionConfirmed.Unauthorized(_) =>
             data

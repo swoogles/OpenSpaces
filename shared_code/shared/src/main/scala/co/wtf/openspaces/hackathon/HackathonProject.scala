@@ -1,8 +1,9 @@
-package co.wtf.openspaces
+package co.wtf.openspaces.hackathon
 
 import neotype.*
 import neotype.interop.ziojson.given
 import zio.json.*
+import co.wtf.openspaces.Person
 
 type HackathonProjectId = HackathonProjectId.Type
 object HackathonProjectId extends Newtype[Long]

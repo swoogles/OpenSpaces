@@ -1,6 +1,7 @@
-package co.wtf.openspaces
+package co.wtf.openspaces.hackathon
 
 import neotype.unwrap
+import co.wtf.openspaces.Person
 
 case class HackathonProjectState(
   projects: Map[HackathonProjectId, HackathonProject],

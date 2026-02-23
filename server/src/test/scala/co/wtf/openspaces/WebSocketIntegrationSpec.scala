@@ -1,5 +1,6 @@
 package co.wtf.openspaces
 
+import co.wtf.openspaces.hackathon.*
 import neotype.unwrap
 import zio.*
 import zio.direct.*

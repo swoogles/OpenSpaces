@@ -8,22 +8,9 @@ import neotype.interop.zioschema.given
 import neotype.interop.ziojson.given
 import zio.schema.*
 import zio.json.*
-
 import java.time.{LocalDate, LocalDateTime}
 import java.util.UUID
-
-sealed trait WebSocketMessage derives JsonCodec, Schema
-sealed trait WebSocketMessageFromClient
-    extends WebSocketMessage
-    derives JsonCodec, Schema
-sealed trait WebSocketMessageFromServer
-    extends WebSocketMessage
-    derives JsonCodec, Schema
-
-case class Ticket(
-  uuid: UUID)
-    extends WebSocketMessageFromClient
-    derives JsonCodec, Schema
+import co.wtf.openspaces.hackathon.{HackathonProjectAction, HackathonProjectActionConfirmed}
 
 enum DiscussionAction derives JsonCodec:
   case Add(
@@ -52,7 +39,7 @@ enum DiscussionAction derives JsonCodec:
     expectedRoomSlot1: RoomSlot,
     topic2: TopicId,
     expectedRoomSlot2: RoomSlot)
-
+    
 enum DiscussionActionConfirmed derives JsonCodec:
   case Delete(
     topic: TopicId)
@@ -112,118 +99,13 @@ object DiscussionActionConfirmed:
       case DiscussionAction.SetRoomSlot(topicId, _, newRoomSlot) =>
         DiscussionActionConfirmed.SetRoomSlot(topicId, newRoomSlot)
       case DiscussionAction.SwapTopics(topic1,
-                                       expected1,
-                                       topic2,
-                                       expected2,
+                                        expected1,
+                                        topic2,
+                                        expected2,
           ) =>
         // Note: The confirmed action contains the NEW room slots (swapped)
         DiscussionActionConfirmed.SwapTopics(topic1,
-                                             expected2,
-                                             topic2,
-                                             expected1,
+                                              expected2,
+                                              topic2,
+                                              expected1,
         )
-
-enum LightningTalkAction derives JsonCodec:
-  case SetParticipation(
-    speaker: Person,
-    participating: Boolean)
-  case SetAssignment(
-    proposalId: LightningTalkId,
-    expectedCurrentAssignment: Option[LightningAssignment],
-    newAssignment: Option[LightningAssignment])
-  case DrawForNextNight
-
-enum LightningTalkActionConfirmed derives JsonCodec:
-  case AddResult(
-    proposal: LightningTalkProposal)
-  case SlackThreadLinked(
-    proposalId: LightningTalkId,
-    slackThreadUrl: String)
-  case Delete(
-    proposalId: LightningTalkId,
-    slackChannelId: Option[String],
-    slackThreadTs: Option[String])
-  case SetAssignment(
-    proposalId: LightningTalkId,
-    newAssignment: Option[LightningAssignment])
-  case DrawForNightResult(
-    night: LightningTalkNight,
-    assignments: List[LightningDrawAssignment])
-  case StateReplace(
-    proposals: List[LightningTalkProposal])
-  case Unauthorized(
-    action: LightningTalkAction)
-  case Rejected(
-    action: LightningTalkAction)
-
-case class DiscussionActionMessage(
-  action: DiscussionAction,
-) extends WebSocketMessageFromClient derives JsonCodec
-
-case class DiscussionActionConfirmedMessage(
-  event: DiscussionActionConfirmed,
-) extends WebSocketMessageFromServer derives JsonCodec
-
-case class LightningTalkActionMessage(
-  action: LightningTalkAction,
-) extends WebSocketMessageFromClient derives JsonCodec
-
-case class LightningTalkActionConfirmedMessage(
-  event: LightningTalkActionConfirmed,
-) extends WebSocketMessageFromServer derives JsonCodec
-
-// Hackathon Projects (Wednesday hackday)
-
-enum HackathonProjectAction derives JsonCodec:
-  case Create(
-    title: ProjectTitle,
-    creator: Person)
-  case Join(
-    projectId: HackathonProjectId,
-    person: Person)
-  case Leave(
-    projectId: HackathonProjectId,
-    person: Person)
-  case Rename(
-    projectId: HackathonProjectId,
-    newTitle: ProjectTitle)
-  case Delete(
-    projectId: HackathonProjectId,
-    requester: Person)
-
-enum HackathonProjectActionConfirmed derives JsonCodec:
-  case Created(
-    project: HackathonProject)
-  case Joined(
-    projectId: HackathonProjectId,
-    person: Person,
-    joinedAtEpochMs: Long)
-  case Left(
-    projectId: HackathonProjectId,
-    person: Person,
-    newOwner: Option[Person])
-  case OwnershipTransferred(
-    projectId: HackathonProjectId,
-    newOwner: Person)
-  case Renamed(
-    projectId: HackathonProjectId,
-    newTitle: ProjectTitle)
-  case Deleted(
-    projectId: HackathonProjectId)
-  case SlackThreadLinked(
-    projectId: HackathonProjectId,
-    slackThreadUrl: String)
-  case StateReplace(
-    projects: List[HackathonProject])
-  case Unauthorized(
-    action: HackathonProjectAction)
-  case Rejected(
-    action: HackathonProjectAction)
-
-case class HackathonProjectActionMessage(
-  action: HackathonProjectAction,
-) extends WebSocketMessageFromClient derives JsonCodec
-
-case class HackathonProjectActionConfirmedMessage(
-  event: HackathonProjectActionConfirmed,
-) extends WebSocketMessageFromServer derives JsonCodec
