@@ -665,7 +665,10 @@ button {
     min-width: 24px;
 }
 
-.EntityCard {
+.EntityCard,
+.TopicCard,
+.HackathonProjectCard,
+.LightningTalk-slot {
     --entity-card-bg: var(--color-bg-elevated);
     --entity-card-border-color: var(--color-border-section);
     --entity-card-radius: var(--radius-md);
