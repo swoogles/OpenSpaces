@@ -13,9 +13,8 @@ import co.wtf.openspaces.hackathon.*
 
 // Import extracted utilities
 import co.wtf.openspaces.util.{SlotPositionTracker, SwapAnimationState, MenuPositioning, ScrollPreserver}
-import co.wtf.openspaces.components.{AdminControls, SwipeableCard, ErrorBanner, ViewToggle, InlineEditableTitle, NameBadge, AdminModeToggle, LoadingPreviewToggle, Menu, UnscheduledDiscussionsMenu, ActiveDiscussionActionMenu, ScheduleView, LinearScheduleView, ReplayView, AppView, SlotSchedules, activeDiscussionLongPressBinder}
-import co.wtf.openspaces.components.schedule.{ScheduleSlotComponent, SlotSchedule}
-import co.wtf.openspaces.components.discussions.{TopicCard, DiscussionSubview}
+import co.wtf.openspaces.components.{AdminControls, ErrorBanner, ViewToggle, NameBadge, AdminModeToggle, LoadingPreviewToggle, Menu, UnscheduledDiscussionsMenu, ActiveDiscussionActionMenu, ScheduleView, LinearScheduleView, ReplayView, AppView}
+import co.wtf.openspaces.components.discussions.DiscussionSubview
 import co.wtf.openspaces.components.discussions.TopicSubmission
 import co.wtf.openspaces.components.lightning_talks.LightningTalksView
 import co.wtf.openspaces.components.hackathon.HackathonProjectsView

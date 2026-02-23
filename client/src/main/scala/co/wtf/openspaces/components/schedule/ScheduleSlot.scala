@@ -7,9 +7,9 @@ import org.scalajs.dom
 import co.wtf.openspaces.{
   Person, RoomSlot, GitHubAvatar, SvgIcon, GlyphiconUtils
 }
-import co.wtf.openspaces.discussions.{TimeSlotForAllRooms, VotingState}
+import co.wtf.openspaces.discussions.VotingState
 import co.wtf.openspaces.discussions.Discussion
-import co.wtf.openspaces.discussions.{DiscussionAction, DiscussionState}
+import co.wtf.openspaces.discussions.DiscussionAction
 import co.wtf.openspaces.util.{SlotPositionTracker, SwapAnimationState}
 
 /** Schedule slot component showing topic avatar with swap/move support.
@@ -115,42 +115,5 @@ object ScheduleSlotComponent:
                   SvgIcon(GlyphiconUtils.emptySlot),
                   onClick.stopPropagation.mapTo(roomSlot) --> showUnscheduledMenu,
                 )
-      },
-    )
-
-/** Row of schedule slots for a single time slot across all rooms.
-  */
-object SlotSchedule:
-  def apply(
-    $discussionState: Signal[DiscussionState],
-    timeSlotsForAllRooms: TimeSlotForAllRooms,
-    updateDiscussion: Observer[Discussion],
-    activeDiscussion: StrictSignal[Option[Discussion]],
-    showPopover: Observer[Discussion],
-    showSwapMenu: Observer[(Discussion, Discussion)],
-    showUnscheduledMenu: Observer[RoomSlot],
-    topicUpdates: DiscussionAction => Unit,
-    name: StrictSignal[Person],
-  ): HtmlElement =
-    div(
-      cls := "SlotRow",
-      div(cls := "TimeOfSlot", timeSlotsForAllRooms.time.s),
-      timeSlotsForAllRooms.rooms.map { room =>
-        val roomSlot = RoomSlot(room, timeSlotsForAllRooms.time)
-        val $slotContent = $discussionState.map(_.roomSlotContent(roomSlot))
-        div(
-          cls := "Cell",
-          ScheduleSlotComponent(
-            roomSlot,
-            $slotContent,
-            updateDiscussion,
-            activeDiscussion,
-            showPopover,
-            showSwapMenu,
-            showUnscheduledMenu,
-            topicUpdates,
-            name,
-          ),
-        )
       },
     )
