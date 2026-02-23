@@ -1,7 +1,7 @@
 package co.wtf.openspaces
 
 import co.wtf.openspaces.auth.AuthenticatedTicketService
-import co.wtf.openspaces.db.ConfirmedActionRepository
+import co.wtf.openspaces.db.{ConfirmedActionRepository, UserRepository}
 import co.wtf.openspaces.discussions.{DiscussionAction, DiscussionActionConfirmed, DiscussionState, DiscussionStore}
 import co.wtf.openspaces.hackathon.*
 import co.wtf.openspaces.lightning_talks.LightningTalkService
@@ -34,7 +34,8 @@ case class SessionService(
   hackathonProjectService: HackathonProjectService,
   authenticatedTicketService: AuthenticatedTicketService,
   slackNotifier: SlackNotifier,
-  confirmedActionRepository: ConfirmedActionRepository):
+  confirmedActionRepository: ConfirmedActionRepository,
+  userRepository: UserRepository):
 
   def handleMessage(
     message: WebSocketMessageFromClient,
@@ -112,6 +113,42 @@ case class SessionService(
       }
       _ <- confirmedActionRepository.truncate
     yield topicIds.size
+
+  /** Delete all records attributed to users in RandomUsers.pool.
+    *
+    * Strategy:
+    * 1) Delete confirmed_actions rows for these actors (no FK to users)
+    * 2) Delete users; FK cascades remove dependent rows
+    * 3) Reload/broadcast all entity states to keep clients synchronized
+    */
+  def deleteAllRandomUserRecords: Task[DeleteRandomUsersResult] =
+    import neotype.unwrap
+    val usernames = RandomUsers.pool.map(_.unwrap).distinct
+    for
+      deletedConfirmedActions <- confirmedActionRepository.deleteByActors(usernames)
+      deletedUsers <- userRepository.deleteByUsernames(usernames)
+      reloadedDiscussionState <- discussionStore.reloadFromDatabase
+      reloadedLightningState <- lightningTalkService.reloadFromDatabase
+      reloadedHackathonState <- hackathonProjectService.reloadFromDatabase
+      _ <- broadcastToAll(
+        DiscussionActionConfirmedMessage(
+          DiscussionActionConfirmed.StateReplace(reloadedDiscussionState.data.values.toList),
+        ),
+      )
+      _ <- broadcastToAll(
+        LightningTalkActionConfirmedMessage(
+          LightningTalkActionConfirmed.StateReplace(reloadedLightningState.proposals.values.toList),
+        ),
+      )
+      _ <- broadcastToAll(
+        HackathonProjectActionConfirmedMessage(
+          HackathonProjectActionConfirmed.StateReplace(reloadedHackathonState.projects.values.toList),
+        ),
+      )
+    yield DeleteRandomUsersResult(
+      deletedUsers = deletedUsers,
+      deletedConfirmedActions = deletedConfirmedActions,
+    )
 
   private def handleTicket(
     ticket: Ticket,
@@ -449,4 +486,5 @@ object SessionService:
           ZIO.service[AuthenticatedTicketService].run,
           ZIO.service[SlackNotifier].run,
           ZIO.service[ConfirmedActionRepository].run,
+          ZIO.service[UserRepository].run,
         )

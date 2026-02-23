@@ -139,6 +139,11 @@ case class RandomActionSpawner(
           .map(DeleteTopicsResult(_))
       },
 
+      RandomActionApi.deleteAllRandomUsersRecords.implement { _ =>
+        discussionService.deleteAllRandomUserRecords
+          .orDie
+      },
+
       // Auto-schedule topics
       RandomActionApi.runScheduling.implement { _ =>
         schedulingService.runScheduling

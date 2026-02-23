@@ -304,6 +304,9 @@ class DiscussionDataStore(
               DiscussionAction.SetRoomSlot(topic.id, topic.roomSlot, None)
         applyAction(action).run
 
+  def reloadFromDatabase: Task[DiscussionState] =
+    snapshot
+
   private def findAvailableSlot(state: DiscussionState): Option[RoomSlot] =
     state.slots
       .flatMap(daySlot =>

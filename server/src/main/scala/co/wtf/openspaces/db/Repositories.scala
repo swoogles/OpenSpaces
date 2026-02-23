@@ -15,6 +15,7 @@ trait UserRepository:
   def findByUsername(username: String): Task[Option[UserRow]]
   def upsert(username: String, displayName: Option[String]): Task[UserRow]
   def findAll: Task[Vector[UserRow]]
+  def deleteByUsernames(usernames: List[String]): Task[Int]
 
 class UserRepositoryLive(ds: DataSource) extends UserRepository:
   def findByUsername(username: String): Task[Option[UserRow]] =
@@ -49,6 +50,12 @@ class UserRepositoryLive(ds: DataSource) extends UserRepository:
   def findAll: Task[Vector[UserRow]] =
     transactZIO(ds):
       sql"SELECT github_username, display_name, created_at FROM users".query[UserRow].run()
+
+  def deleteByUsernames(usernames: List[String]): Task[Int] =
+    transactZIO(ds):
+      usernames.distinct.foldLeft(0) { (deletedCount, username) =>
+        deletedCount + sql"DELETE FROM users WHERE github_username = $username".update.run()
+      }
 
 object UserRepository:
   val layer: ZLayer[DataSource, Nothing, UserRepository] =
@@ -430,6 +437,7 @@ object HackathonProjectMemberRepository:
 trait ConfirmedActionRepository:
   def append(entityType: String, actionType: String, payload: String, actor: Option[String]): Task[ConfirmedActionRow]
   def findAll: Task[Vector[ConfirmedActionRow]]
+  def deleteByActors(actors: List[String]): Task[Int]
   def truncate: Task[Unit]
 
 class ConfirmedActionRepositoryLive(ds: DataSource) extends ConfirmedActionRepository:
@@ -450,6 +458,12 @@ class ConfirmedActionRepositoryLive(ds: DataSource) extends ConfirmedActionRepos
             ORDER BY id"""
         .query[ConfirmedActionRow]
         .run()
+
+  def deleteByActors(actors: List[String]): Task[Int] =
+    transactZIO(ds):
+      actors.distinct.foldLeft(0) { (deletedCount, actor) =>
+        deletedCount + sql"DELETE FROM confirmed_actions WHERE actor = $actor".update.run()
+      }
 
   def truncate: Task[Unit] =
     transactZIO(ds):

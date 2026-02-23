@@ -17,6 +17,12 @@ case class LightningTalkService(
   def snapshot: UIO[LightningTalkState] =
     state.get
 
+  def reloadFromDatabase: Task[LightningTalkState] =
+    for
+      reloaded <- LightningTalkService.loadInitialState(lightningTalkRepo, gitHubProfileService)
+      _ <- state.set(reloaded)
+    yield reloaded
+
   def applyConfirmed(action: LightningTalkActionConfirmed): UIO[Unit] =
     state.update(_(action))
 

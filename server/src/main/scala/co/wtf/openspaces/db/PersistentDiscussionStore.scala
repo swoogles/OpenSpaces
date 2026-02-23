@@ -31,6 +31,16 @@ class PersistentDiscussionStore(
 
   def snapshot: UIO[DiscussionState] = state.get
 
+  def reloadFromDatabase: Task[DiscussionState] =
+    for
+      reloaded <- PersistentDiscussionStore.loadInitialState(
+        discussionRepo,
+        topicVoteRepo,
+        gitHubProfileService,
+      )
+      _ <- state.set(reloaded)
+    yield reloaded
+
   /** Apply a confirmed action to the in-memory state (e.g., SlackThreadLinked) */
   def applyConfirmed(action: DiscussionActionConfirmed): UIO[Unit] =
     state.update(_.apply(action))

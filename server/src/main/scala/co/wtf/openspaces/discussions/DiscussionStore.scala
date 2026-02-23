@@ -11,3 +11,4 @@ trait DiscussionStore:
   def applyConfirmed(action: DiscussionActionConfirmed): UIO[Unit]
   def randomDiscussionAction: Task[DiscussionActionConfirmed]
   def randomScheduleAction: Task[DiscussionActionConfirmed]
+  def reloadFromDatabase: Task[DiscussionState]

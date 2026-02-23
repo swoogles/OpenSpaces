@@ -41,6 +41,7 @@ object AdminControls:
     val scheduleSummary: Var[String] = Var("")
     
     val deleteLoading: Var[Boolean] = Var(false)
+    val deleteRandomUsersLoading: Var[Boolean] = Var(false)
     val resetLoading: Var[Boolean] = Var(false)
     
     // Deployed version hash
@@ -121,6 +122,14 @@ object AdminControls:
         randomActionClient.deleteAllTopics
           .onComplete { _ =>
             deleteLoading.set(false)
+          }
+
+    def deleteRandomUsersRecords(): Unit =
+      if dom.window.confirm("Delete all DB records attributed to RandomUsers.pool? This cannot be undone.") then
+        deleteRandomUsersLoading.set(true)
+        randomActionClient.deleteAllRandomUsersRecords
+          .onComplete { _ =>
+            deleteRandomUsersLoading.set(false)
           }
 
     def resetUser(): Unit =
@@ -233,6 +242,19 @@ object AdminControls:
         child.text <-- deleteLoading.signal.map {
           case true => "⏳"
           case false => "🗑️ Delete All"
+        },
+      ),
+      button(
+        cls := "AdminControls-button",
+        cls := "AdminControls-button--danger",
+        cls <-- deleteRandomUsersLoading.signal.map { loading =>
+          if loading then "AdminControls-button--loading" else ""
+        },
+        disabled <-- deleteRandomUsersLoading.signal,
+        onClick --> { _ => deleteRandomUsersRecords() },
+        child.text <-- deleteRandomUsersLoading.signal.map {
+          case true => "⏳"
+          case false => "🧹 Purge RandomUsers"
         },
       ),
       button(

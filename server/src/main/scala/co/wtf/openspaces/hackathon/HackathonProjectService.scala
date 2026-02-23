@@ -24,6 +24,16 @@ case class HackathonProjectService(
   def snapshot: UIO[HackathonProjectState] =
     state.get
 
+  def reloadFromDatabase: Task[HackathonProjectState] =
+    for
+      reloaded <- HackathonProjectService.loadInitialState(
+        projectRepo,
+        memberRepo,
+        gitHubProfileService,
+      )
+      _ <- state.set(reloaded)
+    yield reloaded
+
   def applyConfirmed(action: HackathonProjectActionConfirmed): UIO[Unit] =
     state.update(_(action))
 
