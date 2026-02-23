@@ -636,7 +636,7 @@ object FrontEnd extends ZIOAppDefault{
     // If I don't confine the scope of it, it clashes with laminar's `span`. Weird.
     import scala.concurrent.duration._
       WebSocket
-      .url("/discussions")
+      .url("/discussions") // TODO Reference the Zio Endpoint to keep this in sync
       .text[WebSocketMessageFromServer, WebSocketMessageFromClient](
         _.toJson,
         _.fromJson[WebSocketMessageFromServer].left.map(Exception(_)),
