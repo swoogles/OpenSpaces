@@ -58,9 +58,18 @@
     /* Border Radius */
     --radius-sm: 4px;
     --radius-md: 8px;
-    --radius-lg: 12px;
-    --radius-xl: 16px;
     --radius-full: 50%;
+
+    /* Layout defaults */
+    --layout-align-items: center;
+    --layout-justify-content: center;
+
+    /* Minimal spacing scale */
+    --pad-0: 0;
+    --pad-xs: 4px;
+    --pad-sm: 8px;
+    --pad-md: 12px;
+    --pad-lg: 16px;
     
     /* Shadows */
     --shadow-sm: 0 2px 4px rgba(0, 0, 0, 0.1);
@@ -77,12 +86,10 @@
     flex-shrink: 0;
     width: 28px;
     height: 28px;
-    padding: 0;
+    padding: var(--pad-0);
     border-radius: var(--radius-md);
     cursor: pointer;
     display: flex;
-    align-items: center;
-    justify-content: center;
     transition: all 0.15s ease;
 }
 
@@ -94,8 +101,8 @@
 .Card {
     background: var(--color-white);
     border: 1px solid var(--color-border-section);
-    border-radius: var(--radius-lg);
-    padding: 12px;
+    border-radius: var(--radius-md);
+    padding: var(--pad-md);
 }
 
 .Card--elevated {
@@ -106,6 +113,38 @@ html {
     background-color: var(--color-white);
     text-align: center;
     height: 100%;
+    --app-align-items: var(--layout-align-items);
+    --app-justify-content: var(--layout-justify-content);
+}
+
+:is(
+    .IconButton,
+    .loading-screen,
+    .LoginScreen,
+    .LoginScreen-button,
+    .ProfileIconButton,
+    .TopicSubmission-button,
+    .VoteChevronStack,
+    .VoteButtonRow,
+    .VoteButton,
+    .InlineEditableTitle-editBtn,
+    .InlineEditableTitle-deleteBtn,
+    .InlineEditableTitle-cancelBtn,
+    .Cell,
+    .Menu-swapButton,
+    .connection-indicator-dot,
+    .connection-banner,
+    .connection-banner-content,
+    .LinearEmptySlot,
+    .SwipeReveal,
+    .VoteIndicator,
+    .sound-toggle,
+    .Toast-dismiss,
+    .emptySlotWithActiveDiscussion,
+    .ConfirmationModal-overlay
+) {
+    align-items: var(--app-align-items);
+    justify-content: var(--app-justify-content);
 }
 /* ============================================
    Loading Screen
@@ -118,8 +157,6 @@ html {
     bottom: 0;
     display: flex;
     flex-direction: column;
-    align-items: center;
-    justify-content: center;
     background: linear-gradient(135deg, var(--color-primary) 0%, var(--color-primary-dark) 100%);
     z-index: 9999;
     transition: opacity 0.3s ease-out;
@@ -186,10 +223,8 @@ body {
 .LoginScreen {
     display: flex;
     flex-direction: column;
-    align-items: center;
-    justify-content: center;
     min-height: 100vh;
-    padding: 24px;
+    padding: var(--pad-lg);
     background: linear-gradient(135deg, var(--color-primary) 0%, var(--color-primary-dark) 100%);
     text-align: center;
 }
@@ -204,7 +239,7 @@ body {
 
 .LoginScreen-content {
     max-width: 420px;
-    padding: 40px 32px;
+    padding: var(--pad-lg) var(--pad-lg);
     background: var(--color-white);
     border-radius: 20px;
     box-shadow: 0 12px 40px rgba(0, 0, 0, 0.15);
@@ -230,17 +265,15 @@ body {
 
 .LoginScreen-button {
     display: inline-flex;
-    align-items: center;
-    justify-content: center;
     gap: 12px;
     width: 100%;
-    padding: 16px 24px;
+    padding: var(--pad-lg) var(--pad-lg);
     font-size: 18px;
     font-weight: 600;
     color: var(--color-white);
     background: linear-gradient(135deg, #24292e 0%, #1a1e22 100%);
     border: none;
-    border-radius: var(--radius-lg);
+    border-radius: var(--radius-md);
     text-decoration: none;
     cursor: pointer;
     transition: all 0.2s ease;
@@ -289,10 +322,8 @@ body {
 
 .ProfileIconButton {
     display: inline-flex;
-    align-items: center;
-    justify-content: center;
     border-radius: var(--radius-full);
-    padding: 2px;
+    padding: var(--pad-xs);
     cursor: pointer;
     transition: box-shadow 0.2s ease, transform 0.1s ease;
 }
@@ -317,10 +348,10 @@ body {
     display: flex;
     flex-direction: column;
     gap: 12px;
-    padding: 16px;
+    padding: var(--pad-lg);
     margin: 12px 10px 20px 10px;
     background: linear-gradient(135deg, var(--color-primary) 0%, var(--color-primary-dark) 100%);
-    border-radius: var(--radius-xl);
+    border-radius: var(--radius-md);
     box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
     transition: transform 0.2s ease, box-shadow 0.2s ease;
 }
@@ -341,12 +372,12 @@ body {
 .TopicSubmission-textArea {
     width: 100%;
     min-height: 80px;
-    padding: 14px 16px;
+    padding: var(--pad-md) var(--pad-lg);
     font-size: 16px;
     line-height: 1.5;
     background-color: rgba(255, 255, 255, 0.95);
     border: 2px solid transparent;
-    border-radius: var(--radius-lg);
+    border-radius: var(--radius-md);
     resize: vertical;
     transition: border-color 0.2s ease, box-shadow 0.2s ease;
 }
@@ -363,7 +394,7 @@ body {
 }
 
 .TopicSubmission-inlineError {
-    padding: 10px 12px;
+    padding: var(--pad-sm) var(--pad-md);
     border-radius: var(--radius-md);
     background-color: rgba(127, 29, 29, 0.25);
     border: 1px solid rgba(254, 202, 202, 0.55);
@@ -375,17 +406,15 @@ body {
 
 .TopicSubmission-button {
     display: flex;
-    align-items: center;
-    justify-content: center;
     gap: 8px;
     width: 100%;
-    padding: 14px 24px;
+    padding: var(--pad-md) var(--pad-lg);
     font-size: 16px;
     font-weight: 600;
     color: var(--color-primary);
     background: linear-gradient(135deg, var(--color-white) 0%, var(--color-bg-page) 100%);
     border: none;
-    border-radius: var(--radius-lg);
+    border-radius: var(--radius-md);
     cursor: pointer;
     transition: all 0.2s ease;
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
@@ -419,14 +448,14 @@ body {
     flex-direction: column;
     gap: 16px;
     width: 100%;
-    padding: 8px 10px 24px 10px;
+    padding: var(--pad-sm) var(--pad-md) var(--pad-lg) var(--pad-md);
 }
 
 .TopicSection {
     background: var(--color-white);
     border: 1px solid var(--color-border-section);
-    border-radius: var(--radius-lg);
-    padding: 12px;
+    border-radius: var(--radius-md);
+    padding: var(--pad-md);
     box-shadow: var(--shadow-sm);
 }
 
@@ -445,7 +474,7 @@ body {
 }
 
 .TopicSection-empty {
-    padding: 10px 8px;
+    padding: var(--pad-md) var(--pad-sm);
     color: var(--color-text-muted);
     font-size: 13px;
     background: var(--color-bg-surface);
@@ -473,7 +502,7 @@ body {
     background: var(--color-warning-light);
     border: 1px solid var(--color-warning);
     border-radius: var(--radius-md);
-    padding: 8px 10px;
+    padding: var(--pad-sm) var(--pad-md);
     font-size: 13px;
 }
 
@@ -481,8 +510,8 @@ body {
 .LightningTalk-night {
     background: var(--color-white);
     border: 1px solid var(--color-border-section);
-    border-radius: var(--radius-lg);
-    padding: 10px;
+    border-radius: var(--radius-md);
+    padding: var(--pad-md);
     box-shadow: var(--shadow-sm);
     display: flex;
     flex-direction: column;
@@ -496,7 +525,7 @@ body {
     align-items: center;
     border: 1px solid var(--color-border-section);
     border-radius: var(--radius-md);
-    padding: 8px;
+    padding: var(--pad-sm);
     background: var(--color-bg-elevated);
 }
 
@@ -557,7 +586,7 @@ body {
     border: 1px solid var(--color-border-strong);
     color: var(--color-text-secondary);
     border-radius: var(--radius-md);
-    padding: 5px 8px;
+    padding: var(--pad-xs) var(--pad-sm);
     font-size: 12px;
     font-weight: 700;
 }
@@ -570,7 +599,7 @@ body {
 
 .UnjudgedCounter {
     text-align: center;
-    padding: 8px 16px;
+    padding: var(--pad-sm) var(--pad-lg);
     margin: 8px 16px;
     background-color: var(--color-bg-surface);
     border-radius: var(--radius-md);
@@ -587,8 +616,6 @@ body {
 .VoteChevronStack {
     display: flex;
     flex-direction: column;
-    align-items: center;
-    justify-content: center;
     gap: 6px;
     width: 100%;
 }
@@ -597,10 +624,8 @@ body {
 .VoteButtonRow {
     display: flex;
     flex-direction: row;
-    align-items: center;
-    justify-content: center;
     gap: 4px;
-    padding: 4px;
+    padding: var(--pad-xs);
 }
 
 .VoteCount {
@@ -616,12 +641,10 @@ body {
     background-color: transparent;
     border: 2px solid transparent;
     border-radius: var(--radius-md);
-    padding: 6px;
+    padding: var(--pad-sm);
     cursor: pointer;
     transition: all 0.15s ease;
     display: flex;
-    align-items: center;
-    justify-content: center;
 }
 
 .VoteButton:hover {
@@ -765,7 +788,7 @@ body {
     font-weight: 700;
     font-size: 1.1rem;
     text-align: center;
-    padding: 8px;
+    padding: var(--pad-sm);
     text-transform: uppercase;
     letter-spacing: 0.5px;
 }
@@ -809,7 +832,7 @@ body {
     font-weight: 600;
     font-size: 1rem;
     line-height: 1.3;
-    padding: 8px 10px 4px 10px;
+    padding: var(--pad-sm) var(--pad-md) var(--pad-xs) var(--pad-md);
     color: var(--color-text);
     min-width: 0;
     overflow-wrap: break-word;
@@ -841,12 +864,10 @@ body {
     flex-shrink: 0;
     width: 28px;
     height: 28px;
-    padding: 0;
+    padding: var(--pad-0);
     border-radius: var(--radius-md);
     cursor: pointer;
     display: flex;
-    align-items: center;
-    justify-content: center;
     transition: all 0.15s ease;
     position: relative;
     z-index: 9999;
@@ -899,7 +920,7 @@ body {
 .InlineEditableTitle-input {
     flex: 1;
     min-width: 0;
-    padding: 6px 10px;
+    padding: var(--pad-sm) var(--pad-md);
     font: inherit;
     font-weight: 600;
     color: var(--color-text);
@@ -923,7 +944,7 @@ body {
 
 .SecondaryActive {
     grid-area: SecondaryActive;
-    padding: 4px 10px 8px 10px;
+    padding: var(--pad-xs) var(--pad-md) var(--pad-sm) var(--pad-md);
     display: flex;
     flex-wrap: wrap;
     align-items: center;
@@ -944,7 +965,7 @@ body {
     color: var(--color-text-secondary);
     font-weight: 500;
     background-color: rgba(255, 255, 255, 0.6);
-    padding: 2px 8px;
+    padding: var(--pad-xs) var(--pad-sm);
     border-radius: var(--radius-sm);
     border: 1px solid rgba(0, 0, 0, 0.1);
 }
@@ -955,7 +976,7 @@ body {
     color: var(--color-text);
     font-weight: 600;
     background-color: rgba(74, 144, 217, 0.15);
-    padding: 2px 8px;
+    padding: var(--pad-xs) var(--pad-sm);
     border-radius: var(--radius-sm);
     border: 1px solid rgba(74, 144, 217, 0.3);
 }
@@ -1010,15 +1031,13 @@ body {
 
 .Cell {
     display: flex;
-    align-items: center;
-    justify-content: center;
 }
 
 /* Time slot labels - emphasized for easy scanning */
 .TimeOfSlot {
     font-weight: 600;
     font-size: 1rem;
-    padding: 8px 12px;
+    padding: var(--pad-sm) var(--pad-md);
     display: flex;
     align-items: center;
 }
@@ -1029,7 +1048,7 @@ body {
     font-size: 1.1rem;
     text-transform: uppercase;
     letter-spacing: 0.5px;
-    padding: 12px 8px 8px 8px;
+    padding: var(--pad-md) var(--pad-sm) var(--pad-sm) var(--pad-sm);
     margin-top: 16px;
 }
 
@@ -1038,7 +1057,7 @@ body {
     position: fixed;
     background-color: var(--color-white);
     border-radius: var(--radius-md);
-    padding: 16px;
+    padding: var(--pad-lg);
     width: min(350px, calc(100vw - 20px));
     max-width: calc(100vw - 20px);
     max-height: calc(100vh - 40px);
@@ -1051,7 +1070,7 @@ body {
 /* Menu - mobile adjustments */
 @media (max-width: 400px) {
     .Menu {
-        padding: 12px;
+        padding: var(--pad-md);
         left: 10px !important;
         right: 10px !important;
         width: auto !important;
@@ -1067,13 +1086,13 @@ body {
     }
 
     .Menu-topic {
-        padding: 8px;
+        padding: var(--pad-sm);
         flex-wrap: wrap;
     }
 
     .Menu-swapButton,
     .Menu-cancelButton {
-        padding: 10px 12px;
+        padding: var(--pad-sm) var(--pad-md);
     }
 }
 
@@ -1100,7 +1119,7 @@ body {
 }
 
 .Menu-topic {
-    padding: 10px;
+    padding: var(--pad-md);
     border-radius: var(--radius-md);
     display: flex;
     align-items: center;
@@ -1143,7 +1162,7 @@ body {
 
 .Menu-swapButton {
     width: 100%;
-    padding: 12px 16px;
+    padding: var(--pad-md) var(--pad-lg);
     background-color: var(--color-interactive);
     color: var(--color-white);
     border: none;
@@ -1151,8 +1170,6 @@ body {
     cursor: pointer;
     font-weight: bold;
     display: flex;
-    align-items: center;
-    justify-content: center;
     gap: 8px;
 }
 
@@ -1162,7 +1179,7 @@ body {
 
 .Menu-cancelButton {
     width: 100%;
-    padding: 10px 16px;
+    padding: var(--pad-md) var(--pad-lg);
     background-color: var(--color-bg-page);
     color: var(--color-text);
     border: 1px solid var(--color-border);
@@ -1177,7 +1194,7 @@ body {
 .Menu-textArea {
     width: 100%;
     min-height: 100px;
-    padding: 10px 12px;
+    padding: var(--pad-sm) var(--pad-md);
     border: 1px solid var(--color-border-strong);
     border-radius: var(--radius-md);
     resize: vertical;
@@ -1198,7 +1215,7 @@ body {
     background-color: var(--color-error-light);
     border: 1px solid var(--color-error);
     border-radius: var(--radius-sm);
-    padding: 12px 16px;
+    padding: var(--pad-md) var(--pad-lg);
     margin: 8px 0;
     color: var(--color-error-dark);
 }
@@ -1242,7 +1259,7 @@ body {
     transform: scale(1.1);
     border: 2px solid currentColor;
     border-radius: var(--radius-md);
-    padding: 2px;
+    padding: var(--pad-xs);
     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
 }
 
@@ -1341,7 +1358,7 @@ body {
 }
 
 .AdminControls-button {
-    padding: 8px 16px;
+    padding: var(--pad-sm) var(--pad-lg);
     border: 2px solid var(--color-border-strong);
     border-radius: var(--radius-md);
     background-color: var(--color-bg-page);
@@ -1394,7 +1411,7 @@ body {
 }
 
 .AdminControls-version {
-    padding: 8px 12px;
+    padding: var(--pad-sm) var(--pad-md);
     font-size: 12px;
     font-family: monospace;
     color: var(--color-text-muted);
@@ -1416,7 +1433,7 @@ body {
 .AdminModeToggle {
     display: flex;
     justify-content: flex-end;
-    padding: 4px 16px;
+    padding: var(--pad-xs) var(--pad-lg);
     background-color: var(--color-warning-light);
     border-bottom: 1px solid var(--color-warning);
 }
@@ -1440,14 +1457,14 @@ body {
     display: flex;
     background-color: var(--color-bg-surface);
     border-radius: var(--radius-md);
-    padding: 4px;
+    padding: var(--pad-xs);
     margin: 12px 16px;
     gap: 4px;
 }
 
 .ViewToggle-button {
     flex: 1;
-    padding: 10px 10px;
+    padding: var(--pad-md);
     border: none;
     border-radius: var(--radius-md);
     background-color: transparent;
@@ -1513,8 +1530,6 @@ body {
 
 .connection-indicator-dot {
     display: inline-flex;
-    align-items: center;
-    justify-content: center;
     width: 20px;
     height: 20px;
     font-size: 12px;
@@ -1529,10 +1544,8 @@ body {
 
 .connection-banner {
     display: none;
-    align-items: center;
-    justify-content: center;
     gap: 12px;
-    padding: 10px 16px;
+    padding: var(--pad-md) var(--pad-lg);
     width: 100%;
     font-size: 14px;
     font-weight: 500;
@@ -1578,7 +1591,7 @@ body {
 }
 
 .connection-banner-retry {
-    padding: 6px 12px;
+    padding: var(--pad-sm) var(--pad-md);
     border: none;
     border-radius: var(--radius-sm);
     background-color: var(--color-error);
@@ -1616,7 +1629,7 @@ body {
 .LinearDayHeader {
     font-size: 1.5rem;
     font-weight: 700;
-    padding: 12px 16px;
+    padding: var(--pad-md) var(--pad-lg);
     border-bottom: 2px solid var(--color-border);
     margin-bottom: 0;
     position: sticky;
@@ -1637,7 +1650,7 @@ body {
     font-size: 1.1rem;
     font-weight: 600;
     color: var(--color-text-secondary);
-    padding: 8px 12px;
+    padding: var(--pad-sm) var(--pad-md);
     background-color: var(--color-bg-surface);
     border-radius: var(--radius-sm);
     margin-bottom: 12px;
@@ -1674,7 +1687,7 @@ body {
 .LinearTopicCard {
     background-color: var(--color-card-scheduled);
     border-radius: var(--radius-md);
-    padding: 12px;
+    padding: var(--pad-md);
     display: flex;
     flex-direction: column;
     gap: 8px;
@@ -1715,7 +1728,7 @@ body {
     font-size: 0.8rem;
     color: var(--color-text-muted);
     background-color: rgba(255,255,255,0.5);
-    padding: 2px 6px;
+    padding: var(--pad-xs) var(--pad-sm);
     border-radius: var(--radius-sm);
 }
 
@@ -1735,7 +1748,7 @@ body {
 }
 
 .LinearVoteBtn {
-    padding: 6px 12px;
+    padding: var(--pad-sm) var(--pad-md);
     border: 1px solid var(--color-border-strong);
     border-radius: var(--radius-sm);
     background-color: var(--color-white);
@@ -1750,7 +1763,7 @@ body {
 }
 
 .LinearEmptySlot {
-    padding: 16px;
+    padding: var(--pad-lg);
     background-color: var(--color-bg-page);
     border: 2px dashed var(--color-border-strong);
     border-radius: var(--radius-md);
@@ -1758,8 +1771,6 @@ body {
     text-align: center;
     font-style: italic;
     display: flex;
-    align-items: center;
-    justify-content: center;
     gap: 8px;
     transition: all 0.2s ease;
 }
@@ -1809,8 +1820,6 @@ body {
     bottom: 0;
     width: 100%;
     display: flex;
-    align-items: center;
-    justify-content: center;
     pointer-events: none;
     z-index: 1;
     transition: opacity 0.1s ease;
@@ -1903,8 +1912,6 @@ body {
     width: 32px;
     display: flex;
     flex-direction: column;
-    align-items: center;
-    justify-content: center;
     gap: 2px;
     opacity: 0;
     pointer-events: none;
@@ -2081,11 +2088,9 @@ body {
 
 .sound-toggle {
     display: inline-flex;
-    align-items: center;
-    justify-content: center;
     width: 24px;
     height: 24px;
-    padding: 0;
+    padding: var(--pad-0);
     border: none;
     background: transparent;
     cursor: pointer;
@@ -2178,7 +2183,7 @@ body {
     display: flex;
     align-items: center;
     gap: 10px;
-    padding: 12px 16px;
+    padding: var(--pad-md) var(--pad-lg);
     background: var(--color-text);
     color: var(--color-white);
     border-radius: var(--radius-md);
@@ -2203,7 +2208,7 @@ body {
     flex-shrink: 0;
     width: 24px;
     height: 24px;
-    padding: 0;
+    padding: var(--pad-0);
     font-size: 16px;
     color: rgba(255, 255, 255, 0.6);
     background: transparent;
@@ -2211,8 +2216,6 @@ body {
     border-radius: var(--radius-full);
     cursor: pointer;
     display: flex;
-    align-items: center;
-    justify-content: center;
     transition: all 0.15s ease;
 }
 
@@ -2223,8 +2226,6 @@ body {
 
 .emptySlotWithActiveDiscussion {
     display: inline-flex;
-    align-items: center;
-    justify-content: center;
     cursor: pointer;
     opacity: 0.8;
     transition: opacity 0.15s ease;
@@ -2273,16 +2274,16 @@ body {
 .HackathonProjects-noProject {
     background: linear-gradient(135deg, var(--color-bg-surface) 0%, var(--color-bg-page) 100%);
     border: 1px solid var(--color-border-section);
-    border-radius: var(--radius-lg);
-    padding: 16px;
+    border-radius: var(--radius-md);
+    padding: var(--pad-lg);
     text-align: center;
 }
 
 .HackathonProjects-myProject {
     background: linear-gradient(135deg, var(--color-success-light) 0%, var(--color-success-light) 100%);
     border: 1px solid var(--color-success);
-    border-radius: var(--radius-lg);
-    padding: 12px;
+    border-radius: var(--radius-md);
+    padding: var(--pad-md);
 }
 
 /* Create project section */
@@ -2292,13 +2293,13 @@ body {
 
 .HackathonProjects-createButton {
     width: 100%;
-    padding: 14px 20px;
+    padding: var(--pad-md) var(--pad-lg);
     font-size: 16px;
     font-weight: 600;
     color: var(--color-white);
     background: linear-gradient(135deg, var(--color-primary) 0%, var(--color-primary-dark) 100%);
     border: none;
-    border-radius: var(--radius-lg);
+    border-radius: var(--radius-md);
     cursor: pointer;
     box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
     transition: transform 0.2s ease, box-shadow 0.2s ease;
@@ -2314,13 +2315,13 @@ body {
     flex-direction: column;
     gap: 10px;
     background: linear-gradient(135deg, var(--color-primary) 0%, var(--color-primary-dark) 100%);
-    padding: 16px;
-    border-radius: var(--radius-lg);
+    padding: var(--pad-lg);
+    border-radius: var(--radius-md);
 }
 
 .HackathonProjects-input {
     width: 100%;
-    padding: 14px 16px;
+    padding: var(--pad-md) var(--pad-lg);
     font-size: 16px;
     border: 2px solid transparent;
     border-radius: var(--radius-md);
@@ -2340,7 +2341,7 @@ body {
 .HackathonProjects-submitButton,
 .HackathonProjects-cancelButton {
     flex: 1;
-    padding: 12px 16px;
+    padding: var(--pad-md) var(--pad-lg);
     font-size: 15px;
     font-weight: 600;
     border-radius: var(--radius-md);
@@ -2369,8 +2370,8 @@ body {
 .HackathonProjects-list {
     background: var(--color-white);
     border: 1px solid var(--color-border-section);
-    border-radius: var(--radius-lg);
-    padding: 12px;
+    border-radius: var(--radius-md);
+    padding: var(--pad-md);
     display: flex;
     flex-direction: column;
     gap: 10px;
@@ -2379,7 +2380,7 @@ body {
 .HackathonProjects-empty {
     color: var(--color-text-subtle);
     text-align: center;
-    padding: 20px;
+    padding: var(--pad-lg);
     font-size: 14px;
 }
 
@@ -2388,7 +2389,7 @@ body {
     background: var(--color-bg-elevated);
     border: 1px solid var(--color-border-section);
     border-radius: var(--radius-md);
-    padding: 12px;
+    padding: var(--pad-md);
     display: flex;
     flex-direction: column;
     gap: 10px;
@@ -2423,8 +2424,8 @@ body {
     font-size: 12px;
     background: var(--color-warning-light);
     color: var(--color-warning-dark);
-    padding: 2px 8px;
-    border-radius: var(--radius-lg);
+    padding: var(--pad-xs) var(--pad-sm);
+    border-radius: var(--radius-md);
     flex-shrink: 0;
 }
 
@@ -2468,7 +2469,7 @@ body {
     font-size: 12px;
     color: var(--color-warning-dark);
     background: var(--color-warning-light);
-    padding: 6px 10px;
+    padding: var(--pad-sm) var(--pad-md);
     border-radius: var(--radius-md);
 }
 
@@ -2492,7 +2493,7 @@ body {
 .HackathonProjectCard-joinButton,
 .HackathonProjectCard-leaveButton {
     flex: 1;
-    padding: 10px 14px;
+    padding: var(--pad-md) var(--pad-lg);
     font-size: 14px;
     font-weight: 600;
     border-radius: var(--radius-md);
@@ -2530,16 +2531,14 @@ body {
     bottom: 0;
     background: rgba(0, 0, 0, 0.5);
     display: flex;
-    align-items: center;
-    justify-content: center;
     z-index: 1002;
-    padding: 20px;
+    padding: var(--pad-lg);
 }
 
 .ConfirmationModal {
     background: var(--color-white);
-    border-radius: var(--radius-xl);
-    padding: 24px;
+    border-radius: var(--radius-md);
+    padding: var(--pad-lg);
     max-width: 360px;
     width: 100%;
     box-shadow: 0 20px 40px rgba(0, 0, 0, 0.2);
@@ -2566,7 +2565,7 @@ body {
 
 .ConfirmationModal-button {
     flex: 1;
-    padding: 12px 16px;
+    padding: var(--pad-md) var(--pad-lg);
     font-size: 15px;
     font-weight: 600;
     border-radius: var(--radius-md);
@@ -2620,7 +2619,7 @@ body {
     font-family: monospace;
     z-index: 101;
     background: rgba(15, 23, 42, 0.8);
-    padding: 8px 12px;
+    padding: var(--pad-sm) var(--pad-md);
     border-radius: var(--radius-md);
 }
 
@@ -2632,9 +2631,9 @@ body {
     color: var(--color-error);
     font-size: 18px;
     text-align: center;
-    padding: 20px;
+    padding: var(--pad-lg);
     background: rgba(15, 23, 42, 0.9);
-    border-radius: var(--radius-lg);
+    border-radius: var(--radius-md);
     border: 1px solid var(--color-error);
 }
 
