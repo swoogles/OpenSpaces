@@ -1,7 +1,7 @@
 {
-  "short_name": "StickyIcky",
-  "name": "Sticky Icky",
-  "description": "Sticky Icky live schedule for conference participants.",
+  "short_name": "WTF",
+  "name": "Winter Tech Forum",
+  "description": "Winter Tech Forum Open Spaces Application.",
   "scope": "/",
   "start_url": "/",
   "display": "standalone",
