@@ -104,13 +104,10 @@ object AdminControls:
       scheduleLoading.set(true)
       randomActionClient.runScheduling
         .onComplete {
-          case Success(result) =>
+          case Success(_) =>
             scheduleLoading.set(false)
-            val msg = s"Scheduled ${result.scheduled}, moved ${result.moved}, unscheduled ${result.unscheduled}"
-            ToastManager.show(msg, "✨")
           case Failure(_) =>
             scheduleLoading.set(false)
-            ToastManager.show("Scheduling failed", "❌")
         }
 
     def deleteAll(): Unit =

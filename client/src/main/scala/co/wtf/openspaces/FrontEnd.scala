@@ -13,7 +13,7 @@ import co.wtf.openspaces.hackathon.*
 
 // Import extracted utilities
 import co.wtf.openspaces.util.{SlotPositionTracker, SwapAnimationState, MenuPositioning, ScrollPreserver}
-import co.wtf.openspaces.components.{ToastManager, AdminControls, SwipeableCard, ErrorBanner, VoteButtons, ViewToggle, InlineEditableTitle, NameBadge, AdminModeToggle, LoadingPreviewToggle, Menu, UnscheduledDiscussionsMenu, ActiveDiscussionActionMenu, ScheduleView, LinearScheduleView, ReplayView, AppView, SlotSchedules, activeDiscussionLongPressBinder}
+import co.wtf.openspaces.components.{AdminControls, SwipeableCard, ErrorBanner, VoteButtons, ViewToggle, InlineEditableTitle, NameBadge, AdminModeToggle, LoadingPreviewToggle, Menu, UnscheduledDiscussionsMenu, ActiveDiscussionActionMenu, ScheduleView, LinearScheduleView, ReplayView, AppView, SlotSchedules, activeDiscussionLongPressBinder}
 import co.wtf.openspaces.components.schedule.{ScheduleSlotComponent, SlotSchedule}
 import co.wtf.openspaces.components.discussions.{TopicCard, DiscussionSubview}
 import co.wtf.openspaces.components.discussions.TopicSubmission
@@ -34,7 +34,6 @@ import co.wtf.openspaces.discussions.VotePosition
   * - util/SwapAnimationState.scala  
   * - util/MenuPositioning.scala
   * - util/ScrollPreserver.scala
-  * - components/Toast.scala
   */
 
 object FrontEnd extends ZIOAppDefault{
@@ -83,21 +82,6 @@ object FrontEnd extends ZIOAppDefault{
   def initAudioOnGesture(): Unit = AudioService.initAudioOnGesture()
   def playVoteSound(position: VotePosition): Unit = AudioService.playVoteSound(position)
   def celebrateVote(topicId: TopicId, position: VotePosition): Unit = AudioService.celebrateVote(topicId, position)
-
-  /** Show a toast notification if the user cares about a topic that was scheduled/moved.
-    * "Cares" means: user voted on it OR user is the facilitator.
-    */
-  def notifyScheduleChange(topicId: TopicId, newSlot: RoomSlot): Unit =
-    val currentUser = name.now()
-    discussionState.now().data.get(topicId).foreach { topic =>
-      val userVoted = topic.interestedParties.exists(_.voter == currentUser)
-      val userIsFacilitator = topic.facilitator == currentUser
-
-      if userVoted || userIsFacilitator then
-        val action = if userIsFacilitator then "Your topic" else "A topic you voted on"
-        val message = s"""$action was scheduled: "${topic.topicName}" → ${newSlot.room.name} @ ${newSlot.timeSlot.s}"""
-        ToastManager.show(message, "📍")
-    }
 
   val errorBanner =
     ErrorBanner(connectionStatus)
@@ -303,8 +287,6 @@ object FrontEnd extends ZIOAppDefault{
         connectionStatus.syncMessage,
         Observer(_ => connectionStatus.forceReconnect()),
       ),
-      // Toast notifications for schedule changes
-      ToastManager.component,
       // Popover component at top level
       // Swap action menu at top level
       child <-- swapMenuState.signal.map {
@@ -392,8 +374,6 @@ object FrontEnd extends ZIOAppDefault{
                         topic2,
                         newSlot2,
                       )
-                      notifyScheduleChange(topic1, newSlot1)
-                      notifyScheduleChange(topic2, newSlot2)
                     case DiscussionActionConfirmed.Vote(topicId, feedback) =>
                       val currentUser = name.now()
                       if feedback.voter == currentUser then
@@ -415,7 +395,6 @@ object FrontEnd extends ZIOAppDefault{
                             newRoomSlot,
                           )
                         }
-                      notifyScheduleChange(topicId, newRoomSlot)
                     case DiscussionActionConfirmed.SetRoomSlot(_, None) =>
                       ()
                     case DiscussionActionConfirmed.Delete(topicId) =>

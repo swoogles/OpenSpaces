@@ -159,7 +159,6 @@ html {
     .SwipeReveal,
     .VoteIndicator,
     .sound-toggle,
-    .Toast-dismiss,
     .emptySlotWithActiveDiscussion,
     .ConfirmationModal-overlay
 ) {
@@ -173,7 +172,6 @@ html {
     .TopicSubmission,
     .LightningTalks,
     .Menu-actions,
-    .ToastContainer,
     .HackathonProjects,
     .HackathonProjects-createForm,
     .HackathonProjects-list,
@@ -218,7 +216,6 @@ html {
     .ViewToggle-button,
     .connection-banner-retry,
     .sound-toggle,
-    .Toast-dismiss,
     .emptySlotWithActiveDiscussion,
     .HackathonProjects-createButton,
     .HackathonProjects-submitButton,
@@ -241,8 +238,7 @@ html {
     .HackathonProjects-cancelButton,
     .HackathonProjectCard-joinButton,
     .HackathonProjectCard-leaveButton,
-    .ConfirmationModal-button,
-    .Toast
+    .ConfirmationModal-button
 ) {
     padding: var(--pad-md) var(--pad-lg);
 }
@@ -304,6 +300,7 @@ body {
     font-size: var(--font-size-md);
     background-color: var(--color-bg-page);
     font-family: "Roboto", serif; 
+    font-weight: var(--font-weight-medium);
     color: var(--color-text);
     line-height: var(--line-height-normal);
 }
@@ -365,7 +362,6 @@ button {
     width: 100%;
     padding: var(--pad-lg) var(--pad-lg);
     font-size: var(--font-size-2xl);
-    font-weight: var(--font-weight-semibold);
     color: var(--color-white);
     background: linear-gradient(135deg, #24292e 0%, #1a1e22 100%);
     border: none;
@@ -482,13 +478,11 @@ button {
     background-color: rgba(127, 29, 29, 0.25);
     border: 1px solid rgba(254, 202, 202, 0.55);
     color: var(--color-white);
-    font-weight: var(--font-weight-semibold);
     line-height: var(--line-height-tight);
 }
 
 .TopicSubmission-button {
     width: 100%;
-    font-weight: var(--font-weight-semibold);
     color: var(--color-primary);
     background: linear-gradient(135deg, var(--color-white) 0%, var(--color-bg-page) 100%);
     border: none;
@@ -662,7 +656,6 @@ button {
     margin: var(--pad-sm) var(--pad-lg);
     background-color: var(--color-bg-surface);
     border-radius: var(--radius-md);
-    font-weight: var(--font-weight-medium);
     color: var(--color-interactive);
 }
 
@@ -686,7 +679,6 @@ button {
 }
 
 .VoteCount {
-    font-weight: var(--font-weight-semibold);
     font-size: var(--font-size-subhead);
     color: var(--color-text);
     line-height: 1;
@@ -877,7 +869,6 @@ button {
 
 .MainActive {
     grid-area: MainActive;
-    font-weight: var(--font-weight-semibold);
     line-height: var(--line-height-tight);
     padding: var(--pad-sm) var(--pad-md) var(--pad-xs) var(--pad-md);
     color: var(--color-text);
@@ -961,7 +952,6 @@ button {
     min-width: 0;
     padding: var(--pad-sm) var(--pad-md);
     font: inherit;
-    font-weight: var(--font-weight-semibold);
     color: var(--color-text);
     background-color: var(--color-white);
     border: 2px solid var(--color-primary);
@@ -998,7 +988,6 @@ button {
 .FacilitatorName {
     font-size: var(--font-size-meta);
     color: var(--color-text-secondary);
-    font-weight: var(--font-weight-medium);
     background-color: rgba(255, 255, 255, 0.6);
     padding: var(--pad-xs) var(--pad-sm);
     border-radius: var(--radius-sm);
@@ -1008,7 +997,6 @@ button {
 .RoomSlot {
     font-size: var(--font-size-note);
     color: var(--color-text);
-    font-weight: var(--font-weight-semibold);
     background-color: rgba(74, 144, 217, 0.15);
     padding: var(--pad-xs) var(--pad-sm);
     border-radius: var(--radius-sm);
@@ -1062,7 +1050,6 @@ button {
 }
 
 .TimeOfSlot {
-    font-weight: var(--font-weight-semibold);
     padding: var(--pad-sm) var(--pad-md);
     display: flex;
 }
@@ -1117,7 +1104,7 @@ button {
 }
 
 .Menu-header {
-    font-weight: bold;
+    font-weight: var(--font-weight-bold);
     margin-bottom: var(--pad-md);
     border-bottom: 1px solid var(--color-border);
     padding-bottom: 8px;
@@ -1161,7 +1148,7 @@ button {
 }
 
 .Menu-topicName {
-    font-weight: bold;
+    font-weight: var(--font-weight-bold);
     word-wrap: break-word;
     overflow-wrap: break-word;
 }
@@ -1181,7 +1168,7 @@ button {
     color: var(--color-white);
     border: none;
     border-radius: var(--radius-sm);
-    font-weight: bold;
+    font-weight: var(--font-weight-bold);
 }
 
 .Menu-swapButton:hover {
@@ -1351,7 +1338,6 @@ button {
     border-radius: var(--radius-md);
     background-color: var(--color-bg-page);
     color: var(--color-text-secondary);
-    font-weight: var(--font-weight-semibold);
     transition: all 0.2s ease;
 }
 
@@ -1427,7 +1413,6 @@ button {
     display: flex;
     gap: var(--pad-sm);
     font-size: var(--font-size-xs);
-    font-weight: var(--font-weight-semibold);
     color: var(--color-warning-dark);
 }
 
@@ -1451,7 +1436,6 @@ button {
     background-color: transparent;
     color: var(--color-text-secondary);
     font-size: var(--font-size-lg);
-    font-weight: var(--font-weight-semibold);
     transition: all 0.2s ease;
 }
 
@@ -1516,7 +1500,6 @@ button {
     display: none;
     gap: var(--pad-lg);
     width: 100%;
-    font-weight: var(--font-weight-medium);
 }
 
 .connection-banner.connection-reconnecting {
@@ -1563,7 +1546,6 @@ button {
     background-color: var(--color-error);
     color: var(--color-white);
     font-size: var(--font-size-xs);
-    font-weight: var(--font-weight-semibold);
 }
 
 .connection-banner-retry:hover {
@@ -1613,7 +1595,6 @@ button {
 
 .LinearTimeHeader {
     font-size: var(--font-size-subhead);
-    font-weight: var(--font-weight-semibold);
     color: var(--color-text-secondary);
     padding: var(--pad-sm) var(--pad-md);
     background-color: var(--color-bg-surface);
@@ -1642,7 +1623,6 @@ button {
 
 .LinearRoomName {
     font-size: var(--font-size-meta);
-    font-weight: var(--font-weight-semibold);
     color: var(--color-text-muted);
     text-transform: uppercase;
     letter-spacing: 0.5px;
@@ -1659,7 +1639,6 @@ button {
 }
 
 .LinearTopicTitle {
-    font-weight: var(--font-weight-semibold);
     color: var(--color-text);
     line-height: var(--line-height-tight);
 }
@@ -1867,7 +1846,6 @@ button {
 
 .VoteIndicator-count {
     font-size: var(--font-size-caption);
-    font-weight: var(--font-weight-semibold);
     line-height: 1;
 }
 
@@ -2061,56 +2039,6 @@ button {
     }
 }
 
-.ToastContainer {
-    position: fixed;
-    top: 80px;
-    left: 50%;
-    transform: translateX(-50%);
-    z-index: 10000;
-    gap: var(--pad-sm);
-    max-width: 90vw;
-    pointer-events: none;
-}
-
-.Toast {
-    display: flex;
-    gap: var(--pad-md);
-    background: var(--color-text);
-    color: var(--color-white);
-    border-radius: var(--radius-md);
-    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.25);
-    pointer-events: auto;
-    animation: toastSlideIn 0.3s ease-out;
-}
-
-.Toast-icon {
-    font-size: var(--font-size-2xl);
-    flex-shrink: 0;
-}
-
-.Toast-message {
-    flex: 1;
-    line-height: 1.4;
-}
-
-.Toast-dismiss {
-    flex-shrink: 0;
-    width: 24px;
-    height: 24px;
-    padding: var(--pad-0); 
-    color: rgba(255, 255, 255, 0.6);
-    background: transparent;
-    border: none;
-    border-radius: var(--radius-full);
-    display: flex;
-    transition: all 0.15s ease;
-}
-
-.Toast-dismiss:hover {
-    color: var(--color-white);
-    background: rgba(255, 255, 255, 0.1);
-}
-
 .emptySlotWithActiveDiscussion {
     display: inline-flex;
     opacity: 0.8;
@@ -2119,17 +2047,6 @@ button {
 
 .emptySlotWithActiveDiscussion:hover {
     opacity: 1;
-}
-
-@keyframes toastSlideIn {
-    from {
-        opacity: 0;
-        transform: translateY(-20px);
-    }
-    to {
-        opacity: 1;
-        transform: translateY(0);
-    }
 }
 
 .HackathonProjects {
@@ -2142,7 +2059,6 @@ button {
 }
 
 .HackathonProjects-sectionTitle {
-    font-weight: var(--font-weight-semibold);
     color: var(--color-text);
     margin: 0 0 var(--pad-sm) 0;
 }
@@ -2172,7 +2088,6 @@ button {
 
 .HackathonProjects-createButton {
     width: 100%;
-    font-weight: var(--font-weight-semibold);
     color: var(--color-white);
     background: linear-gradient(135deg, var(--color-primary) 0%, var(--color-primary-dark) 100%);
     border: none;
@@ -2214,7 +2129,6 @@ button {
 .HackathonProjects-cancelButton {
     flex: 1;
     font-size: var(--font-size-lg);
-    font-weight: var(--font-weight-semibold);
     border-radius: var(--radius-md);
     transition: opacity 0.2s ease;
 }
@@ -2272,7 +2186,6 @@ button {
 
 .HackathonProjectCard-title {
     margin: 0;
-    font-weight: var(--font-weight-semibold);
     color: var(--color-text);
     flex: 1;
     word-wrap: break-word;
@@ -2345,7 +2258,6 @@ button {
 .HackathonProjectCard-joinButton,
 .HackathonProjectCard-leaveButton {
     flex: 1;
-    font-weight: var(--font-weight-semibold);
     border-radius: var(--radius-md);
     transition: opacity 0.2s ease, transform 0.2s ease;
 }
@@ -2394,7 +2306,6 @@ button {
 .ConfirmationModal-title {
     margin: 0 0 var(--pad-md) 0;
     font-size: var(--font-size-2xl);
-    font-weight: var(--font-weight-semibold);
     color: var(--color-text);
 }
 
@@ -2412,7 +2323,6 @@ button {
 .ConfirmationModal-button {
     flex: 1;
     font-size: var(--font-size-lg);
-    font-weight: var(--font-weight-semibold);
     border-radius: var(--radius-md);
     transition: opacity 0.2s ease;
 }
