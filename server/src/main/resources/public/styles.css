@@ -191,7 +191,6 @@ html {
     .Menu-topic,
     .Menu-swapButton,
     .connection-banner-content,
-    .LinearTopicMeta,
     .LinearTopicActions,
     .HackathonProjectCard-actions
 ) {
@@ -251,8 +250,6 @@ html {
     .AdminControls,
     .AdminModeToggle-label,
     .connection-banner-content,
-    .LinearTopicCard,
-    .LinearTopicMeta,
     .LinearEmptySlot,
     .HackathonProjectCard-header
 ) {
@@ -1651,14 +1648,6 @@ button {
     margin-bottom: var(--pad-sm);
 }
 
-.LinearTopicCard {
-    background-color: var(--color-card-scheduled);
-    border-radius: var(--radius-md);
-    padding: var(--pad-md);
-    display: flex;
-    flex-direction: column;
-}
-
 .LinearTopicTitle {
     line-height: var(--line-height-tight);
 }
@@ -1666,16 +1655,6 @@ button {
 .LinearTopicRow {
     display: flex;
     justify-content: space-between;
-}
-
-.LinearTopicMeta {
-    display: flex;
-    flex-wrap: wrap;
-}
-
-.LinearTopicMeta .github-avatar {
-    width: 24px;
-    height: 24px;
 }
 
 .LinearFacilitator {
