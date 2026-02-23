@@ -554,7 +554,6 @@ object FrontEnd extends ZIOAppDefault{
               ". Vote on topics you're interested in, propose your own discussions, and help build an unconference that reflects what the community wants to learn and share.",
             ),
             a(
-              cls := "open-spaces-button",
               cls := "LoginScreen-button",
               href := "/auth",
               span(cls := "LoginScreen-buttonIcon"),

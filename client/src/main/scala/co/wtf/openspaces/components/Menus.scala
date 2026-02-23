@@ -59,7 +59,6 @@ private object MenuUi:
     body: Modifier[HtmlElement]*,
   ): HtmlElement =
     val mods = Seq[Modifier[HtmlElement]](
-      cls := "open-spaces-button",
       cls := className,
       onClick --> Observer(_ => onTap()),
     ) ++ body

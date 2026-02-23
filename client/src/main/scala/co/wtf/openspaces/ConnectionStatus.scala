@@ -600,7 +600,6 @@ object ConnectionStatusBanner:
       child <-- state.map {
         case ConnectionState.Disconnected =>
           button(
-            cls := "open-spaces-button",
             cls := "connection-banner-retry",
             onClick.mapToUnit --> onManualReconnect,
             "Retry",
@@ -648,7 +647,6 @@ object ConnectionStatusBanner:
       child <-- connectionState.map {
         case ConnectionState.Disconnected =>
           button(
-            cls := "open-spaces-button",
             cls := "connection-banner-retry",
             onClick.mapToUnit --> onManualReconnect,
             "Retry",

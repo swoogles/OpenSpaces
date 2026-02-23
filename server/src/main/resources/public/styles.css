@@ -108,7 +108,20 @@
     transform: scale(0.95);
 }
 
-.open-spaces-button {
+.open-spaces-button,
+.LoginScreen-button,
+.TopicSubmission-button,
+.Menu-swapButton,
+.Menu-cancelButton,
+.AdminControls-button,
+.ViewToggle-button,
+.connection-banner-retry,
+.HackathonProjects-createButton,
+.HackathonProjects-submitButton,
+.HackathonProjects-cancelButton,
+.HackathonProjectCard-joinButton,
+.HackathonProjectCard-leaveButton,
+.ConfirmationModal-button {
     border: 1px solid var(--color-border-strong);
     border-radius: var(--radius-md);
 }
