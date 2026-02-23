@@ -65,6 +65,14 @@
     --pad-sm: 8px;
     --pad-md: 12px;
     --pad-lg: 16px;
+
+    --font-weight-medium: 500;
+    --font-weight-semibold: 600;
+    --font-weight-bold: 700;
+
+    --line-height-tight: 1.3;
+    --line-height-normal: 1.5;
+    --line-height-relaxed: 1.6;
     
     
     --shadow-sm: 0 2px 4px rgba(0, 0, 0, 0.1);
@@ -109,8 +117,6 @@
 html {
     background-color: var(--color-white);
     text-align: center;
-    justify-content: center;
-    horiz-align: center;
     height: 100%;
     --app-align-items: var(--layout-align-items);
     --app-justify-content: var(--layout-justify-content);
@@ -285,6 +291,7 @@ body {
     background-color: var(--color-bg-page);
     font-family: "Roboto", serif;
     color: var(--color-text);
+    line-height: var(--line-height-normal);
 }
 
 .PageContainer {
@@ -317,14 +324,14 @@ body {
 .LoginScreen-title {
     margin: 0 0 var(--pad-lg) 0;
     font-size: 28px;
-    font-weight: 700;
+    font-weight: var(--font-weight-bold);
     color: var(--color-text);
 }
 
 .LoginScreen-description {
     margin: 0 0 calc(var(--pad-lg) * 2) 0;
     font-size: 16px;
-    line-height: 1.6;
+    line-height: var(--line-height-relaxed);
     color: var(--color-text-secondary);
 }
 
@@ -338,7 +345,7 @@ body {
     width: 100%;
     padding: var(--pad-lg) var(--pad-lg);
     font-size: 18px;
-    font-weight: 600;
+    font-weight: var(--font-weight-semibold);
     color: var(--color-white);
     background: linear-gradient(135deg, #24292e 0%, #1a1e22 100%);
     border: none;
@@ -431,7 +438,7 @@ body {
     min-height: 80px;
     padding: var(--pad-md) var(--pad-lg);
     font-size: 16px;
-    line-height: 1.5;
+    line-height: var(--line-height-normal);
     background-color: rgba(255, 255, 255, 0.95);
     border: 2px solid transparent;
     border-radius: var(--radius-md);
@@ -457,14 +464,14 @@ body {
     border: 1px solid rgba(254, 202, 202, 0.55);
     color: var(--color-white);
     font-size: 14px;
-    font-weight: 600;
-    line-height: 1.3;
+    font-weight: var(--font-weight-semibold);
+    line-height: var(--line-height-tight);
 }
 
 .TopicSubmission-button {
     width: 100%;
     font-size: 16px;
-    font-weight: 600;
+    font-weight: var(--font-weight-semibold);
     color: var(--color-primary);
     background: linear-gradient(135deg, var(--color-white) 0%, var(--color-bg-page) 100%);
     border: none;
@@ -511,7 +518,7 @@ body {
     margin: 0;
     color: var(--color-text);
     font-size: 16px;
-    font-weight: 700;
+    font-weight: var(--font-weight-bold);
 }
 
 .TopicSection-subtitle {
@@ -599,8 +606,8 @@ body {
 .LightningTalk-title {
     color: var(--color-text);
     font-size: 14px;
-    font-weight: 700;
-    line-height: 1.3;
+    font-weight: var(--font-weight-bold);
+    line-height: var(--line-height-tight);
 }
 
 .LightningTalk-meta {
@@ -626,7 +633,7 @@ body {
     border-radius: var(--radius-md);
     padding: var(--pad-xs) var(--pad-sm);
     font-size: 12px;
-    font-weight: 700;
+    font-weight: var(--font-weight-bold);
 }
 
 .LightningTalk-actionButton--danger {
@@ -641,7 +648,7 @@ body {
     background-color: var(--color-bg-surface);
     border-radius: var(--radius-md);
     font-size: 14px;
-    font-weight: 500;
+    font-weight: var(--font-weight-medium);
     color: var(--color-interactive);
 }
 
@@ -665,7 +672,7 @@ body {
 }
 
 .VoteCount {
-    font-weight: 600;
+    font-weight: var(--font-weight-semibold);
     font-size: 1.1rem;
     color: var(--color-text);
     line-height: 1;
@@ -813,7 +820,7 @@ body {
 }
 
 .RoomHeader {
-    font-weight: 700;
+    font-weight: var(--font-weight-bold);
     font-size: 1.1rem;
     padding: var(--pad-sm);
     text-transform: uppercase;
@@ -856,9 +863,9 @@ body {
 
 .MainActive {
     grid-area: MainActive;
-    font-weight: 600;
+    font-weight: var(--font-weight-semibold);
     font-size: 1rem;
-    line-height: 1.3;
+    line-height: var(--line-height-tight);
     padding: var(--pad-sm) var(--pad-md) var(--pad-xs) var(--pad-md);
     color: var(--color-text);
     min-width: 0;
@@ -943,7 +950,7 @@ body {
     min-width: 0;
     padding: var(--pad-sm) var(--pad-md);
     font: inherit;
-    font-weight: 600;
+    font-weight: var(--font-weight-semibold);
     color: var(--color-text);
     background-color: var(--color-white);
     border: 2px solid var(--color-primary);
@@ -981,7 +988,7 @@ body {
 .FacilitatorName {
     font-size: 0.85rem;
     color: var(--color-text-secondary);
-    font-weight: 500;
+    font-weight: var(--font-weight-medium);
     background-color: rgba(255, 255, 255, 0.6);
     padding: var(--pad-xs) var(--pad-sm);
     border-radius: var(--radius-sm);
@@ -991,7 +998,7 @@ body {
 .RoomSlot {
     font-size: 0.8rem;
     color: var(--color-text);
-    font-weight: 600;
+    font-weight: var(--font-weight-semibold);
     background-color: rgba(74, 144, 217, 0.15);
     padding: var(--pad-xs) var(--pad-sm);
     border-radius: var(--radius-sm);
@@ -1045,14 +1052,14 @@ body {
 }
 
 .TimeOfSlot {
-    font-weight: 600;
+    font-weight: var(--font-weight-semibold);
     font-size: 1rem;
     padding: var(--pad-sm) var(--pad-md);
     display: flex;
 }
 
 .DayHeader {
-    font-weight: 700;
+    font-weight: var(--font-weight-bold);
     font-size: 1.1rem;
     text-transform: uppercase;
     letter-spacing: 0.5px;
@@ -1342,7 +1349,7 @@ body {
     background-color: var(--color-bg-page);
     color: var(--color-text-secondary);
     font-size: 14px;
-    font-weight: 600;
+    font-weight: var(--font-weight-semibold);
     transition: all 0.2s ease;
 }
 
@@ -1418,7 +1425,7 @@ body {
     display: flex;
     gap: var(--pad-sm);
     font-size: 12px;
-    font-weight: 600;
+    font-weight: var(--font-weight-semibold);
     color: var(--color-warning-dark);
 }
 
@@ -1442,7 +1449,7 @@ body {
     background-color: transparent;
     color: var(--color-text-secondary);
     font-size: 15px;
-    font-weight: 600;
+    font-weight: var(--font-weight-semibold);
     transition: all 0.2s ease;
 }
 
@@ -1508,7 +1515,7 @@ body {
     gap: var(--pad-lg);
     width: 100%;
     font-size: 14px;
-    font-weight: 500;
+    font-weight: var(--font-weight-medium);
 }
 
 .connection-banner.connection-reconnecting {
@@ -1556,7 +1563,7 @@ body {
     background-color: var(--color-error);
     color: var(--color-white);
     font-size: 12px;
-    font-weight: 600;
+    font-weight: var(--font-weight-semibold);
 }
 
 .connection-banner-retry:hover {
@@ -1586,7 +1593,7 @@ body {
 
 .LinearDayHeader {
     font-size: 1.5rem;
-    font-weight: 700;
+    font-weight: var(--font-weight-bold);
     padding: var(--pad-md) var(--pad-lg);
     border-bottom: 2px solid var(--color-border);
     margin-bottom: 0;
@@ -1606,7 +1613,7 @@ body {
 
 .LinearTimeHeader {
     font-size: 1.1rem;
-    font-weight: 600;
+    font-weight: var(--font-weight-semibold);
     color: var(--color-text-secondary);
     padding: var(--pad-sm) var(--pad-md);
     background-color: var(--color-bg-surface);
@@ -1635,7 +1642,7 @@ body {
 
 .LinearRoomName {
     font-size: 0.85rem;
-    font-weight: 600;
+    font-weight: var(--font-weight-semibold);
     color: var(--color-text-muted);
     text-transform: uppercase;
     letter-spacing: 0.5px;
@@ -1652,10 +1659,10 @@ body {
 }
 
 .LinearTopicTitle {
-    font-weight: 600;
+    font-weight: var(--font-weight-semibold);
     font-size: 1rem;
     color: var(--color-text);
-    line-height: 1.3;
+    line-height: var(--line-height-tight);
 }
 
 .LinearTopicRow {
@@ -1875,7 +1882,7 @@ body {
 
 .VoteIndicator-count {
     font-size: 0.75rem;
-    font-weight: 600;
+    font-weight: var(--font-weight-semibold);
     line-height: 1;
 }
 
@@ -2155,7 +2162,7 @@ body {
 
 .HackathonProjects-sectionTitle {
     font-size: 16px;
-    font-weight: 600;
+    font-weight: var(--font-weight-semibold);
     color: var(--color-text);
     margin: 0 0 var(--pad-sm) 0;
 }
@@ -2187,7 +2194,7 @@ body {
 .HackathonProjects-createButton {
     width: 100%;
     font-size: 16px;
-    font-weight: 600;
+    font-weight: var(--font-weight-semibold);
     color: var(--color-white);
     background: linear-gradient(135deg, var(--color-primary) 0%, var(--color-primary-dark) 100%);
     border: none;
@@ -2230,7 +2237,7 @@ body {
 .HackathonProjects-cancelButton {
     flex: 1;
     font-size: 15px;
-    font-weight: 600;
+    font-weight: var(--font-weight-semibold);
     border-radius: var(--radius-md);
     transition: opacity 0.2s ease;
 }
@@ -2290,7 +2297,7 @@ body {
 .HackathonProjectCard-title {
     margin: 0;
     font-size: 16px;
-    font-weight: 600;
+    font-weight: var(--font-weight-semibold);
     color: var(--color-text);
     flex: 1;
     word-wrap: break-word;
@@ -2364,7 +2371,7 @@ body {
 .HackathonProjectCard-leaveButton {
     flex: 1;
     font-size: 14px;
-    font-weight: 600;
+    font-weight: var(--font-weight-semibold);
     border-radius: var(--radius-md);
     transition: opacity 0.2s ease, transform 0.2s ease;
 }
@@ -2414,7 +2421,7 @@ body {
 .ConfirmationModal-title {
     margin: 0 0 var(--pad-md) 0;
     font-size: 18px;
-    font-weight: 600;
+    font-weight: var(--font-weight-semibold);
     color: var(--color-text);
 }
 
@@ -2422,7 +2429,7 @@ body {
     margin: 0 0 var(--pad-lg) 0;
     font-size: 14px;
     color: var(--color-text-subtle);
-    line-height: 1.5;
+    line-height: var(--line-height-normal);
 }
 
 .ConfirmationModal-buttons {
@@ -2433,7 +2440,7 @@ body {
 .ConfirmationModal-button {
     flex: 1;
     font-size: 15px;
-    font-weight: 600;
+    font-weight: var(--font-weight-semibold);
     border-radius: var(--radius-md);
     transition: opacity 0.2s ease;
 }
