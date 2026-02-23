@@ -2,7 +2,8 @@ package co.wtf.openspaces.components
 
 import com.raquo.laminar.api.L.{*, given}
 import neotype.*
-import co.wtf.openspaces.{Discussion, DiscussionAction, Feedback, Person, VotePosition, GlyphiconUtils, SvgIcon}
+import co.wtf.openspaces.{Discussion, Feedback, Person, VotePosition, GlyphiconUtils, SvgIcon}
+import co.wtf.openspaces.discussions.DiscussionAction
 import co.wtf.openspaces.*
 import io.laminext.websocket.*
 

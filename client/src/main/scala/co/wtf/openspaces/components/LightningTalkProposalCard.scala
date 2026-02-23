@@ -3,6 +3,7 @@ package co.wtf.openspaces.components
 import com.raquo.laminar.api.L.{*, given}
 
 import co.wtf.openspaces.*
+import co.wtf.openspaces.lighting_talks.*
 import neotype.unwrap
 
 object LightningTalkProposalCard:

@@ -2,7 +2,8 @@ package co.wtf.openspaces.components
 
 import com.raquo.laminar.api.L.{*, given}
 import neotype.*
-import co.wtf.openspaces.{Discussion, DiscussionAction, Person, RoomSlot, Topic, GitHubAvatar, GlyphiconUtils, SvgIcon}
+import co.wtf.openspaces.{Discussion, Person, RoomSlot, Topic, GitHubAvatar, GlyphiconUtils, SvgIcon}
+import co.wtf.openspaces.discussions.DiscussionAction
 import co.wtf.openspaces.util.MenuPositioning
 
 private object MenuUi:

@@ -1,6 +1,7 @@
 package co.wtf.openspaces.db
 
 import co.wtf.openspaces.*
+import co.wtf.openspaces.discussions.{DiscussionAction, DiscussionActionConfirmed, DiscussionState}
 import neotype.unwrap
 import zio.*
 import zio.json.*

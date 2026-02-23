@@ -1,7 +1,6 @@
-package co.wtf.openspaces
+package co.wtf.openspaces.discussions
 
-import co.wtf.openspaces.DiscussionAction.Rename
-import co.wtf.openspaces.VotePosition.Interested
+import co.wtf.openspaces.{Person, Topic, TopicId, RoomSlot, Discussion, Feedback}
 import neotype.*
 import neotype.given
 import neotype.interop.zioschema.given
@@ -10,7 +9,6 @@ import zio.schema.*
 import zio.json.*
 import java.time.{LocalDate, LocalDateTime}
 import java.util.UUID
-import co.wtf.openspaces.hackathon.{HackathonProjectAction, HackathonProjectActionConfirmed}
 
 enum DiscussionAction derives JsonCodec:
   case Add(

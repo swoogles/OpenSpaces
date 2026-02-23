@@ -1,6 +1,8 @@
 package co.wtf.openspaces
 
 import zio.*
+import co.wtf.openspaces.discussions.{DiscussionAction, DiscussionActionConfirmed}
+import co.wtf.openspaces.discussions.DiscussionState
 
 /** Common interface for discussion storage (in-memory or persistent) */
 trait DiscussionStore:

@@ -2,7 +2,8 @@ package co.wtf.openspaces.components
 
 import com.raquo.laminar.api.L.{*, given}
 
-import co.wtf.openspaces.{DiscussionAction, Person, Topic}
+import co.wtf.openspaces.{Person, Topic}
+import co.wtf.openspaces.discussions.DiscussionAction
 import co.wtf.openspaces.ConnectionStatusUI
 
 /** Topic submission form component.

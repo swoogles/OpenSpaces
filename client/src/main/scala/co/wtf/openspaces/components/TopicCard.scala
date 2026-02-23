@@ -5,9 +5,10 @@ import com.raquo.laminar.api.L.{*, given}
 import org.scalajs.dom
 
 import co.wtf.openspaces.{
-  Discussion, DiscussionAction, Person, Topic, TopicId, VotePosition,
+  Discussion, Person, Topic, TopicId, VotePosition,
   GitHubAvatar
 }
+import co.wtf.openspaces.discussions.DiscussionAction
 import co.wtf.openspaces.AppState
 import co.wtf.openspaces.*
 import io.laminext.websocket.*

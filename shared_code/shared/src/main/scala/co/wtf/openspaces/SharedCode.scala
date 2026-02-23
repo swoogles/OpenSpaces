@@ -1,6 +1,5 @@
 package co.wtf.openspaces
 
-import co.wtf.openspaces.DiscussionAction.Rename
 import co.wtf.openspaces.VotePosition.Interested
 import neotype.*
 import neotype.given

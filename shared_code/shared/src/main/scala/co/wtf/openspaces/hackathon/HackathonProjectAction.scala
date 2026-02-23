@@ -1,7 +1,6 @@
 package co.wtf.openspaces.hackathon
 
-import co.wtf.openspaces.DiscussionAction.Rename
-import co.wtf.openspaces.VotePosition.Interested
+import co.wtf.openspaces.Person
 import neotype.*
 import neotype.given
 import neotype.interop.zioschema.given
@@ -10,8 +9,6 @@ import zio.schema.*
 import zio.json.*
 import java.time.{LocalDate, LocalDateTime}
 import java.util.UUID
-import co.wtf.openspaces.hackathon.{HackathonProject, HackathonProjectId, ProjectTitle}
-import co.wtf.openspaces.Person
 
 // Hackathon Projects (Wednesday hackday)
 

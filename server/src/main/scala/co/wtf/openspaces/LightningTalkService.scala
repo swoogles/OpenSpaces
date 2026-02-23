@@ -1,6 +1,7 @@
 package co.wtf.openspaces
 
 import co.wtf.openspaces.db.{LightningTalkRepository, LightningTalkRow, UserRepository}
+import co.wtf.openspaces.lighting_talks.*
 import neotype.unwrap
 import zio.*
 import scala.util.Random as ScalaRandom

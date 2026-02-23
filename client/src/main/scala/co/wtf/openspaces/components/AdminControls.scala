@@ -3,7 +3,8 @@ package co.wtf.openspaces.components
 import com.raquo.laminar.api.L.{*, given}
 import org.scalajs.dom
 
-import co.wtf.openspaces.{DiscussionAction, Person, SafeStorage}
+import co.wtf.openspaces.{Person, SafeStorage}
+import co.wtf.openspaces.discussions.DiscussionAction
 import co.wtf.openspaces.AppState
 import co.wtf.openspaces.*
 import io.laminext.websocket.*

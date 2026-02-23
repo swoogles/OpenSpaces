@@ -6,9 +6,11 @@ import org.scalajs.dom
 import neotype.unwrap
 
 import co.wtf.openspaces.{
-  DaySlots, Discussion, DiscussionAction, DiscussionState, Person, RoomSlot,
-  SvgIcon, GlyphiconUtils, LightningTalkNight, LightningTalkProposal, LightningTalkState
+  DaySlots, Discussion, Person, RoomSlot,
+  SvgIcon, GlyphiconUtils
 }
+import co.wtf.openspaces.discussions.{DiscussionAction, DiscussionState}
+import co.wtf.openspaces.lighting_talks.{LightningTalkNight, LightningTalkProposal, LightningTalkState}
 import co.wtf.openspaces.util.ScrollPreserver
 import co.wtf.openspaces.FrontEnd.connectionStatus
 

@@ -1,5 +1,6 @@
-package co.wtf.openspaces
+package co.wtf.openspaces.lighting_talks
 
+import co.wtf.openspaces.Person
 import neotype.unwrap
 
 case class LightningTalkState(

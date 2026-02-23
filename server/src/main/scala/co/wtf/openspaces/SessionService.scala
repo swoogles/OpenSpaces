@@ -1,7 +1,9 @@
 package co.wtf.openspaces
 
 import co.wtf.openspaces.db.ConfirmedActionRepository
+import co.wtf.openspaces.discussions.{DiscussionAction, DiscussionActionConfirmed, DiscussionState}
 import co.wtf.openspaces.hackathon.*
+import co.wtf.openspaces.lighting_talks.*
 import co.wtf.openspaces.slack.SlackNotifier
 import zio.*
 import zio.direct.*

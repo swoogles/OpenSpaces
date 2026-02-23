@@ -3,9 +3,11 @@ package co.wtf.openspaces
 import com.raquo.laminar.api.L.{*, given}
 import neotype.unwrap
 
+import co.wtf.openspaces.discussions.DiscussionState
 import co.wtf.openspaces.hackathon.*
 import co.wtf.openspaces.services.AuthService
 import co.wtf.openspaces.components.AppView
+import co.wtf.openspaces.lighting_talks.LightningTalkState
 
 /** Centralized app state (Vars + derived signals) */
 object AppState:

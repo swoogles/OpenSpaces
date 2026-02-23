@@ -1,4 +1,4 @@
-package co.wtf.openspaces
+package co.wtf.openspaces.lighting_talks
 
 enum LightningDrawError:
   case NoOpenNights

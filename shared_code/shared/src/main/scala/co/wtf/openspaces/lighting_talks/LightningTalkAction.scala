@@ -1,7 +1,6 @@
-package co.wtf.openspaces
+package co.wtf.openspaces.lighting_talks
 
-import co.wtf.openspaces.DiscussionAction.Rename
-import co.wtf.openspaces.VotePosition.Interested
+import co.wtf.openspaces.Person
 import neotype.*
 import neotype.given
 import neotype.interop.zioschema.given

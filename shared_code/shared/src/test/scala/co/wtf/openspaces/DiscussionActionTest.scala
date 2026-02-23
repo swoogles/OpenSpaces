@@ -1,5 +1,6 @@
 package co.wtf.openspaces
 
+import co.wtf.openspaces.discussions.DiscussionAction
 import zio._
 import zio.test._
 import zio.json._

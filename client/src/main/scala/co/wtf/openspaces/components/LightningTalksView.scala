@@ -4,6 +4,7 @@ import com.raquo.laminar.api.L.{*, given}
 import neotype.unwrap
 
 import co.wtf.openspaces.*
+import co.wtf.openspaces.lighting_talks.*
 
 object LightningTalksView:
 

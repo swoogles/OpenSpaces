@@ -4,7 +4,8 @@ import com.raquo.laminar.api.L.{*, given}
 import org.scalajs.dom
 import org.scalajs.dom.window
 
-import co.wtf.openspaces.{Discussion, DiscussionAction, Person, Feedback, VotePosition}
+import co.wtf.openspaces.{Discussion, Person, Feedback, VotePosition}
+import co.wtf.openspaces.discussions.DiscussionAction
 import co.wtf.openspaces.*
 import io.laminext.websocket.*
 

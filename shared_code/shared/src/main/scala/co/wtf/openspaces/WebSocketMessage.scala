@@ -1,7 +1,8 @@
 package co.wtf.openspaces
 
-import co.wtf.openspaces.DiscussionAction.Rename
-import co.wtf.openspaces.VotePosition.Interested
+import co.wtf.openspaces.discussions.{DiscussionAction, DiscussionActionConfirmed}
+import co.wtf.openspaces.hackathon.{HackathonProjectAction, HackathonProjectActionConfirmed}
+import co.wtf.openspaces.lighting_talks.{LightningTalkAction, LightningTalkActionConfirmed}
 import neotype.*
 import neotype.given
 import neotype.interop.zioschema.given
@@ -11,7 +12,6 @@ import zio.json.*
 
 import java.time.{LocalDate, LocalDateTime}
 import java.util.UUID
-import co.wtf.openspaces.hackathon.{HackathonProjectAction, HackathonProjectActionConfirmed}
 
 sealed trait WebSocketMessage derives JsonCodec, Schema
 sealed trait WebSocketMessageFromClient extends WebSocketMessage

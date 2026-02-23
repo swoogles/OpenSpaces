@@ -8,6 +8,7 @@ import zio.json.*
 import zio.*
 import neotype.*
 
+import co.wtf.openspaces.discussions.{DiscussionState, DiscussionAction, DiscussionActionConfirmed}
 import co.wtf.openspaces.hackathon.*
 
 // Import extracted utilities
@@ -17,6 +18,7 @@ import co.wtf.openspaces.AppState.*
 import co.wtf.openspaces.*
 import co.wtf.openspaces.services.{AudioService, AuthService}
 import zio.http.endpoint.{Endpoint, EndpointExecutor}
+import co.wtf.openspaces.lighting_talks.*
 
 /** FrontEnd.scala - Main entry point and app composition
   * 

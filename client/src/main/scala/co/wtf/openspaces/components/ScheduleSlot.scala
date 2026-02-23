@@ -5,9 +5,10 @@ import com.raquo.laminar.api.L.{*, given}
 import org.scalajs.dom
 
 import co.wtf.openspaces.{
-  Discussion, DiscussionAction, DiscussionState, Person, RoomSlot, TimeSlotForAllRooms,
+  Discussion, Person, RoomSlot, TimeSlotForAllRooms,
   VotingState, GitHubAvatar, SvgIcon, GlyphiconUtils
 }
+import co.wtf.openspaces.discussions.{DiscussionAction, DiscussionState}
 import co.wtf.openspaces.util.{SlotPositionTracker, SwapAnimationState}
 
 /** Schedule slot component showing topic avatar with swap/move support.
