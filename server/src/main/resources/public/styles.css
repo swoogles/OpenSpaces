@@ -73,6 +73,21 @@
     --line-height-tight: 1.3;
     --line-height-normal: 1.5;
     --line-height-relaxed: 1.6;
+
+    --font-size-xs: 12px;
+    --font-size-sm: 13px;
+    --font-size-md: 14px;
+    --font-size-lg: 15px;
+    --font-size-2xl: 18px;
+    --font-size-3xl: 20px;
+    --font-size-display: 28px;
+
+    --font-size-caption: 0.75rem;
+    --font-size-note: 0.8rem;
+    --font-size-meta: 0.85rem;
+    --font-size-subhead: 1.1rem;
+    --font-size-title: 1.5rem;
+    --font-size-hero: 2.5rem;
     
     
     --shadow-sm: 0 2px 4px rgba(0, 0, 0, 0.1);
@@ -202,7 +217,6 @@ html {
     .AdminModeToggle-label input,
     .ViewToggle-button,
     .connection-banner-retry,
-    .LinearVoteBtn,
     .sound-toggle,
     .Toast-dismiss,
     .emptySlotWithActiveDiscussion,
@@ -288,10 +302,17 @@ html {
 
 .AppRoot,
 body {
+    font-size: var(--font-size-md);
     background-color: var(--color-bg-page);
-    font-family: "Roboto", serif;
+    font-family: "Roboto", serif; 
     color: var(--color-text);
     line-height: var(--line-height-normal);
+}
+
+input,
+textarea,
+button {
+    font: inherit;
 }
 
 .PageContainer {
@@ -323,14 +344,13 @@ body {
 
 .LoginScreen-title {
     margin: 0 0 var(--pad-lg) 0;
-    font-size: 28px;
+    font-size: var(--font-size-display);
     font-weight: var(--font-weight-bold);
     color: var(--color-text);
 }
 
 .LoginScreen-description {
-    margin: 0 0 calc(var(--pad-lg) * 2) 0;
-    font-size: 16px;
+    margin: 0 0 calc(var(--pad-lg) * 2) 0; 
     line-height: var(--line-height-relaxed);
     color: var(--color-text-secondary);
 }
@@ -344,7 +364,7 @@ body {
     gap: var(--pad-lg);
     width: 100%;
     padding: var(--pad-lg) var(--pad-lg);
-    font-size: 18px;
+    font-size: var(--font-size-2xl);
     font-weight: var(--font-weight-semibold);
     color: var(--color-white);
     background: linear-gradient(135deg, #24292e 0%, #1a1e22 100%);
@@ -436,8 +456,7 @@ body {
 .TopicSubmission-textArea {
     width: 100%;
     min-height: 80px;
-    padding: var(--pad-md) var(--pad-lg);
-    font-size: 16px;
+    padding: var(--pad-md) var(--pad-lg); 
     line-height: var(--line-height-normal);
     background-color: rgba(255, 255, 255, 0.95);
     border: 2px solid transparent;
@@ -463,14 +482,12 @@ body {
     background-color: rgba(127, 29, 29, 0.25);
     border: 1px solid rgba(254, 202, 202, 0.55);
     color: var(--color-white);
-    font-size: 14px;
     font-weight: var(--font-weight-semibold);
     line-height: var(--line-height-tight);
 }
 
 .TopicSubmission-button {
     width: 100%;
-    font-size: 16px;
     font-weight: var(--font-weight-semibold);
     color: var(--color-primary);
     background: linear-gradient(135deg, var(--color-white) 0%, var(--color-bg-page) 100%);
@@ -492,7 +509,7 @@ body {
 }
 
 .TopicSubmission-buttonIcon {
-    font-size: 18px;
+    font-size: var(--font-size-2xl);
 }
 
 .TopicsContainer {
@@ -517,21 +534,20 @@ body {
 .TopicSection-title {
     margin: 0;
     color: var(--color-text);
-    font-size: 16px;
     font-weight: var(--font-weight-bold);
 }
 
 .TopicSection-subtitle {
     margin: var(--pad-xs) 0 var(--pad-md) 0;
     color: var(--color-text-secondary);
-    font-size: 13px;
+    font-size: var(--font-size-sm);
     line-height: 1.35;
 }
 
 .TopicSection-empty {
     padding: var(--pad-md) var(--pad-sm);
     color: var(--color-text-muted);
-    font-size: 13px;
+    font-size: var(--font-size-sm);
     background: var(--color-bg-surface);
     border-radius: var(--radius-md);
 }
@@ -554,7 +570,7 @@ body {
     border: 1px solid var(--color-warning);
     border-radius: var(--radius-md);
     padding: var(--pad-sm) var(--pad-md);
-    font-size: 13px;
+    font-size: var(--font-size-sm);
 }
 
 .LightningTalk-list,
@@ -586,7 +602,7 @@ body {
 
 .LightningTalk-slotNumber {
     color: var(--color-interactive);
-    font-size: 13px;
+    font-size: var(--font-size-sm);
     font-weight: 800;
     min-width: 26px;
 }
@@ -605,14 +621,13 @@ body {
 
 .LightningTalk-title {
     color: var(--color-text);
-    font-size: 14px;
     font-weight: var(--font-weight-bold);
     line-height: var(--line-height-tight);
 }
 
 .LightningTalk-meta {
     color: var(--color-text-muted);
-    font-size: 12px;
+    font-size: var(--font-size-xs);
 }
 
 .LightningTalk-metaRow {
@@ -632,7 +647,7 @@ body {
     color: var(--color-text-secondary);
     border-radius: var(--radius-md);
     padding: var(--pad-xs) var(--pad-sm);
-    font-size: 12px;
+    font-size: var(--font-size-xs);
     font-weight: var(--font-weight-bold);
 }
 
@@ -647,7 +662,6 @@ body {
     margin: var(--pad-sm) var(--pad-lg);
     background-color: var(--color-bg-surface);
     border-radius: var(--radius-md);
-    font-size: 14px;
     font-weight: var(--font-weight-medium);
     color: var(--color-interactive);
 }
@@ -673,7 +687,7 @@ body {
 
 .VoteCount {
     font-weight: var(--font-weight-semibold);
-    font-size: 1.1rem;
+    font-size: var(--font-size-subhead);
     color: var(--color-text);
     line-height: 1;
     min-width: 24px;
@@ -821,7 +835,7 @@ body {
 
 .RoomHeader {
     font-weight: var(--font-weight-bold);
-    font-size: 1.1rem;
+    font-size: var(--font-size-subhead);
     padding: var(--pad-sm);
     text-transform: uppercase;
     letter-spacing: 0.5px;
@@ -864,7 +878,6 @@ body {
 .MainActive {
     grid-area: MainActive;
     font-weight: var(--font-weight-semibold);
-    font-size: 1rem;
     line-height: var(--line-height-tight);
     padding: var(--pad-sm) var(--pad-md) var(--pad-xs) var(--pad-md);
     color: var(--color-text);
@@ -913,8 +926,7 @@ body {
     transform: scale(0.95);
 }
 
-.InlineEditableTitle-editBtn {
-    font-size: 16px;
+.InlineEditableTitle-editBtn { 
     color: var(--color-primary);
     background: var(--color-bg-surface);
     border: 1px solid var(--color-border-strong);
@@ -932,7 +944,6 @@ body {
 }
 
 .InlineEditableTitle-deleteBtn {
-    font-size: 14px;
     color: var(--color-error);
     background: var(--color-error-light);
     border: 1px solid var(--color-error-light);
@@ -959,7 +970,6 @@ body {
 }
 
 .InlineEditableTitle-cancelBtn {
-    font-size: 14px;
     color: var(--color-text-muted);
     background: var(--color-bg-page);
     border: 1px solid var(--color-border);
@@ -986,7 +996,7 @@ body {
 }
 
 .FacilitatorName {
-    font-size: 0.85rem;
+    font-size: var(--font-size-meta);
     color: var(--color-text-secondary);
     font-weight: var(--font-weight-medium);
     background-color: rgba(255, 255, 255, 0.6);
@@ -996,7 +1006,7 @@ body {
 }
 
 .RoomSlot {
-    font-size: 0.8rem;
+    font-size: var(--font-size-note);
     color: var(--color-text);
     font-weight: var(--font-weight-semibold);
     background-color: rgba(74, 144, 217, 0.15);
@@ -1053,14 +1063,13 @@ body {
 
 .TimeOfSlot {
     font-weight: var(--font-weight-semibold);
-    font-size: 1rem;
     padding: var(--pad-sm) var(--pad-md);
     display: flex;
 }
 
 .DayHeader {
     font-weight: var(--font-weight-bold);
-    font-size: 1.1rem;
+    font-size: var(--font-size-subhead);
     text-transform: uppercase;
     letter-spacing: 0.5px;
     padding: var(--pad-md) var(--pad-sm) var(--pad-sm) var(--pad-sm);
@@ -1090,11 +1099,9 @@ body {
     }
 
     .Menu-header {
-        font-size: 14px;
     }
 
     .Menu-topicName {
-        font-size: 14px;
         word-break: break-word;
     }
 
@@ -1111,7 +1118,6 @@ body {
 
 .Menu-header {
     font-weight: bold;
-    font-size: 16px;
     margin-bottom: var(--pad-md);
     border-bottom: 1px solid var(--color-border);
     padding-bottom: 8px;
@@ -1126,7 +1132,7 @@ body {
 }
 
 .Menu-label {
-    font-size: 12px;
+    font-size: var(--font-size-xs);
     color: var(--color-text-subtle);
     margin-bottom: var(--pad-xs);
 }
@@ -1162,7 +1168,7 @@ body {
 }
 
 .Menu-roomSlot {
-    font-size: 12px;
+    font-size: var(--font-size-xs);
     color: var(--color-text-subtle);
 }
 
@@ -1202,13 +1208,12 @@ body {
     border: 1px solid var(--color-border-strong);
     border-radius: var(--radius-md);
     resize: vertical;
-    font-size: 14px;
 }
 
 .Menu-error {
     margin-top: var(--pad-sm);
     color: var(--color-error-dark);
-    font-size: 13px;
+    font-size: var(--font-size-sm);
 }
 
 .ErrorBanner {
@@ -1230,7 +1235,7 @@ body {
     background: none;
     border: none;
     color: var(--color-error-dark);
-    font-size: 20px;
+    font-size: var(--font-size-3xl);
     padding: 0 0 0 var(--pad-lg);
     line-height: 1;
 }
@@ -1348,7 +1353,6 @@ body {
     border-radius: var(--radius-md);
     background-color: var(--color-bg-page);
     color: var(--color-text-secondary);
-    font-size: 14px;
     font-weight: var(--font-weight-semibold);
     transition: all 0.2s ease;
 }
@@ -1396,7 +1400,7 @@ body {
 
 .AdminControls-version {
     padding: var(--pad-sm) var(--pad-md);
-    font-size: 12px;
+    font-size: var(--font-size-xs);
     font-family: monospace;
     color: var(--color-text-muted);
     background-color: var(--color-bg-surface);
@@ -1424,7 +1428,7 @@ body {
 .AdminModeToggle-label {
     display: flex;
     gap: var(--pad-sm);
-    font-size: 12px;
+    font-size: var(--font-size-xs);
     font-weight: var(--font-weight-semibold);
     color: var(--color-warning-dark);
 }
@@ -1448,7 +1452,7 @@ body {
     border-radius: var(--radius-md);
     background-color: transparent;
     color: var(--color-text-secondary);
-    font-size: 15px;
+    font-size: var(--font-size-lg);
     font-weight: var(--font-weight-semibold);
     transition: all 0.2s ease;
 }
@@ -1500,7 +1504,7 @@ body {
     display: inline-flex;
     width: 20px;
     height: 20px;
-    font-size: 12px;
+    font-size: var(--font-size-xs);
     margin-left: var(--pad-sm);
     border-radius: var(--radius-full);
 }
@@ -1514,7 +1518,6 @@ body {
     display: none;
     gap: var(--pad-lg);
     width: 100%;
-    font-size: 14px;
     font-weight: var(--font-weight-medium);
 }
 
@@ -1543,7 +1546,6 @@ body {
 }
 
 .connection-banner-icon {
-    font-size: 16px;
     animation: connection-pulse 1.5s ease-in-out infinite;
 }
 
@@ -1562,7 +1564,7 @@ body {
     border-radius: var(--radius-sm);
     background-color: var(--color-error);
     color: var(--color-white);
-    font-size: 12px;
+    font-size: var(--font-size-xs);
     font-weight: var(--font-weight-semibold);
 }
 
@@ -1592,7 +1594,7 @@ body {
 }
 
 .LinearDayHeader {
-    font-size: 1.5rem;
+    font-size: var(--font-size-title);
     font-weight: var(--font-weight-bold);
     padding: var(--pad-md) var(--pad-lg);
     border-bottom: 2px solid var(--color-border);
@@ -1612,7 +1614,7 @@ body {
 }
 
 .LinearTimeHeader {
-    font-size: 1.1rem;
+    font-size: var(--font-size-subhead);
     font-weight: var(--font-weight-semibold);
     color: var(--color-text-secondary);
     padding: var(--pad-sm) var(--pad-md);
@@ -1641,7 +1643,7 @@ body {
 }
 
 .LinearRoomName {
-    font-size: 0.85rem;
+    font-size: var(--font-size-meta);
     font-weight: var(--font-weight-semibold);
     color: var(--color-text-muted);
     text-transform: uppercase;
@@ -1660,7 +1662,6 @@ body {
 
 .LinearTopicTitle {
     font-weight: var(--font-weight-semibold);
-    font-size: 1rem;
     color: var(--color-text);
     line-height: var(--line-height-tight);
 }
@@ -1683,12 +1684,12 @@ body {
 }
 
 .LinearFacilitator {
-    font-size: 0.85rem;
+    font-size: var(--font-size-meta);
     color: var(--color-text-secondary);
 }
 
 .LinearVotes {
-    font-size: 0.8rem;
+    font-size: var(--font-size-note);
     color: var(--color-text-muted);
     background-color: rgba(255,255,255,0.5);
     padding: var(--pad-xs) var(--pad-sm);
@@ -1705,20 +1706,6 @@ body {
 }
 
 .LinearTopicActions {
-}
-
-.LinearVoteBtn {
-    padding: var(--pad-sm) var(--pad-md);
-    border: 1px solid var(--color-border-strong);
-    border-radius: var(--radius-sm);
-    background-color: var(--color-white);
-    font-size: 1rem;
-}
-
-.LinearVoteBtn--active {
-    background-color: var(--color-error-light);
-    border-color: var(--color-error);
-    color: var(--color-error-dark);
 }
 
 .LinearEmptySlot {
@@ -1793,7 +1780,7 @@ body {
 }
 
 .SwipeRevealIcon {
-    font-size: 2.5rem;
+    font-size: var(--font-size-hero);
     opacity: 0.9;
     transition: transform 0.15s ease;
 }
@@ -1876,12 +1863,12 @@ body {
 }
 
 .VoteIndicator-icon {
-    font-size: 1.1rem;
+    font-size: var(--font-size-subhead);
     line-height: 1;
 }
 
 .VoteIndicator-count {
-    font-size: 0.75rem;
+    font-size: var(--font-size-caption);
     font-weight: var(--font-weight-semibold);
     line-height: 1;
 }
@@ -2015,7 +2002,6 @@ body {
     padding: var(--pad-0);
     border: none;
     background: transparent;
-    font-size: 14px;
     opacity: 0.7;
     transition: opacity 0.2s ease, transform 0.1s ease;
     border-radius: var(--radius-sm);
@@ -2095,14 +2081,13 @@ body {
     color: var(--color-white);
     border-radius: var(--radius-md);
     box-shadow: 0 4px 20px rgba(0, 0, 0, 0.25);
-    font-size: 14px;
     pointer-events: auto;
     animation: toastSlideIn 0.3s ease-out;
     max-width: 400px;
 }
 
 .Toast-icon {
-    font-size: 18px;
+    font-size: var(--font-size-2xl);
     flex-shrink: 0;
 }
 
@@ -2115,8 +2100,7 @@ body {
     flex-shrink: 0;
     width: 24px;
     height: 24px;
-    padding: var(--pad-0);
-    font-size: 16px;
+    padding: var(--pad-0); 
     color: rgba(255, 255, 255, 0.6);
     background: transparent;
     border: none;
@@ -2161,7 +2145,6 @@ body {
 }
 
 .HackathonProjects-sectionTitle {
-    font-size: 16px;
     font-weight: var(--font-weight-semibold);
     color: var(--color-text);
     margin: 0 0 var(--pad-sm) 0;
@@ -2169,7 +2152,6 @@ body {
 
 .HackathonProjects-subtitle {
     color: var(--color-text-subtle);
-    font-size: 14px;
     margin: 0;
 }
 
@@ -2193,7 +2175,6 @@ body {
 
 .HackathonProjects-createButton {
     width: 100%;
-    font-size: 16px;
     font-weight: var(--font-weight-semibold);
     color: var(--color-white);
     background: linear-gradient(135deg, var(--color-primary) 0%, var(--color-primary-dark) 100%);
@@ -2216,8 +2197,7 @@ body {
 }
 
 .HackathonProjects-input {
-    width: 100%;
-    font-size: 16px;
+    width: 100%; 
     border: 2px solid transparent;
     border-radius: var(--radius-md);
     background: rgba(255, 255, 255, 0.95);
@@ -2236,7 +2216,7 @@ body {
 .HackathonProjects-submitButton,
 .HackathonProjects-cancelButton {
     flex: 1;
-    font-size: 15px;
+    font-size: var(--font-size-lg);
     font-weight: var(--font-weight-semibold);
     border-radius: var(--radius-md);
     transition: opacity 0.2s ease;
@@ -2267,7 +2247,6 @@ body {
 .HackathonProjects-empty {
     color: var(--color-text-subtle);
     padding: var(--pad-lg);
-    font-size: 14px;
 }
 
 .HackathonProjectCard {
@@ -2296,7 +2275,6 @@ body {
 
 .HackathonProjectCard-title {
     margin: 0;
-    font-size: 16px;
     font-weight: var(--font-weight-semibold);
     color: var(--color-text);
     flex: 1;
@@ -2304,7 +2282,7 @@ body {
 }
 
 .HackathonProjectCard-ownerBadge {
-    font-size: 12px;
+    font-size: var(--font-size-xs);
     background: var(--color-warning-light);
     color: var(--color-warning-dark);
     padding: var(--pad-xs) var(--pad-sm);
@@ -2335,18 +2313,18 @@ body {
 }
 
 .HackathonProjectCard-moreMembers {
-    font-size: 12px;
+    font-size: var(--font-size-xs);
     color: var(--color-text-subtle);
     margin-left: var(--pad-xs);
 }
 
 .HackathonProjectCard-memberCount {
-    font-size: 13px;
+    font-size: var(--font-size-sm);
     color: var(--color-text-subtle);
 }
 
 .HackathonProjectCard-largeWarning {
-    font-size: 12px;
+    font-size: var(--font-size-xs);
     color: var(--color-warning-dark);
     background: var(--color-warning-light);
     padding: var(--pad-sm) var(--pad-md);
@@ -2354,7 +2332,7 @@ body {
 }
 
 .HackathonProjectCard-slackLink {
-    font-size: 13px;
+    font-size: var(--font-size-sm);
     color: var(--color-primary);
     text-decoration: none;
 }
@@ -2370,7 +2348,6 @@ body {
 .HackathonProjectCard-joinButton,
 .HackathonProjectCard-leaveButton {
     flex: 1;
-    font-size: 14px;
     font-weight: var(--font-weight-semibold);
     border-radius: var(--radius-md);
     transition: opacity 0.2s ease, transform 0.2s ease;
@@ -2420,14 +2397,13 @@ body {
 
 .ConfirmationModal-title {
     margin: 0 0 var(--pad-md) 0;
-    font-size: 18px;
+    font-size: var(--font-size-2xl);
     font-weight: var(--font-weight-semibold);
     color: var(--color-text);
 }
 
 .ConfirmationModal-message {
     margin: 0 0 var(--pad-lg) 0;
-    font-size: 14px;
     color: var(--color-text-subtle);
     line-height: var(--line-height-normal);
 }
@@ -2439,7 +2415,7 @@ body {
 
 .ConfirmationModal-button {
     flex: 1;
-    font-size: 15px;
+    font-size: var(--font-size-lg);
     font-weight: var(--font-weight-semibold);
     border-radius: var(--radius-md);
     transition: opacity 0.2s ease;
@@ -2482,7 +2458,6 @@ body {
     top: 10px;
     left: 10px;
     color: var(--color-text-muted);
-    font-size: 14px;
     font-family: monospace;
     z-index: 101;
     background: rgba(15, 23, 42, 0.8);
@@ -2496,7 +2471,7 @@ body {
     left: 50%;
     transform: translate(-50%, -50%);
     color: var(--color-error);
-    font-size: 18px;
+    font-size: var(--font-size-2xl);
     padding: var(--pad-lg);
     background: rgba(15, 23, 42, 0.9);
     border-radius: var(--radius-md);
