@@ -617,14 +617,14 @@ button {
 .LightningTalk-row,
 .LightningTalk-slot {
     display: grid;
-    border: 1px solid var(--color-border-section);
-    border-radius: var(--radius-md);
-    padding: var(--pad-sm);
-    background: var(--color-bg-elevated);
 }
 
 .LightningTalk-row {
     grid-template-columns: 1fr;
+    border: 1px solid var(--color-border-section);
+    border-radius: var(--radius-md);
+    padding: var(--pad-sm);
+    background: var(--color-bg-elevated);
 }
 
 .LightningTalk-slot {
@@ -664,6 +664,17 @@ button {
 
 .VoteCount {
     min-width: 24px;
+}
+
+.EntityCard {
+    --entity-card-bg: var(--color-bg-elevated);
+    --entity-card-border-color: var(--color-border-section);
+    --entity-card-radius: var(--radius-md);
+    --entity-card-padding: var(--pad-md);
+    background: var(--entity-card-bg);
+    border: 1px solid var(--entity-card-border-color);
+    border-radius: var(--entity-card-radius);
+    padding: var(--entity-card-padding);
 }
 
 
@@ -766,7 +777,8 @@ button {
 }
 
 .TopicCard {
-    border-radius: var(--radius-sm);
+    --entity-card-padding: 0;
+    --entity-card-radius: var(--radius-sm);
     display: grid;
     grid-template-columns: 1fr auto;
     grid-template-rows: auto auto auto;
@@ -777,15 +789,15 @@ button {
 }
 
 .TopicCard--neutral {
-    background-color: var(--color-bg-page);
+    --entity-card-bg: var(--color-bg-page);
 }
 
 .TopicCard--interested {
-    background-color: var(--color-success-light);
+    --entity-card-bg: var(--color-success-light);
 }
 
 .TopicCard--notinterested {
-    background-color: var(--color-border);
+    --entity-card-bg: var(--color-border);
 }
 
 .ActiveDiscussion {
@@ -1897,20 +1909,13 @@ button {
     padding: var(--pad-lg);
 }
 
-.HackathonProjectCard {
-    background: var(--color-bg-elevated);
-    border: 1px solid var(--color-border-section);
-    border-radius: var(--radius-md);
-    padding: var(--pad-md);
-}
-
 .HackathonProjectCard--mine {
-    background: var(--color-success-light);
-    border-color: var(--color-success);
+    --entity-card-bg: var(--color-success-light);
+    --entity-card-border-color: var(--color-success);
 }
 
 .HackathonProjectCard--large {
-    border-color: var(--color-warning);
+    --entity-card-border-color: var(--color-warning);
 }
 
 .HackathonProjectCard-header {

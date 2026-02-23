@@ -251,11 +251,12 @@ object LinearScheduleView:
                           LightningTalkProposalCard(
                             proposal = proposal,
                             metaText = None,
-                            rowClass = "LightningTalk-slot",
+                            rowClass = "EntityCard LightningTalk-slot",
                             slotNumber = Some(slotNumber),
                           )
                         case None =>
                           div(
+                            cls := "EntityCard",
                             cls := "LightningTalk-slot",
                             div(cls := "LightningTalk-slotNumber", s"#$slotNumber"),
                             div(

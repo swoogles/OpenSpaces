@@ -319,6 +319,7 @@ object HackathonProjectCard:
     val isLarge = project.isLargeGroup
     
     div(
+      cls := "EntityCard",
       cls := "HackathonProjectCard",
       cls := (if isMyProject then "HackathonProjectCard--mine" else ""),
       cls := (if isLarge then "HackathonProjectCard--large" else ""),

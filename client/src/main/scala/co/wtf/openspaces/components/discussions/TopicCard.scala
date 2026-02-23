@@ -45,6 +45,7 @@ object TopicCard:
         val hasVoted = currentUserFeedback.isDefined
 
         val cardContent = div(
+          cls := "EntityCard",
           cls := "TopicCard",
           cls := voteBackgroundClass,
           // Celebration animation class when vote is confirmed
