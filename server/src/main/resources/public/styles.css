@@ -112,10 +112,6 @@
     padding: var(--pad-md);
 }
 
-.Card--elevated {
-    box-shadow: var(--shadow-sm);
-}
-
 :is(
     .Card,
     .TopicSection,
@@ -145,7 +141,6 @@ html {
     .LoginScreen-button,
     .ProfileIconButton,
     .TopicSubmission-button,
-    .VoteChevronStack,
     .VoteButtonRow,
     .VoteButton,
     .InlineEditableTitle-editBtn,
@@ -187,11 +182,9 @@ html {
     .TopicSubmission-button,
     .InlineEditableTitle-editRow,
     .SecondaryActive,
-    .ControlsActive,
     .Menu-topic,
     .Menu-swapButton,
     .connection-banner-content,
-    .LinearTopicActions,
     .HackathonProjectCard-actions
 ) {
     display: flex;
@@ -222,12 +215,10 @@ html {
 
 :is(
     .LoginScreen-button,
-    .Flex,
     .TopicSubmission,
     .TopicGroups,
     .LightningTalks,
     .connection-banner,
-    .LinearTopicRow,
     .HackathonProjects
 ) {
     gap: var(--gap-loose);
@@ -242,8 +233,6 @@ html {
     .LightningTalk-slot,
     .LightningTalk-main,
     .LightningTalk-metaRow,
-    .LightningTalk-actions,
-    .VoteChevronStack,
     .InlineEditableTitle-displayRow,
     .SecondaryActive > span,
     .Menu-actions,
@@ -365,14 +354,12 @@ body {
 
 :is(
     .LightningTalk-meta,
-    .LightningTalk-actionButton,
     .Menu-label,
     .Menu-roomSlot,
     .AdminControls-version,
     .AdminModeToggle-label,
     .connection-indicator-dot,
     .connection-banner-retry,
-    .HackathonProjectCard-ownerBadge,
     .HackathonProjectCard-moreMembers,
     .HackathonProjectCard-largeWarning
 ) {
@@ -501,10 +488,6 @@ button {
     transform: scale(0.95);
 }
 
-.Flex {
-    display: flex;
-}
-
 .TopicSubmission {
     padding: var(--pad-lg);
     margin: var(--pad-md) var(--pad-md) var(--pad-lg) var(--pad-md);
@@ -579,10 +562,6 @@ button {
     box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
 }
 
-.TopicSubmission-buttonIcon {
-    font-size: var(--font-size-2xl);
-}
-
 .TopicsContainer {
     display: grid;
     width: 100%;
@@ -626,14 +605,6 @@ button {
 
 .LightningTalk-adminControls .AdminControls-button {
     width: 100%;
-}
-
-.LightningTalk-myProposalNotice {
-    color: var(--color-warning-dark);
-    background: var(--color-warning-light);
-    border: 1px solid var(--color-warning);
-    border-radius: var(--radius-md);
-    padding: var(--pad-sm) var(--pad-md);
 }
 
 .LightningTalk-list,
@@ -690,44 +661,6 @@ button {
 .LightningTalk-metaRow {
     display: inline-flex;
     max-width: 100%;
-}
-
-.LightningTalk-actions {
-    display: flex;
-}
-
-.LightningTalk-actionButton {
-    background: var(--color-bg-surface);
-    border: 1px solid var(--color-border-strong);
-    color: var(--color-text-secondary);
-    border-radius: var(--radius-md);
-    padding: var(--pad-xs) var(--pad-sm);
-    font-weight: var(--font-weight-bold);
-}
-
-.LightningTalk-actionButton--danger {
-    background: var(--color-error-light);
-    border-color: var(--color-error);
-    color: var(--color-error-dark);
-}
-
-.UnjudgedCounter {
-    padding: var(--pad-sm) var(--pad-lg);
-    margin: var(--pad-sm) var(--pad-lg);
-    background-color: var(--color-bg-surface);
-    border-radius: var(--radius-md);
-    color: var(--color-interactive);
-}
-
-.AddButton {
-    background-color: transparent;
-    border: none;
-}
-
-.VoteChevronStack {
-    display: flex;
-    flex-direction: column;
-    width: 100%;
 }
 
 .VoteButtonRow {
@@ -1054,16 +987,6 @@ button {
     font-style: italic;
 }
 
-.ControlsActive {
-    grid-area: ControlsActive;
-}
-
-.VoteColumn {
-    grid-area: VoteColumn;
-    display: flex;
-    align-items: stretch;
-}
-
 .glyphicon {
     height: 32px;
     width: 32px;
@@ -1263,32 +1186,8 @@ button {
     color: var(--color-error-dark);
 }
 
-.swap-animating {
-    position: relative;
-    z-index: 100;
-}
-
 .swap-topic-icon {
     display: inline-block;
-}
-
-.vote-state-for {
-    opacity: 1;
-    transform: scale(1.1);
-    border: 2px solid currentColor;
-    border-radius: var(--radius-md);
-    padding: var(--pad-xs);
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
-}
-
-.vote-state-neutral {
-    opacity: 0.7;
-    transform: scale(1);
-}
-
-.vote-state-against {
-    opacity: 0.5;
-    transform: scale(0.9);
 }
 
 .avatar-wrapper {
@@ -1301,62 +1200,6 @@ button {
     display: block;
 }
 
-.avatar-wrapper.vote-state-against::before,
-.avatar-wrapper.vote-state-against::after {
-    content: '';
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    width: 90%;
-    height: 3px;
-    background-color: rgba(220, 38, 38, 0.85);
-    border-radius: 2px;
-    pointer-events: none; 
-    z-index: 1;
-}
-
-.avatar-wrapper.vote-state-against::before {
-    transform: translate(-50%, -50%) rotate(45deg);
-}
-
-.avatar-wrapper.vote-state-against::after {
-    transform: translate(-50%, -50%) rotate(-45deg);
-}
-
-.vote-state-for,
-.vote-state-neutral,
-.vote-state-against {
-    transition: opacity 0.2s ease, transform 0.2s ease;
-}
-
-@media (prefers-reduced-motion: reduce) {
-    .vote-state-for,
-    .vote-state-neutral,
-    .vote-state-against {
-        transition: none;
-    }
-}
-
-@media (prefers-contrast: more) {
-    .vote-state-for {
-        border-width: 3px;
-        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
-    }
-    
-    .vote-state-neutral {
-        opacity: 0.8;
-    }
-    
-    .vote-state-against {
-        opacity: 0.5;
-    }
-    
-    .avatar-wrapper.vote-state-against::before,
-    .avatar-wrapper.vote-state-against::after {
-        height: 4px;
-        background-color: rgba(185, 28, 28, 0.95);
-    }
-}
 
 .AdminControls {
     display: flex;
@@ -1647,38 +1490,6 @@ button {
     letter-spacing: 0.5px;
     margin-bottom: var(--pad-sm);
 }
-
-.LinearTopicTitle {
-    line-height: var(--line-height-tight);
-}
-
-.LinearTopicRow {
-    display: flex;
-    justify-content: space-between;
-}
-
-.LinearFacilitator {
-    font-size: var(--font-size-meta);
-    color: var(--color-text-secondary);
-}
-
-.LinearVotes {
-    font-size: var(--font-size-note);
-    color: var(--color-text-muted);
-    background-color: rgba(255,255,255,0.5);
-    padding: var(--pad-xs) var(--pad-sm);
-    border-radius: var(--radius-sm);
-}
-
-.LinearSlackLink {
-    display: flex;
-}
-
-.LinearSlackLink .SlackIcon {
-    width: 18px;
-    height: 18px;
-}
-
 
 .LinearEmptySlot {
     padding: var(--pad-lg);
@@ -2171,14 +1982,6 @@ button {
     margin: 0;
     flex: 1;
     word-wrap: break-word;
-}
-
-.HackathonProjectCard-ownerBadge {
-    background: var(--color-warning-light);
-    color: var(--color-warning-dark);
-    padding: var(--pad-xs) var(--pad-sm);
-    border-radius: var(--radius-md);
-    flex-shrink: 0;
 }
 
 .HackathonProjectCard-members {
