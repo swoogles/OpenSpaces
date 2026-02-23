@@ -1,7 +1,8 @@
 package co.wtf.openspaces
 
-import co.wtf.openspaces.discussions.{DiscussionAction, DiscussionActionConfirmed, DiscussionState}
+import co.wtf.openspaces.discussions.{DiscussionAction, DiscussionActionConfirmed, DiscussionDataStore, DiscussionState, DiscussionStore}
 import co.wtf.openspaces.hackathon.*
+import co.wtf.openspaces.lightning_talks.LightningTalkService
 import co.wtf.openspaces.lighting_talks.*
 import neotype.unwrap
 import zio.*

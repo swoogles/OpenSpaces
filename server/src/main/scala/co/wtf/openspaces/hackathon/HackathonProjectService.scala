@@ -1,5 +1,6 @@
-package co.wtf.openspaces
+package co.wtf.openspaces.hackathon
 
+import co.wtf.openspaces.{GitHubProfileService, Person, RandomUsers}
 import co.wtf.openspaces.db.{
   HackathonProjectRepository,
   HackathonProjectMemberRepository,

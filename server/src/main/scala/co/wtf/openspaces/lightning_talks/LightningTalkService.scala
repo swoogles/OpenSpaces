@@ -1,5 +1,6 @@
-package co.wtf.openspaces
+package co.wtf.openspaces.lightning_talks
 
+import co.wtf.openspaces.{GitHubProfileService, Person, RandomUsers}
 import co.wtf.openspaces.db.{LightningTalkRepository, LightningTalkRow, UserRepository}
 import co.wtf.openspaces.lighting_talks.*
 import neotype.unwrap

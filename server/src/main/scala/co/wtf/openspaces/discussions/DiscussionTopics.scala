@@ -1,5 +1,6 @@
-package co.wtf.openspaces
+package co.wtf.openspaces.discussions
 
+import co.wtf.openspaces.Topic
 import zio.*
 import zio.direct.*
 

@@ -1,6 +1,8 @@
 package co.wtf.openspaces
 
 import co.wtf.openspaces.db._
+import co.wtf.openspaces.hackathon.HackathonProjectService
+import co.wtf.openspaces.lightning_talks.LightningTalkService
 import co.wtf.openspaces.slack._
 import zio.direct._
 import zio.http._

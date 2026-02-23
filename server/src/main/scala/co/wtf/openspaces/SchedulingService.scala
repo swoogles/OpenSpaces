@@ -1,6 +1,6 @@
 package co.wtf.openspaces
 
-import co.wtf.openspaces.discussions.{DiscussionAction, DiscussionState}
+import co.wtf.openspaces.discussions.{DiscussionAction, DiscussionState, DiscussionStore}
 import zio.*
 import java.time.LocalDateTime
 import java.time.Duration

@@ -1,4 +1,4 @@
-package co.wtf.openspaces
+package co.wtf.openspaces.discussions
 
 import zio.*
 import co.wtf.openspaces.discussions.{DiscussionAction, DiscussionActionConfirmed}

@@ -1,5 +1,6 @@
-package co.wtf.openspaces
+package co.wtf.openspaces.discussions
 
+import co.wtf.openspaces.{Discussion, Feedback, GlyphiconService, Person, RoomSlot, Topic, TopicId, VotePosition}
 import co.wtf.openspaces.discussions.{DiscussionAction, DiscussionActionConfirmed, DiscussionState}
 import zio.*
 import zio.direct.*

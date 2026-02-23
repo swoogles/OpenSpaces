@@ -1,6 +1,6 @@
 package co.wtf.openspaces
 
-import co.wtf.openspaces.discussions.{DiscussionAction, DiscussionActionConfirmed, DiscussionState}
+import co.wtf.openspaces.discussions.{DiscussionAction, DiscussionActionConfirmed, DiscussionDataStore, DiscussionState}
 import zio.*
 import zio.test.*
 import zio.test.TestRandom
