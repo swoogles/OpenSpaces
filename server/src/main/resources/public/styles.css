@@ -1,87 +1,77 @@
-/* ============================================
-   Global Resets & Base Styles
-   ============================================ */
+
 *, *::before, *::after {
     box-sizing: border-box;
 }
 
-/* ============================================
-   Color System - Semantic Variables
-   ============================================ */
 :root {
-    /* Brand/Primary */
+    
     --color-primary: #667eea;
     --color-primary-dark: #764ba2;
     
-    /* Text Hierarchy */
+    
     --color-text: #1a202c;
     --color-text-secondary: #4a5568;
     --color-text-muted: #718096;
     --color-text-subtle: #64748b;
     
-    /* Backgrounds */
+    
     --color-white: #ffffff;
     --color-bg-page: #f4f8fc;
     --color-bg-surface: #edf2f7;
     --color-bg-elevated: #f8fbff;
     --color-bg-dark: #0f172a;
     
-    /* Borders */
+    
     --color-border: #e2e8f0;
     --color-border-strong: #cbd5e0;
     --color-border-section: #d4e2ef;
     
-    /* Status - Success */
+    
     --color-success: #22c55e;
     --color-success-muted: #38a169;
     --color-success-light: #d4edda;
     
-    /* Status - Error */
+    
     --color-error: #ef4444;
     --color-error-dark: #c53030;
     --color-error-light: #fed7d7;
     
-    /* Status - Warning */
+    
     --color-warning: #f59e0b;
     --color-warning-dark: #92400e;
     --color-warning-light: #fef3c7;
     
-    /* Interactive/Info */
+    
     --color-interactive: #4a90d9;
     --color-interactive-hover: #3a7fc8;
     
-    /* Special UI */
+    
     --color-card-scheduled: #C6DAD7;
     --color-vote-interested: #e74c3c;
     --color-vote-neutral: #7f8c8d;
     
-    /* Border Radius */
+    
     --radius-sm: 4px;
     --radius-md: 8px;
     --radius-full: 50%;
 
-    /* Layout defaults */
+    
     --layout-align-items: center;
     --layout-justify-content: center;
 
-    /* Minimal spacing scale */
+    
     --pad-0: 0;
     --pad-xs: 4px;
     --pad-sm: 8px;
     --pad-md: 12px;
     --pad-lg: 16px;
     
-    /* Shadows */
+    
     --shadow-sm: 0 2px 4px rgba(0, 0, 0, 0.1);
     --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.15);
     --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.2);
 }
 
-/* ============================================
-   Base Component Classes
-   ============================================ */
-
-/* Icon Button - small square buttons with icons */
 .IconButton {
     flex-shrink: 0;
     width: 28px;
@@ -97,7 +87,6 @@
     transform: scale(0.95);
 }
 
-/* Card - shared card container styles */
 .Card {
     padding: var(--pad-md);
 }
@@ -155,17 +144,46 @@ html {
     align-items: var(--app-align-items);
     justify-content: var(--app-justify-content);
 }
-/* ============================================
-   Loading Screen
-   ============================================ */
+
+:is(
+    .loading-screen,
+    .LoginScreen,
+    .TopicSubmission,
+    .LightningTalks,
+    .Menu-actions,
+    .ToastContainer,
+    .HackathonProjects,
+    .HackathonProjects-createForm,
+    .HackathonProjects-list,
+    .HackathonProjectCard,
+    .VoteIndicator
+) {
+    display: flex;
+    flex-direction: column;
+}
+
+:is(
+    .TopicSubmission-button,
+    .InlineEditableTitle-editRow,
+    .SecondaryActive,
+    .ControlsActive,
+    .Menu-topic,
+    .Menu-swapButton,
+    .connection-banner-content,
+    .LinearTopicMeta,
+    .LinearTopicActions,
+    .HackathonProjectCard-actions
+) {
+    display: flex;
+    gap: 8px;
+}
+
 .loading-screen {
     position: fixed;
     top: 0;
     left: 0;
     right: 0;
     bottom: 0;
-    display: flex;
-    flex-direction: column;
     background: linear-gradient(135deg, var(--color-primary) 0%, var(--color-primary-dark) 100%);
     z-index: 9999;
     transition: opacity 0.3s ease-out;
@@ -226,12 +244,7 @@ body {
     gap: 5px;
 }
 
-/* ============================================
-   Login Screen
-   ============================================ */
 .LoginScreen {
-    display: flex;
-    flex-direction: column;
     min-height: 100vh;
     padding: var(--pad-lg);
     background: linear-gradient(135deg, var(--color-primary) 0%, var(--color-primary-dark) 100%);
@@ -306,8 +319,6 @@ body {
     background-repeat: no-repeat;
 }
 
-/* ============================================ */
-
 .Banner {
     background-color: var(--color-white);
     width: 100%;
@@ -321,7 +332,6 @@ body {
     border-radius: var(--radius-full);
 }
 
-/* User profile section in banner */
 .UserProfileSection {
     display: flex;
     align-items: center;
@@ -350,12 +360,7 @@ body {
     gap: 20px;
 }
 
-/* ============================================
-   Topic Submission Form
-   ============================================ */
 .TopicSubmission {
-    display: flex;
-    flex-direction: column;
     gap: 12px;
     padding: var(--pad-lg);
     margin: 12px 10px 20px 10px;
@@ -414,8 +419,6 @@ body {
 }
 
 .TopicSubmission-button {
-    display: flex;
-    gap: 8px;
     width: 100%;
     padding: var(--pad-md) var(--pad-lg);
     font-size: 16px;
@@ -443,8 +446,6 @@ body {
 .TopicSubmission-buttonIcon {
     font-size: 18px;
 }
-
-/* ============================================ */
 
 .TopicsContainer {
     display: grid;
@@ -488,8 +489,6 @@ body {
 }
 
 .LightningTalks {
-    display: flex;
-    flex-direction: column;
     gap: 12px;
 }
 
@@ -621,7 +620,6 @@ body {
     width: 100%;
 }
 
-/* Compact horizontal row layout for vote buttons */
 .VoteButtonRow {
     display: flex;
     flex-direction: row;
@@ -656,7 +654,6 @@ body {
     transform: scale(0.95);
 }
 
-/* Interested (heart) button */
 .VoteButton--interested {
     color: var(--color-vote-interested);
 }
@@ -675,7 +672,6 @@ body {
     filter: drop-shadow(0 0 2px rgba(231, 76, 60, 0.5));
 }
 
-/* Not interested (no symbol) button */
 .VoteButton--notinterested {
     color: var(--color-vote-neutral);
 }
@@ -694,20 +690,17 @@ body {
     filter: drop-shadow(0 0 2px rgba(127, 140, 141, 0.5));
 }
 
-/* Vote icon sizing */
 .VoteIcon {
     width: 24px;
     height: 24px;
     transition: filter 0.15s ease;
 }
 
-/* Legacy active state (fallback) */
 .VoteButton--active {
     background-color: rgba(0, 0, 0, 0.08);
     border-radius: var(--radius-md);
 }
 
-/* Respect reduced motion preferences */
 @media (prefers-reduced-motion: reduce) {
     .VoteButton {
         transition: none;
@@ -784,7 +777,6 @@ body {
     grid-area: RoomHeaders;
 }
 
-/* Individual room header styling - shared emphasis pattern */
 .RoomHeader {
     font-weight: 700;
     font-size: 1.1rem;
@@ -840,7 +832,6 @@ body {
     word-wrap: break-word;
 }
 
-/* Inline editable title for topic cards */
 .InlineEditableTitle {
     flex: 1;
     min-width: 0;
@@ -858,7 +849,6 @@ body {
     word-wrap: break-word;
 }
 
-/* Shared icon button base for edit/delete/cancel */
 .InlineEditableTitle-editBtn,
 .InlineEditableTitle-deleteBtn,
 .InlineEditableTitle-cancelBtn {
@@ -913,8 +903,6 @@ body {
 }
 
 .InlineEditableTitle-editRow {
-    display: flex;
-    gap: 8px;
     align-items: center;
 }
 
@@ -960,7 +948,6 @@ body {
     gap: 6px;
 }
 
-/* Facilitator name styling */
 .FacilitatorName {
     font-size: 0.85rem;
     color: var(--color-text-secondary);
@@ -971,7 +958,6 @@ body {
     border: 1px solid rgba(0, 0, 0, 0.1);
 }
 
-/* Room slot styling */
 .RoomSlot {
     font-size: 0.8rem;
     color: var(--color-text);
@@ -991,8 +977,6 @@ body {
 
 .ControlsActive {
     grid-area: ControlsActive;
-    display: flex;
-    gap: 8px;
     align-items: center;
 }
 
@@ -1027,14 +1011,13 @@ body {
     grid-area: TimeSlots;
     max-height: 40vh;
     overflow-y: auto;
-    /* Enables vertical scrolling when content exceeds max-height */
+    
 }
 
 .Cell {
     display: flex;
 }
 
-/* Time slot labels - emphasized for easy scanning */
 .TimeOfSlot {
     font-weight: 600;
     font-size: 1rem;
@@ -1043,7 +1026,6 @@ body {
     align-items: center;
 }
 
-/* Day header - uses same emphasis pattern as room headers */
 .DayHeader {
     font-weight: 700;
     font-size: 1.1rem;
@@ -1053,7 +1035,6 @@ body {
     margin-top: 16px;
 }
 
-/* Menu */
 .Menu {
     position: fixed;
     background-color: var(--color-white);
@@ -1068,7 +1049,6 @@ body {
     border: 2px solid var(--color-interactive);
 }
 
-/* Menu - mobile adjustments */
 @media (max-width: 400px) {
     .Menu {
         padding: var(--pad-md);
@@ -1126,12 +1106,12 @@ body {
     align-items: center;
     gap: 8px;
     min-width: 0;
-    /* Allow flex children to shrink below content size */
+    
 }
 
 .Menu-topic>div {
     min-width: 0;
-    /* Allow text container to shrink */
+    
     flex: 1;
 }
 
@@ -1156,8 +1136,6 @@ body {
 }
 
 .Menu-actions {
-    display: flex;
-    flex-direction: column;
     gap: 8px;
 }
 
@@ -1170,8 +1148,6 @@ body {
     border-radius: var(--radius-sm);
     cursor: pointer;
     font-weight: bold;
-    display: flex;
-    gap: 8px;
 }
 
 .Menu-swapButton:hover {
@@ -1208,7 +1184,6 @@ body {
     font-size: 13px;
 }
 
-/* Error Banner */
 .ErrorBanner {
     display: flex;
     align-items: center;
@@ -1239,7 +1214,6 @@ body {
     color: var(--color-error-dark);
 }
 
-/* Swap Animation Styles */
 .swap-animating {
     position: relative;
     z-index: 100;
@@ -1249,12 +1223,6 @@ body {
     display: inline-block;
 }
 
-/* Voting State Styling for Icons
- * These classes indicate the user's voting relationship with a topic.
- * Uses opacity, scale, and borders rather than color alone for accessibility.
- */
-
-/* Voted FOR: Most visible - full opacity, slight scale up, solid border */
 .vote-state-for {
     opacity: 1;
     transform: scale(1.1);
@@ -1264,30 +1232,26 @@ body {
     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
 }
 
-/* Not voted: Neutral - slightly reduced opacity, normal scale */
 .vote-state-neutral {
     opacity: 0.7;
     transform: scale(1);
 }
 
-/* Voted AGAINST: X overlay to indicate not interested */
 .vote-state-against {
     opacity: 0.5;
     transform: scale(0.9);
 }
 
-/* Avatar wrapper for voting state - enables pseudo-element overlays */
 .avatar-wrapper {
     display: inline-block;
     position: relative;
-    line-height: 0; /* Prevent extra space below img */
+    line-height: 0; 
 }
 
 .avatar-wrapper .github-avatar {
     display: block;
 }
 
-/* Create X using two diagonal lines on the wrapper */
 .avatar-wrapper.vote-state-against::before,
 .avatar-wrapper.vote-state-against::after {
     content: '';
@@ -1298,7 +1262,7 @@ body {
     height: 3px;
     background-color: rgba(220, 38, 38, 0.85);
     border-radius: 2px;
-    pointer-events: none; /* Don't interfere with clicks */
+    pointer-events: none; 
     z-index: 1;
 }
 
@@ -1310,14 +1274,12 @@ body {
     transform: translate(-50%, -50%) rotate(-45deg);
 }
 
-/* Ensure proper transitions for smooth state changes */
 .vote-state-for,
 .vote-state-neutral,
 .vote-state-against {
     transition: opacity 0.2s ease, transform 0.2s ease;
 }
 
-/* Respect reduced motion preferences */
 @media (prefers-reduced-motion: reduce) {
     .vote-state-for,
     .vote-state-neutral,
@@ -1326,7 +1288,6 @@ body {
     }
 }
 
-/* High contrast mode support */
 @media (prefers-contrast: more) {
     .vote-state-for {
         border-width: 3px;
@@ -1348,7 +1309,6 @@ body {
     }
 }
 
-/* Admin Controls */
 .AdminControls {
     display: flex;
     flex-wrap: wrap;
@@ -1430,7 +1390,6 @@ body {
     cursor: not-allowed;
 }
 
-/* Admin Mode Toggle */
 .AdminModeToggle {
     display: flex;
     justify-content: flex-end;
@@ -1453,7 +1412,6 @@ body {
     cursor: pointer;
 }
 
-/* View Toggle - Segmented Control */
 .ViewToggle {
     display: flex;
     background-color: var(--color-bg-surface);
@@ -1491,7 +1449,6 @@ body {
     background-color: var(--color-white);
 }
 
-/* Slack thread link */
 .SlackThreadLink {
     display: inline-flex;
     align-items: center;
@@ -1510,19 +1467,12 @@ body {
     height: 16px;
 }
 
-/* Respect reduced motion preferences */
 @media (prefers-reduced-motion: reduce) {
     .ViewToggle-button {
         transition: none;
     }
 }
 
-/* ============================================
-   Connection Status Indicator & Banner
-   ============================================ */
-
-/* Indicator dot (for header/nav) */
-/* Connection Status - unified color states */
 .connection-connected { color: var(--color-success); }
 .connection-connecting,
 .connection-reconnecting { color: var(--color-warning); }
@@ -1617,7 +1567,7 @@ body {
         animation: none;
     }
 }
-/* Linear Schedule View */
+
 .LinearScheduleView {
     width: 100%;
     padding: 0 var(--pad-lg) var(--pad-lg);
@@ -1744,8 +1694,6 @@ body {
 }
 
 .LinearTopicActions {
-    display: flex;
-    gap: 8px;
 }
 
 .LinearVoteBtn {
@@ -1788,15 +1736,11 @@ body {
     fill: currentColor;
 }
 
-/* ========================================
-   Swipe-to-Vote Components
-   ======================================== */
-
 .SwipeableCardContainer {
     position: relative;
     overflow: hidden;
     border-radius: var(--radius-sm);
-    touch-action: pan-y; /* Allow vertical scroll, capture horizontal */
+    touch-action: pan-y; 
 }
 
 .SwipeableCardContent {
@@ -1814,7 +1758,6 @@ body {
     transition: transform 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94);
 }
 
-/* Reveal backgrounds that show during swipe */
 .SwipeReveal {
     position: absolute;
     top: 0;
@@ -1854,7 +1797,6 @@ body {
     color: var(--color-success-muted);
 }
 
-/* Threshold indicators - subtle lines that appear near commit point */
 .SwipeThresholdIndicator {
     position: absolute;
     top: 8px;
@@ -1876,12 +1818,10 @@ body {
     background-color: var(--color-success);
 }
 
-/* Visual feedback when past threshold */
 .SwipeableCardContainer[data-past-threshold="true"] .SwipeableCardContent {
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
 }
 
-/* Prevent text selection during swipe */
 .SwipeableCardContainer * {
     -webkit-user-select: none;
     -moz-user-select: none;
@@ -1889,7 +1829,6 @@ body {
     user-select: none;
 }
 
-/* Re-enable text selection for actual text content */
 .SwipeableCardContainer .MainActive,
 .SwipeableCardContainer .FacilitatorName,
 .SwipeableCardContainer .RoomSlot {
@@ -1897,13 +1836,8 @@ body {
     -moz-user-select: text;
     -ms-user-select: text;
     user-select: text;
-    pointer-events: none; /* But don't let it interfere with swipe */
+    pointer-events: none; 
 }
-
-/* ========================================
-   Persistent Vote Indicator (left side of card)
-   Shows vote status icon + count in unified position
-   ======================================== */
 
 .VoteIndicator {
     position: absolute;
@@ -1911,8 +1845,6 @@ body {
     top: 0;
     bottom: 0;
     width: 32px;
-    display: flex;
-    flex-direction: column;
     gap: 2px;
     opacity: 0;
     pointer-events: none;
@@ -1924,13 +1856,11 @@ body {
     opacity: 1;
 }
 
-/* Interested (heart) - green theme */
 .VoteIndicator--interested {
     background-color: rgba(56, 161, 105, 0.15);
     color: var(--color-success-muted);
 }
 
-/* Not interested (X) - gray theme */
 .VoteIndicator--notinterested {
     background-color: rgba(113, 128, 150, 0.15);
     color: var(--color-text-muted);
@@ -1951,24 +1881,17 @@ body {
     opacity: 0.45;
 }
 
-/* Adjust TopicCard - only left padding needed now */
 .TopicCard {
     position: relative;
     padding-left: 36px !important;
     padding-right: 12px !important;
 }
 
-/* When inside swipeable container, maintain padding */
 .SwipeableCardContent .TopicCard {
     padding-left: 36px !important;
     padding-right: 12px !important;
 }
 
-/* ============================================
-   Vote Celebration Animation (Poof/Pop)
-   ============================================ */
-
-/* The poof animation - a satisfying pop with particles */
 @keyframes vote-poof {
     0% {
         transform: scale(1);
@@ -1993,7 +1916,6 @@ body {
     }
 }
 
-/* Particle burst effect using pseudo-elements */
 @keyframes vote-particles {
     0% {
         opacity: 1;
@@ -2005,7 +1927,6 @@ body {
     }
 }
 
-/* Applied when vote is confirmed */
 .TopicCard.vote-celebrating {
     animation: vote-poof 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
     z-index: 10;
@@ -2015,7 +1936,6 @@ body {
     transition: none;
 }
 
-/* Particle container - appears over the card */
 .vote-particles {
     position: absolute;
     top: 50%;
@@ -2048,7 +1968,6 @@ body {
     }
 }
 
-/* Individual particle positions - CSS custom properties set by JS */
 .vote-particle:nth-child(1) { --particle-end: translate(-30px, -30px); background: var(--color-warning); }
 .vote-particle:nth-child(2) { --particle-end: translate(30px, -30px); background: #10b981; }
 .vote-particle:nth-child(3) { --particle-end: translate(-35px, 0px); background: #3b82f6; }
@@ -2056,7 +1975,6 @@ body {
 .vote-particle:nth-child(5) { --particle-end: translate(-25px, 25px); background: #8b5cf6; }
 .vote-particle:nth-child(6) { --particle-end: translate(25px, 25px); background: #ec4899; }
 
-/* Interested vote - warmer/happy particles */
 .TopicCard.vote-celebrating--interested .vote-particle:nth-child(1) { background: #f87171; }
 .TopicCard.vote-celebrating--interested .vote-particle:nth-child(2) { background: #fb923c; }
 .TopicCard.vote-celebrating--interested .vote-particle:nth-child(3) { background: #fbbf24; }
@@ -2064,7 +1982,6 @@ body {
 .TopicCard.vote-celebrating--interested .vote-particle:nth-child(5) { background: #fb923c; }
 .TopicCard.vote-celebrating--interested .vote-particle:nth-child(6) { background: #fbbf24; }
 
-/* Not interested - cooler/neutral particles */
 .TopicCard.vote-celebrating--notinterested .vote-particle:nth-child(1) { background: #94a3b8; }
 .TopicCard.vote-celebrating--notinterested .vote-particle:nth-child(2) { background: var(--color-text-subtle); }
 .TopicCard.vote-celebrating--notinterested .vote-particle:nth-child(3) { background: #475569; }
@@ -2072,7 +1989,6 @@ body {
 .TopicCard.vote-celebrating--notinterested .vote-particle:nth-child(5) { background: var(--color-text-subtle); }
 .TopicCard.vote-celebrating--notinterested .vote-particle:nth-child(6) { background: #475569; }
 
-/* Respect reduced motion preferences */
 @media (prefers-reduced-motion: reduce) {
     .TopicCard.vote-celebrating {
         animation: none;
@@ -2082,10 +1998,6 @@ body {
         display: none;
     }
 }
-
-/* ============================================
-   Sound Toggle Button
-   ============================================ */
 
 .sound-toggle {
     display: inline-flex;
@@ -2118,18 +2030,12 @@ body {
     opacity: 0.7;
 }
 
-/* ============================================
-   Swipe Hint (one-time onboarding)
-   ============================================ */
-
-/* Repeating wiggle animation for the first unjudged card
-   Wiggles for ~0.6s, then pauses for ~3.4s, repeats */
 .SwipeHintWiggle {
     animation: swipeHintWiggle 4s ease-in-out infinite;
 }
 
 @keyframes swipeHintWiggle {
-    /* Wiggle happens in first 15% of animation (~0.6s) */
+    
     0% {
         transform: translateX(0);
     }
@@ -2151,30 +2057,24 @@ body {
     15% {
         transform: translateX(0);
     }
-    /* Rest is pause */
+    
     100% {
         transform: translateX(0);
     }
 }
 
-/* Respect reduced motion preferences */
 @media (prefers-reduced-motion: reduce) {
     .SwipeHintWiggle {
         animation: none;
     }
 }
 
-/* ============================================
-   Toast Notifications
-   ============================================ */
 .ToastContainer {
     position: fixed;
     top: 80px;
     left: 50%;
     transform: translateX(-50%);
     z-index: 10000;
-    display: flex;
-    flex-direction: column;
     gap: 8px;
     max-width: 90vw;
     pointer-events: none;
@@ -2247,13 +2147,7 @@ body {
     }
 }
 
-/* ========================================
-   Hackathon Projects (Wednesday hackday)
-   ======================================== */
-
 .HackathonProjects {
-    display: flex;
-    flex-direction: column;
     gap: 16px;
 }
 
@@ -2290,7 +2184,6 @@ body {
     padding: var(--pad-md);
 }
 
-/* Create project section */
 .HackathonProjects-create {
     margin: 8px 0;
 }
@@ -2315,8 +2208,6 @@ body {
 }
 
 .HackathonProjects-createForm {
-    display: flex;
-    flex-direction: column;
     gap: 10px;
     background: linear-gradient(135deg, var(--color-primary) 0%, var(--color-primary-dark) 100%);
     padding: var(--pad-lg);
@@ -2370,11 +2261,8 @@ body {
     opacity: 0.9;
 }
 
-/* Project list */
 .HackathonProjects-list {
     padding: var(--pad-md);
-    display: flex;
-    flex-direction: column;
     gap: 10px;
 }
 
@@ -2385,14 +2273,11 @@ body {
     font-size: 14px;
 }
 
-/* Project Card */
 .HackathonProjectCard {
     background: var(--color-bg-elevated);
     border: 1px solid var(--color-border-section);
     border-radius: var(--radius-md);
     padding: var(--pad-md);
-    display: flex;
-    flex-direction: column;
     gap: 10px;
 }
 
@@ -2430,7 +2315,6 @@ body {
     flex-shrink: 0;
 }
 
-/* Members section */
 .HackathonProjectCard-members {
     display: flex;
     align-items: center;
@@ -2484,10 +2368,7 @@ body {
     text-decoration: underline;
 }
 
-/* Action buttons */
 .HackathonProjectCard-actions {
-    display: flex;
-    gap: 8px;
     margin-top: 4px;
 }
 
@@ -2523,7 +2404,6 @@ body {
     background: var(--color-border);
 }
 
-/* Confirmation Modal */
 .ConfirmationModal-overlay {
     position: fixed;
     top: 0;
@@ -2590,16 +2470,11 @@ body {
     opacity: 0.9;
 }
 
-/* Hackathon chaos button active state */
 .AdminControls-button--hackathon-active {
     background: linear-gradient(135deg, var(--color-warning) 0%, var(--color-warning-dark) 100%) !important;
     color: var(--color-white) !important;
     border-color: var(--color-warning-dark) !important;
 }
-
-/* =================================
-   Replay View (Tetris Visualization)
-   ================================= */
 
 .ReplayView {
     position: fixed;
@@ -2657,5 +2532,5 @@ body {
 }
 
 .ReplayView-avatar--falling {
-    /* Falling animation handled via inline styles */
+    
 }
