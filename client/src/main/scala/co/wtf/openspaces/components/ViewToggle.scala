@@ -18,6 +18,7 @@ object ViewToggle:
       child.maybe <-- adminModeEnabled.map { enabled =>
         Option.when(enabled)(
           button(
+            cls := "open-spaces-button",
             cls := "ViewToggle-button",
             cls <-- currentView.signal.map { view =>
               if view == AppView.Admin then "ViewToggle-button--active" else ""
@@ -28,6 +29,7 @@ object ViewToggle:
         )
       },
       button(
+        cls := "open-spaces-button",
         cls := "ViewToggle-button",
         cls <-- currentView.signal.map { view =>
           if view == AppView.Topics then "ViewToggle-button--active" else ""
@@ -36,6 +38,7 @@ object ViewToggle:
         "Topics",
       ),
       button(
+        cls := "open-spaces-button",
         cls := "ViewToggle-button",
         cls <-- currentView.signal.map { view =>
           if view == AppView.LightningTalks then "ViewToggle-button--active" else ""
@@ -44,6 +47,7 @@ object ViewToggle:
         "Lightning",
       ),
       button(
+        cls := "open-spaces-button",
         cls := "ViewToggle-button",
         cls <-- currentView.signal.map { view =>
           if view == AppView.Hackathon then "ViewToggle-button--active" else ""
@@ -52,6 +56,7 @@ object ViewToggle:
         "Hack",
       ),
       button(
+        cls := "open-spaces-button",
         cls := "ViewToggle-button",
         cls <-- currentView.signal.map { view =>
           if view == AppView.Schedule then "ViewToggle-button--active" else ""

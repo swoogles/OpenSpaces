@@ -145,6 +145,7 @@ object AdminControls:
       onMountCallback(_ => fetchStatus()),
       // Full chaos button
       button(
+        cls := "open-spaces-button",
         cls := "AdminControls-button",
         cls <-- Signal.combine(isChaosActive.signal, chaosLoading.signal).map {
           case (isActive, _) =>
@@ -163,6 +164,7 @@ object AdminControls:
       ),
       // Schedule-only chaos button
       button(
+        cls := "open-spaces-button",
         cls := "AdminControls-button",
         cls <-- Signal.combine(isScheduleChaosActive.signal, scheduleChaosLoading.signal).map {
           case (isActive, _) =>
@@ -181,6 +183,7 @@ object AdminControls:
       ),
       // Hackathon chaos button
       button(
+        cls := "open-spaces-button",
         cls := "AdminControls-button",
         cls <-- Signal.combine(isHackathonChaosActive.signal, hackathonChaosLoading.signal).map {
           case (isActive, _) =>
@@ -199,12 +202,14 @@ object AdminControls:
       ),
       // Auto-schedule button
       button(
+        cls := "open-spaces-button",
         cls := "AdminControls-button",
         cls := "AdminControls-button--primary",
         onClick.mapToUnit --> openReplayView,
         "▶ Replay",
       ),
       button(
+        cls := "open-spaces-button",
         cls := "AdminControls-button",
         cls := "AdminControls-button--primary",
         cls <-- scheduleLoading.signal.map { loading =>
@@ -218,6 +223,7 @@ object AdminControls:
         },
       ),
       button(
+        cls := "open-spaces-button",
         cls := "AdminControls-button",
         cls := "AdminControls-button--danger",
         cls <-- deleteLoading.signal.map { loading =>
@@ -231,6 +237,7 @@ object AdminControls:
         },
       ),
       button(
+        cls := "open-spaces-button",
         cls := "AdminControls-button",
         cls := "AdminControls-button--warning",
         cls <-- resetLoading.signal.map { loading =>

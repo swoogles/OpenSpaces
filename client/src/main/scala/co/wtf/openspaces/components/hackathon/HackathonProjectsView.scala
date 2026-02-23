@@ -146,11 +146,13 @@ object HackathonProjectsView:
               div(
                 cls := "ConfirmationModal-buttons",
                 button(
+                  cls := "open-spaces-button",
                   cls := "ConfirmationModal-button ConfirmationModal-button--cancel",
                   "Cancel",
                   onClick --> Observer(_ => cancelJoin()),
                 ),
                 button(
+                  cls := "open-spaces-button",
                   cls := "ConfirmationModal-button ConfirmationModal-button--confirm",
                   "Switch Project",
                   onClick --> Observer(_ => confirmJoin()),
@@ -189,11 +191,13 @@ object HackathonProjectsView:
               div(
                 cls := "ConfirmationModal-buttons",
                 button(
+                  cls := "open-spaces-button",
                   cls := "ConfirmationModal-button ConfirmationModal-button--cancel",
                   "Cancel",
                   onClick --> Observer(_ => cancelCreate()),
                 ),
                 button(
+                  cls := "open-spaces-button",
                   cls := "ConfirmationModal-button ConfirmationModal-button--confirm",
                   "Leave & Create",
                   onClick --> Observer(_ => confirmCreate()),
@@ -235,6 +239,7 @@ object HackathonProjectsView:
         child <-- showCreateForm.signal.map {
           case false =>
             button(
+              cls := "open-spaces-button",
               cls := "HackathonProjects-createButton",
               "✨ Propose a Project",
               onClick --> Observer(_ => showCreateForm.set(true)),
@@ -261,11 +266,13 @@ object HackathonProjectsView:
               div(
                 cls := "HackathonProjects-createFormButtons",
                 button(
+                  cls := "open-spaces-button",
                   cls := "HackathonProjects-submitButton",
                   "Create",
                   onClick --> Observer(_ => handleCreateProject()),
                 ),
                 button(
+                  cls := "open-spaces-button",
                   cls := "HackathonProjects-cancelButton",
                   "Cancel",
                   onClick --> Observer { _ =>
@@ -380,6 +387,7 @@ object HackathonProjectCard:
         cls := "HackathonProjectCard-actions",
         onLeave.map { leave =>
           button(
+            cls := "open-spaces-button",
             cls := "HackathonProjectCard-leaveButton",
             if isOwner && project.nextOwner.isEmpty then "🗑️ Delete Project"
             else "👋 Leave Project",
@@ -388,6 +396,7 @@ object HackathonProjectCard:
         }.getOrElse(span()),
         onJoin.map { join =>
           button(
+            cls := "open-spaces-button",
             cls := "HackathonProjectCard-joinButton",
             "🤝 Join Project",
             onClick --> Observer(_ => join()),

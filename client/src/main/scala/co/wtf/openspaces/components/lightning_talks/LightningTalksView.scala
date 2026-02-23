@@ -40,6 +40,7 @@ object LightningTalksView:
             ),
             span("Spots will be randomly assigned...sometime. TBD."),
             button(
+              cls := "open-spaces-button",
               cls := "TopicSubmission-button",
               onClick --> Observer { _ =>
                 if !connectionStatus.checkReady() then
@@ -59,6 +60,7 @@ object LightningTalksView:
           div(
             cls := "TopicSubmission",
             button(
+              cls := "open-spaces-button",
               cls := "TopicSubmission-button",
               onClick --> Observer { _ =>
                 if !connectionStatus.checkReady() then
@@ -80,6 +82,7 @@ object LightningTalksView:
           div(
             cls := "LightningTalk-adminControls",
             button(
+              cls := "open-spaces-button",
               cls := "AdminControls-button AdminControls-button--primary",
               "Draw For Next Night",
               onClick --> Observer { _ =>

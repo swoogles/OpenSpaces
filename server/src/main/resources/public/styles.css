@@ -108,6 +108,11 @@
     transform: scale(0.95);
 }
 
+.open-spaces-button {
+    border: 1px solid var(--color-border-strong);
+    border-radius: var(--radius-md);
+}
+
 .Card {
     padding: var(--pad-md);
 }
@@ -429,8 +434,6 @@ button {
     font-size: var(--font-size-2xl);
     color: var(--color-white);
     background: linear-gradient(135deg, #24292e 0%, #1a1e22 100%);
-    border: none;
-    border-radius: var(--radius-md);
     text-decoration: none;
     transition: all 0.2s ease;
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
@@ -542,8 +545,6 @@ button {
     width: 100%;
     color: var(--color-primary);
     background: linear-gradient(135deg, var(--color-white) 0%, var(--color-bg-page) 100%);
-    border: none;
-    border-radius: var(--radius-md);
     transition: all 0.2s ease;
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
 }
@@ -1068,8 +1069,6 @@ button {
     width: 100%;
     background-color: var(--color-interactive);
     color: var(--color-white);
-    border: none;
-    border-radius: var(--radius-sm);
     font-weight: var(--font-weight-bold);
 }
 
@@ -1080,8 +1079,7 @@ button {
 .Menu-cancelButton {
     width: 100%;
     background-color: var(--color-bg-page);
-    border: 1px solid var(--color-border);
-    border-radius: var(--radius-sm);
+    border-color: var(--color-border);
 }
 
 .Menu-cancelButton:hover {
@@ -1152,8 +1150,7 @@ button {
 
 .AdminControls-button {
     padding: var(--pad-sm) var(--pad-lg);
-    border: 2px solid var(--color-border-strong);
-    border-radius: var(--radius-md);
+    border-color: var(--color-border-strong);
     background-color: var(--color-bg-page);
     color: var(--color-text-secondary);
     transition: all 0.2s ease;
@@ -1243,7 +1240,6 @@ button {
     flex: 1;
     padding: var(--pad-md);
     border: none;
-    border-radius: var(--radius-md);
     background-color: transparent;
     color: var(--color-text-secondary);
     font-size: var(--font-size-lg);
@@ -1348,8 +1344,6 @@ button {
 
 .connection-banner-retry {
     padding: var(--pad-sm) var(--pad-md);
-    border: none;
-    border-radius: var(--radius-sm);
     background-color: var(--color-error);
     color: var(--color-white);
 }
@@ -1832,8 +1826,6 @@ button {
     width: 100%;
     color: var(--color-white);
     background: linear-gradient(135deg, var(--color-primary) 0%, var(--color-primary-dark) 100%);
-    border: none;
-    border-radius: var(--radius-md);
     box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
     transition: transform 0.2s ease, box-shadow 0.2s ease;
 }
@@ -1869,20 +1861,18 @@ button {
 .HackathonProjects-cancelButton {
     flex: 1;
     font-size: var(--font-size-lg);
-    border-radius: var(--radius-md);
     transition: opacity 0.2s ease;
 }
 
 .HackathonProjects-submitButton {
     background: var(--color-white);
     color: var(--color-primary);
-    border: none;
 }
 
 .HackathonProjects-cancelButton {
     background: transparent;
     color: var(--color-white);
-    border: 2px solid rgba(255, 255, 255, 0.5);
+    border-color: rgba(255, 255, 255, 0.5);
 }
 
 .HackathonProjects-submitButton:hover,
@@ -1973,14 +1963,12 @@ button {
 .HackathonProjectCard-joinButton,
 .HackathonProjectCard-leaveButton {
     flex: 1;
-    border-radius: var(--radius-md);
     transition: opacity 0.2s ease, transform 0.2s ease;
 }
 
 .HackathonProjectCard-joinButton {
     background: linear-gradient(135deg, var(--color-success) 0%, var(--color-success-muted) 100%);
     color: var(--color-white);
-    border: none;
 }
 
 .HackathonProjectCard-joinButton:hover {
@@ -1991,7 +1979,7 @@ button {
 .HackathonProjectCard-leaveButton {
     background: var(--color-bg-surface);
     color: var(--color-text-subtle);
-    border: 1px solid var(--color-border);
+    border-color: var(--color-border);
 }
 
 .HackathonProjectCard-leaveButton:hover {
@@ -2035,20 +2023,18 @@ button {
 .ConfirmationModal-button {
     flex: 1;
     font-size: var(--font-size-lg);
-    border-radius: var(--radius-md);
     transition: opacity 0.2s ease;
 }
 
 .ConfirmationModal-button--cancel {
     background: var(--color-bg-surface);
     color: var(--color-text-subtle);
-    border: 1px solid var(--color-border);
+    border-color: var(--color-border);
 }
 
 .ConfirmationModal-button--confirm {
     background: linear-gradient(135deg, var(--color-primary) 0%, var(--color-primary-dark) 100%);
     color: var(--color-white);
-    border: none;
 }
 
 .ConfirmationModal-button:hover {

@@ -47,6 +47,7 @@ object TopicSubmission:
         )
       }),
       button(
+        cls := "open-spaces-button",
         cls := "TopicSubmission-button",
         onClick
           .mapTo(textVar.now())
