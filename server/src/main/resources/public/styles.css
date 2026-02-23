@@ -78,7 +78,6 @@
     height: 28px;
     padding: var(--pad-0);
     border-radius: var(--radius-md);
-    cursor: pointer;
     display: flex;
     transition: all 0.15s ease;
 }
@@ -175,7 +174,55 @@ html {
     .HackathonProjectCard-actions
 ) {
     display: flex;
-    gap: 8px;
+    gap: var(--pad-sm);
+}
+
+:is(
+    .IconButton,
+    .LoginScreen-button,
+    .ProfileIconButton,
+    .TopicSubmission-button,
+    .VoteButton,
+    .InlineEditableTitle-editBtn,
+    .InlineEditableTitle-deleteBtn,
+    .InlineEditableTitle-cancelBtn,
+    .Menu-swapButton,
+    .Menu-cancelButton,
+    .ErrorBanner-dismiss,
+    .AdminControls-button,
+    .AdminModeToggle-label,
+    .AdminModeToggle-label input,
+    .ViewToggle-button,
+    .connection-banner-retry,
+    .LinearVoteBtn,
+    .sound-toggle,
+    .Toast-dismiss,
+    .emptySlotWithActiveDiscussion,
+    .HackathonProjects-createButton,
+    .HackathonProjects-submitButton,
+    .HackathonProjects-cancelButton,
+    .HackathonProjectCard-joinButton,
+    .HackathonProjectCard-leaveButton,
+    .ConfirmationModal-button
+) {
+    cursor: pointer;
+}
+
+:is(
+    .TopicSubmission-button,
+    .Menu-swapButton,
+    .Menu-cancelButton,
+    .connection-banner,
+    .HackathonProjects-createButton,
+    .HackathonProjects-input,
+    .HackathonProjects-submitButton,
+    .HackathonProjects-cancelButton,
+    .HackathonProjectCard-joinButton,
+    .HackathonProjectCard-leaveButton,
+    .ConfirmationModal-button,
+    .Toast
+) {
+    padding: var(--pad-md) var(--pad-lg);
 }
 
 .loading-screen {
@@ -223,7 +270,7 @@ html {
 }
 
 .loading-subtitle {
-    margin-top: 24px;
+    margin-top: calc(var(--pad-lg) + var(--pad-sm));
     font-size: clamp(14px, 3vw, 18px);
     color: rgba(255, 255, 255, 0.85);
     text-align: center;
@@ -241,7 +288,7 @@ body {
 
 .PageContainer {
     width: 100%;
-    gap: 5px;
+    gap: var(--pad-xs);
 }
 
 .LoginScreen {
@@ -255,7 +302,7 @@ body {
     width: 120px;
     height: 120px;
     border-radius: var(--radius-full);
-    margin-bottom: 32px;
+    margin-bottom: calc(var(--pad-lg) * 2);
     box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
 }
 
@@ -268,14 +315,14 @@ body {
 }
 
 .LoginScreen-title {
-    margin: 0 0 16px 0;
+    margin: 0 0 var(--pad-lg) 0;
     font-size: 28px;
     font-weight: 700;
     color: var(--color-text);
 }
 
 .LoginScreen-description {
-    margin: 0 0 28px 0;
+    margin: 0 0 calc(var(--pad-lg) * 2) 0;
     font-size: 16px;
     line-height: 1.6;
     color: var(--color-text-secondary);
@@ -287,7 +334,7 @@ body {
 
 .LoginScreen-button {
     display: inline-flex;
-    gap: 12px;
+    gap: var(--pad-lg);
     width: 100%;
     padding: var(--pad-lg) var(--pad-lg);
     font-size: 18px;
@@ -297,7 +344,6 @@ body {
     border: none;
     border-radius: var(--radius-md);
     text-decoration: none;
-    cursor: pointer;
     transition: all 0.2s ease;
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
 }
@@ -335,7 +381,7 @@ body {
 .UserProfileSection {
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: var(--pad-sm);
     padding-right: 12px;
 }
 
@@ -343,7 +389,6 @@ body {
     display: inline-flex;
     border-radius: var(--radius-full);
     padding: var(--pad-xs);
-    cursor: pointer;
     transition: box-shadow 0.2s ease, transform 0.1s ease;
 }
 
@@ -357,13 +402,13 @@ body {
 
 .Flex {
     display: flex;
-    gap: 20px;
+    gap: var(--pad-lg);
 }
 
 .TopicSubmission {
-    gap: 12px;
+    gap: var(--pad-lg);
     padding: var(--pad-lg);
-    margin: 12px 10px 20px 10px;
+    margin: var(--pad-md) var(--pad-md) var(--pad-lg) var(--pad-md);
     background: linear-gradient(135deg, var(--color-primary) 0%, var(--color-primary-dark) 100%);
     border-radius: var(--radius-md);
     box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
@@ -420,14 +465,12 @@ body {
 
 .TopicSubmission-button {
     width: 100%;
-    padding: var(--pad-md) var(--pad-lg);
     font-size: 16px;
     font-weight: 600;
     color: var(--color-primary);
     background: linear-gradient(135deg, var(--color-white) 0%, var(--color-bg-page) 100%);
     border: none;
     border-radius: var(--radius-md);
-    cursor: pointer;
     transition: all 0.2s ease;
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
 }
@@ -449,14 +492,14 @@ body {
 
 .TopicsContainer {
     display: grid;
-    gap: 10px;
+    gap: var(--pad-md);
     width: 100%;
 }
 
 .TopicGroups {
     display: flex;
     flex-direction: column;
-    gap: 16px;
+    gap: var(--pad-lg);
     width: 100%;
     padding: var(--pad-sm) var(--pad-md) var(--pad-lg) var(--pad-md);
 }
@@ -474,7 +517,7 @@ body {
 }
 
 .TopicSection-subtitle {
-    margin: 4px 0 10px 0;
+    margin: var(--pad-xs) 0 var(--pad-md) 0;
     color: var(--color-text-secondary);
     font-size: 13px;
     line-height: 1.35;
@@ -489,7 +532,7 @@ body {
 }
 
 .LightningTalks {
-    gap: 12px;
+    gap: var(--pad-lg);
 }
 
 .LightningTalk-adminControls {
@@ -515,13 +558,13 @@ body {
     box-shadow: var(--shadow-sm);
     display: flex;
     flex-direction: column;
-    gap: 8px;
+    gap: var(--pad-sm);
 }
 
 .LightningTalk-row,
 .LightningTalk-slot {
     display: grid;
-    gap: 8px;
+    gap: var(--pad-sm);
     align-items: center;
     border: 1px solid var(--color-border-section);
     border-radius: var(--radius-md);
@@ -548,7 +591,7 @@ body {
     display: flex;
     flex-direction: row;
     align-items: center;
-    gap: 8px;
+    gap: var(--pad-sm);
     flex-wrap: wrap;
 }
 
@@ -572,13 +615,13 @@ body {
 .LightningTalk-metaRow {
     display: inline-flex;
     align-items: center;
-    gap: 6px;
+    gap: var(--pad-sm);
     max-width: 100%;
 }
 
 .LightningTalk-actions {
     display: flex;
-    gap: 6px;
+    gap: var(--pad-sm);
 }
 
 .LightningTalk-actionButton {
@@ -600,7 +643,7 @@ body {
 .UnjudgedCounter {
     text-align: center;
     padding: var(--pad-sm) var(--pad-lg);
-    margin: 8px 16px;
+    margin: var(--pad-sm) var(--pad-lg);
     background-color: var(--color-bg-surface);
     border-radius: var(--radius-md);
     font-size: 14px;
@@ -616,14 +659,14 @@ body {
 .VoteChevronStack {
     display: flex;
     flex-direction: column;
-    gap: 6px;
+    gap: var(--pad-sm);
     width: 100%;
 }
 
 .VoteButtonRow {
     display: flex;
     flex-direction: row;
-    gap: 4px;
+    gap: var(--pad-xs);
     padding: var(--pad-xs);
 }
 
@@ -641,7 +684,6 @@ body {
     border: 2px solid transparent;
     border-radius: var(--radius-md);
     padding: var(--pad-sm);
-    cursor: pointer;
     transition: all 0.15s ease;
     display: flex;
 }
@@ -745,7 +787,7 @@ body {
     grid-template-areas:
         "Targets"
         "Schedule";
-    gap: 8px;
+    gap: var(--pad-sm);
 }
 
 .Schedule {
@@ -753,7 +795,7 @@ body {
     grid-template-columns: 2fr 4fr;
     grid-template-rows: 1fr 9fr;
     grid-auto-rows: min-content;
-    gap: 10px 0px;
+    gap: var(--pad-md) 0;
     grid-template-areas:
         "deadspace RoomHeaders"
         "TimeSlots TimeSlots";
@@ -840,7 +882,7 @@ body {
 .InlineEditableTitle-displayRow {
     display: flex;
     align-items: flex-start;
-    gap: 8px;
+    gap: var(--pad-sm);
 }
 
 .InlineEditableTitle-text {
@@ -857,7 +899,6 @@ body {
     height: 28px;
     padding: var(--pad-0);
     border-radius: var(--radius-md);
-    cursor: pointer;
     display: flex;
     transition: all 0.15s ease;
     position: relative;
@@ -887,7 +928,7 @@ body {
 
 .InlineEditableTitle-actions {
     display: flex;
-    gap: 4px;
+    gap: var(--pad-xs);
     flex-shrink: 0;
 }
 
@@ -937,7 +978,7 @@ body {
     display: flex;
     flex-wrap: wrap;
     align-items: center;
-    gap: 8px;
+    gap: var(--pad-sm);
     min-width: 0;
     overflow: hidden;
 }
@@ -945,7 +986,7 @@ body {
 .SecondaryActive > span {
     display: flex;
     align-items: center;
-    gap: 6px;
+    gap: var(--pad-sm);
 }
 
 .FacilitatorName {
@@ -1032,7 +1073,7 @@ body {
     text-transform: uppercase;
     letter-spacing: 0.5px;
     padding: var(--pad-md) var(--pad-sm) var(--pad-sm) var(--pad-sm);
-    margin-top: 16px;
+    margin-top: var(--pad-lg);
 }
 
 .Menu {
@@ -1080,23 +1121,23 @@ body {
 .Menu-header {
     font-weight: bold;
     font-size: 16px;
-    margin-bottom: 12px;
+    margin-bottom: var(--pad-md);
     border-bottom: 1px solid var(--color-border);
     padding-bottom: 8px;
 }
 
 .Menu-section {
-    margin-bottom: 12px;
+    margin-bottom: var(--pad-md);
 }
 
 .Menu-section--target {
-    margin-bottom: 16px;
+    margin-bottom: var(--pad-lg);
 }
 
 .Menu-label {
     font-size: 12px;
     color: var(--color-text-subtle);
-    margin-bottom: 4px;
+    margin-bottom: var(--pad-xs);
 }
 
 .Menu-topic {
@@ -1104,7 +1145,7 @@ body {
     border-radius: var(--radius-md);
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: var(--pad-sm);
     min-width: 0;
     
 }
@@ -1136,17 +1177,15 @@ body {
 }
 
 .Menu-actions {
-    gap: 8px;
+    gap: var(--pad-sm);
 }
 
 .Menu-swapButton {
     width: 100%;
-    padding: var(--pad-md) var(--pad-lg);
     background-color: var(--color-interactive);
     color: var(--color-white);
     border: none;
     border-radius: var(--radius-sm);
-    cursor: pointer;
     font-weight: bold;
 }
 
@@ -1156,12 +1195,10 @@ body {
 
 .Menu-cancelButton {
     width: 100%;
-    padding: var(--pad-md) var(--pad-lg);
     background-color: var(--color-bg-page);
     color: var(--color-text);
     border: 1px solid var(--color-border);
     border-radius: var(--radius-sm);
-    cursor: pointer;
 }
 
 .Menu-cancelButton:hover {
@@ -1179,7 +1216,7 @@ body {
 }
 
 .Menu-error {
-    margin-top: 6px;
+    margin-top: var(--pad-sm);
     color: var(--color-error-dark);
     font-size: 13px;
 }
@@ -1192,7 +1229,7 @@ body {
     border: 1px solid var(--color-error);
     border-radius: var(--radius-sm);
     padding: var(--pad-md) var(--pad-lg);
-    margin: 8px 0;
+    margin: var(--pad-sm) 0;
     color: var(--color-error-dark);
 }
 
@@ -1205,7 +1242,6 @@ body {
     border: none;
     color: var(--color-error-dark);
     font-size: 20px;
-    cursor: pointer;
     padding: 0 0 0 var(--pad-lg);
     line-height: 1;
 }
@@ -1313,8 +1349,8 @@ body {
     display: flex;
     flex-wrap: wrap;
     justify-content: center;
-    gap: 8px;
-    margin: 8px 16px;
+    gap: var(--pad-sm);
+    margin: var(--pad-sm) var(--pad-lg);
     max-width: 100%;
 }
 
@@ -1326,7 +1362,6 @@ body {
     color: var(--color-text-secondary);
     font-size: 14px;
     font-weight: 600;
-    cursor: pointer;
     transition: all 0.2s ease;
 }
 
@@ -1401,15 +1436,13 @@ body {
 .AdminModeToggle-label {
     display: flex;
     align-items: center;
-    gap: 6px;
+    gap: var(--pad-sm);
     font-size: 12px;
     font-weight: 600;
     color: var(--color-warning-dark);
-    cursor: pointer;
 }
 
 .AdminModeToggle-label input {
-    cursor: pointer;
 }
 
 .ViewToggle {
@@ -1417,8 +1450,8 @@ body {
     background-color: var(--color-bg-surface);
     border-radius: var(--radius-md);
     padding: var(--pad-xs);
-    margin: 12px 16px;
-    gap: 4px;
+    margin: var(--pad-md) var(--pad-lg);
+    gap: var(--pad-xs);
 }
 
 .ViewToggle-button {
@@ -1430,7 +1463,6 @@ body {
     color: var(--color-text-secondary);
     font-size: 15px;
     font-weight: 600;
-    cursor: pointer;
     transition: all 0.2s ease;
     text-align: center;
 }
@@ -1452,7 +1484,7 @@ body {
 .SlackThreadLink {
     display: inline-flex;
     align-items: center;
-    margin-left: 6px;
+    margin-left: var(--pad-sm);
     text-decoration: none;
     opacity: 0.7;
     transition: opacity 0.15s ease;
@@ -1484,7 +1516,7 @@ body {
     width: 20px;
     height: 20px;
     font-size: 12px;
-    margin-left: 8px;
+    margin-left: var(--pad-sm);
     border-radius: var(--radius-full);
 }
 
@@ -1495,8 +1527,7 @@ body {
 
 .connection-banner {
     display: none;
-    gap: 12px;
-    padding: var(--pad-md) var(--pad-lg);
+    gap: var(--pad-lg);
     width: 100%;
     font-size: 14px;
     font-weight: 500;
@@ -1524,7 +1555,7 @@ body {
 .connection-banner-content {
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: var(--pad-sm);
 }
 
 .connection-banner-icon {
@@ -1549,7 +1580,6 @@ body {
     color: var(--color-white);
     font-size: 12px;
     font-weight: 600;
-    cursor: pointer;
 }
 
 .connection-banner-retry:hover {
@@ -1574,7 +1604,7 @@ body {
 }
 
 .LinearDay {
-    margin-bottom: 24px;
+    margin-bottom: calc(var(--pad-lg) + var(--pad-sm));
 }
 
 .LinearDayHeader {
@@ -1590,11 +1620,11 @@ body {
 }
 
 .LinearTimeSlot {
-    margin-bottom: 20px;
+    margin-bottom: var(--pad-lg);
 }
 
 .LinearTimeSlot--lightning {
-    margin-top: 8px;
+    margin-top: var(--pad-sm);
 }
 
 .LinearTimeHeader {
@@ -1604,7 +1634,7 @@ body {
     padding: var(--pad-sm) var(--pad-md);
     background-color: var(--color-bg-surface);
     border-radius: var(--radius-sm);
-    margin-bottom: 12px;
+    margin-bottom: var(--pad-md);
     position: sticky;
     top: 52px;
     z-index: 10;
@@ -1617,11 +1647,11 @@ body {
 }
 
 .LightningTalk-night--schedule {
-    margin-top: 8px;
+    margin-top: var(--pad-sm);
 }
 
 .LinearRoomSlot {
-    margin-bottom: 12px;
+    margin-bottom: var(--pad-md);
     padding-left: 12px;
     border-left: 3px solid var(--color-border-strong);
 }
@@ -1632,7 +1662,7 @@ body {
     color: var(--color-text-muted);
     text-transform: uppercase;
     letter-spacing: 0.5px;
-    margin-bottom: 6px;
+    margin-bottom: var(--pad-sm);
 }
 
 .LinearTopicCard {
@@ -1641,7 +1671,7 @@ body {
     padding: var(--pad-md);
     display: flex;
     flex-direction: column;
-    gap: 8px;
+    gap: var(--pad-sm);
 }
 
 .LinearTopicTitle {
@@ -1655,14 +1685,14 @@ body {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    gap: 12px;
+    gap: var(--pad-lg);
 }
 
 .LinearTopicMeta {
     display: flex;
     flex-wrap: wrap;
     align-items: center;
-    gap: 8px;
+    gap: var(--pad-sm);
 }
 
 .LinearTopicMeta .github-avatar {
@@ -1701,7 +1731,6 @@ body {
     border: 1px solid var(--color-border-strong);
     border-radius: var(--radius-sm);
     background-color: var(--color-white);
-    cursor: pointer;
     font-size: 1rem;
 }
 
@@ -1720,7 +1749,7 @@ body {
     text-align: center;
     font-style: italic;
     display: flex;
-    gap: 8px;
+    gap: var(--pad-sm);
     transition: all 0.2s ease;
 }
 
@@ -1845,7 +1874,7 @@ body {
     top: 0;
     bottom: 0;
     width: 32px;
-    gap: 2px;
+    gap: var(--pad-xs);
     opacity: 0;
     pointer-events: none;
     transition: opacity 0.3s ease;
@@ -2006,7 +2035,6 @@ body {
     padding: var(--pad-0);
     border: none;
     background: transparent;
-    cursor: pointer;
     font-size: 14px;
     opacity: 0.7;
     transition: opacity 0.2s ease, transform 0.1s ease;
@@ -2075,7 +2103,7 @@ body {
     left: 50%;
     transform: translateX(-50%);
     z-index: 10000;
-    gap: 8px;
+    gap: var(--pad-sm);
     max-width: 90vw;
     pointer-events: none;
 }
@@ -2083,8 +2111,7 @@ body {
 .Toast {
     display: flex;
     align-items: center;
-    gap: 10px;
-    padding: var(--pad-md) var(--pad-lg);
+    gap: var(--pad-md);
     background: var(--color-text);
     color: var(--color-white);
     border-radius: var(--radius-md);
@@ -2115,7 +2142,6 @@ body {
     background: transparent;
     border: none;
     border-radius: var(--radius-full);
-    cursor: pointer;
     display: flex;
     transition: all 0.15s ease;
 }
@@ -2127,7 +2153,6 @@ body {
 
 .emptySlotWithActiveDiscussion {
     display: inline-flex;
-    cursor: pointer;
     opacity: 0.8;
     transition: opacity 0.15s ease;
 }
@@ -2148,7 +2173,7 @@ body {
 }
 
 .HackathonProjects {
-    gap: 16px;
+    gap: var(--pad-lg);
 }
 
 :is(.LightningTalks, .HackathonProjects) {
@@ -2160,7 +2185,7 @@ body {
     font-size: 16px;
     font-weight: 600;
     color: var(--color-text);
-    margin: 0 0 8px 0;
+    margin: 0 0 var(--pad-sm) 0;
 }
 
 .HackathonProjects-subtitle {
@@ -2185,19 +2210,17 @@ body {
 }
 
 .HackathonProjects-create {
-    margin: 8px 0;
+    margin: var(--pad-sm) 0;
 }
 
 .HackathonProjects-createButton {
     width: 100%;
-    padding: var(--pad-md) var(--pad-lg);
     font-size: 16px;
     font-weight: 600;
     color: var(--color-white);
     background: linear-gradient(135deg, var(--color-primary) 0%, var(--color-primary-dark) 100%);
     border: none;
     border-radius: var(--radius-md);
-    cursor: pointer;
     box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
     transition: transform 0.2s ease, box-shadow 0.2s ease;
 }
@@ -2208,7 +2231,7 @@ body {
 }
 
 .HackathonProjects-createForm {
-    gap: 10px;
+    gap: var(--pad-md);
     background: linear-gradient(135deg, var(--color-primary) 0%, var(--color-primary-dark) 100%);
     padding: var(--pad-lg);
     border-radius: var(--radius-md);
@@ -2216,7 +2239,6 @@ body {
 
 .HackathonProjects-input {
     width: 100%;
-    padding: var(--pad-md) var(--pad-lg);
     font-size: 16px;
     border: 2px solid transparent;
     border-radius: var(--radius-md);
@@ -2230,17 +2252,15 @@ body {
 
 .HackathonProjects-createFormButtons {
     display: flex;
-    gap: 10px;
+    gap: var(--pad-md);
 }
 
 .HackathonProjects-submitButton,
 .HackathonProjects-cancelButton {
     flex: 1;
-    padding: var(--pad-md) var(--pad-lg);
     font-size: 15px;
     font-weight: 600;
     border-radius: var(--radius-md);
-    cursor: pointer;
     transition: opacity 0.2s ease;
 }
 
@@ -2263,7 +2283,7 @@ body {
 
 .HackathonProjects-list {
     padding: var(--pad-md);
-    gap: 10px;
+    gap: var(--pad-md);
 }
 
 .HackathonProjects-empty {
@@ -2278,7 +2298,7 @@ body {
     border: 1px solid var(--color-border-section);
     border-radius: var(--radius-md);
     padding: var(--pad-md);
-    gap: 10px;
+    gap: var(--pad-md);
 }
 
 .HackathonProjectCard--mine {
@@ -2294,7 +2314,7 @@ body {
     display: flex;
     justify-content: space-between;
     align-items: flex-start;
-    gap: 8px;
+    gap: var(--pad-sm);
 }
 
 .HackathonProjectCard-title {
@@ -2318,7 +2338,7 @@ body {
 .HackathonProjectCard-members {
     display: flex;
     align-items: center;
-    gap: 10px;
+    gap: var(--pad-md);
 }
 
 .HackathonProjectCard-avatars {
@@ -2331,7 +2351,7 @@ body {
     height: 28px;
     border-radius: var(--radius-full);
     border: 2px solid var(--color-white);
-    margin-left: -8px;
+    margin-left: calc(-1 * var(--pad-sm));
     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
 }
 
@@ -2342,7 +2362,7 @@ body {
 .HackathonProjectCard-moreMembers {
     font-size: 12px;
     color: var(--color-text-subtle);
-    margin-left: 4px;
+    margin-left: var(--pad-xs);
 }
 
 .HackathonProjectCard-memberCount {
@@ -2369,17 +2389,15 @@ body {
 }
 
 .HackathonProjectCard-actions {
-    margin-top: 4px;
+    margin-top: var(--pad-xs);
 }
 
 .HackathonProjectCard-joinButton,
 .HackathonProjectCard-leaveButton {
     flex: 1;
-    padding: var(--pad-md) var(--pad-lg);
     font-size: 14px;
     font-weight: 600;
     border-radius: var(--radius-md);
-    cursor: pointer;
     transition: opacity 0.2s ease, transform 0.2s ease;
 }
 
@@ -2426,14 +2444,14 @@ body {
 }
 
 .ConfirmationModal-title {
-    margin: 0 0 12px 0;
+    margin: 0 0 var(--pad-md) 0;
     font-size: 18px;
     font-weight: 600;
     color: var(--color-text);
 }
 
 .ConfirmationModal-message {
-    margin: 0 0 20px 0;
+    margin: 0 0 var(--pad-lg) 0;
     font-size: 14px;
     color: var(--color-text-subtle);
     line-height: 1.5;
@@ -2441,16 +2459,14 @@ body {
 
 .ConfirmationModal-buttons {
     display: flex;
-    gap: 10px;
+    gap: var(--pad-md);
 }
 
 .ConfirmationModal-button {
     flex: 1;
-    padding: var(--pad-md) var(--pad-lg);
     font-size: 15px;
     font-weight: 600;
     border-radius: var(--radius-md);
-    cursor: pointer;
     transition: opacity 0.2s ease;
 }
 
