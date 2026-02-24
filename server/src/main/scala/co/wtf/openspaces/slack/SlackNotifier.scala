@@ -196,7 +196,7 @@ class SlackNotifierLive(
     val appLink = s"${config.appBaseUrl}"
 
     val scheduleInfo = row.roomSlot.flatMap(_.fromJson[RoomSlot].toOption) match
-      case Some(rs) => s" · :round_pushpin: ${rs.room.name} · ${rs.timeSlot.s}"
+      case Some(rs) => s" · :round_pushpin: ${rs.room.name} · ${escapeColonsForSlack(rs.timeSlot.s)}"
       case None     => ""
 
     s"""[{"type":"section","text":{"type":"mrkdwn","text":"*$topicName*"},"accessory":{"type":"image","image_url":"$avatarUrl","alt_text":"$facilitator"}},{"type":"context","elements":[{"type":"mrkdwn","text":"Proposed by *$facilitator*$scheduleInfo · <$appLink|View in OpenSpaces>"}]}]"""
@@ -302,6 +302,9 @@ class SlackNotifierLive(
     val appLink = s"${config.appBaseUrl}"
 
     s"""[{"type":"section","text":{"type":"mrkdwn","text":":hammer_and_wrench: *$title*"},"accessory":{"type":"image","image_url":"$avatarUrl","alt_text":"$owner"}},{"type":"context","elements":[{"type":"mrkdwn","text":"Proposed by *$owner* · <$appLink|View in OpenSpaces>"}]}]"""
+
+  // Replace colons with Unicode ratio character (∶ U+2236) to prevent Slack emoji parsing
+  private def escapeColonsForSlack(s: String): String = s.replace(":", "∶")
 
 
 class SlackNotifierNoOp extends SlackNotifier:
