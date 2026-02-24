@@ -38,6 +38,7 @@ object AdminControls:
     // Auto-schedule state
     val scheduleLoading: Var[Boolean] = Var(false)
     val scheduleChaosLoading: Var[Boolean] = Var(false)
+    val reloadLoading: Var[Boolean] = Var(false)
     val scheduleSummary: Var[String] = Var("")
     
     val deleteLoading: Var[Boolean] = Var(false)
@@ -114,6 +115,20 @@ object AdminControls:
           case Failure(_) =>
             scheduleSummary.set("Scheduling failed.")
             scheduleLoading.set(false)
+        }
+
+    def reloadStateFromDatabase(): Unit =
+      reloadLoading.set(true)
+      randomActionClient.reloadState
+        .onComplete {
+          case Success(result) =>
+            scheduleSummary.set(
+              s"Reloaded DB state: ${result.discussions} discussions • ${result.lightningTalks} lightning • ${result.hackathonProjects} hackathon",
+            )
+            reloadLoading.set(false)
+          case Failure(_) =>
+            scheduleSummary.set("Reload from DB failed.")
+            reloadLoading.set(false)
         }
 
     def deleteAll(): Unit =
@@ -229,6 +244,19 @@ object AdminControls:
         child.text <-- scheduleLoading.signal.map {
           case true => "⏳"
           case false => "✨ Schedule Topics"
+        },
+      ),
+      button(
+        cls := "AdminControls-button",
+        cls := "AdminControls-button--primary",
+        cls <-- reloadLoading.signal.map { loading =>
+          if loading then "AdminControls-button--loading" else ""
+        },
+        disabled <-- reloadLoading.signal,
+        onClick --> { _ => reloadStateFromDatabase() },
+        child.text <-- reloadLoading.signal.map {
+          case true => "⏳"
+          case false => "↻ Reload DB"
         },
       ),
       button(

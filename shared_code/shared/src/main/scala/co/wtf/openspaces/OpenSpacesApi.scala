@@ -22,6 +22,10 @@ case class DeleteTopicsResult(deleted: Int) derives Schema, JsonCodec
 case class DeleteRandomUsersResult(
   deletedUsers: Int,
   deletedConfirmedActions: Int) derives Schema, JsonCodec
+case class ReloadStateResult(
+  discussions: Int,
+  lightningTalks: Int,
+  hackathonProjects: Int) derives Schema, JsonCodec
 case class RefreshStatus(status: String) derives Schema, JsonCodec
 
 // Confirmed action log entry for visualization/replay
@@ -87,6 +91,10 @@ object RandomActionApi {
     Endpoint(RoutePattern.POST / "api" / "admin" / "schedule")
       .out[ScheduleResult]
 
+  val reloadState =
+    Endpoint(RoutePattern.POST / "api" / "admin" / "state" / "reload")
+      .out[ReloadStateResult]
+
   val hackathonChaosGet =
     Endpoint(RoutePattern.GET / "api" / "admin" / "hackathon-chaos")
       .out[ActiveStatus]
@@ -119,6 +127,7 @@ object RandomActionApi {
       deleteAllTopics,
       deleteAllRandomUsersRecords,
       runScheduling,
+      reloadState,
       confirmedActionsGet,
       discussionsWebSocket,
     )
@@ -180,6 +189,9 @@ executor: EndpointExecutor[Any, Unit, zio.Scope]
 
   def runScheduling: Future[ScheduleResult] =
     futureDumb(RandomActionApi.runScheduling.apply(()))
+
+  def reloadState: Future[ReloadStateResult] =
+    futureDumb(RandomActionApi.reloadState.apply(()))
 
   def hackathonChaosStatus: Future[ActiveStatus] =
     futureDumb(RandomActionApi.hackathonChaosGet.apply(()))

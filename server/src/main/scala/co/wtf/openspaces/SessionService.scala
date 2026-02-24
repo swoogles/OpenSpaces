@@ -150,6 +150,44 @@ case class SessionService(
       deletedConfirmedActions = deletedConfirmedActions,
     )
 
+  /** Reload all entity state from the database and broadcast full replacements.
+    *
+    * Useful when data was modified out-of-band (e.g. direct SQL edits) and
+    * in-memory state needs to be reconciled without restarting the server.
+    */
+  def reloadAllStateFromDatabase: Task[ReloadStateResult] =
+    for
+      reloadedDiscussionState <- discussionStore.reloadFromDatabase
+      reloadedLightningState <- lightningTalkService.reloadFromDatabase
+      reloadedHackathonState <- hackathonProjectService.reloadFromDatabase
+      _ <- broadcastToAll(
+        DiscussionActionConfirmedMessage(
+          DiscussionActionConfirmed.StateReplace(
+            reloadedDiscussionState.data.values.toList,
+            reloadedDiscussionState.slots,
+          ),
+        ),
+      )
+      _ <- broadcastToAll(
+        LightningTalkActionConfirmedMessage(
+          LightningTalkActionConfirmed.StateReplace(
+            reloadedLightningState.proposals.values.toList,
+          ),
+        ),
+      )
+      _ <- broadcastToAll(
+        HackathonProjectActionConfirmedMessage(
+          HackathonProjectActionConfirmed.StateReplace(
+            reloadedHackathonState.projects.values.toList,
+          ),
+        ),
+      )
+    yield ReloadStateResult(
+      discussions = reloadedDiscussionState.data.size,
+      lightningTalks = reloadedLightningState.proposals.size,
+      hackathonProjects = reloadedHackathonState.projects.size,
+    )
+
   private def handleTicket(
     ticket: Ticket,
     channel: OpenSpacesServerChannel,

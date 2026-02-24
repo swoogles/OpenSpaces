@@ -158,6 +158,11 @@ case class RandomActionSpawner(
           }
       },
 
+      RandomActionApi.reloadState.implement { _ =>
+        discussionService.reloadAllStateFromDatabase
+          .orDie
+      },
+
       // Hackathon chaos endpoints
       RandomActionApi.hackathonChaosGet.implement { _ =>
         for
