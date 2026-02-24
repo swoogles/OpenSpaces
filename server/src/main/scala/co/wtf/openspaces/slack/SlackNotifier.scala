@@ -125,14 +125,6 @@ class SlackNotifierLive(
       channelId = row.slackChannelId.getOrElse(config.channelId)
       blocks = buildUpdateBlocks(row.copy(roomSlot = roomSlot.map(_.toJson)))
       _ <- slackClient.updateMessage(channelId, ts, blocks)
-      // Also post a reply to the thread notifying about the schedule change
-      replyText = roomSlot match
-        case Some(rs) => s":round_pushpin: Scheduled: ${rs.room.name} @ ${rs.timeSlot.s}"
-        case None => ":round_pushpin: This session has been unscheduled"
-      _ <- ZIO.logInfo(s"Posting thread reply for topic $topicId: $replyText")
-      _ <- slackClient.postReply(channelId, ts, replyText).catchAll { err =>
-        ZIO.logError(s"Failed to post thread reply for topic $topicId: $err")
-      }
     yield ()
 
     effect.catchAll(err => ZIO.logError(s"Slack schedule update failed for topic $topicId: $err"))
@@ -172,14 +164,6 @@ class SlackNotifierLive(
       channelId = row.slackChannelId.getOrElse(config.channelId)
       blocks = buildLightningUpdateBlocks(row)
       _ <- slackClient.updateMessage(channelId, ts, blocks)
-      replyText = assignment match
-        case Some(value) =>
-          s":zap: Assigned: ${value.night.toString} Night slot #${value.slot.unwrap}"
-        case None =>
-          ":zap: Assignment cleared"
-      _ <- slackClient.postReply(channelId, ts, replyText).catchAll { err =>
-        ZIO.logError(s"Failed to post thread reply for lightning talk $proposalId: $err")
-      }
     yield ()
     effect.catchAll(err => ZIO.logError(s"Slack assignment update failed for lightning talk $proposalId: $err"))
 
