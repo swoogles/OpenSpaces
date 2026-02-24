@@ -6,4 +6,4 @@ case class RoomSlot(
   room: Room,
   timeSlot: TimeSlot)
     derives JsonCodec:
-  def displayString: String = timeSlot.s + " " + room.name
+  def displayString: String = timeSlot.displayString + " " + room.name

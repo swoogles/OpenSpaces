@@ -367,7 +367,7 @@ object FrontEnd extends ZIOAppDefault{
                       connectionStatus.reportError(
                         "Session expired. Re-authenticating...",
                       )
-                    case DiscussionActionConfirmed.StateReplace(_) =>
+                    case DiscussionActionConfirmed.StateReplace(_, _) =>
                       connectionStatus.markStateSynchronized()
                     case DiscussionActionConfirmed.SwapTopics(
                           topic1,
@@ -609,7 +609,7 @@ object FrontEnd extends ZIOAppDefault{
         (None, false)
       case DiscussionActionConfirmed.SlackThreadLinked(topicId, _) =>
         (Some(topicId), false)
-      case DiscussionActionConfirmed.StateReplace(_) =>
+      case DiscussionActionConfirmed.StateReplace(_, _) =>
         (None, false)
       case DiscussionActionConfirmed.Unauthorized(_) =>
         (None, false)

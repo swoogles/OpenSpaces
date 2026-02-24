@@ -1,11 +1,13 @@
 package co.wtf.openspaces.db
 
 import co.wtf.openspaces.*
-import co.wtf.openspaces.discussions.{Discussion, DiscussionAction, DiscussionActionConfirmed, DiscussionState, DiscussionStore, DiscussionTopics, Feedback, VotePosition}
+import co.wtf.openspaces.discussions.{DaySlots, Discussion, DiscussionAction, DiscussionActionConfirmed, DiscussionState, DiscussionStore, DiscussionTopics, Feedback, TimeSlotForAllRooms, VotePosition}
 import co.wtf.openspaces.github.GitHubProfileService
 import neotype.unwrap
 import zio.*
 import zio.json.*
+
+import java.time.LocalDate
 
 /** Persistent discussion storage using event sourcing.
   * 
@@ -18,9 +20,12 @@ class PersistentDiscussionStore(
   discussionRepo: DiscussionRepository,
   topicVoteRepo: TopicVoteRepository,
   userRepo: UserRepository,
+  roomRepo: RoomRepository,
+  timeSlotRepo: TimeSlotRepository,
   gitHubProfileService: GitHubProfileService,
   glyphiconService: GlyphiconService,
-  state: Ref[DiscussionState]
+  state: Ref[DiscussionState],
+  slotLookupRef: Ref[PersistentDiscussionStore.SlotLookup]
 ) extends DiscussionStore:
 
   /** Maximum number of topics allowed. Protects against runaway topic creation. */
@@ -33,13 +38,17 @@ class PersistentDiscussionStore(
 
   def reloadFromDatabase: Task[DiscussionState] =
     for
-      reloaded <- PersistentDiscussionStore.loadInitialState(
+      loaded <- PersistentDiscussionStore.loadInitialState(
         discussionRepo,
         topicVoteRepo,
+        roomRepo,
+        timeSlotRepo,
         gitHubProfileService,
       )
-      _ <- state.set(reloaded)
-    yield reloaded
+      (reloadedState, slotLookup) = loaded
+      _ <- state.set(reloadedState)
+      _ <- slotLookupRef.set(slotLookup)
+    yield reloadedState
 
   /** Apply a confirmed action to the in-memory state (e.g., SlackThreadLinked) */
   def applyConfirmed(action: DiscussionActionConfirmed): UIO[Unit] =
@@ -74,10 +83,8 @@ class PersistentDiscussionStore(
           actionIdx <- Random.nextIntBounded(10)
           action <- actionIdx match
             case 0 => randomAddAction
-            // case 1 => randomDeleteAction(currentState)
             case 1 | 2 | 3 | 4 => randomVoteAction(currentState)
             case 5 | 6 | 7 => randomNotInterestedVoteAction(currentState)
-            // case 8 => randomRenameAction(currentState)
             case 8 | 9 => randomScheduleAction(currentState)
         yield action
       result <- applyAction(action)
@@ -164,16 +171,12 @@ class PersistentDiscussionStore(
           // No slots available - vote instead of deleting to avoid death spiral
           case None => DiscussionAction.Vote(topicId, Feedback(person, VotePosition.Interested))
 
-  /** Random schedule-only action: move to slot, unschedule, or swap.
-    * Does not create/delete topics or change votes.
-    * Heavily biased towards scheduling and swapping (95%), unscheduling rare (5%).
-    */
+  /** Random schedule-only action: move to slot, unschedule, or swap. */
   def randomScheduleAction: Task[DiscussionActionConfirmed] =
     for
       currentState <- state.get
       topics = currentState.data.values.toList
       result <- if topics.isEmpty then
-        // No topics to schedule - return a no-op (will be rejected gracefully)
         ZIO.succeed(
           DiscussionActionConfirmed.Rejected(
             DiscussionAction.SetRoomSlot(TopicId(0L), None, None),
@@ -181,7 +184,6 @@ class PersistentDiscussionStore(
         )
       else
         for
-          // 0-99: 0-44 = move to slot (45%), 45-94 = swap (50%), 95-99 = unschedule (5%)
           actionType <- Random.nextIntBounded(100)
           action <- actionType match
             case n if n < 45 => randomMoveToSlotAction(currentState)
@@ -191,7 +193,6 @@ class PersistentDiscussionStore(
         yield result
     yield result
 
-  /** Pick a random topic and move it to an available slot */
   private def randomMoveToSlotAction(currentState: DiscussionState): Task[DiscussionAction] =
     val topics = currentState.data.values.toList
     val availableSlots = findAvailableSlots(currentState)
@@ -205,11 +206,10 @@ class PersistentDiscussionStore(
         case (Some(t), Some(s)) =>
           DiscussionAction.SetRoomSlot(t.id, t.roomSlot, Some(s))
         case (Some(t), None) =>
-          DiscussionAction.SetRoomSlot(t.id, t.roomSlot, None) // No slots available, unschedule instead
+          DiscussionAction.SetRoomSlot(t.id, t.roomSlot, None)
         case _ =>
-          DiscussionAction.SetRoomSlot(TopicId(0L), None, None) // Will be rejected
+          DiscussionAction.SetRoomSlot(TopicId(0L), None, None)
 
-  /** Pick a random scheduled topic and unschedule it */
   private def randomUnscheduleAction(currentState: DiscussionState): Task[DiscussionAction] =
     val scheduledTopics = currentState.data.values.filter(_.roomSlot.isDefined).toList
     for
@@ -218,9 +218,8 @@ class PersistentDiscussionStore(
       case Some(topic) =>
         DiscussionAction.SetRoomSlot(topic.id, topic.roomSlot, None)
       case None =>
-        DiscussionAction.SetRoomSlot(TopicId(0L), None, None) // Will be rejected
+        DiscussionAction.SetRoomSlot(TopicId(0L), None, None)
 
-  /** Pick two scheduled topics and swap their slots */
   private def randomSwapAction(currentState: DiscussionState): Task[DiscussionAction] =
     val scheduledTopics = currentState.data.values.filter(_.roomSlot.isDefined).toList
     for
@@ -232,9 +231,8 @@ class PersistentDiscussionStore(
       (topic1, topic2) match
         case (Some(t1), Some(t2)) if t1.roomSlot.isDefined && t2.roomSlot.isDefined =>
           DiscussionAction.SwapTopics(t1.id, t1.roomSlot.get, t2.id, t2.roomSlot.get)
-        case _ => DiscussionAction.SetRoomSlot(TopicId(0L), None, None) // Will be rejected
+        case _ => DiscussionAction.SetRoomSlot(TopicId(0L), None, None)
 
-  /** Find all available (unoccupied) room slots */
   private def findAvailableSlots(currentState: DiscussionState): List[RoomSlot] =
     currentState.slots.flatMap { daySlot =>
       daySlot.slots.flatMap { timeSlotForAllRooms =>
@@ -254,6 +252,31 @@ class PersistentDiscussionStore(
       for
         idx <- Random.nextIntBounded(keys.size)
       yield Some(keys(idx))
+
+  /** Look up the time_slot_id for a given RoomSlot */
+  private def findTimeSlotId(roomSlot: RoomSlot, lookup: PersistentDiscussionStore.SlotLookup): Option[Int] =
+    lookup.timeSlotsById.collectFirst {
+      case (id, (ts, roomId)) 
+        if roomId == roomSlot.room.id && 
+           ts.startTime == roomSlot.timeSlot.startTime &&
+           ts.endTime == roomSlot.timeSlot.endTime => id
+    }
+
+  /** Validate that a slot exists in the currently loaded schedule. */
+  private def slotExistsInState(currentState: DiscussionState, roomSlot: RoomSlot): Boolean =
+    currentState.slots.exists { daySlot =>
+      daySlot.slots.exists { slot =>
+        slot.time.startTime == roomSlot.timeSlot.startTime &&
+        slot.time.endTime == roomSlot.timeSlot.endTime &&
+        slot.rooms.exists(_.id == roomSlot.room.id)
+      }
+    }
+
+  /** Resolve a RoomSlot to persisted FK IDs using the latest lookup map. */
+  private def resolvePersistedSlotIds(roomSlot: RoomSlot): UIO[Option[(Int, Int)]] =
+    slotLookupRef.get.map { lookup =>
+      findTimeSlotId(roomSlot, lookup).map(timeSlotId => (roomSlot.room.id, timeSlotId))
+    }
 
   private def applyActionWithActor(
     action: DiscussionAction,
@@ -283,13 +306,15 @@ class PersistentDiscussionStore(
           currentState <- state.get
           atCapacity = currentState.data.size >= MaxTopicCount
           slotOccupied = currentState.data.values.exists(_.roomSlot.contains(roomSlot))
-          result <- if atCapacity || slotOccupied then
+          slotExists = slotExistsInState(currentState, roomSlot)
+          resolvedSlotIds <- if slotExists then resolvePersistedSlotIds(roomSlot) else ZIO.succeed(None)
+          result <- if atCapacity || slotOccupied || !slotExists || resolvedSlotIds.isEmpty then
             ZIO.succeed(DiscussionActionConfirmed.Rejected(addWithRoom))
           else
             for
               discussion <- createDiscussion(topic, facilitator, Some(roomSlot))
               _          <- persistEvent("AddWithRoomSlot", discussion.id.unwrap, action.toJson, actor)
-              _          <- persistDiscussion(discussion)
+              _          <- persistDiscussion(discussion, resolvedSlotIds)
               _          <- persistDiscussionVotes(discussion)
               _          <- state.update(_.apply(discussion))
             yield DiscussionActionConfirmed.AddResult(discussion)
@@ -302,22 +327,23 @@ class PersistentDiscussionStore(
           actualSlot1 = currentState.data.get(topic1).flatMap(_.roomSlot)
           actualSlot2 = currentState.data.get(topic2).flatMap(_.roomSlot)
           slotsMatch = actualSlot1.contains(expectedSlot1) && actualSlot2.contains(expectedSlot2)
-          result <- if !slotsMatch then
+          slot1Exists = slotExistsInState(currentState, expectedSlot1)
+          slot2Exists = slotExistsInState(currentState, expectedSlot2)
+          resolvedSlot1 <- if slot1Exists then resolvePersistedSlotIds(expectedSlot1) else ZIO.succeed(None)
+          resolvedSlot2 <- if slot2Exists then resolvePersistedSlotIds(expectedSlot2) else ZIO.succeed(None)
+          result <- if !slotsMatch || !slot1Exists || !slot2Exists || resolvedSlot1.isEmpty || resolvedSlot2.isEmpty then
             ZIO.succeed(DiscussionActionConfirmed.Rejected(swap))
           else
             val confirmed = DiscussionActionConfirmed.fromDiscussionAction(swap)
             for
               _ <- persistEvent("SwapTopics", topic1.unwrap, action.toJson, actor)
-              _ <- updateDiscussionRoomSlot(topic1, Some(expectedSlot2))
-              _ <- updateDiscussionRoomSlot(topic2, Some(expectedSlot1))
+              _ <- updateDiscussionRoomSlot(topic1, Some(expectedSlot2), resolvedSlot2)
+              _ <- updateDiscussionRoomSlot(topic2, Some(expectedSlot1), resolvedSlot1)
               _ <- state.update(_.apply(confirmed))
             yield confirmed
         yield result
 
-      case setSlot @ DiscussionAction.SetRoomSlot(topicId,
-                                                  expectedCurrentRoomSlot,
-                                                  newRoomSlot,
-          ) =>
+      case setSlot @ DiscussionAction.SetRoomSlot(topicId, expectedCurrentRoomSlot, newRoomSlot) =>
         for
           _            <- ensureUserExists(actor)
           currentState <- state.get
@@ -328,45 +354,36 @@ class PersistentDiscussionStore(
               d.id != topicId && d.roomSlot.contains(slot),
             ),
           )
-          result <- if !currentMatches || targetOccupied then
+          targetExists = newRoomSlot.forall(slot => slotExistsInState(currentState, slot))
+          resolvedTarget <- newRoomSlot match
+            case Some(slot) if targetExists => resolvePersistedSlotIds(slot)
+            case _ => ZIO.succeed(None)
+          mappingFailed = newRoomSlot.isDefined && resolvedTarget.isEmpty
+          result <- if !currentMatches || targetOccupied || !targetExists || mappingFailed then
             ZIO.succeed(DiscussionActionConfirmed.Rejected(setSlot))
           else
-            val confirmed = DiscussionActionConfirmed.fromDiscussionAction(
-              setSlot,
-            )
+            val confirmed = DiscussionActionConfirmed.fromDiscussionAction(setSlot)
             for
               _ <- persistEvent("SetRoomSlot", topicId.unwrap, action.toJson, actor)
-              _ <- updateDiscussionRoomSlot(topicId, newRoomSlot)
+              _ <- updateDiscussionRoomSlot(topicId, newRoomSlot, resolvedTarget)
               _ <- state.update(_.apply(confirmed))
             yield confirmed
         yield result
-      case setLocked @ DiscussionAction.SetLockedTimeslot(
-            topicId,
-            expectedCurrentLockedTimeslot,
-            newLockedTimeslot,
-          ) =>
+
+      case setLocked @ DiscussionAction.SetLockedTimeslot(topicId, expectedCurrentLockedTimeslot, newLockedTimeslot) =>
         for
           _            <- ensureUserExists(actor)
           currentState <- state.get
           existingTopic = currentState.data.get(topicId)
           actualCurrentLockedTimeslot = existingTopic.map(_.lockedTimeslot)
-          currentMatches = actualCurrentLockedTimeslot.contains(
-            expectedCurrentLockedTimeslot,
-          )
-          lockWithoutSlot =
-            newLockedTimeslot && existingTopic.flatMap(_.roomSlot).isEmpty
+          currentMatches = actualCurrentLockedTimeslot.contains(expectedCurrentLockedTimeslot)
+          lockWithoutSlot = newLockedTimeslot && existingTopic.flatMap(_.roomSlot).isEmpty
           result <- if !currentMatches || lockWithoutSlot then
             ZIO.succeed(DiscussionActionConfirmed.Rejected(setLocked))
           else
-            val confirmed = DiscussionActionConfirmed.fromDiscussionAction(
-              setLocked,
-            )
+            val confirmed = DiscussionActionConfirmed.fromDiscussionAction(setLocked)
             for
-              _ <- persistEvent("SetLockedTimeslot",
-                                topicId.unwrap,
-                                action.toJson,
-                                actor,
-              )
+              _ <- persistEvent("SetLockedTimeslot", topicId.unwrap, action.toJson, actor)
               _ <- updateDiscussionLockedTimeslot(topicId, newLockedTimeslot)
               _ <- state.update(_.apply(confirmed))
             yield confirmed
@@ -390,26 +407,18 @@ class PersistentDiscussionStore(
         for
           _ <- ensureUserExists(actor)
           currentState <- state.get
-          // Find topics to delete (created by this person)
           deletedTopicIds = currentState.data.values
             .filter(_.facilitator == person)
             .map(_.id)
             .toList
-          // Find topics where this person has voted (excluding ones being deleted)
           clearedVoteTopicIds = currentState.data.values
             .filter(d => !deletedTopicIds.contains(d.id) && d.interestedParties.exists(_.voter == person))
             .map(_.id)
             .toList
           confirmed = DiscussionActionConfirmed.ResetUser(person, deletedTopicIds, clearedVoteTopicIds)
           _ <- persistEvent("ResetUser", 0L, action.toJson, actor)
-          // Soft delete the topics from DB
-          _ <- ZIO.foreachDiscard(deletedTopicIds) { topicId =>
-            discussionRepo.softDelete(topicId.unwrap)
-          }
-          // Clear votes from remaining topics
-          _ <- ZIO.foreachDiscard(clearedVoteTopicIds) { topicId =>
-            topicVoteRepo.deleteVote(topicId.unwrap, person.unwrap)
-          }
+          _ <- ZIO.foreachDiscard(deletedTopicIds)(topicId => discussionRepo.softDelete(topicId.unwrap))
+          _ <- ZIO.foreachDiscard(clearedVoteTopicIds)(topicId => topicVoteRepo.deleteVote(topicId.unwrap, person.unwrap))
           _ <- state.update(_.apply(confirmed))
         yield confirmed
 
@@ -431,7 +440,6 @@ class PersistentDiscussionStore(
           _ <- state.update(_.apply(confirmed))
         yield confirmed
 
-  /** Ensure user exists in DB (auto-create if needed for system/anonymous actions) */
   private def ensureUserExists(username: String): Task[Unit] =
     if username == "system" then
       userRepo.upsert(username, Some(username)).unit
@@ -462,107 +470,129 @@ class PersistentDiscussionStore(
       createdAtEpochMs
     )
 
-  private def persistEvent(
-    eventType: String,
-    topicId: Long,
-    payload: String,
-    actor: String
-  ): Task[Unit] =
+  private def persistEvent(eventType: String, topicId: Long, payload: String, actor: String): Task[Unit] =
     eventRepo.append(eventType, topicId, payload, actor).unit
 
-  private def persistDiscussion(discussion: Discussion): Task[Unit] =
+  private def persistDiscussion(discussion: Discussion, resolvedSlotIds: Option[(Int, Int)] = None): Task[Unit] =
+    val (roomId, timeSlotId) = resolvedSlotIds match
+      case Some((resolvedRoomId, resolvedTimeSlotId)) => (Some(resolvedRoomId), Some(resolvedTimeSlotId))
+      case None => (None, None)
     val row = DiscussionRow.create(
       id = discussion.id.unwrap,
       topic = discussion.topic.unwrap,
       facilitator = discussion.facilitator.unwrap,
       glyphicon = discussion.glyphicon.name,
-      roomSlot = discussion.roomSlot.map(_.toJson),
+      roomId = roomId,
+      timeSlotId = timeSlotId,
       isLockedTimeslot = discussion.lockedTimeslot,
     )
     discussionRepo.insert(row)
 
   private def persistDiscussionVotes(discussion: Discussion): Task[Unit] =
     ZIO.foreachDiscard(discussion.interestedParties) { feedback =>
-      topicVoteRepo.upsertVote(
-        discussion.id.unwrap,
-        feedback.voter.unwrap,
-        feedback.position,
-      ).unit
+      topicVoteRepo.upsertVote(discussion.id.unwrap, feedback.voter.unwrap, feedback.position).unit
     }
 
-  private def updateDiscussionRoomSlot(topicId: TopicId, roomSlot: Option[RoomSlot]): Task[Unit] =
-    for
-      existing <- discussionRepo.findById(topicId.unwrap)
-      _ <- existing match
-        case Some(row) =>
-          discussionRepo.update(row.copy(roomSlot = roomSlot.map(_.toJson)))
-        case None =>
-          ZIO.unit
-    yield ()
-
-  private def upsertVoteIfDiscussionExists(
+  private def updateDiscussionRoomSlot(
     topicId: TopicId,
-    feedback: Feedback
-  ): Task[Option[TopicVoteRow]] =
+    roomSlot: Option[RoomSlot],
+    resolvedSlotIds: Option[(Int, Int)]
+  ): Task[Unit] =
+    (roomSlot, resolvedSlotIds) match
+      case (Some(_), Some((resolvedRoomId, resolvedTimeSlotId))) =>
+        discussionRepo.updateRoomSlot(topicId.unwrap, Some(resolvedRoomId), Some(resolvedTimeSlotId))
+      case (None, _) =>
+        discussionRepo.updateRoomSlot(topicId.unwrap, None, None)
+      case (Some(slot), None) =>
+        ZIO.fail(new IllegalStateException(s"Missing persisted IDs for room slot: ${slot.displayString}"))
+
+  private def upsertVoteIfDiscussionExists(topicId: TopicId, feedback: Feedback): Task[Option[TopicVoteRow]] =
     for
       existing <- discussionRepo.findById(topicId.unwrap)
       persisted <- existing match
-        case Some(_) =>
-          topicVoteRepo.upsertVote(
-            topicId.unwrap,
-            feedback.voter.unwrap,
-            feedback.position,
-          ).map(Some(_))
-        case None =>
-          ZIO.none
+        case Some(_) => topicVoteRepo.upsertVote(topicId.unwrap, feedback.voter.unwrap, feedback.position).map(Some(_))
+        case None => ZIO.none
     yield persisted
 
   private def updateDiscussionTopic(topicId: TopicId, newTopic: Topic): Task[Unit] =
     for
       existing <- discussionRepo.findById(topicId.unwrap)
       _ <- existing match
-        case Some(row) =>
-          discussionRepo.update(row.copy(topic = newTopic.unwrap))
-        case None =>
-          ZIO.unit
+        case Some(row) => discussionRepo.update(row.copy(topic = newTopic.unwrap))
+        case None => ZIO.unit
     yield ()
 
-  private def updateDiscussionLockedTimeslot(
-    topicId: TopicId,
-    lockedTimeslot: Boolean,
-  ): Task[Unit] =
+  private def updateDiscussionLockedTimeslot(topicId: TopicId, lockedTimeslot: Boolean): Task[Unit] =
     for
       existing <- discussionRepo.findById(topicId.unwrap)
       _ <- existing match
-        case Some(row) =>
-          discussionRepo.update(
-            row.copy(isLockedTimeslot = lockedTimeslot),
-          )
-        case None =>
-          ZIO.unit
+        case Some(row) => discussionRepo.update(row.copy(isLockedTimeslot = lockedTimeslot))
+        case None => ZIO.unit
     yield ()
 
-  /** Extract actor (GitHub username) from the action */
   private def extractActor(action: DiscussionAction): String =
     action match
       case DiscussionAction.Add(_, facilitator)              => facilitator.unwrap
       case DiscussionAction.AddWithRoomSlot(_, facilitator, _) => facilitator.unwrap
-      case DiscussionAction.Delete(_)                        => "system" // TODO: track who deleted
+      case DiscussionAction.Delete(_)                        => "system"
       case DiscussionAction.Vote(_, feedback)                => feedback.voter.unwrap
       case DiscussionAction.ResetUser(person)                => person.unwrap
-      case DiscussionAction.Rename(_, _)                     => "system" // TODO: track who renamed
-      case DiscussionAction.SetRoomSlot(_, _, _)             => "system" // TODO: track who scheduled
-      case DiscussionAction.SetLockedTimeslot(_, _, _)       => "system" // TODO: track who locked
+      case DiscussionAction.Rename(_, _)                     => "system"
+      case DiscussionAction.SetRoomSlot(_, _, _)             => "system"
+      case DiscussionAction.SetLockedTimeslot(_, _, _)       => "system"
       case DiscussionAction.SwapTopics(_, _, _, _)           => "system"
 
 object PersistentDiscussionStore:
+  final case class SlotLookup(
+    roomsById: Map[Int, Room],
+    timeSlotsById: Map[Int, (TimeSlot, Int)] // timeSlotId -> (TimeSlot, roomId)
+  )
+
+  /** Load slots from database and build DaySlots structure */
+  def loadSlotsFromDatabase(
+    roomRepo: RoomRepository,
+    timeSlotRepo: TimeSlotRepository
+  ): Task[(List[DaySlots], SlotLookup)] =
+    for
+      roomRows <- roomRepo.findAll
+      timeSlotRows <- timeSlotRepo.findAll
+      
+      // Build lookup maps
+      roomsById = roomRows.map(r => r.id -> Room(r.id, r.name, r.capacity)).toMap
+      
+      // Convert TimeSlotRows to TimeSlots and create lookup map
+      // Maps time_slot_id -> (TimeSlot, roomId)
+      timeSlotsById = timeSlotRows.map { row =>
+        row.id -> (TimeSlot(row.startTime, row.endTime), row.roomId)
+      }.toMap
+      slotLookup = SlotLookup(roomsById, timeSlotsById)
+      
+      // Group time slots by date and start time to build DaySlots structure
+      slotsByDate = timeSlotRows.groupBy(_.startTime.toLocalDate)
+      
+      daySlots = slotsByDate.toList.sortBy(_._1).map { case (date, slots) =>
+        // Group by start/end time to create TimeSlotForAllRooms
+        val byTime = slots.groupBy(s => (s.startTime, s.endTime))
+        val timeSlotForAllRooms = byTime.toList.sortBy(_._1._1).map { case ((startTime, endTime), roomSlots) =>
+          val timeSlot = TimeSlot(startTime, endTime)
+          val rooms = roomSlots.flatMap(s => roomsById.get(s.roomId)).toList.sortBy(_.id)
+          TimeSlotForAllRooms(timeSlot, rooms)
+        }
+        DaySlots(date, timeSlotForAllRooms)
+      }
+    yield (daySlots, slotLookup)
+
   /** Load initial state from database */
   def loadInitialState(
     discussionRepo: DiscussionRepository,
     topicVoteRepo: TopicVoteRepository,
+    roomRepo: RoomRepository,
+    timeSlotRepo: TimeSlotRepository,
     gitHubProfileService: GitHubProfileService,
-  ): Task[DiscussionState] =
+  ): Task[(DiscussionState, SlotLookup)] =
     for
+      slotsData <- loadSlotsFromDatabase(roomRepo, timeSlotRepo)
+      (daySlots, slotLookup) = slotsData
       rows <- discussionRepo.findAllActive
       voteRows <- topicVoteRepo.findAllForActiveDiscussions
       votesByTopic = voteRows.groupMap(_.topicId) { voteRow =>
@@ -576,19 +606,26 @@ object PersistentDiscussionStore:
             ),
           )
       }.view.mapValues(_.flatten.toSet).toMap
-      // Get all unique facilitators
+      
       facilitators = rows.map(_.facilitator).distinct
-      // Fetch user info for all facilitators
       userRows <- ZIO.foreach(facilitators)(username =>
         gitHubProfileService.ensureUserWithDisplayName(username).either.map(_.toOption),
       )
       userMap = userRows.flatten.map(u => u.githubUsername -> u.displayName.orElse(Some(u.githubUsername))).toMap
+      
       discussions = rows.flatMap { row =>
         for
           topic <- Topic.make(row.topic).toOption
           facilitator = Person(row.facilitator)
           glyphicon = Glyphicon(row.glyphicon)
-          roomSlot = row.roomSlot.flatMap(_.fromJson[RoomSlot].toOption)
+          // Hydrate roomSlot from FKs
+          roomSlot = for
+            roomId <- row.roomId
+            timeSlotId <- row.timeSlotId
+            room <- slotLookup.roomsById.get(roomId)
+            (timeSlot, slotRoomId) <- slotLookup.timeSlotsById.get(timeSlotId)
+            if slotRoomId == roomId
+          yield RoomSlot(room, timeSlot)
           parties = votesByTopic.getOrElse(row.id, Set.empty)
         yield Discussion(
           topic,
@@ -603,13 +640,17 @@ object PersistentDiscussionStore:
           row.createdAt.toInstant.toEpochMilli
         )
       }
-    yield DiscussionState(
-      DiscussionState.timeSlotExamples,
-      discussions.map(d => d.id -> d).toMap
+    yield (
+      DiscussionState(
+        daySlots,
+        discussions.map(d => d.id -> d).toMap
+      ),
+      slotLookup
     )
 
   val layer: ZLayer[
-    EventRepository & DiscussionRepository & TopicVoteRepository & UserRepository & GitHubProfileService & GlyphiconService,
+    EventRepository & DiscussionRepository & TopicVoteRepository & UserRepository & 
+    RoomRepository & TimeSlotRepository & GitHubProfileService & GlyphiconService,
     Throwable,
     DiscussionStore
   ] =
@@ -619,17 +660,26 @@ object PersistentDiscussionStore:
         discussionRepo <- ZIO.service[DiscussionRepository]
         topicVoteRepo  <- ZIO.service[TopicVoteRepository]
         userRepo       <- ZIO.service[UserRepository]
+        roomRepo       <- ZIO.service[RoomRepository]
+        timeSlotRepo   <- ZIO.service[TimeSlotRepository]
         gitHubProfileService <- ZIO.service[GitHubProfileService]
         glyphiconSvc   <- ZIO.service[GlyphiconService]
-        initialState   <- loadInitialState(discussionRepo, topicVoteRepo, gitHubProfileService)
-        stateRef       <- Ref.make(initialState)
-        _              <- ZIO.logInfo(s"Loaded ${initialState.data.size} discussions from database")
+        
+        loaded <- loadInitialState(discussionRepo, topicVoteRepo, roomRepo, timeSlotRepo, gitHubProfileService)
+        (initialState, slotLookup) = loaded
+        stateRef <- Ref.make(initialState)
+        slotLookupRef <- Ref.make(slotLookup)
+        
+        _ <- ZIO.logInfo(s"Loaded ${initialState.data.size} discussions and ${initialState.slots.flatMap(_.slots).size} time slots from database")
       yield PersistentDiscussionStore(
         eventRepo,
         discussionRepo,
         topicVoteRepo,
         userRepo,
+        roomRepo,
+        timeSlotRepo,
         gitHubProfileService,
         glyphiconSvc,
-        stateRef
+        stateRef,
+        slotLookupRef
       )

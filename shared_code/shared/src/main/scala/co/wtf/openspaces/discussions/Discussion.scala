@@ -47,6 +47,10 @@ object Discussion:
       createdAtEpochMs,
     )
 
+  // Example timeslots for tests
+  private def exampleTimeSlot(start: String, end: String) =
+    TimeSlot(LocalDateTime.parse(start), LocalDateTime.parse(end))
+
   val example1 = Discussion(
     Topic(
       "Continuous Deployment - A goal, an asymptote, or an ass out of you and me?",
@@ -56,10 +60,7 @@ object Discussion:
     GlyphiconUtils.names(1),
     roomSlot = Some(
       RoomSlot(Room.king,
-               TimeSlot("9:00-9:50",
-                        LocalDateTime.parse("2026-03-03T09:00:00"),
-                        LocalDateTime.parse("2026-03-03T09:50:00"),
-               ),
+               exampleTimeSlot("2026-03-03T09:00:00", "2026-03-03T09:50:00"),
       ),
     ),
   )
@@ -71,10 +72,7 @@ object Discussion:
     GlyphiconUtils.names(2),
     Some(
       RoomSlot(Room.artGallery,
-               TimeSlot("9:00-9:50",
-                        LocalDateTime.parse("2026-03-03T09:00:00"),
-                        LocalDateTime.parse("2026-03-03T09:50:00"),
-               ),
+               exampleTimeSlot("2026-03-03T09:00:00", "2026-03-03T09:50:00"),
       ),
     ),
   )
@@ -87,10 +85,7 @@ object Discussion:
       GlyphiconUtils.names(3),
       Some(
         RoomSlot(Room.king,
-                 TimeSlot("10:20-11:10",
-                          LocalDateTime.parse("2026-03-03T10:20:00"),
-                          LocalDateTime.parse("2026-03-03T11:10:00"),
-                 ),
+                 exampleTimeSlot("2026-03-03T10:20:00", "2026-03-03T11:10:00"),
         ),
       ),
     )

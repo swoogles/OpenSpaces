@@ -7,7 +7,8 @@ import zio.test.TestRandom
 
 object DiscussionDataStoreSpec extends ZIOSpecDefault:
 
-  private val slots = DiscussionState.timeSlotExamples
+  // Use the example state which has test slots
+  private val slots = DiscussionState.example.slots
 
   private val sampleRoomSlot =
     val timeSlotForAllRooms = slots.head.slots.head

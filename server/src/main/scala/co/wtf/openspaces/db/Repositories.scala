@@ -11,6 +11,58 @@ import javax.sql.DataSource
 def transactZIO[A](ds: DataSource)(f: DbCon ?=> A): Task[A] =
   ZIO.attempt(transact(ds)(f))
 
+// Room Repository
+
+trait RoomRepository:
+  def findAll: Task[Vector[RoomRow]]
+  def findById(id: Int): Task[Option[RoomRow]]
+
+class RoomRepositoryLive(ds: DataSource) extends RoomRepository:
+  def findAll: Task[Vector[RoomRow]] =
+    transactZIO(ds):
+      sql"SELECT id, name, capacity FROM rooms ORDER BY id".query[RoomRow].run()
+
+  def findById(id: Int): Task[Option[RoomRow]] =
+    transactZIO(ds):
+      sql"SELECT id, name, capacity FROM rooms WHERE id = $id".query[RoomRow].run().headOption
+
+object RoomRepository:
+  val layer: ZLayer[DataSource, Nothing, RoomRepository] =
+    ZLayer.fromFunction(ds => RoomRepositoryLive(ds))
+
+// Time Slot Repository
+
+trait TimeSlotRepository:
+  def findAll: Task[Vector[TimeSlotRow]]
+  def findById(id: Int): Task[Option[TimeSlotRow]]
+  def findByRoomId(roomId: Int): Task[Vector[TimeSlotRow]]
+
+class TimeSlotRepositoryLive(ds: DataSource) extends TimeSlotRepository:
+  def findAll: Task[Vector[TimeSlotRow]] =
+    transactZIO(ds):
+      sql"SELECT id, room_id, start_time, end_time FROM time_slots ORDER BY start_time, room_id"
+        .query[TimeSlotRow]
+        .run()
+
+  def findById(id: Int): Task[Option[TimeSlotRow]] =
+    transactZIO(ds):
+      sql"SELECT id, room_id, start_time, end_time FROM time_slots WHERE id = $id"
+        .query[TimeSlotRow]
+        .run()
+        .headOption
+
+  def findByRoomId(roomId: Int): Task[Vector[TimeSlotRow]] =
+    transactZIO(ds):
+      sql"SELECT id, room_id, start_time, end_time FROM time_slots WHERE room_id = $roomId ORDER BY start_time"
+        .query[TimeSlotRow]
+        .run()
+
+object TimeSlotRepository:
+  val layer: ZLayer[DataSource, Nothing, TimeSlotRepository] =
+    ZLayer.fromFunction(ds => TimeSlotRepositoryLive(ds))
+
+// User Repository
+
 trait UserRepository:
   def findByUsername(username: String): Task[Option[UserRow]]
   def upsert(username: String, displayName: Option[String]): Task[UserRow]
@@ -118,11 +170,13 @@ trait DiscussionRepository:
   def softDelete(id: Long): Task[Unit]
   def truncate: Task[Unit]
   def updateSlackThread(topicId: Long, channelId: String, threadTs: String, permalink: String): Task[Unit]
+  def updateRoomSlot(topicId: Long, roomId: Option[Int], timeSlotId: Option[Int]): Task[Unit]
 
 class DiscussionRepositoryLive(ds: DataSource) extends DiscussionRepository:
   def findById(id: Long): Task[Option[DiscussionRow]] =
     transactZIO(ds):
-      sql"""SELECT id, topic, facilitator, glyphicon, room_slot::text,
+      sql"""SELECT id, topic, facilitator, glyphicon,
+                   room_id, time_slot_id,
                    is_locked_timeslot,
                    created_at, updated_at, deleted_at,
                    slack_channel_id, slack_thread_ts, slack_permalink
@@ -133,7 +187,8 @@ class DiscussionRepositoryLive(ds: DataSource) extends DiscussionRepository:
 
   def findAllActive: Task[Vector[DiscussionRow]] =
     transactZIO(ds):
-      sql"""SELECT id, topic, facilitator, glyphicon, room_slot::text,
+      sql"""SELECT id, topic, facilitator, glyphicon,
+                   room_id, time_slot_id,
                    is_locked_timeslot,
                    created_at, updated_at, deleted_at,
                    slack_channel_id, slack_thread_ts, slack_permalink
@@ -143,9 +198,12 @@ class DiscussionRepositoryLive(ds: DataSource) extends DiscussionRepository:
 
   def insert(row: DiscussionRow): Task[Unit] =
     transactZIO(ds):
-      sql"""INSERT INTO discussions (id, topic, facilitator, glyphicon, room_slot, is_locked_timeslot, created_at, updated_at, deleted_at, slack_channel_id, slack_thread_ts, slack_permalink)
+      sql"""INSERT INTO discussions (id, topic, facilitator, glyphicon,
+                   room_id, time_slot_id,
+                   is_locked_timeslot, created_at, updated_at, deleted_at,
+                   slack_channel_id, slack_thread_ts, slack_permalink)
             VALUES (${row.id}, ${row.topic}, ${row.facilitator}, ${row.glyphicon},
-                    ${row.roomSlot}::jsonb,
+                    ${row.roomId}, ${row.timeSlotId},
                     ${row.isLockedTimeslot},
                     ${row.createdAt}, ${row.updatedAt}, ${row.deletedAt},
                     ${row.slackChannelId}, ${row.slackThreadTs}, ${row.slackPermalink})""".update.run()
@@ -157,7 +215,8 @@ class DiscussionRepositoryLive(ds: DataSource) extends DiscussionRepository:
               topic = ${row.topic},
               facilitator = ${row.facilitator},
               glyphicon = ${row.glyphicon},
-              room_slot = ${row.roomSlot}::jsonb,
+              room_id = ${row.roomId},
+              time_slot_id = ${row.timeSlotId},
               is_locked_timeslot = ${row.isLockedTimeslot},
               deleted_at = ${row.deletedAt}
             WHERE id = ${row.id}""".update.run()
@@ -179,6 +238,14 @@ class DiscussionRepositoryLive(ds: DataSource) extends DiscussionRepository:
               slack_channel_id = $channelId,
               slack_thread_ts = $threadTs,
               slack_permalink = $permalink
+            WHERE id = $topicId""".update.run()
+      ()
+
+  def updateRoomSlot(topicId: Long, roomId: Option[Int], timeSlotId: Option[Int]): Task[Unit] =
+    transactZIO(ds):
+      sql"""UPDATE discussions SET
+              room_id = $roomId,
+              time_slot_id = $timeSlotId
             WHERE id = $topicId""".update.run()
       ()
 

@@ -132,7 +132,7 @@ case class SessionService(
       reloadedHackathonState <- hackathonProjectService.reloadFromDatabase
       _ <- broadcastToAll(
         DiscussionActionConfirmedMessage(
-          DiscussionActionConfirmed.StateReplace(reloadedDiscussionState.data.values.toList),
+          DiscussionActionConfirmed.StateReplace(reloadedDiscussionState.data.values.toList, reloadedDiscussionState.slots),
         ),
       )
       _ <- broadcastToAll(
@@ -172,6 +172,7 @@ case class SessionService(
           DiscussionActionConfirmedMessage(
             DiscussionActionConfirmed.StateReplace(
               state.data.values.toList,
+              state.slots,
             ),
           ),
         )

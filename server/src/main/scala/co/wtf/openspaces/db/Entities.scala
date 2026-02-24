@@ -3,7 +3,14 @@ package co.wtf.openspaces.db
 import com.augustnagro.magnum.*
 import zio.json.*
 
-import java.time.OffsetDateTime
+import java.sql.{ResultSet, Timestamp}
+import java.time.{LocalDateTime, OffsetDateTime}
+
+// Custom DbCodec for LocalDateTime (Postgres TIMESTAMP WITHOUT TIME ZONE)
+given DbCodec[LocalDateTime] = DbCodec[Timestamp].biMap(
+  ts => ts.toLocalDateTime,
+  ldt => Timestamp.valueOf(ldt)
+)
 
 // User entity
 case class UserRow(
@@ -15,6 +22,21 @@ case class UserRow(
 object UserRow:
   def create(githubUsername: String, displayName: Option[String]): UserRow =
     UserRow(githubUsername, displayName, OffsetDateTime.now())
+
+// Room entity
+case class RoomRow(
+  id: Int,
+  name: String,
+  capacity: Int
+) derives DbCodec
+
+// Time slot entity
+case class TimeSlotRow(
+  id: Int,
+  roomId: Int,
+  startTime: LocalDateTime,
+  endTime: LocalDateTime
+) derives DbCodec
 
 // Discussion event entity (event sourcing log)
 case class DiscussionEventRow(
@@ -36,7 +58,8 @@ case class DiscussionRow(
   topic: String,
   facilitator: String,
   glyphicon: String,
-  roomSlot: Option[String],       // JSON string
+  roomId: Option[Int],            // FK to rooms table
+  timeSlotId: Option[Int],        // FK to time_slots table
   isLockedTimeslot: Boolean,
   createdAt: OffsetDateTime,
   updatedAt: OffsetDateTime,
@@ -52,11 +75,12 @@ object DiscussionRow:
     topic: String,
     facilitator: String,
     glyphicon: String,
-    roomSlot: Option[String],
+    roomId: Option[Int],
+    timeSlotId: Option[Int],
     isLockedTimeslot: Boolean,
   ): DiscussionRow =
     val now = OffsetDateTime.now()
-    DiscussionRow(id, topic, facilitator, glyphicon, roomSlot, isLockedTimeslot, now, now, None, None, None, None)
+    DiscussionRow(id, topic, facilitator, glyphicon, roomId, timeSlotId, isLockedTimeslot, now, now, None, None, None, None)
 
 case class TopicVoteRow(
   topicId: Long,

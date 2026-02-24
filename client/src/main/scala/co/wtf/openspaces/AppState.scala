@@ -15,9 +15,7 @@ import co.wtf.openspaces.discussions.VotePosition
 object AppState:
 
   val discussionState: Var[DiscussionState] =
-    Var(
-      DiscussionState(DiscussionState.timeSlotExamples, Map.empty),
-    )
+    Var(DiscussionState.empty)
 
   val lightningTalkState: Var[LightningTalkState] =
     Var(LightningTalkState.empty)

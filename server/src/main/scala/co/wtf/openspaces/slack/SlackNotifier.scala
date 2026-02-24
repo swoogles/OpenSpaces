@@ -123,7 +123,7 @@ class SlackNotifierLive(
       ts  <- ZIO.fromOption(row.slackThreadTs).orElseFail(new Exception(s"No Slack thread for topic $topicId"))
       // Use the channel where the thread was created, not the current config channel
       channelId = row.slackChannelId.getOrElse(config.channelId)
-      blocks = buildUpdateBlocks(row.copy(roomSlot = roomSlot.map(_.toJson)))
+      blocks = buildUpdateBlocksWithSlot(row, roomSlot)
       _ <- slackClient.updateMessage(channelId, ts, blocks)
     yield ()
 
@@ -190,13 +190,18 @@ class SlackNotifierLive(
     s"""[{"type":"section","text":{"type":"mrkdwn","text":"*$topicName*"},"accessory":{"type":"image","image_url":"$avatarUrl","alt_text":"$facilitator"}},{"type":"context","elements":[{"type":"mrkdwn","text":"Proposed by *$facilitator* · <$appLink|View in OpenSpaces>"}]}]"""
 
   private def buildUpdateBlocks(row: co.wtf.openspaces.db.DiscussionRow): String =
+    // For rename operations, we don't have the room slot info readily available
+    // Just show the topic without schedule info
+    buildUpdateBlocksWithSlot(row, None)
+
+  private def buildUpdateBlocksWithSlot(row: co.wtf.openspaces.db.DiscussionRow, roomSlot: Option[RoomSlot]): String =
     val topicName = row.topic.replace("\"", "\\\"")
     val facilitator = row.facilitator.replace("\"", "\\\"")
     val avatarUrl = s"https://github.com/${row.facilitator}.png?size=100"
     val appLink = s"${config.appBaseUrl}"
 
-    val scheduleInfo = row.roomSlot.flatMap(_.fromJson[RoomSlot].toOption) match
-      case Some(rs) => s" · :round_pushpin: ${rs.room.name} · ${escapeColonsForSlack(rs.timeSlot.s)}"
+    val scheduleInfo = roomSlot match
+      case Some(rs) => s" · :round_pushpin: ${rs.room.name} · ${escapeColonsForSlack(rs.timeSlot.displayString)}"
       case None     => ""
 
     s"""[{"type":"section","text":{"type":"mrkdwn","text":"*$topicName*"},"accessory":{"type":"image","image_url":"$avatarUrl","alt_text":"$facilitator"}},{"type":"context","elements":[{"type":"mrkdwn","text":"Proposed by *$facilitator*$scheduleInfo · <$appLink|View in OpenSpaces>"}]}]"""

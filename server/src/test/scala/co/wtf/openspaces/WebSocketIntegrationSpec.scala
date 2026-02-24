@@ -103,7 +103,7 @@ object WebSocketIntegrationSpec extends ZIOSpecDefault:
           // Should receive StateReplace messages for all entity types
           val hasDiscussionState = messages.exists {
             case DiscussionActionConfirmedMessage(
-                  DiscussionActionConfirmed.StateReplace(_),
+                  DiscussionActionConfirmed.StateReplace(_, _),
                 ) =>
               true
             case _ => false
@@ -316,6 +316,7 @@ object WebSocketIntegrationSpec extends ZIOSpecDefault:
       TestLayers.hackathonProjectServiceLayer,
       TestLayers.slackNotifierLayer,
       TestLayers.confirmedActionRepositoryLayer,
+      TestLayers.userRepositoryLayer,
       TestLayers.schedulingServiceLayer,
       RandomActionSpawner.layer(initialActive = false),
     ) @@ TestAspect.sequential
@@ -361,6 +362,10 @@ object TestLayers:
       : ULayer[co.wtf.openspaces.db.ConfirmedActionRepository] =
     ZLayer.succeed(NoOpConfirmedActionRepository)
 
+  /** No-op UserRepository for tests */
+  val userRepositoryLayer: ULayer[co.wtf.openspaces.db.UserRepository] =
+    ZLayer.succeed(NoOpUserRepository)
+
   // No-op repository implementations
 
   private object NoOpLightningTalkRepository
@@ -402,6 +407,8 @@ object TestLayers:
       )
     def findAll: Task[Vector[co.wtf.openspaces.db.UserRow]] =
       ZIO.succeed(Vector.empty)
+    def deleteByUsernames(usernames: List[String]): Task[Int] =
+      ZIO.succeed(0)
 
   private object NoOpGitHubProfileService extends GitHubProfileService:
     def ensureUserWithDisplayName(
@@ -479,4 +486,5 @@ object TestLayers:
       )
     def findAll: Task[Vector[co.wtf.openspaces.db.ConfirmedActionRow]] =
       ZIO.succeed(Vector.empty)
+    def deleteByActors(actors: List[String]): Task[Int] = ZIO.succeed(0)
     def truncate: Task[Unit] = ZIO.unit

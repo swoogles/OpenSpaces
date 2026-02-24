@@ -26,8 +26,9 @@ case class DiscussionState(
     discussionAction: DiscussionActionConfirmed,
   ): DiscussionState =
     discussionAction match
-      case DiscussionActionConfirmed.StateReplace(discussions) =>
+      case DiscussionActionConfirmed.StateReplace(discussions, newSlots) =>
         copy(
+          slots = newSlots,
           data = discussions.map(d => d.id -> d).toMap,
         )
       case other =>
@@ -112,7 +113,7 @@ case class DiscussionState(
             }
           case DiscussionActionConfirmed.Unauthorized(_) =>
             data
-          case DiscussionActionConfirmed.StateReplace(_) =>
+          case DiscussionActionConfirmed.StateReplace(_, _) =>
             data,
         )
 
@@ -126,154 +127,57 @@ object DiscussionState:
     )
 
     DiscussionState(
-      slots, // Instead of prepoulating slots here, it should be derived from the discussions, namely discussion.roomSlot
+      slots,
       startingState,
     )
 
-  // Winter Tech Forum 2026: March 2-6, 2026
-  // https://www.wintertechforum.com/schedule/
-  // Monday: Intro + Session 2
-  // Tuesday: Sessions 3-5
-  // Wednesday: Hackathon (no Open Spaces)
-  // Thursday: Sessions 6-8
-  // Friday: Sessions 9-10 + Closing
-  val timeSlotExamples =
-    List(
-      DaySlots(
-        LocalDate.of(2026, 3, 2), // Monday
-        List(
-          TimeSlotForAllRooms(
-            TimeSlot("9:50-10:40",
-                     LocalDateTime.parse("2026-03-02T09:50:00"),
-                     LocalDateTime.parse("2026-03-02T10:40:00"),
-            ),
-            List(Room.king,
-                 Room.hawk,
-                 Room.artGallery,
-                 Room.danceHall,
-            ),
-          ),
-          TimeSlotForAllRooms(
-            TimeSlot("11:10-12:00",
-                     LocalDateTime.parse("2026-03-02T11:10:00"),
-                     LocalDateTime.parse("2026-03-02T12:00:00"),
-            ),
-            List(Room.king,
-                 Room.hawk,
-                 Room.artGallery,
-                 Room.danceHall,
-            ),
-          ),
-        ),
-      ),
-      DaySlots(
-        LocalDate.of(2026, 3, 3), // Tuesday
-        List(
-          TimeSlotForAllRooms(
-            TimeSlot("9:00-9:50",
-                     LocalDateTime.parse("2026-03-03T09:00:00"),
-                     LocalDateTime.parse("2026-03-03T09:50:00"),
-            ),
-            List(Room.king,
-                 Room.hawk,
-                 Room.artGallery,
-                 Room.danceHall,
-            ),
-          ),
-          TimeSlotForAllRooms(
-            TimeSlot("10:20-11:10",
-                     LocalDateTime.parse("2026-03-03T10:20:00"),
-                     LocalDateTime.parse("2026-03-03T11:10:00"),
-            ),
-            List(Room.king,
-                 Room.hawk,
-                 Room.artGallery,
-                 Room.danceHall,
-            ),
-          ),
-          TimeSlotForAllRooms(
-            TimeSlot("11:40-12:30",
-                     LocalDateTime.parse("2026-03-03T11:40:00"),
-                     LocalDateTime.parse("2026-03-03T12:30:00"),
-            ),
-            List(Room.king,
-                 Room.hawk,
-                 Room.artGallery,
-                 Room.danceHall,
-            ),
-          ),
-        ),
-      ),
-      DaySlots(
-        LocalDate.of(2026, 3, 5), // Thursday (Wednesday is Hackathon)
-        List(
-          TimeSlotForAllRooms(
-            TimeSlot("9:00-9:50",
-                     LocalDateTime.parse("2026-03-05T09:00:00"),
-                     LocalDateTime.parse("2026-03-05T09:50:00"),
-            ),
-            List(Room.king,
-                 Room.hawk,
-                 Room.artGallery,
-                 Room.danceHall,
-            ),
-          ),
-          TimeSlotForAllRooms(
-            TimeSlot("10:20-11:10",
-                     LocalDateTime.parse("2026-03-05T10:20:00"),
-                     LocalDateTime.parse("2026-03-05T11:10:00"),
-            ),
-            List(Room.king,
-                 Room.hawk,
-                 Room.artGallery,
-                 Room.danceHall,
-            ),
-          ),
-          TimeSlotForAllRooms(
-            TimeSlot("11:40-12:30",
-                     LocalDateTime.parse("2026-03-05T11:40:00"),
-                     LocalDateTime.parse("2026-03-05T12:30:00"),
-            ),
-            List(Room.king,
-                 Room.hawk,
-                 Room.artGallery,
-                 Room.danceHall,
-            ),
-          ),
-        ),
-      ),
-      DaySlots(
-        LocalDate.of(2026, 3, 6), // Friday
-        List(
-          TimeSlotForAllRooms(
-            TimeSlot("9:00-9:50",
-                     LocalDateTime.parse("2026-03-06T09:00:00"),
-                     LocalDateTime.parse("2026-03-06T09:50:00"),
-            ),
-            List(Room.king,
-                 Room.hawk,
-                 Room.artGallery,
-                 Room.danceHall,
-            ),
-          ),
-          TimeSlotForAllRooms(
-            TimeSlot("10:20-11:10",
-                     LocalDateTime.parse("2026-03-06T10:20:00"),
-                     LocalDateTime.parse("2026-03-06T11:10:00"),
-            ),
-            List(Room.king,
-                 Room.hawk,
-                 Room.artGallery,
-                 Room.danceHall,
-            ),
-          ),
-        ),
-      ),
-    )
+  /** Empty state - slots will be loaded from database on server */
+  val empty: DiscussionState = DiscussionState(List.empty, Map.empty)
 
-  val exampleWithDiscussions =
+  // Test slots - only used for examples/tests
+  // Production slots come from the database (rooms + time_slots tables)
+  // NOTE: Must be defined before example/exampleWithDiscussions to avoid initialization order issues
+  private def exampleTimeSlot(start: String, end: String): TimeSlot =
+    TimeSlot(LocalDateTime.parse(start), LocalDateTime.parse(end))
+
+  private val exampleSlots: List[DaySlots] = List(
+    DaySlots(
+      LocalDate.of(2026, 3, 2), // Monday
+      List(
+        TimeSlotForAllRooms(
+          exampleTimeSlot("2026-03-02T09:50:00", "2026-03-02T10:40:00"),
+          Room.all,
+        ),
+        TimeSlotForAllRooms(
+          exampleTimeSlot("2026-03-02T11:10:00", "2026-03-02T12:00:00"),
+          Room.all,
+        ),
+      ),
+    ),
+    DaySlots(
+      LocalDate.of(2026, 3, 3), // Tuesday
+      List(
+        TimeSlotForAllRooms(
+          exampleTimeSlot("2026-03-03T09:00:00", "2026-03-03T09:50:00"),
+          Room.all,
+        ),
+        TimeSlotForAllRooms(
+          exampleTimeSlot("2026-03-03T10:20:00", "2026-03-03T11:10:00"),
+          Room.all,
+        ),
+        TimeSlotForAllRooms(
+          exampleTimeSlot("2026-03-03T11:40:00", "2026-03-03T12:30:00"),
+          Room.all,
+        ),
+      ),
+    ),
+  )
+
+  // Example for tests only - uses hardcoded slots
+  // Real application loads slots from database
+  val exampleWithDiscussions: DiscussionState =
     DiscussionState(
-      timeSlotExamples,
+      exampleSlots,
       Discussion.example1,
       Discussion.example2,
       Discussion.example3,
@@ -282,7 +186,5 @@ object DiscussionState:
       Discussion.example6,
     )
 
-  val example =
-    DiscussionState(
-      timeSlotExamples,
-    )
+  val example: DiscussionState =
+    DiscussionState(exampleSlots)

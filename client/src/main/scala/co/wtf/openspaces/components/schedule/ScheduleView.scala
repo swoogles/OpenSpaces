@@ -6,7 +6,7 @@ import org.scalajs.dom
 import neotype.unwrap
 
 import co.wtf.openspaces.{
-  Person, RoomSlot,
+  Person, Room, RoomSlot,
   SvgIcon, GlyphiconUtils
 }
 import co.wtf.openspaces.discussions.DaySlots
@@ -46,13 +46,13 @@ object ScheduleView:
     unscheduledMenuState: Var[Option[RoomSlot]],
     activeDiscussionMenuState: Var[Option[Discussion]],
   ): HtmlElement =
-    val rooms = fullSchedule
-      .now()
-      .slots
-      .headOption
-      .flatMap(_.slots.headOption)
-      .map(_.rooms)
-      .getOrElse(Nil)
+    // Derive rooms reactively from current state (rooms should be same across all slots)
+    val $rooms: Signal[List[Room]] = fullSchedule.signal.map { state =>
+      state.slots.headOption
+        .flatMap(_.slots.headOption)
+        .map(_.rooms)
+        .getOrElse(Nil)
+    }
 
     val showPopover: Observer[Discussion] =
       Observer { discussion =>
@@ -100,22 +100,24 @@ object ScheduleView:
         cls := "Schedule",
         div(
           cls := "RoomHeaders",
-          rooms.map(room => div(cls := "RoomHeader", room.name)),
+          children <-- $rooms.map(rooms => rooms.map(room => div(cls := "RoomHeader", room.name))),
         ),
         div(
           cls := "TimeSlots",
           ScrollPreserver.timeSlotsIdAttr,
-          SlotSchedules(
-            fullSchedule.now().slots,
-            fullSchedule.signal,
-            updateTargetDiscussion,
-            activeDiscussion.signal,
-            showPopover,
-            showSwapMenu,
-            showUnscheduledMenu,
-            topicUpdates,
-            name,
-          ),
+          child <-- fullSchedule.signal.map { state =>
+            SlotSchedules(
+              state.slots,
+              fullSchedule.signal,
+              updateTargetDiscussion,
+              activeDiscussion.signal,
+              showPopover,
+              showSwapMenu,
+              showUnscheduledMenu,
+              topicUpdates,
+              name,
+            )
+          },
         ),
       ),
     )
@@ -141,7 +143,7 @@ object SlotSchedules:
           daySlot.slots.map { timeSlotsForAllRooms =>
             div(
               cls := "SlotRow",
-              div(cls := "TimeOfSlot", timeSlotsForAllRooms.time.s),
+              div(cls := "TimeOfSlot", timeSlotsForAllRooms.time.displayString),
               timeSlotsForAllRooms.rooms.map { room =>
                 val roomSlot = RoomSlot(room, timeSlotsForAllRooms.time)
                 // Derive a signal that only emits when THIS slot's content changes
@@ -209,7 +211,7 @@ object LinearScheduleView:
             daySlot.slots.map { timeSlotForAllRooms =>
               div(
                 cls := "LinearTimeSlot",
-                div(cls := "LinearTimeHeader", timeSlotForAllRooms.time.s),
+                div(cls := "LinearTimeHeader", timeSlotForAllRooms.time.displayString),
                 timeSlotForAllRooms.rooms.map { room =>
                   val roomSlot = RoomSlot(room, timeSlotForAllRooms.time)
                   val discussion = state.roomSlotContent(roomSlot)
