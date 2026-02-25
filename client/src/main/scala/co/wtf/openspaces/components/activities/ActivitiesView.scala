@@ -9,7 +9,7 @@ import scala.scalajs.js
 
 import co.wtf.openspaces.*
 import co.wtf.openspaces.activities.*
-import co.wtf.openspaces.components.SwipeableCard
+import co.wtf.openspaces.components.{InterestedPartyAvatars, SwipeableCard}
 import co.wtf.openspaces.components.lightning_talks.LightningTalksView
 import co.wtf.openspaces.lighting_talks.*
 
@@ -211,6 +211,7 @@ object ActivityCard:
       ),
       div(
         cls := "HackathonProjectCard-members",
+        InterestedPartyAvatars(activity.members.map(_.person)),
         span(cls := "HackathonProjectCard-memberCount", s"${activity.interestCount} interested"),
         span(cls := "HackathonProjectCard-memberCount", activity.eventTime.format(displayFormat)),
       ),

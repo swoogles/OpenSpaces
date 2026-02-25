@@ -95,7 +95,6 @@ object ScheduleView:
             activeDiscussion.signal,
             isAdmin,
             connectionStatus,
-            iconModifiers = Seq(handleActiveDiscussionLongPress),
           ),
         ),
       ),

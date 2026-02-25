@@ -4,16 +4,14 @@ import animus.*
 import com.raquo.laminar.api.L.{*, given}
 import org.scalajs.dom
 
-import co.wtf.openspaces.{
-  Person, Topic, TopicId, GitHubAvatar
-}
+import co.wtf.openspaces.{Person, Topic, TopicId}
 import co.wtf.openspaces.discussions.VotePosition
 import co.wtf.openspaces.discussions.Discussion
 import co.wtf.openspaces.discussions.DiscussionAction
 import co.wtf.openspaces.discussions.Feedback
 import co.wtf.openspaces.AppState
 import co.wtf.openspaces.*
-import co.wtf.openspaces.components.{InlineEditableTitle, SwipeableCard}
+import co.wtf.openspaces.components.{InlineEditableTitle, InterestedPartyAvatars, SwipeableCard}
 import io.laminext.websocket.*
 
 /** Topic card component showing a discussion with vote state and inline editing.
@@ -29,7 +27,6 @@ object TopicCard:
     connectionStatus: ConnectionStatusUI,
     transition: Option[Transition] = None,
     enableSwipe: Boolean = true,
-    iconModifiers: Seq[Modifier[HtmlElement]] = Seq.empty,
   ): Signal[HtmlElement] =
     Signal.combine(signal, isAdmin).map {
       case (Some(topic), admin) =>
@@ -168,12 +165,12 @@ object TopicCard:
           ),
           div(
             cls := "SecondaryActive",
-            span(
-              GitHubAvatar(topic.facilitator).amend(iconModifiers*),
-            ),
-            span(
-              cls := "FacilitatorName",
-              topic.facilitatorName,
+            InterestedPartyAvatars(
+              topic.interestedParties
+                .filter(_.position == VotePosition.Interested)
+                .toList
+                .sortBy(_.firstVotedAtEpochMs.getOrElse(Long.MaxValue))
+                .map(_.voter)
             ),
             topic.roomSlot match {
               case Some(roomSlot) =>

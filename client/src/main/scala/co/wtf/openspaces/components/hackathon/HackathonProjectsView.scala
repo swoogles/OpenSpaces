@@ -5,7 +5,7 @@ import neotype.*
 import org.scalajs.dom
 
 import co.wtf.openspaces.*
-import co.wtf.openspaces.components.SwipeableCard
+import co.wtf.openspaces.components.{InterestedPartyAvatars, SwipeableCard}
 import co.wtf.openspaces.hackathon.*
 
 /** Hackathon Projects view for Wednesday hackday.
@@ -382,22 +382,7 @@ object HackathonProjectCard:
       // Member info
       div(
         cls := "HackathonProjectCard-members",
-        // Member avatars (first 5)
-        div(
-          cls := "HackathonProjectCard-avatars",
-          project.members.take(5).map { member =>
-            img(
-              cls := "HackathonProjectCard-avatar",
-              src := s"https://github.com/${member.person.unwrap}.png?size=40",
-              alt := member.person.unwrap,
-              title := member.person.unwrap,
-            )
-          },
-          if memberCount > 5 then
-            span(cls := "HackathonProjectCard-moreMembers", s"+${memberCount - 5}")
-          else
-            span(),
-        ),
+        InterestedPartyAvatars(project.members.map(_.person)),
         span(
           cls := "HackathonProjectCard-memberCount",
           if memberCount == 1 then "1 person"

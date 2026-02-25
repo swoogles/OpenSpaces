@@ -1963,6 +1963,31 @@ button {
     word-wrap: break-word;
 }
 
+/* Shared interested party avatars - used across topics, hackathon, activities */
+.InterestedPartyAvatars {
+    display: flex;
+    align-items: center;
+}
+
+.InterestedPartyAvatars-avatar {
+    width: 28px;
+    height: 28px;
+    border-radius: var(--radius-full);
+    border: 2px solid var(--color-white);
+    margin-left: calc(-1 * var(--pad-sm));
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.InterestedPartyAvatars-avatar:first-child {
+    margin-left: 0;
+}
+
+.InterestedPartyAvatars-overflow {
+    color: var(--color-text-subtle);
+    margin-left: var(--pad-xs);
+    font-size: var(--font-sm);
+}
+
 .HackathonProjectCard-members {
     display: flex;
 }
