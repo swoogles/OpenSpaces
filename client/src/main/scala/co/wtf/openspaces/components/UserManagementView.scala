@@ -3,6 +3,7 @@ package co.wtf.openspaces.components
 import com.raquo.laminar.api.L.{*, given}
 import org.scalajs.dom
 import scala.concurrent.ExecutionContext.Implicits.global
+import scala.util.{Failure, Success}
 import neotype.unwrap
 
 import co.wtf.openspaces.{AppState, RandomActionClient, PendingUser, ApprovedUser}
@@ -20,29 +21,39 @@ object UserManagementView:
     val errorMessage = Var(Option.empty[String])
     val successMessage = Var(Option.empty[String])
 
+    def normalized(username: String): String =
+      username.trim.toLowerCase
+
+    def usernamesEqual(left: String, right: String): Boolean =
+      normalized(left) == normalized(right)
+
     def approveUser(username: String): Unit =
       if dom.window.confirm(s"Approve user '$username'? They will gain full access to the app.") then
         isLoading.set(true)
         errorMessage.set(None)
         successMessage.set(None)
         val adminUsername = AuthService.getCookie("github_username").getOrElse("")
-        randomActionClient.approveUser(adminUsername, username).foreach { result =>
-          isLoading.set(false)
-          if result.success then
-            successMessage.set(Some(result.message))
-            // Optimistic local update so admin sees immediate feedback.
-            val approvedDisplayName = AppState.pendingUsers.now()
-              .find(_.username.equalsIgnoreCase(username))
-              .flatMap(_.displayName)
-            AppState.pendingUsers.update(_.filterNot(_.username.equalsIgnoreCase(username)))
-            AppState.approvedUsers.update { existing =>
-              if existing.exists(_.username.equalsIgnoreCase(username)) then existing
-              else existing :+ ApprovedUser(username, approvedDisplayName)
-            }
-            // Refresh auth status to get updated lists
-            AuthService.fetchAuthStatus(randomActionClient)
-          else
-            errorMessage.set(Some(result.message))
+        randomActionClient.approveUser(adminUsername, username).onComplete {
+          case Success(result) =>
+            isLoading.set(false)
+            if result.success then
+              successMessage.set(Some(result.message))
+              // Optimistic local update so admin sees immediate feedback.
+              val approvedDisplayName = AppState.pendingUsers.now()
+                .find(user => usernamesEqual(user.username, username))
+                .flatMap(_.displayName)
+              AppState.pendingUsers.update(_.filterNot(user => usernamesEqual(user.username, username)))
+              AppState.approvedUsers.update { existing =>
+                if existing.exists(user => usernamesEqual(user.username, username)) then existing
+                else existing :+ ApprovedUser(username, approvedDisplayName)
+              }
+              // Refresh auth status to get updated lists
+              AuthService.fetchAuthStatus(randomActionClient)
+            else
+              errorMessage.set(Some(result.message))
+          case Failure(e) =>
+            isLoading.set(false)
+            errorMessage.set(Some(s"Approve failed: ${e.getMessage}"))
         }
 
     def revokeUser(username: String): Unit =
@@ -51,23 +62,27 @@ object UserManagementView:
         errorMessage.set(None)
         successMessage.set(None)
         val adminUsername = AuthService.getCookie("github_username").getOrElse("")
-        randomActionClient.revokeUser(adminUsername, username).foreach { result =>
-          isLoading.set(false)
-          if result.success then
-            successMessage.set(Some(result.message))
-            // Optimistic local update so admin sees immediate feedback.
-            val pendingDisplayName = AppState.approvedUsers.now()
-              .find(_.username.equalsIgnoreCase(username))
-              .flatMap(_.displayName)
-            AppState.approvedUsers.update(_.filterNot(_.username.equalsIgnoreCase(username)))
-            AppState.pendingUsers.update { existing =>
-              if existing.exists(_.username.equalsIgnoreCase(username)) then existing
-              else existing :+ PendingUser(username, pendingDisplayName, "")
-            }
-            // Refresh auth status to get updated lists
-            AuthService.fetchAuthStatus(randomActionClient)
-          else
-            errorMessage.set(Some(result.message))
+        randomActionClient.revokeUser(adminUsername, username).onComplete {
+          case Success(result) =>
+            isLoading.set(false)
+            if result.success then
+              successMessage.set(Some(result.message))
+              // Optimistic local update so admin sees immediate feedback.
+              val pendingDisplayName = AppState.approvedUsers.now()
+                .find(user => usernamesEqual(user.username, username))
+                .flatMap(_.displayName)
+              AppState.approvedUsers.update(_.filterNot(user => usernamesEqual(user.username, username)))
+              AppState.pendingUsers.update { existing =>
+                if existing.exists(user => usernamesEqual(user.username, username)) then existing
+                else existing :+ PendingUser(username, pendingDisplayName, "")
+              }
+              // Refresh auth status to get updated lists
+              AuthService.fetchAuthStatus(randomActionClient)
+            else
+              errorMessage.set(Some(result.message))
+          case Failure(e) =>
+            isLoading.set(false)
+            errorMessage.set(Some(s"Revoke failed: ${e.getMessage}"))
         }
 
     div(

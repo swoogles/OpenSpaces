@@ -515,10 +515,15 @@ object FrontEnd extends ZIOAppDefault{
                   activityState.update(existing => existing(activityEvent))
 
                 case AuthorizationActionConfirmedMessage(authEvent) =>
+                  def isCurrentUser(targetUsername: String): Boolean =
+                    val target = targetUsername.trim.toLowerCase
+                    val currentFromName = name.now().unwrap.trim.toLowerCase
+                    val currentFromCookie = AuthService.getCookie("github_username").getOrElse("").trim.toLowerCase
+                    target.nonEmpty && (target == currentFromName || target == currentFromCookie)
                   authEvent match
                     case AuthorizationActionConfirmed.UserApproved(username) =>
                       // If this user was just approved, update their authorization status
-                      if username.toLowerCase == name.now().unwrap.toLowerCase then
+                      if isCurrentUser(username) then
                         AppState.isAuthorized.set(true)
                       // Remove from pending list, add to approved list
                       AppState.pendingUsers.update(_.filterNot(_.username.toLowerCase == username.toLowerCase))
@@ -530,7 +535,7 @@ object FrontEnd extends ZIOAppDefault{
                       AuthService.fetchAuthStatus(randomActionClient)
                     case AuthorizationActionConfirmed.UserRevoked(username) =>
                       // If this user was just revoked, update their authorization status
-                      if username.toLowerCase == name.now().unwrap.toLowerCase then
+                      if isCurrentUser(username) then
                         AppState.isAuthorized.set(false)
                       // Remove from approved list, add to pending list
                       AppState.approvedUsers.update(_.filterNot(_.username.toLowerCase == username.toLowerCase))
@@ -747,6 +752,7 @@ object FrontEnd extends ZIOAppDefault{
     randomActionClient: RandomActionClient,
   ) =
     var authRefreshIntervalHandle: Option[Int] = None
+    var authStatusIntervalHandle: Option[Int] = None
 
     // Register the sync operation with the connection manager
     // This will be called on connect, reconnect, and visibility return
@@ -770,14 +776,22 @@ object FrontEnd extends ZIOAppDefault{
             60 * 1000,
           )
           authRefreshIntervalHandle = Some(intervalHandle)
+          val authStatusHandle = dom.window.setInterval(
+            () => AuthService.fetchAuthStatus(randomActionClient),
+            10 * 1000,
+          )
+          authStatusIntervalHandle = Some(authStatusHandle)
           AuthService.ensureFreshAccessToken(randomActionClient).foreach { refreshed =>
             if !refreshed then
               dom.window.location.href = "/auth"
           }
+          AuthService.fetchAuthStatus(randomActionClient)
         ,
         _ =>
           authRefreshIntervalHandle.foreach(dom.window.clearInterval)
-          authRefreshIntervalHandle = None,
+          authRefreshIntervalHandle = None
+          authStatusIntervalHandle.foreach(dom.window.clearInterval)
+          authStatusIntervalHandle = None
       ),
       // Trigger sync when WebSocket connects
       topicUpdates.isConnected.changes.filter(identity) --> Observer { _ =>
