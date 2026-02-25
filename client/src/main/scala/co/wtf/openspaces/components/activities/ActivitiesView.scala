@@ -9,7 +9,7 @@ import scala.scalajs.js
 
 import co.wtf.openspaces.*
 import co.wtf.openspaces.activities.*
-import co.wtf.openspaces.components.{InterestedPartyAvatars, SwipeableCard}
+import co.wtf.openspaces.components.{InterestedPartyAvatars, LeaveConfirmationModal, SwipeableCard}
 import co.wtf.openspaces.components.lightning_talks.LightningTalksView
 import co.wtf.openspaces.lighting_talks.*
 
@@ -50,6 +50,22 @@ object ActivitiesView:
     val newEventTime = Var(nowDateTimeInputValue())
     val showCreateForm = Var(false)
     var createTimeInputRef: Option[dom.html.Input] = None
+
+    // Activity leave confirmation state
+    val pendingLeaveActivity: Var[Option[Activity]] = Var(None)
+
+    def handleLeaveActivity(activity: Activity): Unit =
+      pendingLeaveActivity.set(Some(activity))
+
+    def confirmLeaveActivity(): Unit =
+      pendingLeaveActivity.now().foreach { activity =>
+        if connectionStatus.checkReady() then
+          sendActivityAction(ActivityAction.SetInterest(activity.id, name.now(), interested = false))
+      }
+      pendingLeaveActivity.set(None)
+
+    def cancelLeaveActivity(): Unit =
+      pendingLeaveActivity.set(None)
 
     val $activities = activityState.signal.map { state =>
       state.activities.values.toList.sortBy(activity =>
@@ -168,16 +184,31 @@ object ActivitiesView:
                   connectionStatus = connectionStatus,
                   setErrorMsg = setErrorMsg,
                   displayFormat = displayFormat,
+                  onLeave = Some(handleLeaveActivity),
                 )
               },
             )
         },
       ),
+      // Leave confirmation modal for activities
+      child <-- pendingLeaveActivity.signal.map {
+        case Some(activity) =>
+          LeaveConfirmationModal(
+            entity = activity,
+            entityType = LeaveConfirmationModal.EntityType.Activity,
+            entityTitle = activity.descriptionText,
+            currentUser = name.now(),
+            onConfirm = () => confirmLeaveActivity(),
+            onCancel = () => cancelLeaveActivity(),
+          )
+        case None =>
+          LeaveConfirmationModal.empty
+      },
     )
 
 object ActivityCard:
   enum SwipeAction:
-    case Interested, NotInterested
+    case Interested, Leave
 
   private val dateTimeInputFormat = DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm")
 
@@ -188,6 +219,7 @@ object ActivityCard:
     connectionStatus: ConnectionStatusUI,
     setErrorMsg: Observer[Option[String]],
     displayFormat: DateTimeFormatter,
+    onLeave: Option[Activity => Unit] = None,
   ): HtmlElement =
     val isInterested = activity.hasMember(currentUser)
     val isOwner = activity.creator == currentUser
@@ -297,29 +329,32 @@ object ActivityCard:
                   "Edit",
                   onClick --> Observer(_ => editing.set(true)),
                 ),
-                button(
-                  cls := "ConfirmationModal-button ConfirmationModal-button--confirm",
-                  "Delete",
-                  onClick --> Observer { _ =>
-                    if dom.window.confirm(s"Delete activity '${activity.descriptionText}'? This cannot be undone.") then
-                      if !connectionStatus.checkReady() then
-                        setErrorMsg.onNext(Some("Reconnecting... please wait and try again."))
-                      else
-                        sendActivityAction(ActivityAction.Delete(activity.id, currentUser))
-                  },
-                ),
+                // Delete button removed - use swipe left to leave instead
               )
           },
         )
       else emptyNode,
     )
 
+    // Left swipe: Leave if involved (with confirmation if would delete), otherwise no action
+    val leftSwipeAction: Option[SwipeableCard.Action[SwipeAction]] =
+      if isInterested && onLeave.isDefined then
+        Some(SwipeableCard.Action(SwipeAction.Leave, "👋"))
+      else
+        None
+
     SwipeableCard[SwipeAction](
       cardContent = cardContent,
       onAction = Observer {
         case SwipeAction.Interested => sendInterest(true)
-        case SwipeAction.NotInterested => sendInterest(false)
+        case SwipeAction.Leave =>
+          // If would delete or is owner, show confirmation modal
+          if activity.wouldBeDeletedIfLeaves(currentUser) || isOwner then
+            onLeave.foreach(_(activity))
+          else
+            // Just leave silently (not owner, others remain)
+            sendInterest(false)
       },
-      leftAction = Some(SwipeableCard.Action(SwipeAction.NotInterested, "👈")),
+      leftAction = leftSwipeAction,
       rightAction = Some(SwipeableCard.Action(SwipeAction.Interested, "👉")),
     )
