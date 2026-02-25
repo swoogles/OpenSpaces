@@ -5,7 +5,7 @@ import neotype.*
 import org.scalajs.dom
 
 import co.wtf.openspaces.*
-import co.wtf.openspaces.components.{InterestedPartyAvatars, SwipeableCard}
+import co.wtf.openspaces.components.{ConfirmationModal, InterestedPartyAvatars, SwipeableCard}
 import co.wtf.openspaces.hackathon.*
 
 /** Hackathon Projects view for Wednesday hackday.
@@ -145,29 +145,13 @@ object HackathonProjectsView:
               s"You'll hand ownership of '${leaving.titleText}' to $nextOwner."
             else
               s"You'll leave '${leaving.titleText}'."
-          
-          div(
-            cls := "ConfirmationModal-overlay",
-            onClick --> Observer(_ => cancelJoin()),
-            div(
-              cls := "ConfirmationModal",
-              onClick.stopPropagation --> Observer.empty,
-              h3(cls := "ConfirmationModal-title", s"Join '${joining.titleText}'?"),
-              p(cls := "ConfirmationModal-message", warningText),
-              div(
-                cls := "ConfirmationModal-buttons",
-                button(
-                  cls := "ConfirmationModal-button ConfirmationModal-button--cancel",
-                  "Cancel",
-                  onClick --> Observer(_ => cancelJoin()),
-                ),
-                button(
-                  cls := "ConfirmationModal-button ConfirmationModal-button--confirm",
-                  "Switch Project",
-                  onClick --> Observer(_ => confirmJoin()),
-                ),
-              ),
-            ),
+          ConfirmationModal(
+            titleText = s"Join '${joining.titleText}'?",
+            messageText = warningText,
+            cancelText = "Cancel",
+            confirmText = "Switch Project",
+            onCancel = () => cancelJoin(),
+            onConfirm = () => confirmJoin(),
           )
         case None =>
           div()
@@ -188,29 +172,13 @@ object HackathonProjectsView:
               s"You'll hand ownership of '${leaving.titleText}' to $nextOwner."
             else
               s"You'll leave '${leaving.titleText}'."
-          
-          div(
-            cls := "ConfirmationModal-overlay",
-            onClick --> Observer(_ => cancelCreate()),
-            div(
-              cls := "ConfirmationModal",
-              onClick.stopPropagation --> Observer.empty,
-              h3(cls := "ConfirmationModal-title", s"Create '${newTitle.unwrap}'?"),
-              p(cls := "ConfirmationModal-message", warningText),
-              div(
-                cls := "ConfirmationModal-buttons",
-                button(
-                  cls := "ConfirmationModal-button ConfirmationModal-button--cancel",
-                  "Cancel",
-                  onClick --> Observer(_ => cancelCreate()),
-                ),
-                button(
-                  cls := "ConfirmationModal-button ConfirmationModal-button--confirm",
-                  "Leave & Create",
-                  onClick --> Observer(_ => confirmCreate()),
-                ),
-              ),
-            ),
+          ConfirmationModal(
+            titleText = s"Create '${newTitle.unwrap}'?",
+            messageText = warningText,
+            cancelText = "Cancel",
+            confirmText = "Leave & Create",
+            onCancel = () => cancelCreate(),
+            onConfirm = () => confirmCreate(),
           )
         case None =>
           div()
@@ -231,29 +199,13 @@ object HackathonProjectsView:
             else
               "You'll leave this project."
           val confirmText = if wouldDelete then "Delete Project" else "Leave Project"
-
-          div(
-            cls := "ConfirmationModal-overlay",
-            onClick --> Observer(_ => cancelLeave()),
-            div(
-              cls := "ConfirmationModal",
-              onClick.stopPropagation --> Observer.empty,
-              h3(cls := "ConfirmationModal-title", title),
-              p(cls := "ConfirmationModal-message", warningText),
-              div(
-                cls := "ConfirmationModal-buttons",
-                button(
-                  cls := "ConfirmationModal-button ConfirmationModal-button--cancel",
-                  "Cancel",
-                  onClick --> Observer(_ => cancelLeave()),
-                ),
-                button(
-                  cls := "ConfirmationModal-button ConfirmationModal-button--confirm",
-                  confirmText,
-                  onClick --> Observer(_ => confirmLeave()),
-                ),
-              ),
-            ),
+          ConfirmationModal(
+            titleText = title,
+            messageText = warningText,
+            cancelText = "Cancel",
+            confirmText = confirmText,
+            onCancel = () => cancelLeave(),
+            onConfirm = () => confirmLeave(),
           )
         case None =>
           div()

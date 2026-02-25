@@ -2,7 +2,6 @@ package co.wtf.openspaces.components.discussions
 
 import animus.*
 import com.raquo.laminar.api.L.{*, given}
-import org.scalajs.dom
 
 import co.wtf.openspaces.{Person, Topic, TopicId}
 import co.wtf.openspaces.discussions.VotePosition
@@ -11,8 +10,9 @@ import co.wtf.openspaces.discussions.DiscussionAction
 import co.wtf.openspaces.discussions.Feedback
 import co.wtf.openspaces.AppState
 import co.wtf.openspaces.*
-import co.wtf.openspaces.components.{InlineEditableTitle, InterestedPartyAvatars, SwipeableCard}
+import co.wtf.openspaces.components.{ConfirmationModal, InlineEditableTitle, InterestedPartyAvatars, SwipeableCard}
 import io.laminext.websocket.*
+import neotype.unwrap
 
 /** Topic card component showing a discussion with vote state and inline editing.
   *
@@ -31,6 +31,7 @@ object TopicCard:
     Signal.combine(signal, isAdmin).map {
       case (Some(topic), admin) =>
         val votes = topic.votes
+        val pendingFacilitatorLeave = Var(false)
 
         // Background color based on the user's personal vote
         val currentUserFeedback = topic.interestedParties.find(_.voter == name.now())
@@ -155,12 +156,6 @@ object TopicCard:
                 else
                   connectionStatus.reportError("Syncing latest topics. Please wait a moment.")
               },
-              () => {
-                if connectionStatus.checkReady() then
-                  topicUpdates(DiscussionAction.Delete(topic.id))
-                else
-                  connectionStatus.reportError("Syncing latest topics. Please wait a moment.")
-              }
             ),
           ),
           div(
@@ -199,21 +194,70 @@ object TopicCard:
           ),
         )
 
-        // Wrap with swipe functionality if enabled
-        if enableSwipe then
-          SwipeableCard(
-            cardContent = cardContent,
-            onAction = Observer { (position: VotePosition) =>
-              if connectionStatus.checkReady() then
-                topicUpdates(DiscussionAction.Vote(topic.id, Feedback(name.now(), position)))
-              else
-                connectionStatus.reportError("Syncing latest topics. Please wait a moment.")
-            },
-            leftAction = Some(SwipeableCard.Action(VotePosition.NotInterested, "✗")),
-            rightAction = Some(SwipeableCard.Action(VotePosition.Interested, "♥")),
-          )
-        else
-          cardContent
+        def sendVote(position: VotePosition): Unit =
+          if connectionStatus.checkReady() then
+            topicUpdates(DiscussionAction.Vote(topic.id, Feedback(name.now(), position)))
+          else
+            connectionStatus.reportError("Syncing latest topics. Please wait a moment.")
+
+        def handleSwipeVote(position: VotePosition): Unit =
+          val currentUser = name.now()
+          val requiresConfirmation =
+            position == VotePosition.NotInterested && topic.isFacilitator(currentUser)
+          if requiresConfirmation then
+            pendingFacilitatorLeave.set(true)
+          else
+            sendVote(position)
+
+        def cancelFacilitatorLeave(): Unit =
+          pendingFacilitatorLeave.set(false)
+
+        def confirmFacilitatorLeave(): Unit =
+          pendingFacilitatorLeave.set(false)
+          sendVote(VotePosition.NotInterested)
+
+        val swipeableContent =
+          if enableSwipe then
+            SwipeableCard(
+              cardContent = cardContent,
+              onAction = Observer(handleSwipeVote),
+              leftAction = Some(SwipeableCard.Action(VotePosition.NotInterested, "✗")),
+              rightAction = Some(SwipeableCard.Action(VotePosition.Interested, "♥")),
+            )
+          else
+            cardContent
+
+        div(
+          swipeableContent,
+          child <-- pendingFacilitatorLeave.signal.map {
+            case true =>
+              val currentUser = name.now()
+              val wouldDelete = topic.wouldBeDeletedIfFacilitatorLeaves(currentUser)
+              val nextFacilitator = topic.nextFacilitator.map(_.unwrap).getOrElse("someone else")
+              val title =
+                if wouldDelete then s"Delete '${topic.topicName}'?"
+                else s"Leave '${topic.topicName}'?"
+              val warningText =
+                if wouldDelete then
+                  "This topic will be deleted since no one else is interested."
+                else
+                  s"You'll hand facilitation to $nextFacilitator."
+              val confirmText =
+                if wouldDelete then "Delete Topic"
+                else "Transfer & Leave"
+
+              ConfirmationModal(
+                titleText = title,
+                messageText = warningText,
+                cancelText = "Cancel",
+                confirmText = confirmText,
+                onCancel = () => cancelFacilitatorLeave(),
+                onConfirm = () => confirmFacilitatorLeave(),
+              )
+            case false =>
+              emptyNode
+          },
+        )
 
       case (None, _) =>
         div("nothing")

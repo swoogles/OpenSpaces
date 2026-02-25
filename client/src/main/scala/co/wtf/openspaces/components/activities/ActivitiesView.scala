@@ -9,7 +9,7 @@ import scala.scalajs.js
 
 import co.wtf.openspaces.*
 import co.wtf.openspaces.activities.*
-import co.wtf.openspaces.components.{InterestedPartyAvatars, SwipeableCard}
+import co.wtf.openspaces.components.{ConfirmationModal, InterestedPartyAvatars, SwipeableCard}
 import co.wtf.openspaces.components.lightning_talks.LightningTalksView
 import co.wtf.openspaces.lighting_talks.*
 
@@ -192,6 +192,7 @@ object ActivityCard:
     val isInterested = activity.hasMember(currentUser)
     val isOwner = activity.creator == currentUser
     val editing = Var(false)
+    val pendingOwnerLeave = Var(false)
     val editDescription = Var(activity.descriptionText)
     val editEventTime = Var(activity.eventTime.format(dateTimeInputFormat))
     var editTimeInputRef: Option[dom.html.Input] = None
@@ -297,29 +298,59 @@ object ActivityCard:
                   "Edit",
                   onClick --> Observer(_ => editing.set(true)),
                 ),
-                button(
-                  cls := "ConfirmationModal-button ConfirmationModal-button--confirm",
-                  "Delete",
-                  onClick --> Observer { _ =>
-                    if dom.window.confirm(s"Delete activity '${activity.descriptionText}'? This cannot be undone.") then
-                      if !connectionStatus.checkReady() then
-                        setErrorMsg.onNext(Some("Reconnecting... please wait and try again."))
-                      else
-                        sendActivityAction(ActivityAction.Delete(activity.id, currentUser))
-                  },
-                ),
               )
           },
         )
       else emptyNode,
     )
 
-    SwipeableCard[SwipeAction](
-      cardContent = cardContent,
-      onAction = Observer {
-        case SwipeAction.Interested => sendInterest(true)
-        case SwipeAction.NotInterested => sendInterest(false)
+    def cancelOwnerLeave(): Unit =
+      pendingOwnerLeave.set(false)
+
+    def confirmOwnerLeave(): Unit =
+      pendingOwnerLeave.set(false)
+      sendInterest(false)
+
+    div(
+      SwipeableCard[SwipeAction](
+        cardContent = cardContent,
+        onAction = Observer {
+          case SwipeAction.Interested =>
+            sendInterest(true)
+          case SwipeAction.NotInterested =>
+            if isOwner && isInterested then
+              pendingOwnerLeave.set(true)
+            else
+              sendInterest(false)
+        },
+        leftAction = Some(SwipeableCard.Action(SwipeAction.NotInterested, "👈")),
+        rightAction = Some(SwipeableCard.Action(SwipeAction.Interested, "👉")),
+      ),
+      child <-- pendingOwnerLeave.signal.map {
+        case true =>
+          val wouldDelete = activity.wouldBeDeletedIfLeaves(currentUser)
+          val nextOwner = activity.nextOwner.map(_.unwrap).getOrElse("someone else")
+          val title =
+            if wouldDelete then s"Delete '${activity.descriptionText}'?"
+            else s"Leave '${activity.descriptionText}'?"
+          val warningText =
+            if wouldDelete then
+              "This activity will be deleted since no one else is interested."
+            else
+              s"You'll hand ownership to $nextOwner."
+          val confirmText =
+            if wouldDelete then "Delete Activity"
+            else "Transfer & Leave"
+
+          ConfirmationModal(
+            titleText = title,
+            messageText = warningText,
+            cancelText = "Cancel",
+            confirmText = confirmText,
+            onCancel = () => cancelOwnerLeave(),
+            onConfirm = () => confirmOwnerLeave(),
+          )
+        case false =>
+          emptyNode
       },
-      leftAction = Some(SwipeableCard.Action(SwipeAction.NotInterested, "👈")),
-      rightAction = Some(SwipeableCard.Action(SwipeAction.Interested, "👉")),
     )

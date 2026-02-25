@@ -24,6 +24,21 @@ case class Discussion(
   val facilitatorName = facilitatorDisplayName.getOrElse(facilitator.unwrap)
   val topicName = topic.unwrap
 
+  def isFacilitator(person: Person): Boolean =
+    facilitator == person
+
+  /** Next facilitator if current facilitator opts out (earliest interested voter excluding facilitator). */
+  def nextFacilitator: Option[Person] =
+    interestedParties
+      .filter(f => f.voter != facilitator && f.position == Interested)
+      .toList
+      .sortBy(_.firstVotedAtEpochMs.getOrElse(Long.MaxValue))
+      .headOption
+      .map(_.voter)
+
+  def wouldBeDeletedIfFacilitatorLeaves(person: Person): Boolean =
+    isFacilitator(person) && nextFacilitator.isEmpty
+
 object Discussion:
   def apply(
     topic: Topic,
