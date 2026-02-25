@@ -200,7 +200,7 @@ object LinearScheduleView:
     findNextUpcomingSlotId(slots).foreach { targetId =>
       Option(dom.document.getElementById(targetId)).foreach { element =>
         element.asInstanceOf[js.Dynamic].scrollIntoView(
-          js.Dynamic.literal(behavior = "smooth", block = "start")
+          js.Dynamic.literal(behavior = "smooth", block = "center")
         )
       }
     }
