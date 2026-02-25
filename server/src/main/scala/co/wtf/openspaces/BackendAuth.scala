@@ -136,15 +136,28 @@ case class ApplicationState(
   val authRoutes =
     Routes(
       // TODO Build this URL way sooner
-      Method.GET / "auth" -> handler(
-        Response.redirect(
-          URL
-            .decode(
+      Method.GET / "auth" -> handler {
+        ZIO
+          .fromEither(
+            URL.decode(
               s"https://github.com/login/oauth/authorize?client_id=$clientId",
+            ),
+          )
+          .mapBoth(
+            err => new Exception(s"Failed to build GitHub auth URL: $err"),
+            url => Response.redirect(url),
+          )
+          .tapErrorCause(cause => ZIO.logErrorCause("Auth route failed", cause))
+          .catchAllCause { _ =>
+            ZIO.succeed(
+              Response.redirect(
+                URL
+                  .decode("/?auth_error=auth_route_failed")
+                  .getOrElse(throw new Exception("Bad url: /?auth_error=auth_route_failed"))
+              )
             )
-            .getOrElse(???),
-        ),
-      ),
+          }
+      },
       Method.GET / "callback" ->
 
         handler((req: Request) =>
@@ -199,20 +212,30 @@ case class ApplicationState(
                   )
                 )
               } yield {
-                              val cookies = AuthCookies.fromToken(data, githubUser.login)
-                              cookies.foldLeft(
-                                Response.redirect(
-                                  URL.decode("/").getOrElse(throw new Exception("Bad url: /"))
-                                )
-                              )((response, cookie) => response.addCookie(cookie))
-                              .addCookie(
-                                Cookie.Response("access_token", data.accessToken),
-                              )
-                              .addCookie(
-                                Cookie.Response("github_username", githubUser.login),
-                              )
-                            }            )
-            .orDie,
+                val cookies = AuthCookies.fromToken(data, githubUser.login)
+                cookies.foldLeft(
+                  Response.redirect(
+                    URL.decode("/").getOrElse(throw new Exception("Bad url: /"))
+                  )
+                )((response, cookie) => response.addCookie(cookie))
+                  .addCookie(
+                    Cookie.Response("access_token", data.accessToken),
+                  )
+                  .addCookie(
+                    Cookie.Response("github_username", githubUser.login),
+                  )
+              }
+            )
+            .tapErrorCause(cause => ZIO.logErrorCause("OAuth callback failed", cause))
+            .catchAllCause { _ =>
+              ZIO.succeed(
+                Response.redirect(
+                  URL
+                    .decode("/?auth_error=callback_failed")
+                    .getOrElse(throw new Exception("Bad url: /?auth_error=callback_failed"))
+                )
+              )
+            },
         ),
       RandomActionApi.refreshGet.implement { cookieHeaderOpt =>
         def cookieValue(name: String): Option[String] =

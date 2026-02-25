@@ -29,7 +29,8 @@ object Backend extends ZIOAppDefault {
     label("timestamp", LogFormat.timestamp(DateTimeFormatter.ofPattern("MM-dd HH:mm:ss"))) |-|
       label("level", LogFormat.level) |-|
       label("message", quoted(line)) |-|
-      LogFormat.annotation(userLogAnnotation)
+      LogFormat.annotation(userLogAnnotation) |-|
+      label("cause", LogFormat.cause)
   
   private val logConfig = ConsoleLoggerConfig.default.copy(
     format =  myLogFormat

@@ -48,7 +48,7 @@ object FrontEnd extends ZIOAppDefault{
         (if (window.location.hostname == "localhost") 
           "http://localhost:8080"
         else
-          "https://app.wintertechforum.com"
+          window.location.origin
           )
           )
         )
