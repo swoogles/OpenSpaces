@@ -1505,6 +1505,56 @@ button {
     fill: currentColor;
 }
 
+/* Jump to Now button */
+.LinearScheduleView-jumpButton {
+    position: sticky;
+    top: 0;
+    z-index: 25;
+    padding: var(--pad-sm) 0;
+    background-color: var(--color-bg-page);
+    display: flex;
+    justify-content: center;
+}
+
+.JumpToNowButton {
+    display: flex;
+    align-items: center;
+    gap: var(--pad-sm);
+    padding: var(--pad-sm) var(--pad-lg);
+    background-color: var(--color-interactive);
+    color: var(--color-white);
+    border: none;
+    border-radius: var(--radius-full);
+    font-size: var(--font-size-base);
+    font-weight: var(--font-weight-semibold);
+    cursor: pointer;
+    transition: all 0.2s ease;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+}
+
+.JumpToNowButton:hover {
+    background-color: var(--color-interactive-hover);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+}
+
+.JumpToNowButton:active {
+    transform: translateY(0);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.15);
+}
+
+.JumpToNowButton svg {
+    width: 18px;
+    height: 18px;
+    fill: currentColor;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .JumpToNowButton {
+        transition: none;
+    }
+}
+
 .SwipeableCardContainer {
     position: relative;
     overflow: hidden;

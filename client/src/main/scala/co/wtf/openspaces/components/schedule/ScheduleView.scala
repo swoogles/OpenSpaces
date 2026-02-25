@@ -21,6 +21,7 @@ import co.wtf.openspaces.components.activities.ActivityCard
 import co.wtf.openspaces.components.discussions.TopicCard
 import co.wtf.openspaces.components.schedule.ScheduleSlotComponent
 import java.time.format.DateTimeFormatter
+import java.time.LocalDateTime
 
 /** App view mode enum.
   */
@@ -180,6 +181,30 @@ object LinearScheduleView:
       case "THURSDAY"  => Some(LightningTalkNight.Thursday)
       case _           => None
 
+  /** Generate a unique slot ID for scrolling. */
+  private def slotId(startTime: LocalDateTime): String =
+    val formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd-HH-mm")
+    s"slot-${startTime.format(formatter)}"
+
+  /** Find the next upcoming slot (first slot whose end time is in the future). */
+  private def findNextUpcomingSlotId(slots: List[DaySlots]): Option[String] =
+    val now = LocalDateTime.now()
+    slots
+      .flatMap(_.slots)
+      .find(_.time.endTime.isAfter(now))
+      .map(slot => slotId(slot.time.startTime))
+
+  /** Scroll smoothly to the next upcoming slot. */
+  private def scrollToNextSlot(slots: List[DaySlots]): Unit =
+    import scala.scalajs.js
+    findNextUpcomingSlotId(slots).foreach { targetId =>
+      Option(dom.document.getElementById(targetId)).foreach { element =>
+        element.asInstanceOf[js.Dynamic].scrollIntoView(
+          js.Dynamic.literal(behavior = "smooth", block = "start")
+        )
+      }
+    }
+
   def apply(
     $discussionState: Signal[DiscussionState],
     $lightningTalkState: Signal[LightningTalkState],
@@ -199,8 +224,25 @@ object LinearScheduleView:
     val activityDisplayFormat = DateTimeFormatter.ofPattern("EEE h:mm a")
     val activityHeaderTimeFormat = DateTimeFormatter.ofPattern("h:mm a")
 
+    // Local var to hold current state for onClick handler
+    val currentStateVar = Var(DiscussionState.empty)
+
     div(
       cls := "LinearScheduleView",
+      // Keep currentStateVar in sync with the signal
+      $discussionState --> currentStateVar.writer,
+      // Jump to Now button
+      div(
+        cls := "LinearScheduleView-jumpButton",
+        button(
+          cls := "JumpToNowButton",
+          SvgIcon(GlyphiconUtils.schedule),
+          span("Jump to Now"),
+          onClick --> Observer { _ =>
+            scrollToNextSlot(currentStateVar.now().slots)
+          },
+        ),
+      ),
       children <-- Signal.combine($discussionState, $lightningTalkState, $activityState).map { (state, lightningState, activityState) =>
         state.slots.map { daySlot =>
           val dayName = daySlot.date.getDayOfWeek.toString
@@ -263,6 +305,7 @@ object LinearScheduleView:
               val slot =
               div(
                 cls := "LinearTimeSlot",
+                idAttr := slotId(timeSlotForAllRooms.time.startTime),
                 div(cls := "LinearTimeHeader", timeSlotForAllRooms.time.displayString),
                 timeSlotForAllRooms.rooms.map { room =>
                   val roomSlot = RoomSlot(room, timeSlotForAllRooms.time)
