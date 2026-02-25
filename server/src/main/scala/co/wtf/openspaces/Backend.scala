@@ -14,7 +14,7 @@ import zio.http.endpoint.openapi._
 import java.time.format.DateTimeFormatter
 
 import zio.json.EncoderOps
-import zio.logging.{ConsoleLoggerConfig, LogAnnotation, LogFormat, consoleJsonLogger}
+import zio.logging.{ConsoleLoggerConfig, LogAnnotation as BackendLogAnnotation, LogFormat, consoleJsonLogger}
 import zio.logging.LogFormat._
 import zio._
 
@@ -22,7 +22,7 @@ case class MyConfig(ldap: String, port: Int, dburl: String)
 
 object Backend extends ZIOAppDefault {
 
-  private val userLogAnnotation = LogAnnotation[UserRow]("user", (_, u) => u, _.toJson)
+  private val userLogAnnotation = BackendLogAnnotation[UserRow]("user", (_, u) => u, _.toJson)
   
   
   val myLogFormat =
@@ -30,6 +30,7 @@ object Backend extends ZIOAppDefault {
       label("level", LogFormat.level) |-|
       label("message", quoted(line)) |-|
       LogFormat.annotation(userLogAnnotation) |-|
+      LogFormat.annotations |-|
       label("cause", LogFormat.cause)
   
   private val logConfig = ConsoleLoggerConfig.default.copy(
@@ -72,8 +73,16 @@ object Backend extends ZIOAppDefault {
       // Start the random action spawner (runs in background, controlled via admin API)
       ZIO.serviceWithZIO[RandomActionSpawner](_.startSpawningRandomActions).run
 
+      val requestLogAnnotations =
+        Middleware.logAnnotate((req: Request) =>
+          Set(
+            zio.LogAnnotation("method", req.method.toString),
+            zio.LogAnnotation("path", req.path.encode),
+          )
+        )
+
       Server
-        .serve(allRoutes @@ Middleware.serveResources(Path.empty))
+        .serve(allRoutes @@ Middleware.serveResources(Path.empty) @@ requestLogAnnotations)
         .as("Just working around zio-direct limitation")
         .run
     .provide(
