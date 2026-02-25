@@ -2157,10 +2157,6 @@ button {
   margin-top: 1.25rem;
 }
 
-.LinearActivityCardRow {
-  margin: 10px 0;
-}
-
-.LinearActivityCardRow .HackathonProjectCard {
+.LinearTimeSlot--activity .HackathonProjectCard {
   width: 100%;
 }

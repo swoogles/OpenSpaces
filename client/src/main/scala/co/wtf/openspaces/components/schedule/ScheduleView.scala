@@ -198,6 +198,7 @@ object LinearScheduleView:
       }
 
     val activityDisplayFormat = DateTimeFormatter.ofPattern("EEE h:mm a")
+    val activityHeaderTimeFormat = DateTimeFormatter.ofPattern("h:mm a")
 
     div(
       cls := "LinearScheduleView",
@@ -240,23 +241,25 @@ object LinearScheduleView:
               nextActivityIndex = dayActivities.length
               rest
 
+          def renderActivity(activity: Activity): HtmlElement =
+            div(
+              cls := "LinearTimeSlot LinearTimeSlot--activity",
+              div(cls := "LinearTimeHeader", activity.eventTime.format(activityHeaderTimeFormat)),
+              ActivityCard(
+                activity = activity,
+                currentUser = name.now(),
+                sendActivityAction = sendActivityAction,
+                connectionStatus = connectionStatus,
+                setErrorMsg = setErrorMsg,
+                displayFormat = activityDisplayFormat,
+              ),
+            )
+
           div(
             cls := "LinearDay",
             div(cls := "LinearDayHeader", dayName),
             daySlot.slots.flatMap { timeSlotForAllRooms =>
-              val leadingActivities = consumeActivitiesThrough(timeSlotForAllRooms.time.startTime).map { activity =>
-                div(
-                  cls := "LinearActivityCardRow",
-                  ActivityCard(
-                    activity = activity,
-                    currentUser = name.now(),
-                    sendActivityAction = sendActivityAction,
-                    connectionStatus = connectionStatus,
-                    setErrorMsg = setErrorMsg,
-                    displayFormat = activityDisplayFormat,
-                  ),
-                )
-              }
+              val leadingActivities = consumeActivitiesThrough(timeSlotForAllRooms.time.startTime).map(renderActivity)
 
               val slot =
               div(
@@ -291,19 +294,7 @@ object LinearScheduleView:
                 },
               )
               leadingActivities :+ slot
-            } ++ consumeRemainingActivities().map { activity =>
-              div(
-                cls := "LinearActivityCardRow",
-                ActivityCard(
-                  activity = activity,
-                  currentUser = name.now(),
-                  sendActivityAction = sendActivityAction,
-                  connectionStatus = connectionStatus,
-                  setErrorMsg = setErrorMsg,
-                  displayFormat = activityDisplayFormat,
-                ),
-              )
-            } ++ maybeLightningNight.toList.map { _ =>
+            } ++ consumeRemainingActivities().map(renderActivity) ++ maybeLightningNight.toList.map { _ =>
               div(
                 cls := "LinearTimeSlot LinearTimeSlot--lightning",
                 div(
