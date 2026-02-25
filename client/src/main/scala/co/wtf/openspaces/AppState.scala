@@ -131,10 +131,3 @@ object AppState:
 
   // Admin user management view state
   val showUserManagement: Var[Boolean] = Var(false)
-
-  // ============================================
-  // Leave Confirmation State
-  // ============================================
-
-  // Pending discussion leave confirmation
-  val pendingLeaveDiscussion: Var[Option[Discussion]] = Var(None)

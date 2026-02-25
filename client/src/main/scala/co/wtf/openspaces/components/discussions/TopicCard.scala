@@ -19,12 +19,6 @@ import io.laminext.websocket.*
   * Extracted from FrontEnd.scala for better code organization.
   */
 object TopicCard:
-
-  /** Action type for swipe gestures */
-  enum SwipeAction:
-    case Vote(position: VotePosition)
-    case Leave
-
   def apply(
     name: StrictSignal[Person],
     topicUpdates: DiscussionAction => Unit,
@@ -33,7 +27,6 @@ object TopicCard:
     connectionStatus: ConnectionStatusUI,
     transition: Option[Transition] = None,
     enableSwipe: Boolean = true,
-    onLeave: Option[Discussion => Unit] = None,
   ): Signal[HtmlElement] =
     Signal.combine(signal, isAdmin).map {
       case (Some(topic), admin) =>
@@ -150,7 +143,6 @@ object TopicCard:
           div(
             cls := "MainActive",
             // Inline editable topic name (only for the facilitator)
-            // Note: Delete button removed - use swipe left to leave instead
             InlineEditableTitle(
               topic,
               name.now(),
@@ -163,7 +155,12 @@ object TopicCard:
                 else
                   connectionStatus.reportError("Syncing latest topics. Please wait a moment.")
               },
-              onDelete = None, // Leave via swipe instead
+              () => {
+                if connectionStatus.checkReady() then
+                  topicUpdates(DiscussionAction.Delete(topic.id))
+                else
+                  connectionStatus.reportError("Syncing latest topics. Please wait a moment.")
+              }
             ),
           ),
           div(
@@ -204,40 +201,16 @@ object TopicCard:
 
         // Wrap with swipe functionality if enabled
         if enableSwipe then
-          val currentUser = name.now()
-          val isFacilitator = topic.facilitator == currentUser
-          val isInterested = topic.interestedParties.exists(f =>
-            f.voter == currentUser && f.position == VotePosition.Interested
-          )
-          val isInvolved = isFacilitator || isInterested
-
-          // Left swipe: Leave if involved (with confirmation), otherwise vote NotInterested
-          val leftSwipeAction: Option[SwipeableCard.Action[SwipeAction]] =
-            if isInvolved && onLeave.isDefined then
-              Some(SwipeableCard.Action(SwipeAction.Leave, "👋"))
-            else if !isInvolved then
-              Some(SwipeableCard.Action(SwipeAction.Vote(VotePosition.NotInterested), "✗"))
-            else
-              None
-
-          // Right swipe: Always vote Interested
-          val rightSwipeAction: Option[SwipeableCard.Action[SwipeAction]] =
-            Some(SwipeableCard.Action(SwipeAction.Vote(VotePosition.Interested), "♥"))
-
           SwipeableCard(
             cardContent = cardContent,
-            onAction = Observer { (action: SwipeAction) =>
+            onAction = Observer { (position: VotePosition) =>
               if connectionStatus.checkReady() then
-                action match
-                  case SwipeAction.Vote(position) =>
-                    topicUpdates(DiscussionAction.Vote(topic.id, Feedback(currentUser, position)))
-                  case SwipeAction.Leave =>
-                    onLeave.foreach(_(topic))
+                topicUpdates(DiscussionAction.Vote(topic.id, Feedback(name.now(), position)))
               else
                 connectionStatus.reportError("Syncing latest topics. Please wait a moment.")
             },
-            leftAction = leftSwipeAction,
-            rightAction = rightSwipeAction,
+            leftAction = Some(SwipeableCard.Action(VotePosition.NotInterested, "✗")),
+            rightAction = Some(SwipeableCard.Action(VotePosition.Interested, "♥")),
           )
         else
           cardContent
@@ -259,7 +232,6 @@ object DiscussionSubview:
     connectionStatus: ConnectionStatusUI,
     firstUnjudgedId: Signal[Option[TopicId]] = Signal.fromValue(None),
     showSwipeHint: Signal[Boolean] = Signal.fromValue(false),
-    onLeave: Option[Discussion => Unit] = None,
   ): HtmlElement =
     div(
       cls := "TopicsContainer",
@@ -288,7 +260,6 @@ object DiscussionSubview:
                   isAdmin,
                   connectionStatus,
                   Some(transition),
-                  onLeave = onLeave,
                 ),
               ),
           ),

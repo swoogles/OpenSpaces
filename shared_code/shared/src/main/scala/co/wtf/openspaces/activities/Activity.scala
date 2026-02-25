@@ -1,6 +1,6 @@
 package co.wtf.openspaces.activities
 
-import co.wtf.openspaces.{LeavableEntity, Person}
+import co.wtf.openspaces.Person
 import neotype.*
 import neotype.unwrap
 import neotype.interop.ziojson.given
@@ -35,8 +35,7 @@ case class Activity(
   members: List[ActivityMember],
   createdAtEpochMs: Long,
   slackThreadUrl: Option[String] = None,
-) extends LeavableEntity
-  derives JsonCodec:
+) derives JsonCodec:
   val descriptionText: String = description.unwrap
   val creatorName: String = creatorDisplayName.getOrElse(creator.unwrap)
   val interestCount: Int = members.size
@@ -53,6 +52,9 @@ case class Activity(
       .sorted
       .headOption
       .map(_.person)
+
+  def wouldBeDeletedIfLeaves(person: Person): Boolean =
+    isOwner(person) && nextOwner.isEmpty
 
   def withMember(person: Person, joinedAtEpochMs: Long): Activity =
     if hasMember(person) then this

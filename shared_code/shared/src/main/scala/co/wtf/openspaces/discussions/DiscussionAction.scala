@@ -20,9 +20,6 @@ enum DiscussionAction derives JsonCodec:
     roomSlot: RoomSlot)
   case Delete(
     topic: TopicId)
-  case Leave(
-    topicId: TopicId,
-    person: Person)
   case Vote(
     topic: TopicId,
     feedback: Feedback)
@@ -48,10 +45,6 @@ enum DiscussionAction derives JsonCodec:
 enum DiscussionActionConfirmed derives JsonCodec:
   case Delete(
     topic: TopicId)
-  case Left(
-    topicId: TopicId,
-    person: Person,
-    newFacilitator: Option[Person])
   case Vote(
     topic: TopicId,
     feedback: Feedback)
