@@ -129,6 +129,27 @@ class DiscussionDataStore(
             confirmedAction
       // TODO Case for voting - IF a topic was deleted, the vote should be rejected.
 
+      case leave @ DiscussionAction.Leave(topicId, person) =>
+        defer:
+          val currentState = discussionDatabase.get.run
+          currentState.data.get(topicId) match
+            case None =>
+              DiscussionActionConfirmed.Rejected(leave)
+            case Some(discussion) =>
+              // Only allow leaving if the person is the facilitator or has voted interested
+              val isFacilitator = discussion.facilitator == person
+              val isInterested = discussion.interestedParties.exists(f => 
+                f.voter == person && f.position == VotePosition.Interested
+              )
+              
+              if !isFacilitator && !isInterested then
+                DiscussionActionConfirmed.Rejected(leave)
+              else
+                val newFacilitator = if isFacilitator then discussion.nextOwner else None
+                val confirmedAction = DiscussionActionConfirmed.Left(topicId, person, newFacilitator)
+                discussionDatabase.updateAndGet(s => s(confirmedAction)).run
+                confirmedAction
+
       case other =>
         defer:
           val confirmedAction =

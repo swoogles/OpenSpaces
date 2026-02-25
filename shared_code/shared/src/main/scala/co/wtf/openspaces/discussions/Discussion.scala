@@ -1,6 +1,6 @@
 package co.wtf.openspaces.discussions
 
-import co.wtf.openspaces.{Glyphicon, GlyphiconUtils, Person, Topic, TopicId, Room, RoomSlot, TimeSlot}
+import co.wtf.openspaces.{Glyphicon, GlyphiconUtils, LeavableEntity, Person, Topic, TopicId, Room, RoomSlot, TimeSlot}
 import co.wtf.openspaces.discussions.VotePosition.Interested
 import neotype.unwrap
 import neotype.interop.ziojson.given
@@ -18,11 +18,27 @@ case class Discussion(
   facilitatorDisplayName: Option[String],
   slackThreadUrl: Option[String],
   createdAtEpochMs: Long)
+    extends LeavableEntity
     derives JsonCodec:
 
   val votes: Int = interestedParties.count(_.position == Interested)
   val facilitatorName = facilitatorDisplayName.getOrElse(facilitator.unwrap)
   val topicName = topic.unwrap
+
+  // LeavableEntity implementation
+  def isOwner(person: Person): Boolean = person == facilitator
+  
+  def hasMember(person: Person): Boolean =
+    interestedParties.exists(f => f.voter == person && f.position == Interested)
+  
+  /** Next owner if facilitator leaves (earliest interested voter excluding facilitator) */
+  def nextOwner: Option[Person] =
+    interestedParties
+      .filter(f => f.voter != facilitator && f.position == Interested)
+      .toList
+      .sortBy(_.firstVotedAtEpochMs.getOrElse(Long.MaxValue))
+      .headOption
+      .map(_.voter)
 
 object Discussion:
   def apply(

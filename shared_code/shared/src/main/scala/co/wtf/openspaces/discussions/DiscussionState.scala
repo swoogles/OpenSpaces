@@ -49,6 +49,21 @@ case class DiscussionState(
             }
           case DiscussionActionConfirmed.Delete(topicId) =>
             data.filterNot(_._2.id == topicId)
+          case DiscussionActionConfirmed.Left(topicId, person, newFacilitator) =>
+            newFacilitator match
+              case Some(newOwner) =>
+                // Transfer ownership and remove the leaving person's vote
+                data.updatedWith(topicId) {
+                  _.map(value =>
+                    value.copy(
+                      facilitator = newOwner,
+                      interestedParties = value.interestedParties.filterNot(_.voter == person)
+                    )
+                  )
+                }
+              case None =>
+                // No one left, delete the topic
+                data.filterNot(_._2.id == topicId)
           case DiscussionActionConfirmed.Vote(topicId, newFeedback) =>
             // Upsert: remove any existing vote from this voter, then add the new vote
             data.updatedWith(topicId) {

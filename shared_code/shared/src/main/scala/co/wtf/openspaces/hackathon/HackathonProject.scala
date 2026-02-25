@@ -3,7 +3,7 @@ package co.wtf.openspaces.hackathon
 import neotype.*
 import neotype.interop.ziojson.given
 import zio.json.*
-import co.wtf.openspaces.Person
+import co.wtf.openspaces.{LeavableEntity, Person}
 
 type HackathonProjectId = HackathonProjectId.Type
 object HackathonProjectId extends Newtype[Long]
@@ -31,7 +31,8 @@ case class HackathonProject(
   createdAtEpochMs: Long,
   ownerDisplayName: Option[String] = None,
   slackThreadUrl: Option[String] = None,
-) derives JsonCodec:
+) extends LeavableEntity
+  derives JsonCodec:
 
   def memberCount: Int = members.size
 
@@ -54,10 +55,6 @@ case class HackathonProject(
       .sorted
       .headOption
       .map(_.person)
-
-  /** Would this project be deleted if the given person leaves? */
-  def wouldBeDeletedIfLeaves(person: Person): Boolean =
-    isOwner(person) && nextOwner.isEmpty
 
   def withMember(person: Person, joinedAtEpochMs: Long): HackathonProject =
     if hasMember(person) then this

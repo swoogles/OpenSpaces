@@ -13,7 +13,7 @@ import co.wtf.openspaces.hackathon.*
 
 // Import extracted utilities
 import co.wtf.openspaces.util.{SlotPositionTracker, SwapAnimationState, MenuPositioning, ScrollPreserver}
-import co.wtf.openspaces.components.{AdminControls, ErrorBanner, ViewToggle, NameBadge, AdminModeToggle, LoadingPreviewToggle, Menu, UnscheduledDiscussionsMenu, ActiveDiscussionActionMenu, ScheduleView, LinearScheduleView, ReplayView, AppView, PendingApprovalBanner, UserManagementView}
+import co.wtf.openspaces.components.{AdminControls, ErrorBanner, ViewToggle, NameBadge, AdminModeToggle, LoadingPreviewToggle, Menu, UnscheduledDiscussionsMenu, ActiveDiscussionActionMenu, ScheduleView, LinearScheduleView, ReplayView, AppView, PendingApprovalBanner, UserManagementView, LeaveConfirmationModal}
 import co.wtf.openspaces.components.discussions.DiscussionSubview
 import co.wtf.openspaces.components.discussions.TopicSubmission
 import co.wtf.openspaces.components.hackathon.HackathonProjectsView
@@ -77,6 +77,7 @@ object FrontEnd extends ZIOAppDefault{
   val name = AppState.name
   val isAdmin = AppState.isAdmin
   val adminModeEnabled = AppState.adminModeEnabled
+  val pendingLeaveDiscussion = AppState.pendingLeaveDiscussion
 
   def dismissSwipeHint(): Unit = AppState.dismissSwipeHint()
 
@@ -106,6 +107,19 @@ object FrontEnd extends ZIOAppDefault{
     connectionStatus.withReady("Syncing latest activities. Please wait a moment.") {
       topicUpdates.sendOne(ActivityActionMessage(action))
     }
+
+  // Discussion leave handling
+  def handleLeaveDiscussion(discussion: discussions.Discussion): Unit =
+    pendingLeaveDiscussion.set(Some(discussion))
+
+  def confirmLeaveDiscussion(): Unit =
+    pendingLeaveDiscussion.now().foreach { discussion =>
+      sendDiscussionAction(DiscussionAction.Leave(discussion.id, name.now()))
+    }
+    pendingLeaveDiscussion.set(None)
+
+  def cancelLeaveDiscussion(): Unit =
+    pendingLeaveDiscussion.set(None)
 
   val submitNewTopic: Observer[DiscussionAction] = Observer {
     case discussion @ (add: DiscussionAction.Add) =>
@@ -195,6 +209,7 @@ object FrontEnd extends ZIOAppDefault{
             connectionStatus,
             $firstUnjudgedId,
             showSwipeHint.signal,
+            onLeave = Some(handleLeaveDiscussion),
           ),
         ),
         div(
@@ -212,8 +227,23 @@ object FrontEnd extends ZIOAppDefault{
             sendDiscussionAction,
             updateTargetDiscussion,
             connectionStatus,
+            onLeave = Some(handleLeaveDiscussion),
           ),
         ),
+        // Leave confirmation modal for discussions
+        child <-- pendingLeaveDiscussion.signal.map {
+          case Some(discussion) =>
+            LeaveConfirmationModal(
+              entity = discussion,
+              entityType = LeaveConfirmationModal.EntityType.Topic,
+              entityTitle = discussion.topicName,
+              currentUser = name.now(),
+              onConfirm = () => confirmLeaveDiscussion(),
+              onCancel = () => cancelLeaveDiscussion(),
+            )
+          case None =>
+            LeaveConfirmationModal.empty
+        },
       ),
     )
 
@@ -681,6 +711,9 @@ object FrontEnd extends ZIOAppDefault{
     event match {
       case DiscussionActionConfirmed.Delete(topic) =>
         (Some(topic), true)
+      case DiscussionActionConfirmed.Left(topicId, _, newFacilitator) =>
+        // Deleted if no new facilitator
+        (Some(topicId), newFacilitator.isEmpty)
       case DiscussionActionConfirmed.Vote(topic, _) =>
         (Some(topic), false)
       case DiscussionActionConfirmed.ResetUser(_, _, _) =>

@@ -13,7 +13,7 @@ object InlineEditableTitle:
     topic: Discussion,
     currentUser: Person,
     onRename: String => Unit,
-    onDelete: () => Unit,
+    onDelete: Option[() => Unit] = None,
   ): HtmlElement =
     val isEditing = Var(false)
     val editValue = Var(topic.topicName)
@@ -82,7 +82,7 @@ object InlineEditableTitle:
               cls := "InlineEditableTitle-text",
               topic.topicName,
             ),
-            // Edit and delete buttons only shown for facilitator
+            // Edit button only shown for facilitator, delete button if callback provided
             if canEdit then
               span(
                 cls := "InlineEditableTitle-actions",
@@ -96,18 +96,23 @@ object InlineEditableTitle:
                   },
                   "✎",
                 ),
-                a(
-                  cls := "InlineEditableTitle-deleteBtn",
-                  href := "#",
-                  title := "Delete topic",
-                  onClick --> Observer { (e: dom.MouseEvent) => 
-                    e.preventDefault()
-                    e.stopPropagation()
-                    if dom.window.confirm(s"Delete topic '${topic.topicName}'? This cannot be undone.") then
-                      onDelete()
-                  },
-                  "🗑",
-                ),
+                onDelete match
+                  case Some(deleteCallback) =>
+                    a(
+                      cls := "InlineEditableTitle-deleteBtn",
+                      href := "#",
+                      title := "Delete topic",
+                      onClick --> Observer { (e: dom.MouseEvent) => 
+                        e.preventDefault()
+                        e.stopPropagation()
+                        if dom.window.confirm(s"Delete topic '${topic.topicName}'? This cannot be undone.") then
+                          deleteCallback()
+                      },
+                      "🗑",
+                    )
+                  case None =>
+                    span()
+                ,
               )
             else
               span()
