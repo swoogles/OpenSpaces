@@ -109,3 +109,25 @@ object AppState:
 
   // Loading screen preview toggle (admin only)
   val showLoadingPreview: Var[Boolean] = Var(false)
+
+  // ============================================
+  // Authorization State
+  // ============================================
+
+  // Whether the current user is approved to use the app
+  val isAuthorized: Var[Boolean] = Var(false)
+
+  // Whether the current user is a server-side admin (for user management)
+  val isServerAdmin: Var[Boolean] = Var(false)
+
+  // List of pending users (only populated for admins)
+  val pendingUsers: Var[List[PendingUser]] = Var(List.empty)
+
+  // List of approved users (only populated for admins)
+  val approvedUsers: Var[List[ApprovedUser]] = Var(List.empty)
+
+  // Whether we've loaded authorization status
+  val authStatusLoaded: Var[Boolean] = Var(false)
+
+  // Admin user management view state
+  val showUserManagement: Var[Boolean] = Var(false)

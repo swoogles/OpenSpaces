@@ -1,6 +1,6 @@
 package co.wtf.openspaces
 
-import co.wtf.openspaces.auth.AuthenticatedTicketService
+import co.wtf.openspaces.auth.{AdminConfig, AuthenticatedTicketService, AuthRoutes}
 import co.wtf.openspaces.db._
 import co.wtf.openspaces.discussions.SchedulingService
 import co.wtf.openspaces.github.GitHubProfileService
@@ -64,7 +64,9 @@ object Backend extends ZIOAppDefault {
         ZIO.serviceWith[BackendSocketApp](_.socketRoutes).run
       val randomActionRoutes =
         ZIO.serviceWith[RandomActionSpawner](_.routes).run
-      val allRoutes = statefulRoutes ++ socketRoutes ++ randomActionRoutes ++ swaggerRoutes
+      val authRoutes =
+        ZIO.serviceWith[AuthRoutes](_.routes).run
+      val allRoutes = statefulRoutes ++ socketRoutes ++ randomActionRoutes ++ authRoutes ++ swaggerRoutes
 
       // Start the random action spawner (runs in background, controlled via admin API)
       ZIO.serviceWithZIO[RandomActionSpawner](_.startSpawningRandomActions).run
@@ -109,5 +111,8 @@ object Backend extends ZIOAppDefault {
       // Slack integration
       SlackConfigEnv.layer,
       SlackNotifier.layer,
+      // Authorization
+      AdminConfig.layer,
+      AuthRoutes.layer,
     )
 }

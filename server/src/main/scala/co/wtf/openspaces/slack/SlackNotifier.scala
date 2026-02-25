@@ -28,6 +28,10 @@ trait SlackNotifier:
     action: ActivityActionConfirmed,
     broadcast: ActivityActionConfirmed => Task[Unit],
   ): Task[Unit]
+  def notifyAccessRequest(
+    username: String,
+    displayName: Option[String],
+  ): Task[Unit]
 
 class SlackNotifierLive(
   slackClient: SlackClient,
@@ -111,6 +115,28 @@ class SlackNotifierLive(
         handleActivityDelete(activityId, slackChannelId, slackThreadTs).fork.unit
       case _ =>
         ZIO.unit
+
+  def notifyAccessRequest(
+    username: String,
+    displayName: Option[String],
+  ): Task[Unit] =
+    val effect = for
+      _ <- ZIO.logInfo(s"Sending access request notification for user: $username")
+      blocks = buildAccessRequestBlocks(username, displayName)
+      _ <- slackClient.postMessage(config.accessRequestChannelId, blocks).retry(retryPolicy)
+    yield ()
+    
+    effect
+      .catchAll(err => ZIO.logError(s"Failed to send access request notification for $username: $err"))
+      .fork
+      .unit
+
+  private def buildAccessRequestBlocks(username: String, displayName: Option[String]): String =
+    val escapedUsername = username.replace("\"", "\\\"")
+    val escapedDisplayName = displayName.map(_.replace("\"", "\\\"")).getOrElse(escapedUsername)
+    val avatarUrl = s"https://github.com/$username.png?size=100"
+    val appLink = s"${config.appBaseUrl}"
+    s"""[{"type":"section","text":{"type":"mrkdwn","text":":wave: *New Access Request*\\n*$escapedDisplayName* (@$escapedUsername) is requesting access to OpenSpaces."},"accessory":{"type":"image","image_url":"$avatarUrl","alt_text":"$escapedDisplayName"}},{"type":"context","elements":[{"type":"mrkdwn","text":"<https://github.com/$escapedUsername|GitHub Profile> · <$appLink|Open Admin Panel>"}]}]"""
 
   private def handleAdd(discussion: Discussion, broadcast: DiscussionActionConfirmed => Task[Unit]): Task[Unit] =
     val blocks = buildCreateBlocks(discussion)
@@ -413,6 +439,11 @@ class SlackNotifierNoOp extends SlackNotifier:
     broadcast: ActivityActionConfirmed => Task[Unit],
   ): Task[Unit] =
     ZIO.unit
+  def notifyAccessRequest(
+    username: String,
+    displayName: Option[String],
+  ): Task[Unit] =
+    ZIO.unit
 
 object SlackNotifier:
   val layer: ZLayer[Option[SlackConfigEnv] & DiscussionRepository & LightningTalkRepository & HackathonProjectRepository & co.wtf.openspaces.db.ActivityRepository & Client, Nothing, SlackNotifier] =
@@ -429,15 +460,18 @@ object SlackNotifier:
             val effect = for
               channelId <- resolveOrCreateChannel(client, envConfig.botToken, envConfig.channelName)
               hackathonChannelId <- resolveOrCreateChannel(client, envConfig.botToken, envConfig.hackathonChannelName)
+              accessRequestChannelId <- resolveOrCreateChannel(client, envConfig.botToken, envConfig.accessRequestChannelName)
               config = SlackConfig(
                 envConfig.botToken,
                 channelId,
                 envConfig.channelName,
                 hackathonChannelId,
                 envConfig.hackathonChannelName,
+                accessRequestChannelId,
+                envConfig.accessRequestChannelName,
                 envConfig.appBaseUrl,
               )
-              _ <- ZIO.logInfo(s"Slack integration enabled for channels #${envConfig.channelName} ($channelId) and #${envConfig.hackathonChannelName} ($hackathonChannelId)")
+              _ <- ZIO.logInfo(s"Slack integration enabled for channels #${envConfig.channelName} ($channelId), #${envConfig.hackathonChannelName} ($hackathonChannelId), #${envConfig.accessRequestChannelName} ($accessRequestChannelId)")
             yield SlackNotifierLive(
               SlackClientLive(client, config),
               config,
@@ -458,7 +492,7 @@ object SlackNotifier:
 
   private def resolveOrCreateChannel(client: Client, botToken: String, channelName: String): Task[String] =
     // Create a temporary SlackClient just for channel resolution
-    val tempConfig = SlackConfig(botToken, "", "", "", "", "")
+    val tempConfig = SlackConfig(botToken, "", "", "", "", "", "", "")
     val slackClient = SlackClientLive(client, tempConfig)
     
     for

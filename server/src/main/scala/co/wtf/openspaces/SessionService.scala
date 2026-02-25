@@ -439,6 +439,18 @@ case class SessionService(
       case ActivityActionConfirmed.InterestSet(_, person, _, _, _) => Some(person.unwrap)
       case _ => None
 
+  /** Broadcast authorization granted to all connected clients */
+  def broadcastAuthorizationGranted(username: String): Task[Unit] =
+    broadcastToAll(AuthorizationActionConfirmedMessage(
+      AuthorizationActionConfirmed.UserApproved(username)
+    ))
+
+  /** Broadcast authorization revoked to all connected clients */
+  def broadcastAuthorizationRevoked(username: String): Task[Unit] =
+    broadcastToAll(AuthorizationActionConfirmedMessage(
+      AuthorizationActionConfirmed.UserRevoked(username)
+    ))
+
   def removeChannel(channel: OpenSpacesServerChannel): UIO[Unit] =
     channelRegistry
       .update(reg =>

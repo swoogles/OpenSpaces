@@ -29,6 +29,30 @@ case class ReloadStateResult(
   activities: Int) derives Schema, JsonCodec
 case class RefreshStatus(status: String) derives Schema, JsonCodec
 
+// Authorization status response
+case class AuthStatusResponse(
+  username: String,
+  approved: Boolean,
+  isAdmin: Boolean,
+  pendingUsers: Option[List[PendingUserInfo]] = None,
+  approvedUsers: Option[List[ApprovedUserInfo]] = None,
+) derives Schema, JsonCodec
+
+case class PendingUserInfo(
+  username: String,
+  displayName: Option[String],
+  requestedAt: String,
+) derives Schema, JsonCodec
+
+case class ApprovedUserInfo(
+  username: String,
+  displayName: Option[String],
+) derives Schema, JsonCodec
+
+case class ApproveUserRequest(username: String) derives Schema, JsonCodec
+case class RevokeUserRequest(username: String) derives Schema, JsonCodec
+case class UserActionResult(success: Boolean, message: String) derives Schema, JsonCodec
+
 // Confirmed action log entry for visualization/replay
 case class ConfirmedActionEntry(
   id: Long,
@@ -108,6 +132,24 @@ object RandomActionApi {
     Endpoint(RoutePattern.GET / "api" / "admin" / "confirmed-actions")
       .out[ConfirmedActionsResponse]
 
+  // Authorization endpoints
+  val authStatusGet =
+    Endpoint(RoutePattern.GET / "api" / "auth" / "status")
+      .query[String](HttpCodec.query[String]("username"))
+      .out[AuthStatusResponse]
+
+  val approveUserPost =
+    Endpoint(RoutePattern.POST / "api" / "admin" / "users" / "approve")
+      .query[String](HttpCodec.query[String]("adminUsername"))
+      .in[ApproveUserRequest]
+      .out[UserActionResult]
+
+  val revokeUserPost =
+    Endpoint(RoutePattern.POST / "api" / "admin" / "users" / "revoke")
+      .query[String](HttpCodec.query[String]("adminUsername"))
+      .in[RevokeUserRequest]
+      .out[UserActionResult]
+
   // Documentation-only representation of the primary WebSocket message contract.
   val discussionsWebSocket =
     Endpoint(RoutePattern.GET / "discussions")
@@ -130,6 +172,9 @@ object RandomActionApi {
       runScheduling,
       reloadState,
       confirmedActionsGet,
+      authStatusGet,
+      approveUserPost,
+      revokeUserPost,
       discussionsWebSocket,
     )
 }
@@ -199,4 +244,13 @@ executor: EndpointExecutor[Any, Unit, zio.Scope]
 
   def hackathonChaosToggle: Future[ActiveStatus] =
     futureDumb(RandomActionApi.hackathonChaosToggle.apply(()))
+
+  def authStatus(username: String): Future[AuthStatusResponse] =
+    futureDumb(RandomActionApi.authStatusGet.apply(username))
+
+  def approveUser(adminUsername: String, username: String): Future[UserActionResult] =
+    futureDumb(RandomActionApi.approveUserPost.apply((adminUsername, ApproveUserRequest(username))))
+
+  def revokeUser(adminUsername: String, username: String): Future[UserActionResult] =
+    futureDumb(RandomActionApi.revokeUserPost.apply((adminUsername, RevokeUserRequest(username))))
 }

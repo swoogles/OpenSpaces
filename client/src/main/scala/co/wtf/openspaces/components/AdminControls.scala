@@ -298,6 +298,13 @@ object AdminControls:
           case false => "🔄 Reset User"
         },
       ),
+      // User Management button
+      button(
+        cls := "AdminControls-button",
+        cls := "AdminControls-button--primary",
+        "👥 Users",
+        onClick --> { _ => AppState.showUserManagement.set(true) },
+      ),
       // Version display
       span(
         cls := "AdminControls-version",

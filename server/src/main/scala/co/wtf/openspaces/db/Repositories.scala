@@ -74,23 +74,31 @@ object TimeSlotRepository:
 
 // User Repository
 
+/** Result of user upsert operation */
+case class UpsertResult(user: UserRow, isNewUser: Boolean)
+
 trait UserRepository:
   def findByUsername(username: String): Task[Option[UserRow]]
-  def upsert(username: String, displayName: Option[String]): Task[UserRow]
+  def upsert(username: String, displayName: Option[String]): Task[UpsertResult]
   def findAll: Task[Vector[UserRow]]
   def deleteByUsernames(usernames: List[String]): Task[Int]
+  def findPendingUsers: Task[Vector[UserRow]]
+  def findApprovedUsers: Task[Vector[UserRow]]
+  def approveUser(username: String): Task[Boolean]
+  def revokeUser(username: String): Task[Boolean]
+  def isApproved(username: String): Task[Boolean]
 
 class UserRepositoryLive(ds: DataSource) extends UserRepository:
   def findByUsername(username: String): Task[Option[UserRow]] =
     transactZIO(ds):
-      sql"SELECT github_username, display_name, created_at FROM users WHERE github_username = $username"
+      sql"SELECT github_username, display_name, created_at, approved FROM users WHERE github_username = $username"
         .query[UserRow]
         .run()
         .headOption
 
-  def upsert(username: String, displayName: Option[String]): Task[UserRow] =
+  def upsert(username: String, displayName: Option[String]): Task[UpsertResult] =
     transactZIO(ds):
-      val existing = sql"SELECT github_username, display_name, created_at FROM users WHERE github_username = $username"
+      val existing = sql"SELECT github_username, display_name, created_at, approved FROM users WHERE github_username = $username"
         .query[UserRow]
         .run()
         .headOption
@@ -98,27 +106,58 @@ class UserRepositoryLive(ds: DataSource) extends UserRepository:
       existing match
         case Some(row) =>
           val normalizedDisplayName = displayName.map(_.trim).filter(_.nonEmpty)
-          normalizedDisplayName match
+          val updatedRow = normalizedDisplayName match
             case Some(value) if row.displayName != Some(value) =>
               sql"""UPDATE users SET display_name = ${Some(value)} WHERE github_username = $username""".update.run()
               row.copy(displayName = Some(value))
             case _ =>
               row
+          UpsertResult(updatedRow, isNewUser = false)
         case None =>
           val now = OffsetDateTime.now()
           val normalizedDisplayName = displayName.map(_.trim).filter(_.nonEmpty)
-          sql"""INSERT INTO users (github_username, display_name, created_at) VALUES ($username, $normalizedDisplayName, $now)""".update.run()
-          UserRow(username, normalizedDisplayName, now)
+          sql"""INSERT INTO users (github_username, display_name, created_at, approved) VALUES ($username, $normalizedDisplayName, $now, false)""".update.run()
+          UpsertResult(UserRow(username, normalizedDisplayName, now, approved = false), isNewUser = true)
 
   def findAll: Task[Vector[UserRow]] =
     transactZIO(ds):
-      sql"SELECT github_username, display_name, created_at FROM users".query[UserRow].run()
+      sql"SELECT github_username, display_name, created_at, approved FROM users".query[UserRow].run()
 
   def deleteByUsernames(usernames: List[String]): Task[Int] =
     transactZIO(ds):
       usernames.distinct.foldLeft(0) { (deletedCount, username) =>
         deletedCount + sql"DELETE FROM users WHERE github_username = $username".update.run()
       }
+
+  def findPendingUsers: Task[Vector[UserRow]] =
+    transactZIO(ds):
+      sql"SELECT github_username, display_name, created_at, approved FROM users WHERE approved = false ORDER BY created_at"
+        .query[UserRow]
+        .run()
+
+  def findApprovedUsers: Task[Vector[UserRow]] =
+    transactZIO(ds):
+      sql"SELECT github_username, display_name, created_at, approved FROM users WHERE approved = true ORDER BY github_username"
+        .query[UserRow]
+        .run()
+
+  def approveUser(username: String): Task[Boolean] =
+    transactZIO(ds):
+      val updated = sql"UPDATE users SET approved = true WHERE github_username = $username AND approved = false".update.run()
+      updated > 0
+
+  def revokeUser(username: String): Task[Boolean] =
+    transactZIO(ds):
+      val updated = sql"UPDATE users SET approved = false WHERE github_username = $username AND approved = true".update.run()
+      updated > 0
+
+  def isApproved(username: String): Task[Boolean] =
+    transactZIO(ds):
+      sql"SELECT approved FROM users WHERE github_username = $username"
+        .query[Boolean]
+        .run()
+        .headOption
+        .getOrElse(false)
 
 object UserRepository:
   val layer: ZLayer[DataSource, Nothing, UserRepository] =

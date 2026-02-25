@@ -77,3 +77,59 @@ case class ActivityActionConfirmedMessage(
   event: ActivityActionConfirmed)
     extends WebSocketMessageFromServer
     derives JsonCodec
+
+// Authorization messages
+
+/** Sent from server to client on connect to tell them their authorization status */
+case class AuthorizationStatusMessage(
+  status: AuthorizationStatus)
+    extends WebSocketMessageFromServer
+    derives JsonCodec
+
+/** Sent from client (admin) to server to manage user authorization */
+case class AuthorizationActionMessage(
+  action: AuthorizationAction)
+    extends WebSocketMessageFromClient
+    derives JsonCodec
+
+/** Broadcast from server when authorization changes */
+case class AuthorizationActionConfirmedMessage(
+  event: AuthorizationActionConfirmed)
+    extends WebSocketMessageFromServer
+    derives JsonCodec
+
+// Authorization domain types
+
+/** User's current authorization status */
+case class AuthorizationStatus(
+  username: String,
+  approved: Boolean,
+  isAdmin: Boolean,
+  pendingUsers: Option[List[PendingUser]] = None, // Only populated for admins
+  approvedUsers: Option[List[ApprovedUser]] = None, // Only populated for admins
+) derives JsonCodec
+
+case class PendingUser(
+  username: String,
+  displayName: Option[String],
+  requestedAt: String, // ISO datetime string
+) derives JsonCodec
+
+case class ApprovedUser(
+  username: String,
+  displayName: Option[String],
+) derives JsonCodec
+
+/** Admin actions for user authorization */
+enum AuthorizationAction derives JsonCodec:
+  case ApproveUser(username: String)
+  case RevokeUser(username: String)
+  case RefreshUserList // Request updated pending/approved lists
+
+/** Confirmed authorization actions broadcast to clients */
+enum AuthorizationActionConfirmed derives JsonCodec:
+  case UserApproved(username: String)
+  case UserRevoked(username: String)
+  case Unauthorized(action: AuthorizationAction)
+  case Rejected(action: AuthorizationAction, reason: String)
+  case UserListRefreshed(pendingUsers: List[PendingUser], approvedUsers: List[ApprovedUser])

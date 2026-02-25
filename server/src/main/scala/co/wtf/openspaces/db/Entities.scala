@@ -16,12 +16,13 @@ given DbCodec[LocalDateTime] = DbCodec[Timestamp].biMap(
 case class UserRow(
   githubUsername: String,
   displayName: Option[String],
-  createdAt: OffsetDateTime
+  createdAt: OffsetDateTime,
+  approved: Boolean
 ) derives DbCodec, JsonCodec
 
 object UserRow:
-  def create(githubUsername: String, displayName: Option[String]): UserRow =
-    UserRow(githubUsername, displayName, OffsetDateTime.now())
+  def create(githubUsername: String, displayName: Option[String], approved: Boolean = false): UserRow =
+    UserRow(githubUsername, displayName, OffsetDateTime.now(), approved)
 
 // Room entity
 case class RoomRow(

@@ -13,7 +13,7 @@ import co.wtf.openspaces.hackathon.*
 
 // Import extracted utilities
 import co.wtf.openspaces.util.{SlotPositionTracker, SwapAnimationState, MenuPositioning, ScrollPreserver}
-import co.wtf.openspaces.components.{AdminControls, ErrorBanner, ViewToggle, NameBadge, AdminModeToggle, LoadingPreviewToggle, Menu, UnscheduledDiscussionsMenu, ActiveDiscussionActionMenu, ScheduleView, LinearScheduleView, ReplayView, AppView}
+import co.wtf.openspaces.components.{AdminControls, ErrorBanner, ViewToggle, NameBadge, AdminModeToggle, LoadingPreviewToggle, Menu, UnscheduledDiscussionsMenu, ActiveDiscussionActionMenu, ScheduleView, LinearScheduleView, ReplayView, AppView, PendingApprovalBanner, UserManagementView}
 import co.wtf.openspaces.components.discussions.DiscussionSubview
 import co.wtf.openspaces.components.discussions.TopicSubmission
 import co.wtf.openspaces.components.hackathon.HackathonProjectsView
@@ -267,11 +267,13 @@ object FrontEnd extends ZIOAppDefault{
   val app =
     div(
       cls := "PageContainer",
-      // Hide loading screen when app mounts
+      // Hide loading screen when app mounts and fetch auth status
       onMountCallback { _ =>
         Option(dom.document.getElementById("loading-screen")).foreach { el =>
           el.classList.add("hidden")
         }
+        // Fetch authorization status from server
+        AuthService.fetchAuthStatus(randomActionClient)
       },
       // Initialize audio on first user interaction (required by browser autoplay policy)
       onClick --> Observer(_ => initAudioOnGesture()),
@@ -501,10 +503,49 @@ object FrontEnd extends ZIOAppDefault{
                     case _ => ()
                   activityState.update(existing => existing(activityEvent))
 
+                case AuthorizationActionConfirmedMessage(authEvent) =>
+                  authEvent match
+                    case AuthorizationActionConfirmed.UserApproved(username) =>
+                      // If this user was just approved, update their authorization status
+                      if username.toLowerCase == name.now().unwrap.toLowerCase then
+                        AppState.isAuthorized.set(true)
+                      // Remove from pending list, add to approved list
+                      AppState.pendingUsers.update(_.filterNot(_.username.toLowerCase == username.toLowerCase))
+                      AppState.approvedUsers.update(existing =>
+                        if existing.exists(_.username.toLowerCase == username.toLowerCase) then existing
+                        else existing :+ ApprovedUser(username, None)
+                      )
+                    case AuthorizationActionConfirmed.UserRevoked(username) =>
+                      // If this user was just revoked, update their authorization status
+                      if username.toLowerCase == name.now().unwrap.toLowerCase then
+                        AppState.isAuthorized.set(false)
+                      // Remove from approved list, add to pending list
+                      AppState.approvedUsers.update(_.filterNot(_.username.toLowerCase == username.toLowerCase))
+                      AppState.pendingUsers.update(existing =>
+                        if existing.exists(_.username.toLowerCase == username.toLowerCase) then existing
+                        else existing :+ PendingUser(username, None, "")
+                      )
+                    case AuthorizationActionConfirmed.UserListRefreshed(pending, approved) =>
+                      AppState.pendingUsers.set(pending)
+                      AppState.approvedUsers.set(approved)
+                    case _ => ()
+
                 case _ =>
                   ()
           },
           errorBanner.component,
+          // Pending approval banner for unauthorized users
+          PendingApprovalBanner(),
+          // User management modal (admin only)
+          child <-- AppState.showUserManagement.signal.map { show =>
+            if show then
+              UserManagementView(
+                randomActionClient,
+                Observer(_ => AppState.showUserManagement.set(false)),
+              )
+            else
+              emptyNode
+          },
           // Admin mode toggle at the very top (only visible to admins)
           AdminModeToggle(isAdmin, adminModeEnabled),
           LoadingPreviewToggle(isAdmin, AppState.showLoadingPreview),

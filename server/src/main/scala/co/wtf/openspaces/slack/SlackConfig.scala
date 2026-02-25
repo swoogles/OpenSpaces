@@ -7,6 +7,7 @@ case class SlackConfigEnv(
   botToken: String,
   channelName: String,
   hackathonChannelName: String,
+  accessRequestChannelName: String,
   appBaseUrl: String
 )
 
@@ -17,12 +18,15 @@ case class SlackConfig(
   channelName: String,
   hackathonChannelId: String,
   hackathonChannelName: String,
+  accessRequestChannelId: String,
+  accessRequestChannelName: String,
   appBaseUrl: String
 )
 
 object SlackConfigEnv:
   private val DefaultChannelName = "openspaces-discussions-test"
   private val DefaultHackathonChannelName = "hackday-projects-test"
+  private val DefaultAccessRequestChannelName = "access-requests-test"
 
   def fromEnv: UIO[Option[SlackConfigEnv]] =
     ZIO.succeed:
@@ -31,7 +35,8 @@ object SlackConfigEnv:
         baseUrl <- sys.env.get("APP_BASE_URL")
         channelName = sys.env.getOrElse("SLACK_CHANNEL_NAME", DefaultChannelName)
         hackathonChannelName = sys.env.getOrElse("SLACK_HACKATHON_CHANNEL_NAME", DefaultHackathonChannelName)
-      yield SlackConfigEnv(token, channelName, hackathonChannelName, baseUrl)
+        accessRequestChannelName = sys.env.getOrElse("SLACK_ACCESS_REQUEST_CHANNEL", DefaultAccessRequestChannelName)
+      yield SlackConfigEnv(token, channelName, hackathonChannelName, accessRequestChannelName, baseUrl)
 
   val layer: ZLayer[Any, Nothing, Option[SlackConfigEnv]] =
     ZLayer.fromZIO(fromEnv)

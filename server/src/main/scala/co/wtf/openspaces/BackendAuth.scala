@@ -1,7 +1,8 @@
 package co.wtf.openspaces
 
-import co.wtf.openspaces.auth.AuthenticatedTicketService
+import co.wtf.openspaces.auth.{AdminConfig, AuthenticatedTicketService}
 import co.wtf.openspaces.db.UserRepository
+import co.wtf.openspaces.slack.SlackNotifier
 import zio.*
 import zio.direct.*
 import zio.json.*
@@ -128,7 +129,9 @@ case class ApplicationState(
   clientSecret: ClientSecret,
   client: Client,
   ticketRoutesApp: TicketRoutesApp,
-  userRepository: UserRepository):
+  userRepository: UserRepository,
+  slackNotifier: slack.SlackNotifier,
+  adminConfig: auth.AdminConfig):
 
   val authRoutes =
     Routes(
@@ -184,9 +187,16 @@ case class ApplicationState(
                   .fromEither(userBody.fromJson[GitHubUser])
                   .mapError(e => new Exception(s"Failed to parse GitHub user: $e"))
                 // Upsert user to database (creates if new, updates display name if changed)
-                _ <- userRepository.upsert(
+                upsertResult <- userRepository.upsert(
                   githubUser.login,
                   githubUser.name.map(_.trim).filter(_.nonEmpty).orElse(Some(githubUser.login)),
+                )
+                // If new user and not approved (and not an admin), notify Slack
+                _ <- ZIO.when(upsertResult.isNewUser && !upsertResult.user.approved && !adminConfig.isAdmin(githubUser.login))(
+                  slackNotifier.notifyAccessRequest(
+                    githubUser.login,
+                    githubUser.name.map(_.trim).filter(_.nonEmpty)
+                  )
                 )
               } yield {
                               val cookies = AuthCookies.fromToken(data, githubUser.login)
@@ -324,4 +334,6 @@ object ApplicationState:
           ZIO.service[Client].run,
           ZIO.service[TicketRoutesApp].run,
           ZIO.service[UserRepository].run,
+          ZIO.service[SlackNotifier].run,
+          ZIO.service[AdminConfig].run,
         )

@@ -102,3 +102,28 @@ object AuthService:
         window.location.href = "/auth"
         Future.failed(new Exception("Token refresh failed"))
     }
+
+  /** Fetch authorization status from the server and update AppState */
+  def fetchAuthStatus(randomActionClient: RandomActionClient): Future[Unit] =
+    import co.wtf.openspaces.{AppState, PendingUser, ApprovedUser}
+    val username = getCookie("github_username").getOrElse("")
+    if username.isEmpty then
+      Future.successful(())
+    else
+      randomActionClient.authStatus(username).map { response =>
+        AppState.isAuthorized.set(response.approved)
+        AppState.isServerAdmin.set(response.isAdmin)
+        // Convert PendingUserInfo to PendingUser
+        response.pendingUsers.foreach { users =>
+          AppState.pendingUsers.set(users.map(u => PendingUser(u.username, u.displayName, u.requestedAt)))
+        }
+        // Convert ApprovedUserInfo to ApprovedUser
+        response.approvedUsers.foreach { users =>
+          AppState.approvedUsers.set(users.map(u => ApprovedUser(u.username, u.displayName)))
+        }
+        AppState.authStatusLoaded.set(true)
+      }.recover { case e =>
+        println(s"Failed to fetch auth status: ${e.getMessage}")
+        // On error, default to not authorized
+        AppState.authStatusLoaded.set(true)
+      }
