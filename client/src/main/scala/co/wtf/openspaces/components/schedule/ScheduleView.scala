@@ -181,23 +181,45 @@ object LinearScheduleView:
       case "THURSDAY"  => Some(LightningTalkNight.Thursday)
       case _           => None
 
-  /** Generate a unique slot ID for scrolling. */
+  /** Generate a unique slot ID for scrolling (discussion slots). */
   private def slotId(startTime: LocalDateTime): String =
     val formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd-HH-mm")
     s"slot-${startTime.format(formatter)}"
 
-  /** Find the next upcoming slot (first slot whose end time is in the future). */
-  private def findNextUpcomingSlotId(slots: List[DaySlots]): Option[String] =
+  /** Generate a unique activity ID for scrolling. */
+  private def activitySlotId(eventTime: LocalDateTime): String =
+    val formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd-HH-mm")
+    s"activity-${eventTime.format(formatter)}"
+
+  /** Find the next upcoming item (slot or activity) whose time is in the future. */
+  private def findNextUpcomingId(slots: List[DaySlots], activities: List[Activity]): Option[String] =
     val now = LocalDateTime.now()
-    slots
+    
+    // Find next discussion slot (by end time, since slot might be in progress)
+    val nextSlot: Option[(LocalDateTime, String)] = slots
       .flatMap(_.slots)
       .find(_.time.endTime.isAfter(now))
-      .map(slot => slotId(slot.time.startTime))
+      .map(slot => (slot.time.startTime, slotId(slot.time.startTime)))
+    
+    // Find next activity (by event time)
+    val nextActivity: Option[(LocalDateTime, String)] = activities
+      .filter(_.eventTime.isAfter(now))
+      .sortBy(_.eventTime)
+      .headOption
+      .map(a => (a.eventTime, activitySlotId(a.eventTime)))
+    
+    // Return whichever comes first
+    (nextSlot, nextActivity) match
+      case (Some((slotTime, slotId)), Some((actTime, actId))) =>
+        if actTime.isBefore(slotTime) then Some(actId) else Some(slotId)
+      case (Some((_, id)), None) => Some(id)
+      case (None, Some((_, id))) => Some(id)
+      case (None, None) => None
 
-  /** Scroll smoothly to the next upcoming slot. */
-  private def scrollToNextSlot(slots: List[DaySlots]): Unit =
+  /** Scroll smoothly to the next upcoming item. */
+  private def scrollToNextItem(slots: List[DaySlots], activities: List[Activity]): Unit =
     import scala.scalajs.js
-    findNextUpcomingSlotId(slots).foreach { targetId =>
+    findNextUpcomingId(slots, activities).foreach { targetId =>
       Option(dom.document.getElementById(targetId)).foreach { element =>
         element.asInstanceOf[js.Dynamic].scrollIntoView(
           js.Dynamic.literal(behavior = "smooth", block = "center")
@@ -224,13 +246,15 @@ object LinearScheduleView:
     val activityDisplayFormat = DateTimeFormatter.ofPattern("EEE h:mm a")
     val activityHeaderTimeFormat = DateTimeFormatter.ofPattern("h:mm a")
 
-    // Local var to hold current state for onClick handler
+    // Local vars to hold current state for onClick handler
     val currentStateVar = Var(DiscussionState.empty)
+    val currentActivityStateVar = Var(ActivityState.empty)
 
     div(
       cls := "LinearScheduleView",
-      // Keep currentStateVar in sync with the signal
+      // Keep state vars in sync with the signals
       $discussionState --> currentStateVar.writer,
+      $activityState --> currentActivityStateVar.writer,
       // Jump to Now button
       div(
         cls := "LinearScheduleView-jumpButton",
@@ -239,7 +263,8 @@ object LinearScheduleView:
           SvgIcon(GlyphiconUtils.schedule),
           span("Jump to Now"),
           onClick --> Observer { _ =>
-            scrollToNextSlot(currentStateVar.now().slots)
+            val activities = currentActivityStateVar.now().activities.values.toList
+            scrollToNextItem(currentStateVar.now().slots, activities)
           },
         ),
       ),
@@ -285,6 +310,7 @@ object LinearScheduleView:
           def renderActivity(activity: Activity): HtmlElement =
             div(
               cls := "LinearTimeSlot LinearTimeSlot--activity",
+              idAttr := activitySlotId(activity.eventTime),
               div(cls := "LinearTimeHeader", activity.eventTime.format(activityHeaderTimeFormat)),
               ActivityCard(
                 activity = activity,
