@@ -693,6 +693,8 @@ object FrontEnd extends ZIOAppDefault{
         (Some(topicId), false)
       case DiscussionActionConfirmed.SwapTopics(topic1, _, _, _) =>
         (Some(topic1), false)
+      case DiscussionActionConfirmed.FacilitatorChanged(topicId, _, _) =>
+        (Some(topicId), false)
       case DiscussionActionConfirmed.AddResult(_) =>
         (None, false)
       case DiscussionActionConfirmed.SlackThreadLinked(topicId, _) =>

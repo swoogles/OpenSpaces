@@ -66,6 +66,10 @@ enum DiscussionActionConfirmed derives JsonCodec:
     newRoomSlot1: RoomSlot,
     topic2: TopicId,
     newRoomSlot2: RoomSlot)
+  case FacilitatorChanged(
+    topicId: TopicId,
+    newFacilitator: Person,
+    newDisplayName: Option[String])
   case AddResult(
     discussion: Discussion)
   case SlackThreadLinked(

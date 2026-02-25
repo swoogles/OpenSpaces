@@ -104,6 +104,21 @@ case class DiscussionState(
           case DiscussionActionConfirmed.AddResult(discussion) =>
             data + (discussion.id -> discussion)
 
+          case DiscussionActionConfirmed.FacilitatorChanged(topicId, newFacilitator, newDisplayName) =>
+            data.updatedWith(topicId) {
+              _.map { value =>
+                // Old facilitator voted NotInterested, hence the ownership transfer
+                val oldFacilitator = value.facilitator
+                val updatedParties = value.interestedParties
+                  .filterNot(_.voter == oldFacilitator) + Feedback(oldFacilitator, VotePosition.NotInterested)
+                value.copy(
+                  facilitator = newFacilitator,
+                  facilitatorDisplayName = newDisplayName,
+                  interestedParties = updatedParties,
+                )
+              }
+            }
+
           case DiscussionActionConfirmed
                 .SlackThreadLinked(topicId, slackThreadUrl) =>
             data.updatedWith(topicId) {

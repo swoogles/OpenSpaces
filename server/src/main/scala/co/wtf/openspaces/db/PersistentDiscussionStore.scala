@@ -391,17 +391,70 @@ class PersistentDiscussionStore(
 
       case DiscussionAction.Vote(topicId, feedback) =>
         for
-          _ <- ensureUserExists(actor)
-          _ <- persistEvent("Vote", topicId.unwrap, action.toJson, actor)
-          voteResult <- upsertVoteIfDiscussionExists(topicId, feedback)
-          confirmed = DiscussionActionConfirmed.Vote(
-            topicId,
-            feedback.copy(
-              firstVotedAtEpochMs = voteResult.map(_.firstVotedAt.toInstant.toEpochMilli),
-            ),
-          )
-          _ <- state.update(_.apply(confirmed))
-        yield confirmed
+          _            <- ensureUserExists(actor)
+          currentState <- state.get
+          discussion   = currentState.data.get(topicId)
+          
+          // Check if this is the facilitator leaving their own topic
+          isFacilitatorLeaving = discussion.exists { d =>
+            d.facilitator == feedback.voter && feedback.position == VotePosition.NotInterested
+          }
+          
+          result <- if isFacilitatorLeaving then
+            // Find next owner: first person who voted Interested (by firstVotedAt), excluding the facilitator
+            val nextOwner = discussion.flatMap { d =>
+              d.interestedParties
+                .filter(f => f.voter != d.facilitator && f.position == VotePosition.Interested)
+                .toList
+                .sortBy(_.firstVotedAtEpochMs.getOrElse(Long.MaxValue))
+                .headOption
+            }
+            
+            nextOwner match
+              case Some(newOwnerFeedback) =>
+                // Transfer ownership
+                for
+                  userRow      <- userRepo.findByUsername(newOwnerFeedback.voter.unwrap)
+                  displayName  = userRow.flatMap(_.displayName)
+                  _            <- persistEvent("Vote", topicId.unwrap, action.toJson, actor)
+                  _            <- upsertVoteIfDiscussionExists(topicId, feedback)
+                  // Update facilitator in DB
+                  existingRow  <- discussionRepo.findById(topicId.unwrap)
+                  _            <- existingRow match
+                                    case Some(row) => discussionRepo.update(row.copy(facilitator = newOwnerFeedback.voter.unwrap))
+                                    case None      => ZIO.unit
+                  // First apply the vote, then the facilitator change
+                  voteConfirmed = DiscussionActionConfirmed.Vote(topicId, feedback)
+                  facilitatorConfirmed = DiscussionActionConfirmed.FacilitatorChanged(
+                    topicId,
+                    newOwnerFeedback.voter,
+                    displayName,
+                  )
+                  _ <- state.update(_.apply(voteConfirmed).apply(facilitatorConfirmed))
+                yield facilitatorConfirmed  // Return the facilitator change as the primary action
+                
+              case None =>
+                // No one else interested - delete the discussion
+                for
+                  _ <- persistEvent("Vote", topicId.unwrap, action.toJson, actor)
+                  _ <- discussionRepo.softDelete(topicId.unwrap)
+                  deleteConfirmed = DiscussionActionConfirmed.Delete(topicId)
+                  _ <- state.update(_.apply(deleteConfirmed))
+                yield deleteConfirmed
+          else
+            // Normal vote handling
+            for
+              _ <- persistEvent("Vote", topicId.unwrap, action.toJson, actor)
+              voteResult <- upsertVoteIfDiscussionExists(topicId, feedback)
+              confirmed = DiscussionActionConfirmed.Vote(
+                topicId,
+                feedback.copy(
+                  firstVotedAtEpochMs = voteResult.map(_.firstVotedAt.toInstant.toEpochMilli),
+                ),
+              )
+              _ <- state.update(_.apply(confirmed))
+            yield confirmed
+        yield result
 
       case DiscussionAction.ResetUser(person) =>
         for
