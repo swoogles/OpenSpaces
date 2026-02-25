@@ -6,6 +6,7 @@ import co.wtf.openspaces.github.GitHubProfileService
 import co.wtf.openspaces.hackathon.*
 import co.wtf.openspaces.lightning_talks.LightningTalkService
 import co.wtf.openspaces.lighting_talks.*
+import co.wtf.openspaces.activities.*
 import neotype.unwrap
 import zio.*
 import zio.direct.*
@@ -314,6 +315,7 @@ object WebSocketIntegrationSpec extends ZIOSpecDefault:
       // Supporting services (no-op/minimal for tests)
       TestLayers.lightningTalkServiceLayer,
       TestLayers.hackathonProjectServiceLayer,
+      TestLayers.activityServiceLayer,
       TestLayers.slackNotifierLayer,
       TestLayers.confirmedActionRepositoryLayer,
       TestLayers.userRepositoryLayer,
@@ -353,6 +355,20 @@ object TestLayers:
         stateRef,
         NoOpHackathonProjectRepository,
         NoOpHackathonProjectMemberRepository,
+        NoOpUserRepository,
+        NoOpGitHubProfileService,
+      )
+
+  /** In-memory ActivityService for tests */
+  val activityServiceLayer: ULayer[ActivityService] =
+    ZLayer.fromZIO:
+      for
+        stateRef <- Ref.make(ActivityState(Map.empty))
+      yield ActivityService(
+        stateRef,
+        NoOpActivityRepository,
+        NoOpActivityInterestRepository,
+        NoOpTimeSlotRepository,
         NoOpUserRepository,
         NoOpGitHubProfileService,
       )
@@ -421,6 +437,33 @@ object TestLayers:
           java.time.OffsetDateTime.now(),
         ),
       )
+
+  private object NoOpActivityRepository extends co.wtf.openspaces.db.ActivityRepository:
+    def findById(id: Long): Task[Option[co.wtf.openspaces.db.ActivityRow]] = ZIO.none
+    def findAllActive: Task[Vector[co.wtf.openspaces.db.ActivityRow]] = ZIO.succeed(Vector.empty)
+    def insert(row: co.wtf.openspaces.db.ActivityRow): Task[Unit] = ZIO.unit
+    def update(row: co.wtf.openspaces.db.ActivityRow): Task[Unit] = ZIO.unit
+    def softDelete(id: Long): Task[Unit] = ZIO.unit
+    def updateSlackThread(id: Long, channelId: String, threadTs: String, permalink: String): Task[Unit] = ZIO.unit
+
+  private object NoOpActivityInterestRepository extends co.wtf.openspaces.db.ActivityInterestRepository:
+    def findByActivity(activityId: Long): Task[Vector[co.wtf.openspaces.db.ActivityInterestRow]] = ZIO.succeed(Vector.empty)
+    def addInterest(activityId: Long, username: String): Task[co.wtf.openspaces.db.ActivityInterestRow] =
+      ZIO.succeed(
+        co.wtf.openspaces.db.ActivityInterestRow(
+          activityId,
+          username,
+          java.time.OffsetDateTime.now(),
+        ),
+      )
+    def removeInterest(activityId: Long, username: String): Task[Unit] = ZIO.unit
+
+  private object NoOpTimeSlotRepository extends co.wtf.openspaces.db.TimeSlotRepository:
+    def findAll: Task[Vector[co.wtf.openspaces.db.TimeSlotRow]] = ZIO.succeed(Vector.empty)
+    def findById(id: Int): Task[Option[co.wtf.openspaces.db.TimeSlotRow]] = ZIO.none
+    def findByRoomId(roomId: Int): Task[Vector[co.wtf.openspaces.db.TimeSlotRow]] = ZIO.succeed(Vector.empty)
+    def findStartBounds: Task[Option[(java.time.LocalDateTime, java.time.LocalDateTime)]] =
+      ZIO.succeed(Some((java.time.LocalDateTime.now().minusDays(1), java.time.LocalDateTime.now().plusDays(1))))
 
   private object NoOpHackathonProjectRepository
       extends co.wtf.openspaces.db.HackathonProjectRepository:

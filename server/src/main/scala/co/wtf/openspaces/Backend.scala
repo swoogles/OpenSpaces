@@ -6,6 +6,7 @@ import co.wtf.openspaces.discussions.SchedulingService
 import co.wtf.openspaces.github.GitHubProfileService
 import co.wtf.openspaces.hackathon.HackathonProjectService
 import co.wtf.openspaces.lightning_talks.LightningTalkService
+import co.wtf.openspaces.activities.ActivityService
 import co.wtf.openspaces.slack._
 import zio.direct._
 import zio.http._
@@ -79,6 +80,7 @@ object Backend extends ZIOAppDefault {
       SessionService.layer,
       SchedulingService.layer,
       LightningTalkService.layer,
+      ActivityService.layer,
       RandomActionSpawner.layer(initialActive = false),
       GlyphiconService.layer,
       Client.default,
@@ -98,6 +100,8 @@ object Backend extends ZIOAppDefault {
       LightningTalkRepository.layer,
       HackathonProjectRepository.layer,
       HackathonProjectMemberRepository.layer,
+      ActivityRepository.layer,
+      ActivityInterestRepository.layer,
       ConfirmedActionRepository.layer,
       PersistentDiscussionStore.layer,
       // Hackathon projects (Wednesday)

@@ -25,7 +25,8 @@ case class DeleteRandomUsersResult(
 case class ReloadStateResult(
   discussions: Int,
   lightningTalks: Int,
-  hackathonProjects: Int) derives Schema, JsonCodec
+  hackathonProjects: Int,
+  activities: Int) derives Schema, JsonCodec
 case class RefreshStatus(status: String) derives Schema, JsonCodec
 
 // Confirmed action log entry for visualization/replay

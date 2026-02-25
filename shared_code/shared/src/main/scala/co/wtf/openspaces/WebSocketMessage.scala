@@ -3,6 +3,7 @@ package co.wtf.openspaces
 import co.wtf.openspaces.discussions.{DiscussionAction, DiscussionActionConfirmed}
 import co.wtf.openspaces.hackathon.{HackathonProjectAction, HackathonProjectActionConfirmed}
 import co.wtf.openspaces.lighting_talks.{LightningTalkAction, LightningTalkActionConfirmed}
+import co.wtf.openspaces.activities.{ActivityAction, ActivityActionConfirmed}
 import neotype.*
 import neotype.given
 import neotype.interop.zioschema.given
@@ -54,5 +55,15 @@ case class HackathonProjectActionMessage(
 
 case class HackathonProjectActionConfirmedMessage(
   event: HackathonProjectActionConfirmed)
+    extends WebSocketMessageFromServer
+    derives JsonCodec
+
+case class ActivityActionMessage(
+  action: ActivityAction)
+    extends WebSocketMessageFromClient
+    derives JsonCodec
+
+case class ActivityActionConfirmedMessage(
+  event: ActivityActionConfirmed)
     extends WebSocketMessageFromServer
     derives JsonCodec

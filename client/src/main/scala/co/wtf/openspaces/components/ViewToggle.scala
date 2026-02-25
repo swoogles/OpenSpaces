@@ -41,7 +41,7 @@ object ViewToggle:
           if view == AppView.LightningTalks then "ViewToggle-button--active" else ""
         },
         onClick --> Observer(_ => currentView.set(AppView.LightningTalks)),
-        "Lightning",
+        "Activities",
       ),
       button(
         cls := "ViewToggle-button",

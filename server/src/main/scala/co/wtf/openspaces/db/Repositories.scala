@@ -36,6 +36,7 @@ trait TimeSlotRepository:
   def findAll: Task[Vector[TimeSlotRow]]
   def findById(id: Int): Task[Option[TimeSlotRow]]
   def findByRoomId(roomId: Int): Task[Vector[TimeSlotRow]]
+  def findStartBounds: Task[Option[(java.time.LocalDateTime, java.time.LocalDateTime)]]
 
 class TimeSlotRepositoryLive(ds: DataSource) extends TimeSlotRepository:
   def findAll: Task[Vector[TimeSlotRow]] =
@@ -56,6 +57,16 @@ class TimeSlotRepositoryLive(ds: DataSource) extends TimeSlotRepository:
       sql"SELECT id, room_id, start_time, end_time FROM time_slots WHERE room_id = $roomId ORDER BY start_time"
         .query[TimeSlotRow]
         .run()
+
+  def findStartBounds: Task[Option[(java.time.LocalDateTime, java.time.LocalDateTime)]] =
+    transactZIO(ds):
+      sql"SELECT MIN(start_time), MAX(start_time) FROM time_slots"
+        .query[(Option[java.time.LocalDateTime], Option[java.time.LocalDateTime])]
+        .run()
+        .headOption
+        .flatMap { case (minStart, maxStart) =>
+          minStart.zip(maxStart)
+        }
 
 object TimeSlotRepository:
   val layer: ZLayer[DataSource, Nothing, TimeSlotRepository] =
@@ -498,6 +509,113 @@ class HackathonProjectMemberRepositoryLive(ds: DataSource) extends HackathonProj
 object HackathonProjectMemberRepository:
   val layer: ZLayer[DataSource, Nothing, HackathonProjectMemberRepository] =
     ZLayer.fromFunction(ds => HackathonProjectMemberRepositoryLive(ds))
+
+// Activities
+
+trait ActivityRepository:
+  def findById(id: Long): Task[Option[ActivityRow]]
+  def findAllActive: Task[Vector[ActivityRow]]
+  def insert(row: ActivityRow): Task[Unit]
+  def update(row: ActivityRow): Task[Unit]
+  def softDelete(id: Long): Task[Unit]
+  def updateSlackThread(id: Long, channelId: String, threadTs: String, permalink: String): Task[Unit]
+
+class ActivityRepositoryLive(ds: DataSource) extends ActivityRepository:
+  def findById(id: Long): Task[Option[ActivityRow]] =
+    transactZIO(ds):
+      sql"""SELECT id, description, creator, event_time,
+                   created_at, updated_at, deleted_at,
+                   slack_channel_id, slack_thread_ts, slack_permalink
+            FROM activities
+            WHERE id = $id"""
+        .query[ActivityRow]
+        .run()
+        .headOption
+
+  def findAllActive: Task[Vector[ActivityRow]] =
+    transactZIO(ds):
+      sql"""SELECT id, description, creator, event_time,
+                   created_at, updated_at, deleted_at,
+                   slack_channel_id, slack_thread_ts, slack_permalink
+            FROM activities
+            WHERE deleted_at IS NULL"""
+        .query[ActivityRow]
+        .run()
+
+  def insert(row: ActivityRow): Task[Unit] =
+    transactZIO(ds):
+      sql"""INSERT INTO activities (
+              id, description, creator, event_time,
+              created_at, updated_at, deleted_at,
+              slack_channel_id, slack_thread_ts, slack_permalink
+            ) VALUES (
+              ${row.id}, ${row.description}, ${row.creator}, ${row.eventTime},
+              ${row.createdAt}, ${row.updatedAt}, ${row.deletedAt},
+              ${row.slackChannelId}, ${row.slackThreadTs}, ${row.slackPermalink}
+            )""".update.run()
+      ()
+
+  def update(row: ActivityRow): Task[Unit] =
+    transactZIO(ds):
+      sql"""UPDATE activities SET
+              description = ${row.description},
+              event_time = ${row.eventTime},
+              updated_at = ${row.updatedAt},
+              deleted_at = ${row.deletedAt}
+            WHERE id = ${row.id}""".update.run()
+      ()
+
+  def softDelete(id: Long): Task[Unit] =
+    transactZIO(ds):
+      sql"""UPDATE activities SET deleted_at = NOW(), updated_at = NOW() WHERE id = $id""".update.run()
+      ()
+
+  def updateSlackThread(id: Long, channelId: String, threadTs: String, permalink: String): Task[Unit] =
+    transactZIO(ds):
+      sql"""UPDATE activities SET
+              slack_channel_id = $channelId,
+              slack_thread_ts = $threadTs,
+              slack_permalink = $permalink,
+              updated_at = NOW()
+            WHERE id = $id""".update.run()
+      ()
+
+object ActivityRepository:
+  val layer: ZLayer[DataSource, Nothing, ActivityRepository] =
+    ZLayer.fromFunction(ds => ActivityRepositoryLive(ds))
+
+trait ActivityInterestRepository:
+  def findByActivity(activityId: Long): Task[Vector[ActivityInterestRow]]
+  def addInterest(activityId: Long, username: String): Task[ActivityInterestRow]
+  def removeInterest(activityId: Long, username: String): Task[Unit]
+
+class ActivityInterestRepositoryLive(ds: DataSource) extends ActivityInterestRepository:
+  def findByActivity(activityId: Long): Task[Vector[ActivityInterestRow]] =
+    transactZIO(ds):
+      sql"""SELECT activity_id, github_username, interested_at
+            FROM activity_interest
+            WHERE activity_id = $activityId"""
+        .query[ActivityInterestRow]
+        .run()
+
+  def addInterest(activityId: Long, username: String): Task[ActivityInterestRow] =
+    transactZIO(ds):
+      val now = OffsetDateTime.now()
+      sql"""INSERT INTO activity_interest (activity_id, github_username, interested_at)
+            VALUES ($activityId, $username, $now)
+            ON CONFLICT (activity_id, github_username)
+            DO UPDATE SET interested_at = $now""".update.run()
+      ActivityInterestRow(activityId, username, now)
+
+  def removeInterest(activityId: Long, username: String): Task[Unit] =
+    transactZIO(ds):
+      sql"""DELETE FROM activity_interest
+            WHERE activity_id = $activityId AND github_username = $username""".update.run()
+      ()
+
+object ActivityInterestRepository:
+  val layer: ZLayer[DataSource, Nothing, ActivityInterestRepository] =
+    ZLayer.fromFunction(ds => ActivityInterestRepositoryLive(ds))
 
 // Confirmed action log (for visualization and replay)
 

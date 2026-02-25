@@ -8,6 +8,7 @@ import co.wtf.openspaces.hackathon.*
 import co.wtf.openspaces.services.AuthService
 import co.wtf.openspaces.components.AppView
 import co.wtf.openspaces.lighting_talks.LightningTalkState
+import co.wtf.openspaces.activities.ActivityState
 import co.wtf.openspaces.discussions.Discussion
 import co.wtf.openspaces.discussions.VotePosition
 
@@ -22,6 +23,9 @@ object AppState:
 
   val hackathonProjectState: Var[HackathonProjectState] =
     Var(HackathonProjectState.empty)
+
+  val activityState: Var[ActivityState] =
+    Var(ActivityState.empty)
 
   // ============================================
   // Vote Celebration (Sound + Visual Effects)

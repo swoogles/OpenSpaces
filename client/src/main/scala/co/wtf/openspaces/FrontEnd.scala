@@ -16,13 +16,14 @@ import co.wtf.openspaces.util.{SlotPositionTracker, SwapAnimationState, MenuPosi
 import co.wtf.openspaces.components.{AdminControls, ErrorBanner, ViewToggle, NameBadge, AdminModeToggle, LoadingPreviewToggle, Menu, UnscheduledDiscussionsMenu, ActiveDiscussionActionMenu, ScheduleView, LinearScheduleView, ReplayView, AppView}
 import co.wtf.openspaces.components.discussions.DiscussionSubview
 import co.wtf.openspaces.components.discussions.TopicSubmission
-import co.wtf.openspaces.components.lightning_talks.LightningTalksView
 import co.wtf.openspaces.components.hackathon.HackathonProjectsView
+import co.wtf.openspaces.components.activities.ActivitiesView
 import co.wtf.openspaces.AppState.*
 import co.wtf.openspaces.*
 import co.wtf.openspaces.services.{AudioService, AuthService}
 import zio.http.endpoint.{Endpoint, EndpointExecutor}
 import co.wtf.openspaces.lighting_talks.*
+import co.wtf.openspaces.activities.*
 import co.wtf.openspaces.discussions.Discussion
 import co.wtf.openspaces.discussions.VotePosition
 
@@ -62,6 +63,7 @@ object FrontEnd extends ZIOAppDefault{
   val discussionState = AppState.discussionState
   val lightningTalkState = AppState.lightningTalkState
   val hackathonProjectState = AppState.hackathonProjectState
+  val activityState = AppState.activityState
   val soundMuted = AppState.soundMuted
   val celebratingTopics = AppState.celebratingTopics
   val hasSeenSwipeHint = AppState.hasSeenSwipeHint
@@ -98,6 +100,11 @@ object FrontEnd extends ZIOAppDefault{
   val sendHackathonAction: HackathonProjectAction => Unit = action =>
     connectionStatus.withReady("Syncing latest hackathon projects. Please wait a moment.") {
       topicUpdates.sendOne(HackathonProjectActionMessage(action))
+    }
+
+  val sendActivityAction: ActivityAction => Unit = action =>
+    connectionStatus.withReady("Syncing latest activities. Please wait a moment.") {
+      topicUpdates.sendOne(ActivityActionMessage(action))
     }
 
   val submitNewTopic: Observer[DiscussionAction] = Observer {
@@ -479,6 +486,21 @@ object FrontEnd extends ZIOAppDefault{
                     case _ => ()
                   hackathonProjectState.update(existing => existing(hackathonEvent))
 
+                case ActivityActionConfirmedMessage(activityEvent) =>
+                  activityEvent match
+                    case ActivityActionConfirmed.Rejected(_) =>
+                      connectionStatus.reportError(
+                        "Activity action failed. Please try again.",
+                      )
+                    case ActivityActionConfirmed.Unauthorized(_) =>
+                      connectionStatus.reportError(
+                        "Session expired. Re-authenticating...",
+                      )
+                    case ActivityActionConfirmed.StateReplace(_) =>
+                      connectionStatus.markStateSynchronized()
+                    case _ => ()
+                  activityState.update(existing => existing(activityEvent))
+
                 case _ =>
                   ()
           },
@@ -514,13 +536,15 @@ object FrontEnd extends ZIOAppDefault{
             case AppView.Topics =>
               liveTopicSubmissionAndVoting(updateTargetDiscussion)
             case AppView.LightningTalks =>
-              LightningTalksView(
+              ActivitiesView(
                 lightningTalkState,
+                activityState,
                 name.signal,
                 isAdmin.combineWith(adminModeEnabled.signal).map { case (admin, enabled) =>
                   admin && enabled
                 },
                 sendLightningAction,
+                sendActivityAction,
                 errorBanner.errorObserver,
                 connectionStatus,
               )
@@ -536,6 +560,7 @@ object FrontEnd extends ZIOAppDefault{
               LinearScheduleView(
                 discussionState.signal,
                 lightningTalkState.signal,
+                activityState.signal,
                 sendDiscussionAction,
                 name.signal,
                 isAdmin,
@@ -742,6 +767,16 @@ object FrontEnd extends ZIOAppDefault{
                 "Re-authentication failed",
               )
             ).collect { case Some(result) => result }
+          case ActivityActionConfirmedMessage(
+                ActivityActionConfirmed.Unauthorized(activityAction),
+              ) =>
+            EventStream.fromFuture(
+              connectionStatus.withErrorHandling(
+                AuthService.fetchTicketAsync(randomActionClient)
+                  .map(ticket => (ticket, activityAction)),
+                "Re-authentication failed",
+              )
+            ).collect { case Some(result) => result }
           case _ =>
             EventStream.empty
       } --> { case (ticket, action) =>
@@ -753,6 +788,8 @@ object FrontEnd extends ZIOAppDefault{
             topicUpdates.sendOne(LightningTalkActionMessage(action))
           case action: HackathonProjectAction =>
             topicUpdates.sendOne(HackathonProjectActionMessage(action))
+          case action: ActivityAction =>
+            topicUpdates.sendOne(ActivityActionMessage(action))
       },
     )
 }

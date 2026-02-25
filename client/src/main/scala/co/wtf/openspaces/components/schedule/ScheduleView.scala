@@ -13,11 +13,13 @@ import co.wtf.openspaces.discussions.DaySlots
 import co.wtf.openspaces.discussions.Discussion
 import co.wtf.openspaces.discussions.{DiscussionAction, DiscussionState}
 import co.wtf.openspaces.lighting_talks.{LightningTalkNight, LightningTalkProposal, LightningTalkState}
+import co.wtf.openspaces.activities.{Activity, ActivityState}
 import co.wtf.openspaces.util.ScrollPreserver
 import co.wtf.openspaces.FrontEnd.connectionStatus
 import co.wtf.openspaces.components.lightning_talks.LightningTalkProposalCard
 import co.wtf.openspaces.components.discussions.TopicCard
 import co.wtf.openspaces.components.schedule.ScheduleSlotComponent
+import java.time.format.DateTimeFormatter
 
 /** App view mode enum.
   */
@@ -181,6 +183,7 @@ object LinearScheduleView:
   def apply(
     $discussionState: Signal[DiscussionState],
     $lightningTalkState: Signal[LightningTalkState],
+    $activityState: Signal[ActivityState],
     topicUpdates: DiscussionAction => Unit,
     name: StrictSignal[Person],
     isAdmin: Signal[Boolean],
@@ -191,12 +194,25 @@ object LinearScheduleView:
         unscheduledMenuState.set(Some(roomSlot))
       }
 
+    val activityTimeFormat = DateTimeFormatter.ofPattern("h:mm a")
+
     div(
       cls := "LinearScheduleView",
-      children <-- Signal.combine($discussionState, $lightningTalkState).map { (state, lightningState) =>
+      children <-- Signal.combine($discussionState, $lightningTalkState, $activityState).map { (state, lightningState, activityState) =>
         state.slots.map { daySlot =>
           val dayName = daySlot.date.getDayOfWeek.toString
           val maybeLightningNight = lightningNightForDay(dayName)
+          val dayActivities = activityState.activities.values
+            .filter(_.eventTime.toLocalDate == daySlot.date)
+            .toList
+            .sortBy(activity =>
+              (
+                activity.eventTime,
+                -activity.interestCount,
+                activity.createdAtEpochMs,
+                activity.id.unwrap,
+              ),
+            )
           val lightningSlotMap = maybeLightningNight
             .map(night =>
               lightningState
@@ -205,10 +221,42 @@ object LinearScheduleView:
                 .toMap,
             )
             .getOrElse(Map.empty[Int, LightningTalkProposal])
+          var nextActivityIndex = 0
+
+          def consumeActivitiesThrough(slotStart: java.time.LocalDateTime): List[Activity] =
+            val buffer = scala.collection.mutable.ListBuffer.empty[Activity]
+            while nextActivityIndex < dayActivities.length && !dayActivities(nextActivityIndex).eventTime.isAfter(slotStart) do
+              buffer += dayActivities(nextActivityIndex)
+              nextActivityIndex += 1
+            buffer.toList
+
+          def consumeRemainingActivities(): List[Activity] =
+            if nextActivityIndex >= dayActivities.length then Nil
+            else
+              val rest = dayActivities.drop(nextActivityIndex)
+              nextActivityIndex = dayActivities.length
+              rest
+
           div(
             cls := "LinearDay",
             div(cls := "LinearDayHeader", dayName),
-            daySlot.slots.map { timeSlotForAllRooms =>
+            daySlot.slots.flatMap { timeSlotForAllRooms =>
+              val leadingActivities = consumeActivitiesThrough(timeSlotForAllRooms.time.startTime).map { activity =>
+                div(
+                  cls := "LinearActivityRow",
+                  div(cls := "LinearActivityTime", activity.eventTime.format(activityTimeFormat)),
+                  div(
+                    cls := "LinearActivityContent",
+                    div(cls := "LinearActivityTitle", activity.descriptionText),
+                    div(
+                      cls := "LinearActivityMeta",
+                      s"${activity.interestCount} interested · ${activity.creatorName}",
+                    ),
+                  ),
+                )
+              }
+
+              val slot =
               div(
                 cls := "LinearTimeSlot",
                 div(cls := "LinearTimeHeader", timeSlotForAllRooms.time.displayString),
@@ -239,6 +287,20 @@ object LinearScheduleView:
                     },
                   )
                 },
+              )
+              leadingActivities :+ slot
+            } ++ consumeRemainingActivities().map { activity =>
+              div(
+                cls := "LinearActivityRow",
+                div(cls := "LinearActivityTime", activity.eventTime.format(activityTimeFormat)),
+                div(
+                  cls := "LinearActivityContent",
+                  div(cls := "LinearActivityTitle", activity.descriptionText),
+                  div(
+                    cls := "LinearActivityMeta",
+                    s"${activity.interestCount} interested · ${activity.creatorName}",
+                  ),
+                ),
               )
             } ++ maybeLightningNight.toList.map { _ =>
               div(

@@ -6,6 +6,8 @@ import co.wtf.openspaces.discussions.{DiscussionAction, DiscussionActionConfirme
 import co.wtf.openspaces.hackathon.*
 import co.wtf.openspaces.lightning_talks.LightningTalkService
 import co.wtf.openspaces.lighting_talks.*
+import co.wtf.openspaces.activities.*
+import co.wtf.openspaces.activities.ActivityService
 import co.wtf.openspaces.slack.SlackNotifier
 import zio.*
 import zio.direct.*
@@ -32,6 +34,7 @@ case class SessionService(
   discussionStore: DiscussionStore,
   lightningTalkService: LightningTalkService,
   hackathonProjectService: HackathonProjectService,
+  activityService: ActivityService,
   authenticatedTicketService: AuthenticatedTicketService,
   slackNotifier: SlackNotifier,
   confirmedActionRepository: ConfirmedActionRepository,
@@ -69,6 +72,14 @@ case class SessionService(
           else {
             handleUnticketedHackathonAction(channel, hackathonAction).run
           }
+      case ActivityActionMessage(activityAction) =>
+        defer:
+          if (channelRegistry.get.run.connected.contains(channel)) {
+            handleTicketedActivityAction(channel, activityAction).run
+          }
+          else {
+            handleUnticketedActivityAction(channel, activityAction).run
+          }
 
   /** Generate a random action and broadcast to all connected clients */
   def randomDiscussionAction: Task[DiscussionActionConfirmed] =
@@ -90,6 +101,13 @@ case class SessionService(
       actions <- hackathonProjectService.randomHackathonAction
       _ <- ZIO.foreachDiscard(actions)(action => handleHackathonActionResult(action, None))
     yield actions
+
+  /** Generate random activity actions and broadcast. */
+  def randomActivityAction: Task[ActivityActionConfirmed] =
+    for
+      action <- activityService.randomActivityAction
+      _ <- handleActivityActionResult(action, None)
+    yield action
 
   /** Generate a random schedule-only action (move/swap/unschedule) and broadcast */
   def randomScheduleAction: Task[DiscussionActionConfirmed] =
@@ -130,6 +148,7 @@ case class SessionService(
       reloadedDiscussionState <- discussionStore.reloadFromDatabase
       reloadedLightningState <- lightningTalkService.reloadFromDatabase
       reloadedHackathonState <- hackathonProjectService.reloadFromDatabase
+      reloadedActivityState <- activityService.reloadFromDatabase
       _ <- broadcastToAll(
         DiscussionActionConfirmedMessage(
           DiscussionActionConfirmed.StateReplace(reloadedDiscussionState.data.values.toList, reloadedDiscussionState.slots),
@@ -143,6 +162,11 @@ case class SessionService(
       _ <- broadcastToAll(
         HackathonProjectActionConfirmedMessage(
           HackathonProjectActionConfirmed.StateReplace(reloadedHackathonState.projects.values.toList),
+        ),
+      )
+      _ <- broadcastToAll(
+        ActivityActionConfirmedMessage(
+          ActivityActionConfirmed.StateReplace(reloadedActivityState.activities.values.toList),
         ),
       )
     yield DeleteRandomUsersResult(
@@ -160,6 +184,7 @@ case class SessionService(
       reloadedDiscussionState <- discussionStore.reloadFromDatabase
       reloadedLightningState <- lightningTalkService.reloadFromDatabase
       reloadedHackathonState <- hackathonProjectService.reloadFromDatabase
+      reloadedActivityState <- activityService.reloadFromDatabase
       _ <- broadcastToAll(
         DiscussionActionConfirmedMessage(
           DiscussionActionConfirmed.StateReplace(
@@ -182,10 +207,18 @@ case class SessionService(
           ),
         ),
       )
+      _ <- broadcastToAll(
+        ActivityActionConfirmedMessage(
+          ActivityActionConfirmed.StateReplace(
+            reloadedActivityState.activities.values.toList,
+          ),
+        ),
+      )
     yield ReloadStateResult(
       discussions = reloadedDiscussionState.data.size,
       lightningTalks = reloadedLightningState.proposals.size,
       hackathonProjects = reloadedHackathonState.projects.size,
+      activities = reloadedActivityState.activities.size,
     )
 
   private def handleTicket(
@@ -205,6 +238,7 @@ case class SessionService(
       val state = discussionStore.snapshot.run
       val lightningState = lightningTalkService.snapshot.run
       val hackathonState = hackathonProjectService.snapshot.run
+      val activityState = activityService.snapshot.run
       channel
         .send(
           DiscussionActionConfirmedMessage(
@@ -257,6 +291,23 @@ case class SessionService(
           ),
         )
         .run
+      channel
+        .send(
+          ActivityActionConfirmedMessage(
+            ActivityActionConfirmed.StateReplace(
+              activityState.activities.values.toList,
+            ),
+          ),
+        )
+        .tapError(_ =>
+          channelRegistry.update(reg =>
+            reg.copy(
+              connected = reg.connected - channel,
+              pending = reg.pending - channel,
+            ),
+          ),
+        )
+        .run
       val buffered = channelRegistry
         .modify(reg =>
           val queued = reg.pending.getOrElse(channel, Vector.empty)
@@ -286,6 +337,8 @@ case class SessionService(
           lightningTalkService.applyConfirmed(lightningConfirmed).run
         case HackathonProjectActionConfirmedMessage(hackathonConfirmed) =>
           hackathonProjectService.applyConfirmed(hackathonConfirmed).run
+        case ActivityActionConfirmedMessage(activityConfirmed) =>
+          activityService.applyConfirmed(activityConfirmed).run
         case _ =>
           ZIO.unit.run
       val channels = channelRegistry
@@ -340,7 +393,17 @@ case class SessionService(
             confirmedActionRepository
               .append("HackathonProject", actionType, action.toJson, actor)
               .unit
-      case _ => ZIO.unit
+      case ActivityActionConfirmedMessage(action) =>
+        action match
+          case _: ActivityActionConfirmed.Rejected     => ZIO.unit
+          case _: ActivityActionConfirmed.Unauthorized => ZIO.unit
+          case _: ActivityActionConfirmed.StateReplace => ZIO.unit
+          case _ =>
+            val actionType = action.getClass.getSimpleName.stripSuffix("$")
+            val actor = extractActivityActor(action)
+            confirmedActionRepository
+              .append("Activity", actionType, action.toJson, actor)
+              .unit
 
   /** Extract actor (GitHub username) from discussion action. */
   private def extractDiscussionActor(action: DiscussionActionConfirmed): Option[String] =
@@ -366,6 +429,14 @@ case class SessionService(
       case HackathonProjectActionConfirmed.Joined(_, person, _)      => Some(person.unwrap)
       case HackathonProjectActionConfirmed.Left(_, person, _)        => Some(person.unwrap)
       case HackathonProjectActionConfirmed.OwnershipTransferred(_, newOwner) => Some(newOwner.unwrap)
+      case _ => None
+
+  /** Extract actor (GitHub username) from activity action. */
+  private def extractActivityActor(action: ActivityActionConfirmed): Option[String] =
+    import neotype.unwrap
+    action match
+      case ActivityActionConfirmed.Created(activity) => Some(activity.creator.unwrap)
+      case ActivityActionConfirmed.InterestSet(_, person, _) => Some(person.unwrap)
       case _ => None
 
   def removeChannel(channel: OpenSpacesServerChannel): UIO[Unit] =
@@ -508,6 +579,49 @@ case class SessionService(
       )
       .ignore
 
+  private def handleTicketedActivityAction(
+    channel: OpenSpacesServerChannel,
+    activityAction: ActivityAction,
+  ): ZIO[Any, Throwable, Unit] =
+    defer:
+      val actionResult = activityService
+        .applyAction(activityAction)
+        .run
+      handleActivityActionResult(actionResult, Some(channel)).run
+
+  private def handleActivityActionResult(
+    actionResult: ActivityActionConfirmed,
+    sourceChannel: Option[OpenSpacesServerChannel],
+  ): Task[Unit] =
+    actionResult match
+      case rejected @ ActivityActionConfirmed.Rejected(_) =>
+        sourceChannel match
+          case Some(channel) => channel.send(ActivityActionConfirmedMessage(rejected)).ignore
+          case None => ZIO.unit
+      case unauthorized @ ActivityActionConfirmed.Unauthorized(_) =>
+        sourceChannel match
+          case Some(channel) => channel.send(ActivityActionConfirmedMessage(unauthorized)).ignore
+          case None => ZIO.unit
+      case other =>
+        broadcastToAll(ActivityActionConfirmedMessage(other)) *> slackNotifier.notifyActivity(
+          other,
+          msg => broadcastToAll(ActivityActionConfirmedMessage(msg)),
+        )
+
+  private def handleUnticketedActivityAction(
+    channel: OpenSpacesServerChannel,
+    activityAction: ActivityAction,
+  ): UIO[Unit] =
+    channel
+      .send(
+        ActivityActionConfirmedMessage(
+          ActivityActionConfirmed.Unauthorized(
+            activityAction,
+          ),
+        ),
+      )
+      .ignore
+
 object SessionService:
   val layer =
     ZLayer.fromZIO:
@@ -522,6 +636,7 @@ object SessionService:
           ZIO.service[DiscussionStore].run,
           ZIO.service[LightningTalkService].run,
           ZIO.service[HackathonProjectService].run,
+          ZIO.service[ActivityService].run,
           ZIO.service[AuthenticatedTicketService].run,
           ZIO.service[SlackNotifier].run,
           ZIO.service[ConfirmedActionRepository].run,

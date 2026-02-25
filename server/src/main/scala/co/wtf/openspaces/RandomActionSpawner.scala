@@ -44,12 +44,18 @@ case class RandomActionSpawner(
       defer {
         val active = chaosActiveRef.get.run
         val lightningChancePercent = 20
+        val activityChancePercent = 20
         val actionType = Random.nextIntBounded(100).run
         if !active then
           ZIO.unit.run
         else if actionType < lightningChancePercent then
           discussionService.randomLightningAction
             .debug("Random lightning action")
+            .ignore
+            .run
+        else if actionType < lightningChancePercent + activityChancePercent then
+          discussionService.randomActivityAction
+            .debug("Random activity action")
             .ignore
             .run
         else

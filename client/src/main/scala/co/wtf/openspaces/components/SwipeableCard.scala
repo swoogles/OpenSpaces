@@ -53,6 +53,22 @@ object SwipeableCard:
     // Animation state for rubber-band effect
     val isAnimating: Var[Boolean] = Var(false)
 
+    def isInteractiveTarget(target: dom.EventTarget | Null): Boolean =
+      target match
+        case null => false
+        case node =>
+          val elementOpt =
+            node match
+              case e: dom.Element => Some(e)
+              case _ =>
+                Option(node.asInstanceOf[dom.Node].parentNode).collect {
+                  case e: dom.Element => e
+                }
+          elementOpt.exists { element =>
+            element.matches("input, textarea, select, button, a, label, [contenteditable='true'], [data-no-swipe='true']") ||
+            element.closest("input, textarea, select, button, a, label, [contenteditable='true'], [data-no-swipe='true']") != null
+          }
+
     def handleDragStart(clientX: Double, element: dom.Element): Unit =
       if !isAnimating.now() then
         val rect = element.getBoundingClientRect()
@@ -130,16 +146,8 @@ object SwipeableCard:
         transform <-- $transform,
         // Touch events
         onTouchStart --> { (e: dom.TouchEvent) =>
-          // Use elementFromPoint to get the ACTUAL element at touch coordinates
           val touch = e.touches(0)
-          val actualTarget = dom.document.elementFromPoint(touch.clientX, touch.clientY)
-          val isInteractive = actualTarget != null && (
-            actualTarget.tagName == "BUTTON" ||
-            actualTarget.tagName == "A" ||
-            actualTarget.tagName == "INPUT" ||
-            actualTarget.closest("button, a, input") != null
-          )
-          if !isInteractive then
+          if !isInteractiveTarget(e.target) then
             handleDragStart(touch.clientX, e.currentTarget.asInstanceOf[dom.Element])
         },
         onTouchMove --> { (e: dom.TouchEvent) =>
@@ -159,17 +167,7 @@ object SwipeableCard:
         },
         // Mouse events for desktop
         onMouseDown --> { (e: dom.MouseEvent) =>
-          // Use elementFromPoint to get the ACTUAL element at click coordinates
-          // This works around CSS Grid capturing events at the wrong level
-          val actualTarget = dom.document.elementFromPoint(e.clientX, e.clientY)
-          val isInteractive = actualTarget != null && (
-            actualTarget.tagName == "BUTTON" ||
-            actualTarget.tagName == "A" ||
-            actualTarget.tagName == "INPUT" ||
-            actualTarget.closest("button, a, input") != null
-          )
-          if !isInteractive then
-            e.preventDefault()
+          if !isInteractiveTarget(e.target) then
             handleDragStart(e.clientX, e.currentTarget.asInstanceOf[dom.Element])
         },
         windowEvents(_.onMouseMove) --> { (e: dom.MouseEvent) =>

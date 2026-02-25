@@ -120,6 +120,27 @@ case class HackathonProjectMemberRow(
   leftAt: Option[OffsetDateTime],
 ) derives DbCodec
 
+// Activities
+
+case class ActivityRow(
+  id: Long,
+  description: String,
+  creator: String,
+  eventTime: LocalDateTime,
+  createdAt: OffsetDateTime,
+  updatedAt: OffsetDateTime,
+  deletedAt: Option[OffsetDateTime],
+  slackChannelId: Option[String],
+  slackThreadTs: Option[String],
+  slackPermalink: Option[String],
+) derives DbCodec
+
+case class ActivityInterestRow(
+  activityId: Long,
+  githubUsername: String,
+  interestedAt: OffsetDateTime,
+) derives DbCodec
+
 // Confirmed action log (for visualization and replay)
 case class ConfirmedActionRow(
   id: Long,

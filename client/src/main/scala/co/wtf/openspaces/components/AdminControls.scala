@@ -123,7 +123,7 @@ object AdminControls:
         .onComplete {
           case Success(result) =>
             scheduleSummary.set(
-              s"Reloaded DB state: ${result.discussions} discussions • ${result.lightningTalks} lightning • ${result.hackathonProjects} hackathon",
+              s"Reloaded DB state: ${result.discussions} discussions • ${result.lightningTalks} lightning • ${result.hackathonProjects} hackathon • ${result.activities} activities",
             )
             reloadLoading.set(false)
           case Failure(_) =>
