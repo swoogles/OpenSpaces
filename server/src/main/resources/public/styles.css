@@ -1434,7 +1434,7 @@ button {
     border-bottom: 2px solid var(--color-border);
     margin-bottom: 0;
     position: sticky;
-    top: 0;
+    top: 52px; /* Below jump button */
     background-color: var(--color-bg-page);
     z-index: 20;
 }
@@ -1454,7 +1454,7 @@ button {
     border-radius: var(--radius-sm);
     margin-bottom: var(--pad-md);
     position: sticky;
-    top: 52px;
+    top: 104px; /* Below jump button (52px) + day header (52px) */
     z-index: 10;
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
 }
