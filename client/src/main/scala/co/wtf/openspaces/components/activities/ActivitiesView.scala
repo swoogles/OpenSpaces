@@ -21,6 +21,9 @@ object ActivitiesView:
   private val dateTimeInputFormat = DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm")
   private val displayFormat = DateTimeFormatter.ofPattern("EEE h:mm a")
 
+  private def nowDateTimeInputValue(): String =
+    LocalDateTime.now().format(dateTimeInputFormat)
+
   def parseLocalDateTime(raw: String): Option[LocalDateTime] =
     scala.util.Try(LocalDateTime.parse(raw.trim, dateTimeInputFormat)).toOption
 
@@ -44,7 +47,7 @@ object ActivitiesView:
     connectionStatus: ConnectionStatusUI,
   ): HtmlElement =
     val newDescription = Var("")
-    val newEventTime = Var("")
+    val newEventTime = Var(nowDateTimeInputValue())
     val showCreateForm = Var(false)
     var createTimeInputRef: Option[dom.html.Input] = None
 
@@ -76,7 +79,7 @@ object ActivitiesView:
           else
             sendActivityAction(ActivityAction.Create(description, eventTime, name.now()))
             newDescription.set("")
-            newEventTime.set("")
+            newEventTime.set(nowDateTimeInputValue())
             showCreateForm.set(false)
 
     div(
@@ -100,7 +103,10 @@ object ActivitiesView:
             button(
               cls := "HackathonProjects-createButton",
               "✨ Propose Activity",
-              onClick --> Observer(_ => showCreateForm.set(true)),
+              onClick --> Observer { _ =>
+                showCreateForm.set(true)
+                newEventTime.set(nowDateTimeInputValue())
+              },
             )
           case true =>
             div(
@@ -127,11 +133,6 @@ object ActivitiesView:
                   if e.key == "Enter" then validateAndCreate()
                 },
               ),
-              button(
-                cls := "HackathonProjects-cancelButton",
-                "Pick Date/Time",
-                onClick --> Observer(_ => createTimeInputRef.foreach(showNativePicker)),
-              ),
               div(
                 cls := "HackathonProjects-createFormButtons",
                 button(
@@ -145,7 +146,7 @@ object ActivitiesView:
                   onClick --> Observer { _ =>
                     showCreateForm.set(false)
                     newDescription.set("")
-                    newEventTime.set("")
+                    newEventTime.set(nowDateTimeInputValue())
                   },
                 ),
               ),
@@ -250,11 +251,6 @@ object ActivityCard:
                     value <-- editEventTime.signal,
                     onInput.mapToValue --> editEventTime.writer,
                   ),
-                ),
-                button(
-                  cls := "HackathonProjects-cancelButton",
-                  "Pick Date/Time",
-                  onClick --> Observer(_ => editTimeInputRef.foreach(ActivitiesView.showNativePicker)),
                 ),
                 div(
                   cls := "HackathonProjects-createFormButtons",
