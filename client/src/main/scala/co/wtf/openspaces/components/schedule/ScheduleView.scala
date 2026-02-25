@@ -238,10 +238,7 @@ object LinearScheduleView:
     setErrorMsg: Observer[Option[String]],
     unscheduledMenuState: Var[Option[RoomSlot]],
   ): HtmlElement =
-    val showUnscheduledMenu: Observer[RoomSlot] =
-      Observer { roomSlot =>
-        unscheduledMenuState.set(Some(roomSlot))
-      }
+    val _ = unscheduledMenuState
 
     val activityDisplayFormat = DateTimeFormatter.ofPattern("EEE h:mm a")
     val activityHeaderTimeFormat = DateTimeFormatter.ofPattern("h:mm a")
@@ -327,41 +324,35 @@ object LinearScheduleView:
             div(cls := "LinearDayHeader", dayName),
             daySlot.slots.flatMap { timeSlotForAllRooms =>
               val leadingActivities = consumeActivitiesThrough(timeSlotForAllRooms.time.startTime).map(renderActivity)
+              val scheduledRooms = timeSlotForAllRooms.rooms.flatMap { room =>
+                val roomSlot = RoomSlot(room, timeSlotForAllRooms.time)
+                state.roomSlotContent(roomSlot).map(discussion => (room, discussion))
+              }
 
-              val slot =
-              div(
-                cls := "LinearTimeSlot",
-                idAttr := slotId(timeSlotForAllRooms.time.startTime),
-                div(cls := "LinearTimeHeader", timeSlotForAllRooms.time.displayString),
-                timeSlotForAllRooms.rooms.map { room =>
-                  val roomSlot = RoomSlot(room, timeSlotForAllRooms.time)
-                  val discussion = state.roomSlotContent(roomSlot)
+              if scheduledRooms.isEmpty then leadingActivities
+              else
+                val slot =
                   div(
-                    cls := "LinearRoomSlot",
-                    div(cls := "LinearRoomName", room.name),
-                    discussion match {
-                      case Some(disc) =>
+                    cls := "LinearTimeSlot",
+                    idAttr := slotId(timeSlotForAllRooms.time.startTime),
+                    div(cls := "LinearTimeHeader", timeSlotForAllRooms.time.displayString),
+                    scheduledRooms.map { (room, discussion) =>
+                      div(
+                        cls := "LinearRoomSlot",
+                        div(cls := "LinearRoomName", room.name),
                         div(
                           child <-- TopicCard(
                             name,
                             topicUpdates,
-                            Signal.fromValue(Some(disc)),
+                            Signal.fromValue(Some(discussion)),
                             isAdmin,
                             connectionStatus,
                           ),
-                        )
-                      case None =>
-                        div(
-                          cls := "LinearEmptySlot",
-                          onClick.stopPropagation.mapTo(roomSlot) --> showUnscheduledMenu,
-                          SvgIcon(GlyphiconUtils.plus),
-                          span("Add topic"),
-                        )
+                        ),
+                      )
                     },
                   )
-                },
-              )
-              leadingActivities :+ slot
+                leadingActivities :+ slot
             } ++ consumeRemainingActivities().map(renderActivity) ++ maybeLightningNight.toList.map { _ =>
               div(
                 cls := "LinearTimeSlot LinearTimeSlot--lightning",
