@@ -1,6 +1,6 @@
 package co.wtf.openspaces
 
-import co.wtf.openspaces.auth.AuthenticatedTicketService
+import co.wtf.openspaces.auth.{AdminConfig, AuthenticatedTicketService}
 import co.wtf.openspaces.db.{ConfirmedActionRepository, UserRepository}
 import co.wtf.openspaces.discussions.{DiscussionAction, DiscussionActionConfirmed, DiscussionState, DiscussionStore}
 import co.wtf.openspaces.hackathon.*
@@ -36,6 +36,7 @@ case class SessionService(
   hackathonProjectService: HackathonProjectService,
   activityService: ActivityService,
   authenticatedTicketService: AuthenticatedTicketService,
+  adminConfig: AdminConfig,
   slackNotifier: SlackNotifier,
   confirmedActionRepository: ConfirmedActionRepository,
   userRepository: UserRepository):
@@ -473,10 +474,21 @@ case class SessionService(
     discussionAction: DiscussionAction,
   ): ZIO[Any, Throwable, Unit] =
     defer:
-      val actionResult = discussionStore
-        .applyAction(discussionAction)
-        .run
-      handleActionResult(actionResult, Some(channel)).run
+      val authorized = isTicketedActionAuthorized(channel, extractDiscussionActorFromAction(discussionAction)).run
+      if !authorized then
+        channel
+          .send(
+            DiscussionActionConfirmedMessage(
+              DiscussionActionConfirmed.Unauthorized(discussionAction),
+            ),
+          )
+          .ignore
+          .run
+      else
+        val actionResult = discussionStore
+          .applyAction(discussionAction)
+          .run
+        handleActionResult(actionResult, Some(channel)).run
 
   private def handleActionResult(
     actionResult: DiscussionActionConfirmed,
@@ -486,6 +498,10 @@ case class SessionService(
       case rejected @ DiscussionActionConfirmed.Rejected(_) =>
         sourceChannel match
           case Some(channel) => channel.send(DiscussionActionConfirmedMessage(rejected)).ignore
+          case None => ZIO.unit
+      case unauthorized @ DiscussionActionConfirmed.Unauthorized(_) =>
+        sourceChannel match
+          case Some(channel) => channel.send(DiscussionActionConfirmedMessage(unauthorized)).ignore
           case None => ZIO.unit
       case other =>
         broadcastToAll(DiscussionActionConfirmedMessage(other)) *> slackNotifier.notifyDiscussion(
@@ -501,6 +517,10 @@ case class SessionService(
       case rejected @ LightningTalkActionConfirmed.Rejected(_) =>
         sourceChannel match
           case Some(channel) => channel.send(LightningTalkActionConfirmedMessage(rejected)).ignore
+          case None => ZIO.unit
+      case unauthorized @ LightningTalkActionConfirmed.Unauthorized(_) =>
+        sourceChannel match
+          case Some(channel) => channel.send(LightningTalkActionConfirmedMessage(unauthorized)).ignore
           case None => ZIO.unit
       case other =>
         broadcastToAll(LightningTalkActionConfirmedMessage(other)) *> slackNotifier.notifyLightning(
@@ -527,10 +547,21 @@ case class SessionService(
     lightningAction: LightningTalkAction,
   ): ZIO[Any, Throwable, Unit] =
     defer:
-      val actionResult = lightningTalkService
-        .applyAction(lightningAction)
-        .run
-      handleLightningActionResult(actionResult, Some(channel)).run
+      val authorized = isTicketedActionAuthorized(channel, extractLightningActorFromAction(lightningAction)).run
+      if !authorized then
+        channel
+          .send(
+            LightningTalkActionConfirmedMessage(
+              LightningTalkActionConfirmed.Unauthorized(lightningAction),
+            ),
+          )
+          .ignore
+          .run
+      else
+        val actionResult = lightningTalkService
+          .applyAction(lightningAction)
+          .run
+        handleLightningActionResult(actionResult, Some(channel)).run
 
   private def handleUnticketedLightningAction(
     channel: OpenSpacesServerChannel,
@@ -551,12 +582,23 @@ case class SessionService(
     hackathonAction: HackathonProjectAction,
   ): ZIO[Any, Throwable, Unit] =
     defer:
-      val actionResults = hackathonProjectService
-        .applyAction(hackathonAction)
-        .run
-      ZIO.foreachDiscard(actionResults)(result =>
-        handleHackathonActionResult(result, Some(channel))
-      ).run
+      val authorized = isTicketedActionAuthorized(channel, extractHackathonActorFromAction(hackathonAction)).run
+      if !authorized then
+        channel
+          .send(
+            HackathonProjectActionConfirmedMessage(
+              HackathonProjectActionConfirmed.Unauthorized(hackathonAction),
+            ),
+          )
+          .ignore
+          .run
+      else
+        val actionResults = hackathonProjectService
+          .applyAction(hackathonAction)
+          .run
+        ZIO.foreachDiscard(actionResults)(result =>
+          handleHackathonActionResult(result, Some(channel))
+        ).run
 
   private def handleHackathonActionResult(
     actionResult: HackathonProjectActionConfirmed,
@@ -596,10 +638,21 @@ case class SessionService(
     activityAction: ActivityAction,
   ): ZIO[Any, Throwable, Unit] =
     defer:
-      val actionResult = activityService
-        .applyAction(activityAction)
-        .run
-      handleActivityActionResult(actionResult, Some(channel)).run
+      val authorized = isTicketedActionAuthorized(channel, extractActivityActorFromAction(activityAction)).run
+      if !authorized then
+        channel
+          .send(
+            ActivityActionConfirmedMessage(
+              ActivityActionConfirmed.Unauthorized(activityAction),
+            ),
+          )
+          .ignore
+          .run
+      else
+        val actionResult = activityService
+          .applyAction(activityAction)
+          .run
+        handleActivityActionResult(actionResult, Some(channel)).run
 
   private def handleActivityActionResult(
     actionResult: ActivityActionConfirmed,
@@ -634,6 +687,51 @@ case class SessionService(
       )
       .ignore
 
+  private def isTicketedActionAuthorized(
+    channel: OpenSpacesServerChannel,
+    actionActor: Option[Person],
+  ): Task[Boolean] =
+    defer:
+      val isConnected = channelRegistry.get.run.connected.contains(channel)
+      if !isConnected then false
+      else
+        actionActor match
+          case Some(actor) =>
+            import neotype.unwrap
+            val username = actor.unwrap
+            if adminConfig.isAdmin(username) then true
+            else userRepository.isApproved(username).run
+          case None =>
+            true
+
+  private def extractDiscussionActorFromAction(action: DiscussionAction): Option[Person] =
+    action match
+      case DiscussionAction.Add(_, facilitator) => Some(facilitator)
+      case DiscussionAction.AddWithRoomSlot(_, facilitator, _) => Some(facilitator)
+      case DiscussionAction.Vote(_, feedback) => Some(feedback.voter)
+      case DiscussionAction.ResetUser(person) => Some(person)
+      case _ => None
+
+  private def extractLightningActorFromAction(action: LightningTalkAction): Option[Person] =
+    action match
+      case LightningTalkAction.SetParticipation(speaker, _) => Some(speaker)
+      case _ => None
+
+  private def extractHackathonActorFromAction(action: HackathonProjectAction): Option[Person] =
+    action match
+      case HackathonProjectAction.Create(_, creator) => Some(creator)
+      case HackathonProjectAction.Join(_, person) => Some(person)
+      case HackathonProjectAction.Leave(_, person) => Some(person)
+      case HackathonProjectAction.Delete(_, requester) => Some(requester)
+      case _ => None
+
+  private def extractActivityActorFromAction(action: ActivityAction): Option[Person] =
+    action match
+      case ActivityAction.Create(_, _, creator) => Some(creator)
+      case ActivityAction.SetInterest(_, person, _) => Some(person)
+      case ActivityAction.Update(_, _, _, editor) => Some(editor)
+      case ActivityAction.Delete(_, requester) => Some(requester)
+
 object SessionService:
   val layer =
     ZLayer.fromZIO:
@@ -650,6 +748,7 @@ object SessionService:
           ZIO.service[HackathonProjectService].run,
           ZIO.service[ActivityService].run,
           ZIO.service[AuthenticatedTicketService].run,
+          ZIO.service[AdminConfig].run,
           ZIO.service[SlackNotifier].run,
           ZIO.service[ConfirmedActionRepository].run,
           ZIO.service[UserRepository].run,

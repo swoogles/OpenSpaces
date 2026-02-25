@@ -1,6 +1,6 @@
 package co.wtf.openspaces
 
-import co.wtf.openspaces.auth.AuthenticatedTicketService
+import co.wtf.openspaces.auth.{AdminConfig, AuthenticatedTicketService}
 import co.wtf.openspaces.discussions.{Discussion, DiscussionAction, DiscussionActionConfirmed, DiscussionDataStore, DiscussionState, DiscussionStore, SchedulingService}
 import co.wtf.openspaces.github.GitHubProfileService
 import co.wtf.openspaces.hackathon.*
@@ -167,6 +167,46 @@ object WebSocketIntegrationSpec extends ZIOSpecDefault:
 
           assertTrue(hasUnauthorized)
       },
+      test("ticketed but unapproved actor receives Unauthorized for actions") {
+        defer:
+          setupTestEnvironment.run
+          val client = ZIO.service[Client].run
+          val ticket = getTicket.run
+
+          val receivedMessages = Ref.make(Vector.empty[WebSocketMessageFromServer]).run
+
+          val clientApp = makeCollectingClient(
+            receivedMessages,
+            onHandshake = channel =>
+              for
+                _ <- channel.send(ticket)
+                _ <- ZIO.withClock(Clock.ClockLive)(ZIO.sleep(100.millis))
+                _ <- channel.send(
+                  DiscussionActionMessage(
+                    DiscussionAction.Add(
+                      Topic.unsafeMake("Pending user should be blocked"),
+                      Person("pending-user"),
+                    ),
+                  ),
+                )
+              yield (),
+          )
+
+          client.socket(clientApp).run
+          waitForDelivery.run
+
+          val messages = receivedMessages.get.run
+          val hasUnauthorized = messages.exists {
+            case DiscussionActionConfirmedMessage(DiscussionActionConfirmed.Unauthorized(_)) => true
+            case _ => false
+          }
+          val hasAddResult = messages.exists {
+            case DiscussionActionConfirmedMessage(DiscussionActionConfirmed.AddResult(_)) => true
+            case _ => false
+          }
+
+          assertTrue(hasUnauthorized, !hasAddResult)
+      },
       test("authenticated client can add discussion and receives confirmation") {
         defer:
           setupTestEnvironment.run
@@ -306,6 +346,7 @@ object WebSocketIntegrationSpec extends ZIOSpecDefault:
       // Session management
       SessionService.layer,
       AuthenticatedTicketService.layer,
+      ZLayer.succeed(AdminConfig(Set.empty, "test-channel")),
       // Data stores (in-memory for tests)
       ZLayer.make[DiscussionStore](
         DiscussionDataStore.layer(useSampleData = false),
@@ -407,24 +448,49 @@ object TestLayers:
     ): Task[Unit] = ZIO.unit
 
   private object NoOpUserRepository extends co.wtf.openspaces.db.UserRepository:
+    private def userApproved(username: String): Boolean =
+      !username.toLowerCase.startsWith("pending")
+
     def findByUsername(
       username: String,
-    ): Task[Option[co.wtf.openspaces.db.UserRow]] = ZIO.none
+    ): Task[Option[co.wtf.openspaces.db.UserRow]] =
+      ZIO.succeed(Some(
+        co.wtf.openspaces.db.UserRow(
+          githubUsername = username,
+          displayName = Some(username),
+          createdAt = java.time.OffsetDateTime.now(),
+          approved = userApproved(username),
+        ),
+      ))
     def upsert(
       username: String,
       displayName: Option[String],
-    ): Task[co.wtf.openspaces.db.UserRow] =
+    ): Task[co.wtf.openspaces.db.UpsertResult] =
       ZIO.succeed(
-        co.wtf.openspaces.db.UserRow(
-          username,
-          displayName,
-          java.time.OffsetDateTime.now(),
+        co.wtf.openspaces.db.UpsertResult(
+          user = co.wtf.openspaces.db.UserRow(
+            githubUsername = username,
+            displayName = displayName,
+            createdAt = java.time.OffsetDateTime.now(),
+            approved = userApproved(username),
+          ),
+          isNewUser = false,
         ),
       )
     def findAll: Task[Vector[co.wtf.openspaces.db.UserRow]] =
       ZIO.succeed(Vector.empty)
     def deleteByUsernames(usernames: List[String]): Task[Int] =
       ZIO.succeed(0)
+    def findPendingUsers: Task[Vector[co.wtf.openspaces.db.UserRow]] =
+      ZIO.succeed(Vector.empty)
+    def findApprovedUsers: Task[Vector[co.wtf.openspaces.db.UserRow]] =
+      ZIO.succeed(Vector.empty)
+    def approveUser(username: String): Task[Boolean] =
+      ZIO.succeed(true)
+    def revokeUser(username: String): Task[Boolean] =
+      ZIO.succeed(true)
+    def isApproved(username: String): Task[Boolean] =
+      ZIO.succeed(userApproved(username))
 
   private object NoOpGitHubProfileService extends GitHubProfileService:
     def ensureUserWithDisplayName(
@@ -432,9 +498,10 @@ object TestLayers:
     ): Task[co.wtf.openspaces.db.UserRow] =
       ZIO.succeed(
         co.wtf.openspaces.db.UserRow(
-          username,
-          Some(username),
-          java.time.OffsetDateTime.now(),
+          githubUsername = username,
+          displayName = Some(username),
+          createdAt = java.time.OffsetDateTime.now(),
+          approved = true,
         ),
       )
 
