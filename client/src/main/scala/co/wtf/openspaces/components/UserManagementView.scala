@@ -30,6 +30,15 @@ object UserManagementView:
           isLoading.set(false)
           if result.success then
             successMessage.set(Some(result.message))
+            // Optimistic local update so admin sees immediate feedback.
+            val approvedDisplayName = AppState.pendingUsers.now()
+              .find(_.username.equalsIgnoreCase(username))
+              .flatMap(_.displayName)
+            AppState.pendingUsers.update(_.filterNot(_.username.equalsIgnoreCase(username)))
+            AppState.approvedUsers.update { existing =>
+              if existing.exists(_.username.equalsIgnoreCase(username)) then existing
+              else existing :+ ApprovedUser(username, approvedDisplayName)
+            }
             // Refresh auth status to get updated lists
             AuthService.fetchAuthStatus(randomActionClient)
           else
@@ -46,6 +55,15 @@ object UserManagementView:
           isLoading.set(false)
           if result.success then
             successMessage.set(Some(result.message))
+            // Optimistic local update so admin sees immediate feedback.
+            val pendingDisplayName = AppState.approvedUsers.now()
+              .find(_.username.equalsIgnoreCase(username))
+              .flatMap(_.displayName)
+            AppState.approvedUsers.update(_.filterNot(_.username.equalsIgnoreCase(username)))
+            AppState.pendingUsers.update { existing =>
+              if existing.exists(_.username.equalsIgnoreCase(username)) then existing
+              else existing :+ PendingUser(username, pendingDisplayName, "")
+            }
             // Refresh auth status to get updated lists
             AuthService.fetchAuthStatus(randomActionClient)
           else

@@ -526,6 +526,8 @@ object FrontEnd extends ZIOAppDefault{
                         if existing.exists(_.username.toLowerCase == username.toLowerCase) then existing
                         else existing :+ ApprovedUser(username, None)
                       )
+                      // Pull canonical auth state so banners/lists stay accurate.
+                      AuthService.fetchAuthStatus(randomActionClient)
                     case AuthorizationActionConfirmed.UserRevoked(username) =>
                       // If this user was just revoked, update their authorization status
                       if username.toLowerCase == name.now().unwrap.toLowerCase then
@@ -536,6 +538,8 @@ object FrontEnd extends ZIOAppDefault{
                         if existing.exists(_.username.toLowerCase == username.toLowerCase) then existing
                         else existing :+ PendingUser(username, None, "")
                       )
+                      // Pull canonical auth state so banners/lists stay accurate.
+                      AuthService.fetchAuthStatus(randomActionClient)
                     case AuthorizationActionConfirmed.UserListRefreshed(pending, approved) =>
                       AppState.pendingUsers.set(pending)
                       AppState.approvedUsers.set(approved)
