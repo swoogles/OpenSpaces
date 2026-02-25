@@ -268,7 +268,7 @@ object HackathonProjectsView:
             HackathonProjectCard(
               project = project,
               currentUser = name.now(),
-              isMyProject = true,
+              isInterested = true,
               onLeave = Some(() => handleLeaveProject(project)),
               onJoin = None,
             ),
@@ -343,7 +343,7 @@ object HackathonProjectsView:
                 HackathonProjectCard(
                   project = project,
                   currentUser = name.now(),
-                  isMyProject = false,
+                  isInterested = false,
                   onLeave = None,
                   onJoin = Some(() => handleJoinProject(project)),
                 )
@@ -361,7 +361,7 @@ object HackathonProjectCard:
   def apply(
     project: HackathonProject,
     currentUser: Person,
-    isMyProject: Boolean,
+    isInterested: Boolean,
     onLeave: Option[() => Unit],
     onJoin: Option[() => Unit],
   ): HtmlElement =
@@ -370,7 +370,7 @@ object HackathonProjectCard:
 
     val cardContent = div(
       cls := "HackathonProjectCard",
-      cls := (if isMyProject then "HackathonProjectCard--mine" else ""),
+      cls := (if isInterested then "HackathonProjectCard--interested" else ""),
       cls := (if isLarge then "HackathonProjectCard--large" else ""),
       
       // Project title
@@ -406,7 +406,7 @@ object HackathonProjectCard:
       ),
       
       // Large group warning
-      if isLarge && !isMyProject then
+      if isLarge && !isInterested then
         div(
           cls := "HackathonProjectCard-largeWarning",
           "⚠️ This group is getting big! Consider smaller projects below.",

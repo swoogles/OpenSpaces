@@ -1942,7 +1942,7 @@ button {
     padding: var(--pad-lg);
 }
 
-.HackathonProjectCard--mine {
+.HackathonProjectCard--interested {
     --entity-card-bg: var(--color-success-light);
     --entity-card-border-color: var(--color-success);
 }

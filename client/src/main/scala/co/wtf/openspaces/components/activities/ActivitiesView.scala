@@ -204,6 +204,7 @@ object ActivityCard:
 
     val cardContent = div(
       cls := "HackathonProjectCard",
+      cls := (if isInterested then "HackathonProjectCard--interested" else ""),
       div(
         cls := "HackathonProjectCard-header",
         h4(cls := "HackathonProjectCard-title", activity.descriptionText),
@@ -308,8 +309,6 @@ object ActivityCard:
               )
           },
         )
-      else emptyNode,
-      if isInterested then div(cls := "TopicSection-subtitle", "You are interested")
       else emptyNode,
     )
 
