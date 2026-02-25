@@ -272,6 +272,17 @@ object FrontEnd extends ZIOAppDefault{
         Option(dom.document.getElementById("loading-screen")).foreach { el =>
           el.classList.add("hidden")
         }
+        val params = new dom.URLSearchParams(dom.window.location.search)
+        val authError = Option(params.get("auth_error")).map(_.trim).filter(_.nonEmpty)
+        authError.foreach { msg =>
+          errorBanner.setError(s"Sign-in failed: $msg")
+          params.delete("auth_error")
+          val nextSearch = params.toString
+          val nextUrl =
+            if nextSearch.nonEmpty then s"${dom.window.location.pathname}?$nextSearch"
+            else dom.window.location.pathname
+          dom.window.history.replaceState(null, "", nextUrl)
+        }
         // Fetch authorization status from server
         AuthService.fetchAuthStatus(randomActionClient)
       },

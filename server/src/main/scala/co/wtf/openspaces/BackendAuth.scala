@@ -8,6 +8,8 @@ import zio.direct.*
 import zio.json.*
 import zio.http.*
 import java.time.Instant
+import java.net.URLEncoder
+import java.nio.charset.StandardCharsets
 
 case class ClientId(
   value: String):
@@ -133,6 +135,9 @@ case class ApplicationState(
   slackNotifier: slack.SlackNotifier,
   adminConfig: auth.AdminConfig):
 
+  private def encodeQueryValue(value: String): String =
+    URLEncoder.encode(value, StandardCharsets.UTF_8.toString)
+
   val authRoutes =
     Routes(
       // TODO Build this URL way sooner
@@ -148,12 +153,13 @@ case class ApplicationState(
             url => Response.redirect(url),
           )
           .tapErrorCause(cause => ZIO.logErrorCause("Auth route failed", cause))
-          .catchAllCause { _ =>
+          .catchAllCause { cause =>
+            val reason = encodeQueryValue(Option(cause.squash.getMessage).getOrElse("auth_route_failed"))
             ZIO.succeed(
               Response.redirect(
                 URL
-                  .decode("/?auth_error=auth_route_failed")
-                  .getOrElse(throw new Exception("Bad url: /?auth_error=auth_route_failed"))
+                  .decode(s"/?auth_error=$reason")
+                  .getOrElse(throw new Exception("Bad auth error redirect URL"))
               )
             )
           }
@@ -227,12 +233,13 @@ case class ApplicationState(
               }
             )
             .tapErrorCause(cause => ZIO.logErrorCause("OAuth callback failed", cause))
-            .catchAllCause { _ =>
+            .catchAllCause { cause =>
+              val reason = encodeQueryValue(Option(cause.squash.getMessage).getOrElse("callback_failed"))
               ZIO.succeed(
                 Response.redirect(
                   URL
-                    .decode("/?auth_error=callback_failed")
-                    .getOrElse(throw new Exception("Bad url: /?auth_error=callback_failed"))
+                    .decode(s"/?auth_error=$reason")
+                    .getOrElse(throw new Exception("Bad auth error redirect URL"))
                 )
               )
             },

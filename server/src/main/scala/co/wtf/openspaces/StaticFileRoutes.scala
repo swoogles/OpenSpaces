@@ -175,4 +175,11 @@ object StaticFileRoutes:
           )
           .mapError(e => Response.text(e.getMessage)),
       ),
+      // Chrome DevTools probes this endpoint on localhost. Return 204 to avoid noisy not-found logs.
+      Method.GET / ".well-known" / "appspecific" / "com.chrome.devtools.json" -> handler(
+        Response.status(Status.NoContent),
+      ),
+      Method.HEAD / ".well-known" / "appspecific" / "com.chrome.devtools.json" -> handler(
+        Response.status(Status.NoContent),
+      ),
     )
