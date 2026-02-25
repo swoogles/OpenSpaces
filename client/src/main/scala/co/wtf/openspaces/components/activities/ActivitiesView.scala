@@ -301,10 +301,11 @@ object ActivityCard:
                   cls := "ConfirmationModal-button ConfirmationModal-button--confirm",
                   "Delete",
                   onClick --> Observer { _ =>
-                    if !connectionStatus.checkReady() then
-                      setErrorMsg.onNext(Some("Reconnecting... please wait and try again."))
-                    else
-                      sendActivityAction(ActivityAction.Delete(activity.id, currentUser))
+                    if dom.window.confirm(s"Delete activity '${activity.descriptionText}'? This cannot be undone.") then
+                      if !connectionStatus.checkReady() then
+                        setErrorMsg.onNext(Some("Reconnecting... please wait and try again."))
+                      else
+                        sendActivityAction(ActivityAction.Delete(activity.id, currentUser))
                   },
                 ),
               )
