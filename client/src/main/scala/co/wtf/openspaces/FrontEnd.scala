@@ -48,7 +48,7 @@ object FrontEnd extends ZIOAppDefault{
         (if (window.location.hostname == "localhost") 
           "http://localhost:8080"
         else
-          "https://open-spaces-188fb0320ebe.herokuapp.com"
+          "https://app.wintertechforum.com"
           )
           )
         )
