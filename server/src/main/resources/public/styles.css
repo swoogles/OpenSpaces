@@ -2157,34 +2157,10 @@ button {
   margin-top: 1.25rem;
 }
 
-.LinearActivityRow {
-  display: grid;
-  grid-template-columns: 74px 1fr;
-  gap: 10px;
-  align-items: start;
-  padding: 10px 0;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+.LinearActivityCardRow {
+  margin: 10px 0;
 }
 
-.LinearActivityTime {
-  font-weight: 700;
-  color: #ffd6a5;
-  font-size: 0.85rem;
-}
-
-.LinearActivityContent {
-  background: rgba(18, 24, 38, 0.65);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 10px;
-  padding: 10px;
-}
-
-.LinearActivityTitle {
-  font-weight: 700;
-  margin-bottom: 4px;
-}
-
-.LinearActivityMeta {
-  font-size: 0.82rem;
-  opacity: 0.85;
+.LinearActivityCardRow .HackathonProjectCard {
+  width: 100%;
 }

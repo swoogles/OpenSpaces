@@ -18,13 +18,13 @@ case class ActivityState(
         copy(activities = newActivities.map(activity => activity.id -> activity).toMap)
       case ActivityActionConfirmed.Created(activity) =>
         copy(activities = activities + (activity.id -> activity))
-      case ActivityActionConfirmed.InterestSet(activityId, person, interested) =>
+      case ActivityActionConfirmed.InterestSet(activityId, person, interested, joinedAtEpochMs, newOwner) =>
         copy(activities = activities.updatedWith(activityId) {
           _.map { activity =>
-            val updatedInterested =
-              if interested then activity.interestedPeople + person
-              else activity.interestedPeople - person
-            activity.copy(interestedPeople = updatedInterested)
+            val updatedMembers =
+              if interested then activity.withMember(person, joinedAtEpochMs.getOrElse(activity.createdAtEpochMs))
+              else activity.withoutMember(person)
+            newOwner.fold(updatedMembers)(updatedMembers.withOwner)
           }
         })
       case ActivityActionConfirmed.Updated(activityId, newDescription, newEventTime) =>
@@ -49,4 +49,3 @@ case class ActivityState(
 
 object ActivityState:
   val empty: ActivityState = ActivityState(Map.empty)
-

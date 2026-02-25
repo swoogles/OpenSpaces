@@ -14,13 +14,23 @@ import zio.json.*
 import java.time.{LocalDate, LocalDateTime}
 import java.util.UUID
 
-sealed trait WebSocketMessage derives JsonCodec, Schema
+sealed trait WebSocketMessage derives JsonCodec
 sealed trait WebSocketMessageFromClient extends WebSocketMessage
-    derives JsonCodec,
-      Schema
+    derives JsonCodec
 sealed trait WebSocketMessageFromServer extends WebSocketMessage
-    derives JsonCodec,
-      Schema
+    derives JsonCodec
+
+given Schema[WebSocketMessageFromClient] =
+  Schema[String].transformOrFail(
+    raw => raw.fromJson[WebSocketMessageFromClient],
+    message => Right(message.toJson),
+  )
+
+given Schema[WebSocketMessageFromServer] =
+  Schema[String].transformOrFail(
+    raw => raw.fromJson[WebSocketMessageFromServer],
+    message => Right(message.toJson),
+  )
 
 case class Ticket(
   uuid: UUID)

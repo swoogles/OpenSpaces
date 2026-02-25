@@ -3,8 +3,6 @@ package co.wtf.openspaces.components.activities
 import com.raquo.laminar.api.L.{*, given}
 import org.scalajs.dom
 import java.time.LocalDateTime
-import java.time.LocalDate
-import java.time.LocalTime
 import java.time.format.DateTimeFormatter
 import neotype.unwrap
 import scala.scalajs.js
@@ -20,15 +18,11 @@ object ActivitiesView:
   private trait ShowPickerCapable extends js.Object:
     def showPicker(): Unit = js.native
 
-  private val dateInputFormat = DateTimeFormatter.ofPattern("yyyy-MM-dd")
-  private val timeInputFormat = DateTimeFormatter.ofPattern("HH:mm")
+  private val dateTimeInputFormat = DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm")
   private val displayFormat = DateTimeFormatter.ofPattern("EEE h:mm a")
 
-  def parseLocalDateTime(dateRaw: String, timeRaw: String): Option[LocalDateTime] =
-    for
-      date <- scala.util.Try(LocalDate.parse(dateRaw.trim, dateInputFormat)).toOption
-      time <- scala.util.Try(LocalTime.parse(timeRaw.trim, timeInputFormat)).toOption
-    yield LocalDateTime.of(date, time)
+  def parseLocalDateTime(raw: String): Option[LocalDateTime] =
+    scala.util.Try(LocalDateTime.parse(raw.trim, dateTimeInputFormat)).toOption
 
   def showNativePicker(input: dom.html.Input): Unit =
     try
@@ -50,10 +44,8 @@ object ActivitiesView:
     connectionStatus: ConnectionStatusUI,
   ): HtmlElement =
     val newDescription = Var("")
-    val newEventDate = Var("")
     val newEventTime = Var("")
     val showCreateForm = Var(false)
-    var createDateInputRef: Option[dom.html.Input] = None
     var createTimeInputRef: Option[dom.html.Input] = None
 
     val $activities = activityState.signal.map { state =>
@@ -69,10 +61,9 @@ object ActivitiesView:
 
     def validateAndCreate(): Unit =
       val descriptionRaw = newDescription.now().trim
-      val eventDateRaw = newEventDate.now().trim
       val eventTimeRaw = newEventTime.now().trim
       val parsedDescription = ActivityDescription.make(descriptionRaw)
-      val parsedTime = parseLocalDateTime(eventDateRaw, eventTimeRaw)
+      val parsedTime = parseLocalDateTime(eventTimeRaw)
 
       (parsedDescription, parsedTime) match
         case (Left(error), _) =>
@@ -125,22 +116,7 @@ object ActivitiesView:
               ),
               input(
                 cls := "HackathonProjects-input",
-                typ := "date",
-                onMountCallback(ctx => createDateInputRef = Some(ctx.thisNode.ref)),
-                onFocus --> Observer(_ => createDateInputRef.foreach(showNativePicker)),
-                controlled(
-                  value <-- newEventDate.signal,
-                  onInput.mapToValue --> newEventDate.writer,
-                ),
-              ),
-              button(
-                cls := "HackathonProjects-cancelButton",
-                "Pick Date",
-                onClick --> Observer(_ => createDateInputRef.foreach(showNativePicker)),
-              ),
-              input(
-                cls := "HackathonProjects-input",
-                typ := "time",
+                typ := "datetime-local",
                 onMountCallback(ctx => createTimeInputRef = Some(ctx.thisNode.ref)),
                 onFocus --> Observer(_ => createTimeInputRef.foreach(showNativePicker)),
                 controlled(
@@ -153,7 +129,7 @@ object ActivitiesView:
               ),
               button(
                 cls := "HackathonProjects-cancelButton",
-                "Pick Time",
+                "Pick Date/Time",
                 onClick --> Observer(_ => createTimeInputRef.foreach(showNativePicker)),
               ),
               div(
@@ -169,7 +145,6 @@ object ActivitiesView:
                   onClick --> Observer { _ =>
                     showCreateForm.set(false)
                     newDescription.set("")
-                    newEventDate.set("")
                     newEventTime.set("")
                   },
                 ),
@@ -203,8 +178,39 @@ object ActivityCard:
   enum SwipeAction:
     case Interested, NotInterested
 
-  private val dateInputFormat = DateTimeFormatter.ofPattern("yyyy-MM-dd")
-  private val timeInputFormat = DateTimeFormatter.ofPattern("HH:mm")
+  private val dateTimeInputFormat = DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm")
+
+  def staticCard(
+    activity: Activity,
+    displayFormat: DateTimeFormatter,
+  ): HtmlElement =
+    div(
+      cls := "HackathonProjectCard",
+      div(
+        cls := "HackathonProjectCard-header",
+        h4(cls := "HackathonProjectCard-title", activity.descriptionText),
+      ),
+      div(
+        cls := "HackathonProjectCard-members",
+        span(cls := "HackathonProjectCard-memberCount", s"${activity.interestCount} interested"),
+        span(cls := "HackathonProjectCard-memberCount", activity.eventTime.format(displayFormat)),
+      ),
+      div(
+        cls := "LightningTalk-metaRow",
+        div(cls := "LightningTalk-meta", s"By ${activity.creatorName}"),
+        activity.slackThreadUrl match
+          case Some(url) =>
+            a(
+              href := url,
+              target := "_blank",
+              cls := "SlackThreadLink",
+              title := "Discuss in Slack",
+              img(src := "/icons/slack.svg", cls := "SlackIcon"),
+            )
+          case None =>
+            emptyNode,
+      ),
+    )
 
   def apply(
     activity: Activity,
@@ -214,13 +220,11 @@ object ActivityCard:
     setErrorMsg: Observer[Option[String]],
     displayFormat: DateTimeFormatter,
   ): HtmlElement =
-    val isInterested = activity.interestedPeople.contains(currentUser)
+    val isInterested = activity.hasMember(currentUser)
     val isOwner = activity.creator == currentUser
     val editing = Var(false)
     val editDescription = Var(activity.descriptionText)
-    val editEventDate = Var(activity.eventTime.toLocalDate.format(dateInputFormat))
-    val editEventTime = Var(activity.eventTime.toLocalTime.format(timeInputFormat))
-    var editDateInputRef: Option[dom.html.Input] = None
+    val editEventTime = Var(activity.eventTime.format(dateTimeInputFormat))
     var editTimeInputRef: Option[dom.html.Input] = None
 
     def sendInterest(interested: Boolean): Unit =
@@ -271,22 +275,7 @@ object ActivityCard:
                 ),
                 input(
                   cls := "HackathonProjects-input",
-                  typ := "date",
-                  onMountCallback(ctx => editDateInputRef = Some(ctx.thisNode.ref)),
-                  onFocus --> Observer(_ => editDateInputRef.foreach(ActivitiesView.showNativePicker)),
-                  controlled(
-                    value <-- editEventDate.signal,
-                    onInput.mapToValue --> editEventDate.writer,
-                  ),
-                ),
-                button(
-                  cls := "HackathonProjects-cancelButton",
-                  "Pick Date",
-                  onClick --> Observer(_ => editDateInputRef.foreach(ActivitiesView.showNativePicker)),
-                ),
-                input(
-                  cls := "HackathonProjects-input",
-                  typ := "time",
+                  typ := "datetime-local",
                   onMountCallback(ctx => editTimeInputRef = Some(ctx.thisNode.ref)),
                   onFocus --> Observer(_ => editTimeInputRef.foreach(ActivitiesView.showNativePicker)),
                   controlled(
@@ -296,7 +285,7 @@ object ActivityCard:
                 ),
                 button(
                   cls := "HackathonProjects-cancelButton",
-                  "Pick Time",
+                  "Pick Date/Time",
                   onClick --> Observer(_ => editTimeInputRef.foreach(ActivitiesView.showNativePicker)),
                 ),
                 div(
@@ -306,10 +295,7 @@ object ActivityCard:
                     "Save",
                     onClick --> Observer { _ =>
                       val parsedDescription = ActivityDescription.make(editDescription.now().trim)
-                      val parsedTime = ActivitiesView.parseLocalDateTime(
-                        editEventDate.now().trim,
-                        editEventTime.now().trim,
-                      )
+                      val parsedTime = ActivitiesView.parseLocalDateTime(editEventTime.now().trim)
 
                       (parsedDescription, parsedTime) match
                         case (Left(error), _) =>

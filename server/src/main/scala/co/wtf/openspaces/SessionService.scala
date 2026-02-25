@@ -436,7 +436,7 @@ case class SessionService(
     import neotype.unwrap
     action match
       case ActivityActionConfirmed.Created(activity) => Some(activity.creator.unwrap)
-      case ActivityActionConfirmed.InterestSet(_, person, _) => Some(person.unwrap)
+      case ActivityActionConfirmed.InterestSet(_, person, _, _, _) => Some(person.unwrap)
       case _ => None
 
   def removeChannel(channel: OpenSpacesServerChannel): UIO[Unit] =

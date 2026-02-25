@@ -517,6 +517,7 @@ trait ActivityRepository:
   def findAllActive: Task[Vector[ActivityRow]]
   def insert(row: ActivityRow): Task[Unit]
   def update(row: ActivityRow): Task[Unit]
+  def updateOwner(id: Long, newOwner: String): Task[Unit]
   def softDelete(id: Long): Task[Unit]
   def updateSlackThread(id: Long, channelId: String, threadTs: String, permalink: String): Task[Unit]
 
@@ -563,6 +564,11 @@ class ActivityRepositoryLive(ds: DataSource) extends ActivityRepository:
               updated_at = ${row.updatedAt},
               deleted_at = ${row.deletedAt}
             WHERE id = ${row.id}""".update.run()
+      ()
+
+  def updateOwner(id: Long, newOwner: String): Task[Unit] =
+    transactZIO(ds):
+      sql"""UPDATE activities SET creator = $newOwner, updated_at = NOW() WHERE id = $id""".update.run()
       ()
 
   def softDelete(id: Long): Task[Unit] =

@@ -443,6 +443,7 @@ object TestLayers:
     def findAllActive: Task[Vector[co.wtf.openspaces.db.ActivityRow]] = ZIO.succeed(Vector.empty)
     def insert(row: co.wtf.openspaces.db.ActivityRow): Task[Unit] = ZIO.unit
     def update(row: co.wtf.openspaces.db.ActivityRow): Task[Unit] = ZIO.unit
+    def updateOwner(id: Long, newOwner: String): Task[Unit] = ZIO.unit
     def softDelete(id: Long): Task[Unit] = ZIO.unit
     def updateSlackThread(id: Long, channelId: String, threadTs: String, permalink: String): Task[Unit] = ZIO.unit
 

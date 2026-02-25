@@ -59,15 +59,54 @@ case class ActivityService(
           result <- current.activities.get(activityId) match
             case None =>
               ZIO.succeed(ActivityActionConfirmed.Rejected(setInterest))
-            case Some(_) =>
-              val persist =
-                if interested then activityInterestRepo.addInterest(activityId.unwrap, person.unwrap).unit
-                else activityInterestRepo.removeInterest(activityId.unwrap, person.unwrap)
-              for
-                _ <- persist
-                confirmed = ActivityActionConfirmed.InterestSet(activityId, person, interested)
-                _ <- state.update(_(confirmed))
-              yield confirmed
+            case Some(activity) =>
+              if interested then
+                if activity.hasMember(person) then
+                  ZIO.succeed(ActivityActionConfirmed.Rejected(setInterest))
+                else
+                  for
+                    row <- activityInterestRepo.addInterest(activityId.unwrap, person.unwrap)
+                    joinedAtEpochMs = Some(row.interestedAt.toInstant.toEpochMilli)
+                    confirmed = ActivityActionConfirmed.InterestSet(
+                      activityId,
+                      person,
+                      interested = true,
+                      joinedAtEpochMs = joinedAtEpochMs,
+                      newOwner = None,
+                    )
+                    _ <- state.update(_(confirmed))
+                  yield confirmed
+              else
+                if !activity.hasMember(person) then
+                  ZIO.succeed(ActivityActionConfirmed.Rejected(setInterest))
+                else
+                  val shouldDelete = activity.wouldBeDeletedIfLeaves(person)
+                  val nextOwner = if activity.isOwner(person) then activity.nextOwner else None
+                  for
+                    _ <- activityInterestRepo.removeInterest(activityId.unwrap, person.unwrap)
+                    confirmed <- if shouldDelete then
+                      for
+                        row <- activityRepo.findById(activityId.unwrap)
+                        _ <- activityRepo.softDelete(activityId.unwrap)
+                      yield ActivityActionConfirmed.Deleted(
+                        activityId,
+                        row.flatMap(_.slackChannelId),
+                        row.flatMap(_.slackThreadTs),
+                      )
+                    else
+                      for
+                        _ <- ZIO.foreachDiscard(nextOwner)(owner =>
+                          activityRepo.updateOwner(activityId.unwrap, owner.unwrap),
+                        )
+                      yield ActivityActionConfirmed.InterestSet(
+                        activityId,
+                        person,
+                        interested = false,
+                        joinedAtEpochMs = None,
+                        newOwner = nextOwner,
+                      )
+                    _ <- state.update(_(confirmed))
+                  yield confirmed
         yield result
 
       case update @ ActivityAction.Update(activityId, newDescription, newEventTime, editor) =>
@@ -133,7 +172,7 @@ case class ActivityService(
           if roll < 40 then makeRandomCreateAction(person)
           else if roll < 75 then
             val activity = activities(scala.util.Random.nextInt(activities.size))
-            val interested = !activity.interestedPeople.contains(person)
+            val interested = !activity.hasMember(person)
             ZIO.succeed(ActivityAction.SetInterest(activity.id, person, interested))
           else if roll < 90 then
             current.ownedBy(person).headOption match
@@ -208,7 +247,7 @@ case class ActivityService(
       creator = creator,
       creatorDisplayName = creatorUser.flatMap(_.displayName),
       eventTime = eventTime,
-      interestedPeople = Set(creator),
+      members = List(ActivityMember(creator, createdAtEpochMs)),
       createdAtEpochMs = createdAtEpochMs,
     )
 
@@ -234,7 +273,7 @@ object ActivityService:
   private def fromRow(
     row: ActivityRow,
     displayName: Option[String],
-    interestedPeople: Set[Person],
+    members: List[ActivityMember],
   ): Activity =
     Activity(
       id = ActivityId(row.id),
@@ -242,7 +281,7 @@ object ActivityService:
       creator = Person(row.creator),
       creatorDisplayName = displayName,
       eventTime = row.eventTime,
-      interestedPeople = interestedPeople,
+      members = members,
       createdAtEpochMs = row.createdAt.toInstant.toEpochMilli,
       slackThreadUrl = row.slackPermalink,
     )
@@ -258,8 +297,20 @@ object ActivityService:
         for
           creator <- gitHubProfileService.ensureUserWithDisplayName(row.creator).either.map(_.toOption)
           interests <- activityInterestRepo.findByActivity(row.id)
-          interestedPeople = interests.map(i => Person(i.githubUsername)).toSet + Person(row.creator)
-        yield fromRow(row, creator.flatMap(_.displayName), interestedPeople)
+          members = interests
+            .map(i =>
+              ActivityMember(
+                person = Person(i.githubUsername),
+                joinedAtEpochMs = i.interestedAt.toInstant.toEpochMilli,
+              ),
+            )
+            .toList
+            .sortBy(_.joinedAtEpochMs)
+          creatorPerson = Person(row.creator)
+          normalizedMembers =
+            if members.exists(_.person == creatorPerson) then members
+            else ActivityMember(creatorPerson, row.createdAt.toInstant.toEpochMilli) :: members
+        yield fromRow(row, creator.flatMap(_.displayName), normalizedMembers)
       }
     yield ActivityState(activities.map(a => a.id -> a).toMap)
 
@@ -285,4 +336,3 @@ object ActivityService:
         userRepo,
         gitHubProfileService,
       )
-

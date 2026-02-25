@@ -29,7 +29,9 @@ enum ActivityActionConfirmed derives JsonCodec:
   case InterestSet(
     activityId: ActivityId,
     person: Person,
-    interested: Boolean)
+    interested: Boolean,
+    joinedAtEpochMs: Option[Long],
+    newOwner: Option[Person])
   case Updated(
     activityId: ActivityId,
     newDescription: ActivityDescription,

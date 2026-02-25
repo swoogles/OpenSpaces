@@ -17,6 +17,7 @@ import co.wtf.openspaces.activities.{Activity, ActivityState}
 import co.wtf.openspaces.util.ScrollPreserver
 import co.wtf.openspaces.FrontEnd.connectionStatus
 import co.wtf.openspaces.components.lightning_talks.LightningTalkProposalCard
+import co.wtf.openspaces.components.activities.ActivityCard
 import co.wtf.openspaces.components.discussions.TopicCard
 import co.wtf.openspaces.components.schedule.ScheduleSlotComponent
 import java.time.format.DateTimeFormatter
@@ -194,7 +195,7 @@ object LinearScheduleView:
         unscheduledMenuState.set(Some(roomSlot))
       }
 
-    val activityTimeFormat = DateTimeFormatter.ofPattern("h:mm a")
+    val activityDisplayFormat = DateTimeFormatter.ofPattern("EEE h:mm a")
 
     div(
       cls := "LinearScheduleView",
@@ -243,16 +244,8 @@ object LinearScheduleView:
             daySlot.slots.flatMap { timeSlotForAllRooms =>
               val leadingActivities = consumeActivitiesThrough(timeSlotForAllRooms.time.startTime).map { activity =>
                 div(
-                  cls := "LinearActivityRow",
-                  div(cls := "LinearActivityTime", activity.eventTime.format(activityTimeFormat)),
-                  div(
-                    cls := "LinearActivityContent",
-                    div(cls := "LinearActivityTitle", activity.descriptionText),
-                    div(
-                      cls := "LinearActivityMeta",
-                      s"${activity.interestCount} interested · ${activity.creatorName}",
-                    ),
-                  ),
+                  cls := "LinearActivityCardRow",
+                  ActivityCard.staticCard(activity, activityDisplayFormat),
                 )
               }
 
@@ -291,16 +284,8 @@ object LinearScheduleView:
               leadingActivities :+ slot
             } ++ consumeRemainingActivities().map { activity =>
               div(
-                cls := "LinearActivityRow",
-                div(cls := "LinearActivityTime", activity.eventTime.format(activityTimeFormat)),
-                div(
-                  cls := "LinearActivityContent",
-                  div(cls := "LinearActivityTitle", activity.descriptionText),
-                  div(
-                    cls := "LinearActivityMeta",
-                    s"${activity.interestCount} interested · ${activity.creatorName}",
-                  ),
-                ),
+                cls := "LinearActivityCardRow",
+                ActivityCard.staticCard(activity, activityDisplayFormat),
               )
             } ++ maybeLightningNight.toList.map { _ =>
               div(
