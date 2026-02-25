@@ -180,38 +180,6 @@ object ActivityCard:
 
   private val dateTimeInputFormat = DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm")
 
-  def staticCard(
-    activity: Activity,
-    displayFormat: DateTimeFormatter,
-  ): HtmlElement =
-    div(
-      cls := "HackathonProjectCard",
-      div(
-        cls := "HackathonProjectCard-header",
-        h4(cls := "HackathonProjectCard-title", activity.descriptionText),
-      ),
-      div(
-        cls := "HackathonProjectCard-members",
-        span(cls := "HackathonProjectCard-memberCount", s"${activity.interestCount} interested"),
-        span(cls := "HackathonProjectCard-memberCount", activity.eventTime.format(displayFormat)),
-      ),
-      div(
-        cls := "LightningTalk-metaRow",
-        div(cls := "LightningTalk-meta", s"By ${activity.creatorName}"),
-        activity.slackThreadUrl match
-          case Some(url) =>
-            a(
-              href := url,
-              target := "_blank",
-              cls := "SlackThreadLink",
-              title := "Discuss in Slack",
-              img(src := "/icons/slack.svg", cls := "SlackIcon"),
-            )
-          case None =>
-            emptyNode,
-      ),
-    )
-
   def apply(
     activity: Activity,
     currentUser: Person,

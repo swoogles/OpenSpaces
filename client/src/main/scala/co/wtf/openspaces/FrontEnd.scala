@@ -562,8 +562,10 @@ object FrontEnd extends ZIOAppDefault{
                 lightningTalkState.signal,
                 activityState.signal,
                 sendDiscussionAction,
+                sendActivityAction,
                 name.signal,
                 isAdmin,
+                errorBanner.errorObserver,
                 unscheduledMenuState,
               )
             case AppView.Replay =>

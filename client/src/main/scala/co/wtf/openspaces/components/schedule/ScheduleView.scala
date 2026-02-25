@@ -13,7 +13,7 @@ import co.wtf.openspaces.discussions.DaySlots
 import co.wtf.openspaces.discussions.Discussion
 import co.wtf.openspaces.discussions.{DiscussionAction, DiscussionState}
 import co.wtf.openspaces.lighting_talks.{LightningTalkNight, LightningTalkProposal, LightningTalkState}
-import co.wtf.openspaces.activities.{Activity, ActivityState}
+import co.wtf.openspaces.activities.{Activity, ActivityAction, ActivityState}
 import co.wtf.openspaces.util.ScrollPreserver
 import co.wtf.openspaces.FrontEnd.connectionStatus
 import co.wtf.openspaces.components.lightning_talks.LightningTalkProposalCard
@@ -186,8 +186,10 @@ object LinearScheduleView:
     $lightningTalkState: Signal[LightningTalkState],
     $activityState: Signal[ActivityState],
     topicUpdates: DiscussionAction => Unit,
+    sendActivityAction: ActivityAction => Unit,
     name: StrictSignal[Person],
     isAdmin: Signal[Boolean],
+    setErrorMsg: Observer[Option[String]],
     unscheduledMenuState: Var[Option[RoomSlot]],
   ): HtmlElement =
     val showUnscheduledMenu: Observer[RoomSlot] =
@@ -245,7 +247,14 @@ object LinearScheduleView:
               val leadingActivities = consumeActivitiesThrough(timeSlotForAllRooms.time.startTime).map { activity =>
                 div(
                   cls := "LinearActivityCardRow",
-                  ActivityCard.staticCard(activity, activityDisplayFormat),
+                  ActivityCard(
+                    activity = activity,
+                    currentUser = name.now(),
+                    sendActivityAction = sendActivityAction,
+                    connectionStatus = connectionStatus,
+                    setErrorMsg = setErrorMsg,
+                    displayFormat = activityDisplayFormat,
+                  ),
                 )
               }
 
@@ -285,7 +294,14 @@ object LinearScheduleView:
             } ++ consumeRemainingActivities().map { activity =>
               div(
                 cls := "LinearActivityCardRow",
-                ActivityCard.staticCard(activity, activityDisplayFormat),
+                ActivityCard(
+                  activity = activity,
+                  currentUser = name.now(),
+                  sendActivityAction = sendActivityAction,
+                  connectionStatus = connectionStatus,
+                  setErrorMsg = setErrorMsg,
+                  displayFormat = activityDisplayFormat,
+                ),
               )
             } ++ maybeLightningNight.toList.map { _ =>
               div(
