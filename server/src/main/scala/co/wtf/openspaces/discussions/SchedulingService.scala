@@ -12,6 +12,28 @@ case class SchedulingService(
   discussionStore: DiscussionStore
 ):
 
+  /** Clear all room slot assignments without deleting topics.
+    * Returns count of topics that were unscheduled.
+    */
+  def clearSchedule: Task[Int] =
+    for
+      state <- discussionStore.snapshot
+      discussions = state.data.values.toList
+      scheduled = discussions.filter(_.roomSlot.isDefined)
+      
+      // Generate unschedule actions for all scheduled topics
+      actions = scheduled.map { d =>
+        DiscussionAction.SetRoomSlot(d.id, d.roomSlot, None)
+      }
+      
+      // Apply all unschedule actions
+      _ <- ZIO.foreachDiscard(actions) { action =>
+        discussionService.applyAndBroadcast(action)
+      }
+      
+      _ <- ZIO.logInfo(s"Cleared schedule: ${actions.length} topics unscheduled")
+    yield actions.length
+
   /** Run the scheduling algorithm and apply the resulting actions.
     * Returns a summary of what was changed.
     */

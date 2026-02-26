@@ -164,6 +164,13 @@ case class RandomActionSpawner(
           }
       },
 
+      // Clear all scheduled topics (unschedule without deleting)
+      RandomActionApi.clearSchedule.implement { _ =>
+        schedulingService.clearSchedule
+          .orDie
+          .map(ClearScheduleResult(_))
+      },
+
       RandomActionApi.reloadState.implement { _ =>
         discussionService.reloadAllStateFromDatabase
           .orDie

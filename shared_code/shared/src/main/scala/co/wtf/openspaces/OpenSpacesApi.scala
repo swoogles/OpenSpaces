@@ -19,6 +19,7 @@ case class ScheduleResult(
   unscheduled: Int,
   lockedExcluded: Int) derives Schema, JsonCodec
 case class DeleteTopicsResult(deleted: Int) derives Schema, JsonCodec
+case class ClearScheduleResult(cleared: Int) derives Schema, JsonCodec
 case class DeleteRandomUsersResult(
   deletedUsers: Int,
   deletedConfirmedActions: Int) derives Schema, JsonCodec
@@ -116,6 +117,10 @@ object RandomActionApi {
     Endpoint(RoutePattern.POST / "api" / "admin" / "schedule")
       .out[ScheduleResult]
 
+  val clearSchedule =
+    Endpoint(RoutePattern.POST / "api" / "admin" / "schedule" / "clear")
+      .out[ClearScheduleResult]
+
   val reloadState =
     Endpoint(RoutePattern.POST / "api" / "admin" / "state" / "reload")
       .out[ReloadStateResult]
@@ -170,6 +175,7 @@ object RandomActionApi {
       deleteAllTopics,
       deleteAllRandomUsersRecords,
       runScheduling,
+      clearSchedule,
       reloadState,
       confirmedActionsGet,
       authStatusGet,
@@ -235,6 +241,9 @@ executor: EndpointExecutor[Any, Unit, zio.Scope]
 
   def runScheduling: Future[ScheduleResult] =
     futureDumb(RandomActionApi.runScheduling.apply(()))
+
+  def clearSchedule: Future[ClearScheduleResult] =
+    futureDumb(RandomActionApi.clearSchedule.apply(()))
 
   def reloadState: Future[ReloadStateResult] =
     futureDumb(RandomActionApi.reloadState.apply(()))

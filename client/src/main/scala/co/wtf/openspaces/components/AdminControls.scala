@@ -37,6 +37,7 @@ object AdminControls:
     
     // Auto-schedule state
     val scheduleLoading: Var[Boolean] = Var(false)
+    val clearScheduleLoading: Var[Boolean] = Var(false)
     val scheduleChaosLoading: Var[Boolean] = Var(false)
     val reloadLoading: Var[Boolean] = Var(false)
     val scheduleSummary: Var[String] = Var("")
@@ -116,6 +117,19 @@ object AdminControls:
             scheduleSummary.set("Scheduling failed.")
             scheduleLoading.set(false)
         }
+
+    def clearSchedule(): Unit =
+      if dom.window.confirm("Clear the entire schedule? All topics will be unscheduled but not deleted.") then
+        clearScheduleLoading.set(true)
+        randomActionClient.clearSchedule
+          .onComplete {
+            case Success(result) =>
+              scheduleSummary.set(s"Cleared ${result.cleared} topics from schedule")
+              clearScheduleLoading.set(false)
+            case Failure(_) =>
+              scheduleSummary.set("Clear schedule failed.")
+              clearScheduleLoading.set(false)
+          }
 
     def reloadStateFromDatabase(): Unit =
       reloadLoading.set(true)
@@ -244,6 +258,19 @@ object AdminControls:
         child.text <-- scheduleLoading.signal.map {
           case true => "⏳"
           case false => "✨ Schedule Topics"
+        },
+      ),
+      button(
+        cls := "AdminControls-button",
+        cls := "AdminControls-button--warning",
+        cls <-- clearScheduleLoading.signal.map { loading =>
+          if loading then "AdminControls-button--loading" else ""
+        },
+        disabled <-- clearScheduleLoading.signal,
+        onClick --> { _ => clearSchedule() },
+        child.text <-- clearScheduleLoading.signal.map {
+          case true => "⏳"
+          case false => "🧹 Clear Schedule"
         },
       ),
       button(
