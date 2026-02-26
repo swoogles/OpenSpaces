@@ -37,6 +37,9 @@ object HackathonProjectsView:
         state.projectsExcludingPerson(user).sortBy(p => (-p.memberCount, p.createdAtEpochMs))
       }
 
+    // Total project count (for showing "no projects" message only when truly empty)
+    val $hasNoProjects: Signal[Boolean] = hackathonProjectState.signal.map(_.projects.isEmpty)
+
     // State for project creation form
     val newProjectTitle: Var[String] = Var("")
     val showCreateForm: Var[Boolean] = Var(false)
@@ -282,16 +285,25 @@ object HackathonProjectsView:
         },
       ),
       
-      // Other projects section
-      div(
-        cls := "HackathonProjects-list",
-        h3(cls := "HackathonProjects-sectionTitle", "All Projects"),
-        child <-- $otherProjects.map { projects =>
-          if projects.isEmpty then
-            div(cls := "HackathonProjects-empty", "No projects yet. Be the first to propose one!")
-          else
+      // Other projects section (only show "no projects" message when there are truly zero projects)
+      child <-- Signal.combine($hasNoProjects, $otherProjects).map { case (hasNoProjects, otherProjects) =>
+        if hasNoProjects then
+          // No projects exist at all - show call to action
+          div(
+            cls := "HackathonProjects-list",
+            h3(cls := "HackathonProjects-sectionTitle", "All Projects"),
+            div(cls := "HackathonProjects-empty", "No projects yet. Be the first to propose one!"),
+          )
+        else if otherProjects.isEmpty then
+          // User is in the only project - don't show the "All Projects" section at all
+          div()
+        else
+          // Show other projects
+          div(
+            cls := "HackathonProjects-list",
+            h3(cls := "HackathonProjects-sectionTitle", "All Projects"),
             div(
-              projects.map { project =>
+              otherProjects.map { project =>
                 HackathonProjectCard(
                   project = project,
                   currentUser = name.now(),
@@ -300,9 +312,9 @@ object HackathonProjectsView:
                   onJoin = Some(() => handleJoinProject(project)),
                 )
               },
-            )
-        },
-      ),
+            ),
+          )
+      },
     )
 
 /** Card component for displaying a hackathon project */
