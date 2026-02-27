@@ -191,15 +191,20 @@ object LinearScheduleView:
     val formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd-HH-mm")
     s"activity-${eventTime.format(formatter)}"
 
-  /** Find the next upcoming item (slot or activity) whose time is in the future. */
-  private def findNextUpcomingId(slots: List[DaySlots], activities: List[Activity]): Option[String] =
+  /** Find the next upcoming rendered item (scheduled topic slot or activity). */
+  private def findNextUpcomingId(state: DiscussionState, activities: List[Activity]): Option[String] =
     val now = LocalDateTime.now()
     
-    // Find next discussion slot (by end time, since slot might be in progress)
-    val nextSlot: Option[(LocalDateTime, String)] = slots
+    // Match rendered linear schedule behavior: only slots with at least one scheduled topic exist in the DOM.
+    val nextSlot: Option[(LocalDateTime, String)] = state.slots
       .flatMap(_.slots)
-      .find(_.time.endTime.isAfter(now))
-      .map(slot => (slot.time.startTime, slotId(slot.time.startTime)))
+      .collect {
+        case slot if slot.time.endTime.isAfter(now) &&
+          slot.rooms.exists(room => state.roomSlotContent(RoomSlot(room, slot.time)).isDefined) =>
+            (slot.time.startTime, slotId(slot.time.startTime))
+      }
+      .sortBy(_._1)
+      .headOption
     
     // Find next activity (by event time)
     val nextActivity: Option[(LocalDateTime, String)] = activities
@@ -216,10 +221,35 @@ object LinearScheduleView:
       case (None, Some((_, id))) => Some(id)
       case (None, None) => None
 
+  /** Find the first rendered item in schedule order (scheduled topic slot or activity). */
+  private def findFirstRenderedId(state: DiscussionState, activities: List[Activity]): Option[String] =
+    val firstRenderedSlot: Option[(LocalDateTime, String)] = state.slots
+      .flatMap(_.slots)
+      .collect {
+        case slot if slot.rooms.exists(room => state.roomSlotContent(RoomSlot(room, slot.time)).isDefined) =>
+          (slot.time.startTime, slotId(slot.time.startTime))
+      }
+      .sortBy(_._1)
+      .headOption
+
+    val firstActivity: Option[(LocalDateTime, String)] = activities
+      .sortBy(_.eventTime)
+      .headOption
+      .map(a => (a.eventTime, activitySlotId(a.eventTime)))
+
+    (firstRenderedSlot, firstActivity) match
+      case (Some((slotTime, slotDomId)), Some((actTime, actDomId))) =>
+        if actTime.isBefore(slotTime) then Some(actDomId) else Some(slotDomId)
+      case (Some((_, id)), None) => Some(id)
+      case (None, Some((_, id))) => Some(id)
+      case (None, None) => None
+
   /** Scroll smoothly to the next upcoming item. */
-  private def scrollToNextItem(slots: List[DaySlots], activities: List[Activity]): Unit =
+  private def scrollToNextItem(state: DiscussionState, activities: List[Activity]): Unit =
     import scala.scalajs.js
-    findNextUpcomingId(slots, activities).foreach { targetId =>
+    findNextUpcomingId(state, activities)
+      .orElse(findFirstRenderedId(state, activities))
+      .foreach { targetId =>
       Option(dom.document.getElementById(targetId)).foreach { element =>
         element.asInstanceOf[js.Dynamic].scrollIntoView(
           js.Dynamic.literal(behavior = "smooth", block = "center")
@@ -261,7 +291,7 @@ object LinearScheduleView:
           span("Jump to Now"),
           onClick --> Observer { _ =>
             val activities = currentActivityStateVar.now().activities.values.toList
-            scrollToNextItem(currentStateVar.now().slots, activities)
+            scrollToNextItem(currentStateVar.now(), activities)
           },
         ),
       ),
