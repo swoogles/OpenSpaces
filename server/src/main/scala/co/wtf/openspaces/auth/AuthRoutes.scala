@@ -1,6 +1,7 @@
 package co.wtf.openspaces.auth
 
 import co.wtf.openspaces.*
+import co.wtf.openspaces.discussions.DiscussionActionConfirmed
 import co.wtf.openspaces.db.UserRepository
 import co.wtf.openspaces.slack.SlackNotifier
 import zio.*
@@ -12,6 +13,7 @@ case class AuthRoutes(
   sessionService: SessionService,
   slackNotifier: SlackNotifier,
 ):
+  import neotype.unwrap
   import RandomActionApi._
 
   val routes: Routes[Any, Response] =
@@ -78,6 +80,32 @@ case class AuthRoutes(
             if success then UserActionResult(true, s"User ${request.username} revoked")
             else UserActionResult(false, s"User ${request.username} not found or already revoked")
           ).orDie
+      },
+
+      adminTopicsGet.implement { adminUsername =>
+        if !adminConfig.isAdmin(adminUsername) then
+          ZIO.succeed(AdminTopicsResponse(Nil))
+        else
+          sessionService
+            .listAllTopics
+            .map(AdminTopicsResponse(_))
+      },
+
+      adminDeleteTopicPost.implement { case (adminUsername, topicId) =>
+        if !adminConfig.isAdmin(adminUsername) then
+          ZIO.succeed(UserActionResult(false, "Unauthorized: Only admins can delete topics"))
+        else
+          sessionService
+            .deleteTopicAsAdmin(TopicId(topicId))
+            .map {
+              case DiscussionActionConfirmed.Delete(deletedTopicId) =>
+                UserActionResult(true, s"Deleted topic ${deletedTopicId.unwrap}")
+              case DiscussionActionConfirmed.Rejected(_) =>
+                UserActionResult(false, s"Topic $topicId not found")
+              case other =>
+                UserActionResult(false, s"Delete failed: ${other.getClass.getSimpleName}")
+            }
+            .orDie
       },
     )
 

@@ -133,6 +133,29 @@ case class SessionService(
       _ <- confirmedActionRepository.truncate
     yield topicIds.size
 
+  /** List all active discussion topics for admin tooling. */
+  def listAllTopics: UIO[List[AdminTopicInfo]] =
+    import neotype.unwrap
+    discussionStore.snapshot.map { state =>
+      state.data.values.toList
+        .sortBy(_.createdAtEpochMs)
+        .map(d =>
+          AdminTopicInfo(
+            id = d.id.unwrap,
+            topic = d.topic.unwrap,
+            facilitator = d.facilitator.unwrap,
+            votes = d.votes,
+          )
+        )
+    }
+
+  /** Delete one topic as an admin operation (bypasses ownership checks). */
+  def deleteTopicAsAdmin(topicId: TopicId): Task[DiscussionActionConfirmed] =
+    for
+      result <- discussionStore.applyAction(DiscussionAction.Delete(topicId))
+      _ <- handleActionResult(result, None)
+    yield result
+
   /** Delete all records attributed to users in RandomUsers.pool.
     *
     * Strategy:

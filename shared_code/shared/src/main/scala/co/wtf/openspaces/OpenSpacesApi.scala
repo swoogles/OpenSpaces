@@ -54,6 +54,17 @@ case class ApproveUserRequest(username: String) derives Schema, JsonCodec
 case class RevokeUserRequest(username: String) derives Schema, JsonCodec
 case class UserActionResult(success: Boolean, message: String) derives Schema, JsonCodec
 
+case class AdminTopicInfo(
+  id: Long,
+  topic: String,
+  facilitator: String,
+  votes: Int,
+) derives Schema, JsonCodec
+
+case class AdminTopicsResponse(
+  topics: List[AdminTopicInfo],
+) derives Schema, JsonCodec
+
 // Confirmed action log entry for visualization/replay
 case class ConfirmedActionEntry(
   id: Long,
@@ -155,6 +166,17 @@ object RandomActionApi {
       .in[RevokeUserRequest]
       .out[UserActionResult]
 
+  val adminTopicsGet =
+    Endpoint(RoutePattern.GET / "api" / "admin" / "topics")
+      .query[String](HttpCodec.query[String]("adminUsername"))
+      .out[AdminTopicsResponse]
+
+  val adminDeleteTopicPost =
+    Endpoint(RoutePattern.POST / "api" / "admin" / "topics" / "delete")
+      .query[String](HttpCodec.query[String]("adminUsername"))
+      .query[Long](HttpCodec.query[Long]("topicId"))
+      .out[UserActionResult]
+
   // Documentation-only representation of the primary WebSocket message contract.
   val discussionsWebSocket =
     Endpoint(RoutePattern.GET / "discussions")
@@ -181,6 +203,8 @@ object RandomActionApi {
       authStatusGet,
       approveUserPost,
       revokeUserPost,
+      adminTopicsGet,
+      adminDeleteTopicPost,
       discussionsWebSocket,
     )
 }
@@ -262,4 +286,10 @@ executor: EndpointExecutor[Any, Unit, zio.Scope]
 
   def revokeUser(adminUsername: String, username: String): Future[UserActionResult] =
     futureDumb(RandomActionApi.revokeUserPost.apply((adminUsername, RevokeUserRequest(username))))
+
+  def adminTopics(adminUsername: String): Future[AdminTopicsResponse] =
+    futureDumb(RandomActionApi.adminTopicsGet.apply(adminUsername))
+
+  def adminDeleteTopic(adminUsername: String, topicId: Long): Future[UserActionResult] =
+    futureDumb(RandomActionApi.adminDeleteTopicPost.apply((adminUsername, topicId)))
 }
