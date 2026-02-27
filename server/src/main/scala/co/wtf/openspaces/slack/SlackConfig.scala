@@ -7,6 +7,7 @@ case class SlackConfigEnv(
   botToken: String,
   channelName: String,
   lightningChannelName: String,
+  activityChannelName: String,
   hackathonChannelName: String,
   accessRequestChannelName: String,
   appBaseUrl: String
@@ -19,6 +20,8 @@ case class SlackConfig(
   channelName: String,
   lightningChannelId: String,
   lightningChannelName: String,
+  activityChannelId: String,
+  activityChannelName: String,
   hackathonChannelId: String,
   hackathonChannelName: String,
   accessRequestChannelId: String,
@@ -29,6 +32,7 @@ case class SlackConfig(
 object SlackConfigEnv:
   private val DefaultChannelName = "openspaces-discussions"
   private val DefaultLightningChannelName = "lightning-talks"
+  private val DefaultActivityChannelName = "activities"
   private val DefaultHackathonChannelName = "hackday-projects"
   private val DefaultAccessRequestChannelName = "access-requests"
 
@@ -39,6 +43,7 @@ object SlackConfigEnv:
         baseUrl <- sys.env.get("APP_BASE_URL")
         channelName = sys.env.getOrElse("SLACK_CHANNEL_NAME", DefaultChannelName)
         lightningChannelName = sys.env.getOrElse("SLACK_LIGHTNING_CHANNEL_NAME", DefaultLightningChannelName)
+        activityChannelName = sys.env.getOrElse("SLACK_ACTIVITY_CHANNEL_NAME", DefaultActivityChannelName)
         hackathonChannelName = sys.env.getOrElse("SLACK_HACKATHON_CHANNEL_NAME", DefaultHackathonChannelName)
         accessRequestChannelName = sys.env
           .get("SLACK_ACCESS_REQUEST_CHANNEL_NAME")
@@ -48,6 +53,7 @@ object SlackConfigEnv:
         token,
         channelName,
         lightningChannelName,
+        activityChannelName,
         hackathonChannelName,
         accessRequestChannelName,
         baseUrl,

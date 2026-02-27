@@ -363,9 +363,9 @@ class SlackNotifierLive(
     val blocks = buildActivityCreateBlocks(activity)
     val activityId = activity.id.unwrap
     val effect = for
-      ref <- slackClient.postMessage(config.channelId, blocks).retry(retryPolicy)
-      permalink <- slackClient.getPermalink(config.channelId, ref.ts).retry(retryPolicy)
-      _ <- activityRepo.updateSlackThread(activityId, config.channelId, ref.ts, permalink)
+      ref <- slackClient.postMessage(config.activityChannelId, blocks).retry(retryPolicy)
+      permalink <- slackClient.getPermalink(config.activityChannelId, ref.ts).retry(retryPolicy)
+      _ <- activityRepo.updateSlackThread(activityId, config.activityChannelId, ref.ts, permalink)
       _ <- broadcast(ActivityActionConfirmed.SlackThreadLinked(activity.id, permalink))
     yield ()
     effect.catchAll(err => ZIO.logError(s"Slack integration failed for activity $activityId: $err"))
@@ -380,7 +380,7 @@ class SlackNotifierLive(
       _ <- ZIO.when(row.description != newDescription.unwrap) {
         for
           ts <- ZIO.fromOption(row.slackThreadTs).orElseFail(new Exception(s"No Slack thread for activity $activityId"))
-          channelId = row.slackChannelId.getOrElse(config.channelId)
+          channelId = row.slackChannelId.getOrElse(config.activityChannelId)
           blocks = buildActivityUpdateBlocks(row.copy(description = newDescription.unwrap, eventTime = newEventTime))
           _ <- slackClient.updateMessage(channelId, ts, blocks)
         yield ()
@@ -395,7 +395,7 @@ class SlackNotifierLive(
   ): Task[Unit] =
     slackThreadTs match
       case Some(ts) =>
-        val channelId = slackChannelId.getOrElse(config.channelId)
+        val channelId = slackChannelId.getOrElse(config.activityChannelId)
         slackClient
           .deleteMessage(channelId, ts)
           .catchAll(err => ZIO.logError(s"Slack delete failed for activity $activityId: $err"))
@@ -463,6 +463,7 @@ object SlackNotifier:
             val effect = for
               channelId <- resolveOrCreateChannel(client, envConfig.botToken, envConfig.channelName)
               lightningChannelId <- resolveOrCreateChannel(client, envConfig.botToken, envConfig.lightningChannelName)
+              activityChannelId <- resolveOrCreateChannel(client, envConfig.botToken, envConfig.activityChannelName)
               hackathonChannelId <- resolveOrCreateChannel(client, envConfig.botToken, envConfig.hackathonChannelName)
               accessRequestChannelId <- resolveOrCreateChannel(client, envConfig.botToken, envConfig.accessRequestChannelName)
               config = SlackConfig(
@@ -471,6 +472,8 @@ object SlackNotifier:
                 envConfig.channelName,
                 lightningChannelId,
                 envConfig.lightningChannelName,
+                activityChannelId,
+                envConfig.activityChannelName,
                 hackathonChannelId,
                 envConfig.hackathonChannelName,
                 accessRequestChannelId,
@@ -478,7 +481,7 @@ object SlackNotifier:
                 envConfig.appBaseUrl,
               )
               _ <- ZIO.logInfo(
-                s"Slack integration enabled for channels #${envConfig.channelName} ($channelId), #${envConfig.lightningChannelName} ($lightningChannelId), #${envConfig.hackathonChannelName} ($hackathonChannelId), #${envConfig.accessRequestChannelName} ($accessRequestChannelId)"
+                s"Slack integration enabled for channels #${envConfig.channelName} ($channelId), #${envConfig.lightningChannelName} ($lightningChannelId), #${envConfig.activityChannelName} ($activityChannelId), #${envConfig.hackathonChannelName} ($hackathonChannelId), #${envConfig.accessRequestChannelName} ($accessRequestChannelId)"
               )
             yield SlackNotifierLive(
               SlackClientLive(client, config),
@@ -500,7 +503,7 @@ object SlackNotifier:
 
   private def resolveOrCreateChannel(client: Client, botToken: String, channelName: String): Task[String] =
     // Create a temporary SlackClient just for channel resolution
-    val tempConfig = SlackConfig(botToken, "", "", "", "", "", "", "", "", "")
+    val tempConfig = SlackConfig(botToken, "", "", "", "", "", "", "", "", "", "", "")
     val slackClient = SlackClientLive(client, tempConfig)
     
     for

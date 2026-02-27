@@ -31,6 +31,7 @@ The app automatically creates the managed Slack channels on startup if they don'
 
 - **`#openspaces-discussions`**
 - **`#lightning-talks`**
+- **`#activities`**
 - **`#hackday-projects`**
 - **`#access-requests`**
 
@@ -61,14 +62,16 @@ Set these env vars wherever you run the server (Heroku, local `.env`, etc.):
 SLACK_BOT_TOKEN=xoxb-your-token-here
 SLACK_CHANNEL_NAME=openspaces-discussions
 SLACK_LIGHTNING_CHANNEL_NAME=lightning-talks
+SLACK_ACTIVITY_CHANNEL_NAME=activities
 SLACK_HACKATHON_CHANNEL_NAME=hackday-projects
 SLACK_ACCESS_REQUEST_CHANNEL_NAME=access-requests
 APP_BASE_URL=https://your-app.herokuapp.com
 ```
 
 - `SLACK_BOT_TOKEN` — the `xoxb-` token from step 3 **(required)**
-- `SLACK_CHANNEL_NAME` — discussion/activity channel (default: `openspaces-discussions`)
+- `SLACK_CHANNEL_NAME` — discussions channel (default: `openspaces-discussions`)
 - `SLACK_LIGHTNING_CHANNEL_NAME` — lightning talks channel (default: `lightning-talks`)
+- `SLACK_ACTIVITY_CHANNEL_NAME` — activities channel (default: `activities`)
 - `SLACK_HACKATHON_CHANNEL_NAME` — hackathon projects channel (default: `hackday-projects`)
 - `SLACK_ACCESS_REQUEST_CHANNEL_NAME` — access request channel (default: `access-requests`)
 - `APP_BASE_URL` — your app's public URL (no trailing slash). This is used in the "View in OpenSpaces" link in Slack messages. **(required)**
