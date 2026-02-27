@@ -542,10 +542,14 @@ case class SessionService(
           case Some(channel) => channel.send(DiscussionActionConfirmedMessage(unauthorized)).ignore
           case None => ZIO.unit
       case other =>
-        broadcastToAll(DiscussionActionConfirmedMessage(other)) *> slackNotifier.notifyDiscussion(
-          other,
-          msg => broadcastToAll(DiscussionActionConfirmedMessage(msg)),
-        )
+        broadcastToAll(DiscussionActionConfirmedMessage(other)) *>
+          slackNotifier
+            .notifyDiscussion(
+              other,
+              msg => broadcastToAll(DiscussionActionConfirmedMessage(msg)),
+            )
+            .catchAll(err => ZIO.logError(s"Slack discussion notification failed (non-fatal): $err"))
+            .ignore
 
   private def handleLightningActionResult(
     actionResult: LightningTalkActionConfirmed,
@@ -561,10 +565,14 @@ case class SessionService(
           case Some(channel) => channel.send(LightningTalkActionConfirmedMessage(unauthorized)).ignore
           case None => ZIO.unit
       case other =>
-        broadcastToAll(LightningTalkActionConfirmedMessage(other)) *> slackNotifier.notifyLightning(
-          other,
-          msg => broadcastToAll(LightningTalkActionConfirmedMessage(msg)),
-        )
+        broadcastToAll(LightningTalkActionConfirmedMessage(other)) *>
+          slackNotifier
+            .notifyLightning(
+              other,
+              msg => broadcastToAll(LightningTalkActionConfirmedMessage(msg)),
+            )
+            .catchAll(err => ZIO.logError(s"Slack lightning notification failed (non-fatal): $err"))
+            .ignore
 
   private def handleUnticketedAction(
     channel: OpenSpacesServerChannel,
@@ -652,10 +660,14 @@ case class SessionService(
           case Some(channel) => channel.send(HackathonProjectActionConfirmedMessage(unauthorized)).ignore
           case None => ZIO.unit
       case other =>
-        broadcastToAll(HackathonProjectActionConfirmedMessage(other)) *> slackNotifier.notifyHackathonProject(
-          other,
-          msg => broadcastToAll(HackathonProjectActionConfirmedMessage(msg)),
-        )
+        broadcastToAll(HackathonProjectActionConfirmedMessage(other)) *>
+          slackNotifier
+            .notifyHackathonProject(
+              other,
+              msg => broadcastToAll(HackathonProjectActionConfirmedMessage(msg)),
+            )
+            .catchAll(err => ZIO.logError(s"Slack hackathon notification failed (non-fatal): $err"))
+            .ignore
 
   private def handleUnticketedHackathonAction(
     channel: OpenSpacesServerChannel,
@@ -706,10 +718,14 @@ case class SessionService(
           case Some(channel) => channel.send(ActivityActionConfirmedMessage(unauthorized)).ignore
           case None => ZIO.unit
       case other =>
-        broadcastToAll(ActivityActionConfirmedMessage(other)) *> slackNotifier.notifyActivity(
-          other,
-          msg => broadcastToAll(ActivityActionConfirmedMessage(msg)),
-        )
+        broadcastToAll(ActivityActionConfirmedMessage(other)) *>
+          slackNotifier
+            .notifyActivity(
+              other,
+              msg => broadcastToAll(ActivityActionConfirmedMessage(msg)),
+            )
+            .catchAll(err => ZIO.logError(s"Slack activity notification failed (non-fatal): $err"))
+            .ignore
 
   private def handleUnticketedActivityAction(
     channel: OpenSpacesServerChannel,
