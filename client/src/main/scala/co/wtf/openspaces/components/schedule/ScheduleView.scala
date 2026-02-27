@@ -296,11 +296,16 @@ object LinearScheduleView:
         ),
       ),
       children <-- Signal.combine($discussionState, $lightningTalkState, $activityState).map { (state, lightningState, activityState) =>
-        state.slots.map { daySlot =>
-          val dayName = daySlot.date.getDayOfWeek.toString
+        val daySlotsByDate = state.slots.map(ds => ds.date -> ds).toMap
+        val activityDates = activityState.activities.values.map(_.eventTime.toLocalDate).toSet
+        val allDates = (daySlotsByDate.keySet ++ activityDates).toList.sortBy(_.toEpochDay)
+
+        allDates.map { date =>
+          val daySlotOpt = daySlotsByDate.get(date)
+          val dayName = date.getDayOfWeek.toString
           val maybeLightningNight = lightningNightForDay(dayName)
           val dayActivities = activityState.activities.values
-            .filter(_.eventTime.toLocalDate == daySlot.date)
+            .filter(_.eventTime.toLocalDate == date)
             .toList
             .sortBy(activity =>
               (
@@ -352,7 +357,7 @@ object LinearScheduleView:
           div(
             cls := "LinearDay",
             div(cls := "LinearDayHeader", dayName),
-            daySlot.slots.flatMap { timeSlotForAllRooms =>
+            daySlotOpt.toList.flatMap(_.slots).flatMap { timeSlotForAllRooms =>
               val leadingActivities = consumeActivitiesThrough(timeSlotForAllRooms.time.startTime).map(renderActivity)
               val scheduledRooms = timeSlotForAllRooms.rooms.flatMap { room =>
                 val roomSlot = RoomSlot(room, timeSlotForAllRooms.time)
@@ -383,7 +388,7 @@ object LinearScheduleView:
                     },
                   )
                 leadingActivities :+ slot
-            } ++ consumeRemainingActivities().map(renderActivity) ++ maybeLightningNight.toList.map { _ =>
+            } ++ consumeRemainingActivities().map(renderActivity) ++ daySlotOpt.toList.flatMap(_ => maybeLightningNight.toList).map { _ =>
               div(
                 cls := "LinearTimeSlot LinearTimeSlot--lightning",
                 div(
