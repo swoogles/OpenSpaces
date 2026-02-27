@@ -133,10 +133,12 @@ case class SessionService(
       _ <- confirmedActionRepository.truncate
     yield topicIds.size
 
-  /** List all active discussion topics for admin tooling. */
-  def listAllTopics: UIO[List[AdminTopicInfo]] =
+  /** List all active discussion topics for admin tooling.
+    * Uses a DB reload to avoid stale in-memory state in admin APIs.
+    */
+  def listAllTopics: Task[List[AdminTopicInfo]] =
     import neotype.unwrap
-    discussionStore.snapshot.map { state =>
+    discussionStore.reloadFromDatabase.map { state =>
       state.data.values.toList
         .sortBy(_.createdAtEpochMs)
         .map(d =>

@@ -106,6 +106,13 @@ case class AuthRoutes(
                     .json(AdminTopicsResponse(topics).toJson)
                     .status(Status.Ok),
                 )
+                .catchAll { err =>
+                  ZIO.succeed(
+                    Response
+                      .json(UserActionResult(false, s"List topics failed with server error: ${err.getMessage}").toJson)
+                      .status(Status.InternalServerError),
+                  )
+                }
         },
 
       Method.POST / "api" / "admin" / "topics" / "delete" ->
