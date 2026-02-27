@@ -154,6 +154,21 @@ case class SessionService(
     for
       result <- discussionStore.applyAction(DiscussionAction.Delete(topicId))
       _ <- handleActionResult(result, None)
+      _ <- result match
+        case DiscussionActionConfirmed.Delete(_) =>
+          for
+            reloadedDiscussionState <- discussionStore.reloadFromDatabase
+            _ <- broadcastToAll(
+              DiscussionActionConfirmedMessage(
+                DiscussionActionConfirmed.StateReplace(
+                  reloadedDiscussionState.data.values.toList,
+                  reloadedDiscussionState.slots,
+                ),
+              ),
+            )
+          yield ()
+        case _ =>
+          ZIO.unit
     yield result
 
   /** Delete all records attributed to users in RandomUsers.pool.
