@@ -170,6 +170,13 @@ case class SessionService(
           ),
         ),
       )
+      _ <- slackNotifier
+        .notifyDiscussion(
+          DiscussionActionConfirmed.Delete(topicId),
+          msg => broadcastToAll(DiscussionActionConfirmedMessage(msg)),
+        )
+        .catchAll(err => ZIO.logError(s"Admin delete Slack cleanup failed (non-fatal) for topic ${topicId.unwrap}: $err"))
+        .ignore
     yield !reloadedDiscussionState.data.contains(topicId)
 
   /** Delete all records attributed to users in RandomUsers.pool.
