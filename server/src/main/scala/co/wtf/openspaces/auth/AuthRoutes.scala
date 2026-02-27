@@ -142,18 +142,14 @@ case class AuthRoutes(
             case (Some(_), Some(topicId)) =>
               sessionService
                 .deleteTopicAsAdmin(TopicId(topicId))
-                .map {
-                  case DiscussionActionConfirmed.Delete(deletedTopicId) =>
+                .map { gone =>
+                  if gone then
                     Response
-                      .json(UserActionResult(true, s"Deleted topic ${deletedTopicId.unwrap}").toJson)
+                      .json(UserActionResult(true, s"Topic $topicId is now absent (deleted or already gone)").toJson)
                       .status(Status.Ok)
-                  case DiscussionActionConfirmed.Rejected(_) =>
+                  else
                     Response
-                      .json(UserActionResult(false, s"Topic $topicId not found").toJson)
-                      .status(Status.NotFound)
-                  case other =>
-                    Response
-                      .json(UserActionResult(false, s"Delete failed: ${other.getClass.getSimpleName}").toJson)
+                      .json(UserActionResult(false, s"Delete failed: topic $topicId still present after reconciliation").toJson)
                       .status(Status.InternalServerError)
                 }
                 .catchAll { err =>

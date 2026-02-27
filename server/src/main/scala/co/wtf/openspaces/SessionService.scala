@@ -151,27 +151,25 @@ case class SessionService(
         )
     }
 
-  /** Delete one topic as an admin operation (bypasses ownership checks). */
-  def deleteTopicAsAdmin(topicId: TopicId): Task[DiscussionActionConfirmed] =
+  /** Delete one topic as an admin operation and force state reconciliation.
+    *
+    * Returns true when the topic is absent after DB reload, which is treated as
+    * successful for admin cleanup (deleted now or already gone previously).
+    */
+  def deleteTopicAsAdmin(topicId: TopicId): Task[Boolean] =
     for
       result <- discussionStore.applyAction(DiscussionAction.Delete(topicId))
       _ <- handleActionResult(result, None)
-      _ <- result match
-        case DiscussionActionConfirmed.Delete(_) =>
-          for
-            reloadedDiscussionState <- discussionStore.reloadFromDatabase
-            _ <- broadcastToAll(
-              DiscussionActionConfirmedMessage(
-                DiscussionActionConfirmed.StateReplace(
-                  reloadedDiscussionState.data.values.toList,
-                  reloadedDiscussionState.slots,
-                ),
-              ),
-            )
-          yield ()
-        case _ =>
-          ZIO.unit
-    yield result
+      reloadedDiscussionState <- discussionStore.reloadFromDatabase
+      _ <- broadcastToAll(
+        DiscussionActionConfirmedMessage(
+          DiscussionActionConfirmed.StateReplace(
+            reloadedDiscussionState.data.values.toList,
+            reloadedDiscussionState.slots,
+          ),
+        ),
+      )
+    yield !reloadedDiscussionState.data.contains(topicId)
 
   /** Delete all records attributed to users in RandomUsers.pool.
     *
