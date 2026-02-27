@@ -217,7 +217,7 @@ trait DiscussionRepository:
   def findAllActive: Task[Vector[DiscussionRow]]
   def insert(row: DiscussionRow): Task[Unit]
   def update(row: DiscussionRow): Task[Unit]
-  def softDelete(id: Long): Task[Unit]
+  def softDelete(id: Long): Task[Boolean]
   def truncate: Task[Unit]
   def updateSlackThread(topicId: Long, channelId: String, threadTs: String, permalink: String): Task[Unit]
   def updateRoomSlot(topicId: Long, roomId: Option[Int], timeSlotId: Option[Int]): Task[Unit]
@@ -272,10 +272,10 @@ class DiscussionRepositoryLive(ds: DataSource) extends DiscussionRepository:
             WHERE id = ${row.id}""".update.run()
       ()
 
-  def softDelete(id: Long): Task[Unit] =
+  def softDelete(id: Long): Task[Boolean] =
     transactZIO(ds):
-      sql"UPDATE discussions SET deleted_at = NOW() WHERE id = $id".update.run()
-      ()
+      val updated = sql"UPDATE discussions SET deleted_at = NOW() WHERE id = $id AND deleted_at IS NULL".update.run()
+      updated > 0
 
   def truncate: Task[Unit] =
     transactZIO(ds):

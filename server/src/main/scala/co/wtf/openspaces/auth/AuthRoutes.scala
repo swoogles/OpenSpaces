@@ -6,6 +6,7 @@ import co.wtf.openspaces.db.UserRepository
 import co.wtf.openspaces.slack.SlackNotifier
 import zio.*
 import zio.http.*
+import zio.json.EncoderOps
 
 case class AuthRoutes(
   adminConfig: AdminConfig,
@@ -82,31 +83,80 @@ case class AuthRoutes(
           ).orDie
       },
 
-      adminTopicsGet.implement { adminUsername =>
-        if !adminConfig.isAdmin(adminUsername) then
-          ZIO.succeed(AdminTopicsResponse(Nil))
-        else
-          sessionService
-            .listAllTopics
-            .map(AdminTopicsResponse(_))
-      },
+      Method.GET / "api" / "admin" / "topics" ->
+        handler { (req: Request) =>
+          req.queryParam("adminUsername") match
+            case None =>
+              ZIO.succeed(
+                Response
+                  .json(UserActionResult(false, "Missing required query param: adminUsername").toJson)
+                  .status(Status.BadRequest),
+              )
+            case Some(adminUsername) if !adminConfig.isAdmin(adminUsername) =>
+              ZIO.succeed(
+                Response
+                  .json(UserActionResult(false, "Unauthorized: Only admins can list topics").toJson)
+                  .status(Status.Forbidden),
+              )
+            case Some(_) =>
+              sessionService
+                .listAllTopics
+                .map(topics =>
+                  Response
+                    .json(AdminTopicsResponse(topics).toJson)
+                    .status(Status.Ok),
+                )
+        },
 
-      adminDeleteTopicPost.implement { case (adminUsername, topicId) =>
-        if !adminConfig.isAdmin(adminUsername) then
-          ZIO.succeed(UserActionResult(false, "Unauthorized: Only admins can delete topics"))
-        else
-          sessionService
-            .deleteTopicAsAdmin(TopicId(topicId))
-            .map {
-              case DiscussionActionConfirmed.Delete(deletedTopicId) =>
-                UserActionResult(true, s"Deleted topic ${deletedTopicId.unwrap}")
-              case DiscussionActionConfirmed.Rejected(_) =>
-                UserActionResult(false, s"Topic $topicId not found")
-              case other =>
-                UserActionResult(false, s"Delete failed: ${other.getClass.getSimpleName}")
-            }
-            .orDie
-      },
+      Method.POST / "api" / "admin" / "topics" / "delete" ->
+        handler { (req: Request) =>
+          val adminUsernameOpt = req.queryParam("adminUsername")
+          val topicIdOpt = req.queryParam("topicId").flatMap(value => scala.util.Try(value.toLong).toOption)
+
+          (adminUsernameOpt, topicIdOpt) match
+            case (None, _) =>
+              ZIO.succeed(
+                Response
+                  .json(UserActionResult(false, "Missing required query param: adminUsername").toJson)
+                  .status(Status.BadRequest),
+              )
+            case (_, None) =>
+              ZIO.succeed(
+                Response
+                  .json(UserActionResult(false, "Missing or invalid required query param: topicId").toJson)
+                  .status(Status.BadRequest),
+              )
+            case (Some(adminUsername), Some(_)) if !adminConfig.isAdmin(adminUsername) =>
+              ZIO.succeed(
+                Response
+                  .json(UserActionResult(false, "Unauthorized: Only admins can delete topics").toJson)
+                  .status(Status.Forbidden),
+              )
+            case (Some(_), Some(topicId)) =>
+              sessionService
+                .deleteTopicAsAdmin(TopicId(topicId))
+                .map {
+                  case DiscussionActionConfirmed.Delete(deletedTopicId) =>
+                    Response
+                      .json(UserActionResult(true, s"Deleted topic ${deletedTopicId.unwrap}").toJson)
+                      .status(Status.Ok)
+                  case DiscussionActionConfirmed.Rejected(_) =>
+                    Response
+                      .json(UserActionResult(false, s"Topic $topicId not found").toJson)
+                      .status(Status.NotFound)
+                  case other =>
+                    Response
+                      .json(UserActionResult(false, s"Delete failed: ${other.getClass.getSimpleName}").toJson)
+                      .status(Status.InternalServerError)
+                }
+                .catchAll { err =>
+                  ZIO.succeed(
+                    Response
+                      .json(UserActionResult(false, s"Delete failed with server error: ${err.getMessage}").toJson)
+                      .status(Status.InternalServerError),
+                  )
+                }
+        },
     )
 
 object AuthRoutes:

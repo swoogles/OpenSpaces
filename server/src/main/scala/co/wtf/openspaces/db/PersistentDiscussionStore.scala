@@ -487,11 +487,16 @@ class PersistentDiscussionStore(
       case DiscussionAction.Delete(topicId) =>
         for
           _ <- ensureUserExists(actor)
-          confirmed = DiscussionActionConfirmed.fromDiscussionAction(action)
-          _ <- persistEvent("Delete", topicId.unwrap, action.toJson, actor)
-          _ <- discussionRepo.softDelete(topicId.unwrap)
-          _ <- state.update(_.apply(confirmed))
-        yield confirmed
+          deleted <- discussionRepo.softDelete(topicId.unwrap)
+          result <- if deleted then
+            val confirmed = DiscussionActionConfirmed.fromDiscussionAction(action)
+            for
+              _ <- persistEvent("Delete", topicId.unwrap, action.toJson, actor)
+              _ <- state.update(_.apply(confirmed))
+            yield confirmed
+          else
+            ZIO.succeed(DiscussionActionConfirmed.Rejected(action))
+        yield result
 
   private def ensureUserExists(username: String): Task[Unit] =
     if username == "system" then
