@@ -31,6 +31,6 @@
   - [x] State sync on reconnect (re-fetch full state when reconnecting)
 
   - [x] I have given the Slack app the channels:manage Permission. I want it to Create the channel that it plans to use. For the time being- add a `-test` to the channel name and account for that everywhere.
-    - Changed `SLACK_CHANNEL_ID` to `SLACK_CHANNEL_NAME` (defaults to `openspaces-discussions-test`)
+    - Changed `SLACK_CHANNEL_ID` to `SLACK_CHANNEL_NAME` (defaults to `openspaces-discussions`)
     - App finds existing channel or creates it on startup
     - Added `findChannelByName` and `createChannel` to SlackClient 

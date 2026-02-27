@@ -55,14 +55,14 @@ class SlackNotifierLive(
       case DiscussionActionConfirmed.Rename(topicId, newTopic) =>
         handleRename(topicId, newTopic).fork.unit
 
-      case DiscussionActionConfirmed.SetRoomSlot(topicId, newRoomSlot) =>
-        handleUpdateRoomSlot(topicId, newRoomSlot).fork.unit
+      case DiscussionActionConfirmed.SetRoomSlot(_, _) =>
+        ZIO.unit
 
       case DiscussionActionConfirmed.Delete(topicId) =>
         handleDelete(topicId).fork.unit
 
-      case DiscussionActionConfirmed.SwapTopics(topic1, newSlot1, topic2, newSlot2) =>
-        (handleUpdateRoomSlot(topic1, Some(newSlot1)) *> handleUpdateRoomSlot(topic2, Some(newSlot2))).fork.unit
+      case DiscussionActionConfirmed.SwapTopics(_, _, _, _) =>
+        ZIO.unit
 
       case _ => ZIO.unit // Vote, SlackThreadLinked, Rejected are no-ops
 
@@ -91,10 +91,10 @@ class SlackNotifierLive(
     action match
       case HackathonProjectActionConfirmed.Created(project) =>
         handleHackathonCreate(project, broadcast).fork.unit
-      case HackathonProjectActionConfirmed.Joined(projectId, person, _) =>
-        handleHackathonJoin(projectId, person).fork.unit
-      case HackathonProjectActionConfirmed.Left(projectId, person, newOwner) =>
-        handleHackathonLeave(projectId, person, newOwner).fork.unit
+      case HackathonProjectActionConfirmed.Joined(_, _, _) =>
+        ZIO.unit
+      case HackathonProjectActionConfirmed.Left(_, _, _) =>
+        ZIO.unit
       case HackathonProjectActionConfirmed.Renamed(projectId, newTitle) =>
         handleHackathonRename(projectId, newTitle).fork.unit
       case HackathonProjectActionConfirmed.Deleted(projectId) =>
@@ -257,7 +257,7 @@ class SlackNotifierLive(
     val avatarUrl = s"https://github.com/${proposal.speaker.unwrap}.png?size=100"
     val appLink = s"${config.appBaseUrl}"
 
-    s"""[{"type":"section","text":{"type":"mrkdwn","text":":zap: *Lightning Talk Volunteer*"},"accessory":{"type":"image","image_url":"$avatarUrl","alt_text":"$speaker"}},{"type":"context","elements":[{"type":"mrkdwn","text":"*${speaker}* is willing to give a lightning talk · <$appLink|View in OpenSpaces>"}]}]"""
+    s"""[{"type":"section","text":{"type":"mrkdwn","text":":zap: *$speaker Lightning talk*"},"accessory":{"type":"image","image_url":"$avatarUrl","alt_text":"$speaker"}},{"type":"context","elements":[{"type":"mrkdwn","text":"*${speaker}* is willing to give a lightning talk · <$appLink|View in OpenSpaces>"}]}]"""
 
   private def buildLightningUpdateBlocks(row: LightningTalkRow): String =
     val speaker = row.speaker.replace("\"", "\\\"")
@@ -266,7 +266,7 @@ class SlackNotifierLive(
     val assignmentInfo = (row.assignmentNight, row.assignmentSlot) match
       case (Some(night), Some(slot)) => s" · :zap: $night Night slot #$slot"
       case _ => ""
-    s"""[{"type":"section","text":{"type":"mrkdwn","text":":zap: *Lightning Talk Volunteer*"},"accessory":{"type":"image","image_url":"$avatarUrl","alt_text":"$speaker"}},{"type":"context","elements":[{"type":"mrkdwn","text":"*${speaker}* is willing to give a lightning talk$assignmentInfo · <$appLink|View in OpenSpaces>"}]}]"""
+    s"""[{"type":"section","text":{"type":"mrkdwn","text":":zap: *$speaker Lightning talk*"},"accessory":{"type":"image","image_url":"$avatarUrl","alt_text":"$speaker"}},{"type":"context","elements":[{"type":"mrkdwn","text":"*${speaker}* is willing to give a lightning talk$assignmentInfo · <$appLink|View in OpenSpaces>"}]}]"""
 
   // Hackathon Project handlers
 
@@ -377,10 +377,14 @@ class SlackNotifierLive(
   ): Task[Unit] =
     val effect = for
       row <- activityRepo.findById(activityId.unwrap).someOrFail(new Exception(s"Activity $activityId not found"))
-      ts <- ZIO.fromOption(row.slackThreadTs).orElseFail(new Exception(s"No Slack thread for activity $activityId"))
-      channelId = row.slackChannelId.getOrElse(config.channelId)
-      blocks = buildActivityUpdateBlocks(row.copy(description = newDescription.unwrap, eventTime = newEventTime))
-      _ <- slackClient.updateMessage(channelId, ts, blocks)
+      _ <- ZIO.when(row.description != newDescription.unwrap) {
+        for
+          ts <- ZIO.fromOption(row.slackThreadTs).orElseFail(new Exception(s"No Slack thread for activity $activityId"))
+          channelId = row.slackChannelId.getOrElse(config.channelId)
+          blocks = buildActivityUpdateBlocks(row.copy(description = newDescription.unwrap, eventTime = newEventTime))
+          _ <- slackClient.updateMessage(channelId, ts, blocks)
+        yield ()
+      }
     yield ()
     effect.catchAll(err => ZIO.logError(s"Slack update failed for activity $activityId: $err"))
 
@@ -410,9 +414,8 @@ class SlackNotifierLive(
     val description = row.description.replace("\"", "\\\"")
     val creator = row.creator.replace("\"", "\\\"")
     val avatarUrl = s"https://github.com/${row.creator}.png?size=100"
-    val timeString = row.eventTime.toString.replace("T", " ")
     val appLink = s"${config.appBaseUrl}"
-    s"""[{"type":"section","text":{"type":"mrkdwn","text":":calendar: *$description*"},"accessory":{"type":"image","image_url":"$avatarUrl","alt_text":"$creator"}},{"type":"context","elements":[{"type":"mrkdwn","text":"Proposed by *$creator* · $timeString · <$appLink|View in OpenSpaces>"}]}]"""
+    s"""[{"type":"section","text":{"type":"mrkdwn","text":":calendar: *$description*"},"accessory":{"type":"image","image_url":"$avatarUrl","alt_text":"$creator"}},{"type":"context","elements":[{"type":"mrkdwn","text":"Proposed by *$creator* · <$appLink|View in OpenSpaces>"}]}]"""
 
   // Replace colons with Unicode ratio character (∶ U+2236) to prevent Slack emoji parsing
   private def escapeColonsForSlack(s: String): String = s.replace(":", "∶")

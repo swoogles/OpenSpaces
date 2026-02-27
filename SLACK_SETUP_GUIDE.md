@@ -27,7 +27,7 @@
 
 ## 4. Channel Setup (Automatic)
 
-The app automatically creates the Slack channel on startup if it doesn't exist. By default, it creates **`#openspaces-discussions-test`**.
+The app automatically creates the Slack channel on startup if it doesn't exist. By default, it creates **`#openspaces-discussions`**.
 
 You can customize the channel name with the `SLACK_CHANNEL_NAME` env var (see step 6).
 
@@ -54,19 +54,19 @@ Set these env vars wherever you run the server (Heroku, local `.env`, etc.):
 
 ```bash
 SLACK_BOT_TOKEN=xoxb-your-token-here
-SLACK_CHANNEL_NAME=openspaces-discussions-test
+SLACK_CHANNEL_NAME=openspaces-discussions
 APP_BASE_URL=https://your-app.herokuapp.com
 ```
 
 - `SLACK_BOT_TOKEN` — the `xoxb-` token from step 3 **(required)**
-- `SLACK_CHANNEL_NAME` — the channel name to use (default: `openspaces-discussions-test`). The app finds this channel or creates it on startup.
+- `SLACK_CHANNEL_NAME` — the channel name to use (default: `openspaces-discussions`). The app finds this channel or creates it on startup.
 - `APP_BASE_URL` — your app's public URL (no trailing slash). This is used in the "View in OpenSpaces" link in Slack messages. **(required)**
 
 If `SLACK_BOT_TOKEN` or `APP_BASE_URL` are missing, the integration silently disables itself — the app works normally, just without Slack posts.
 
 ## 7. Verify It Works
 
-1. Start/restart the server — you should see: `Slack integration enabled for channel #openspaces-discussions-test (C01ABCDEF23)`
+1. Start/restart the server — you should see: `Slack integration enabled for channel #openspaces-discussions (C01ABCDEF23)`
 2. Create a new topic in OpenSpaces
 3. Within a few seconds, a message should appear in the Slack channel with the topic name, facilitator avatar, and a "View in OpenSpaces" link
 4. The topic card in the app should show a small Slack icon linking to that thread

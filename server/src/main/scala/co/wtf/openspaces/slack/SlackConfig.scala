@@ -24,9 +24,9 @@ case class SlackConfig(
 )
 
 object SlackConfigEnv:
-  private val DefaultChannelName = "openspaces-discussions-test"
-  private val DefaultHackathonChannelName = "hackday-projects-test"
-  private val DefaultAccessRequestChannelName = "access-requests-test"
+  private val DefaultChannelName = "openspaces-discussions"
+  private val DefaultHackathonChannelName = "hackday-projects"
+  private val DefaultAccessRequestChannelName = "access-requests"
 
   def fromEnv: UIO[Option[SlackConfigEnv]] =
     ZIO.succeed:

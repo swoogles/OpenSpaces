@@ -11,7 +11,7 @@ case class AdminConfig(
     adminUsers.contains(username.toLowerCase)
 
 object AdminConfig:
-  private val DefaultAccessRequestChannelName = "access-requests-test"
+  private val DefaultAccessRequestChannelName = "access-requests"
 
   def fromEnv: UIO[AdminConfig] =
     ZIO.succeed:
