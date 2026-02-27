@@ -27,9 +27,14 @@
 
 ## 4. Channel Setup (Automatic)
 
-The app automatically creates the Slack channel on startup if it doesn't exist. By default, it creates **`#openspaces-discussions`**.
+The app automatically creates the managed Slack channels on startup if they don't exist:
 
-You can customize the channel name with the `SLACK_CHANNEL_NAME` env var (see step 6).
+- **`#openspaces-discussions`**
+- **`#lightning-talks`**
+- **`#hackday-projects`**
+- **`#access-requests`**
+
+You can customize these channel names with env vars (see step 6).
 
 When the app creates the channel, the bot is automatically a member. If you create the channel manually or use a pre-existing one, invite the bot:
 
@@ -55,18 +60,24 @@ Set these env vars wherever you run the server (Heroku, local `.env`, etc.):
 ```bash
 SLACK_BOT_TOKEN=xoxb-your-token-here
 SLACK_CHANNEL_NAME=openspaces-discussions
+SLACK_LIGHTNING_CHANNEL_NAME=lightning-talks
+SLACK_HACKATHON_CHANNEL_NAME=hackday-projects
+SLACK_ACCESS_REQUEST_CHANNEL_NAME=access-requests
 APP_BASE_URL=https://your-app.herokuapp.com
 ```
 
 - `SLACK_BOT_TOKEN` — the `xoxb-` token from step 3 **(required)**
-- `SLACK_CHANNEL_NAME` — the channel name to use (default: `openspaces-discussions`). The app finds this channel or creates it on startup.
+- `SLACK_CHANNEL_NAME` — discussion/activity channel (default: `openspaces-discussions`)
+- `SLACK_LIGHTNING_CHANNEL_NAME` — lightning talks channel (default: `lightning-talks`)
+- `SLACK_HACKATHON_CHANNEL_NAME` — hackathon projects channel (default: `hackday-projects`)
+- `SLACK_ACCESS_REQUEST_CHANNEL_NAME` — access request channel (default: `access-requests`)
 - `APP_BASE_URL` — your app's public URL (no trailing slash). This is used in the "View in OpenSpaces" link in Slack messages. **(required)**
 
 If `SLACK_BOT_TOKEN` or `APP_BASE_URL` are missing, the integration silently disables itself — the app works normally, just without Slack posts.
 
 ## 7. Verify It Works
 
-1. Start/restart the server — you should see: `Slack integration enabled for channel #openspaces-discussions (C01ABCDEF23)`
+1. Start/restart the server — you should see all configured channels in the startup log
 2. Create a new topic in OpenSpaces
 3. Within a few seconds, a message should appear in the Slack channel with the topic name, facilitator avatar, and a "View in OpenSpaces" link
 4. The topic card in the app should show a small Slack icon linking to that thread

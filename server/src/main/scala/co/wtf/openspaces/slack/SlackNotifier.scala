@@ -193,9 +193,9 @@ class SlackNotifierLive(
     val blocks = buildLightningCreateBlocks(proposal)
     val proposalId = proposal.id.unwrap
     val effect = for
-      ref <- slackClient.postMessage(config.channelId, blocks).retry(retryPolicy)
-      permalink <- slackClient.getPermalink(config.channelId, ref.ts).retry(retryPolicy)
-      _ <- lightningTalkRepo.updateSlackThread(proposalId, config.channelId, ref.ts, permalink)
+      ref <- slackClient.postMessage(config.lightningChannelId, blocks).retry(retryPolicy)
+      permalink <- slackClient.getPermalink(config.lightningChannelId, ref.ts).retry(retryPolicy)
+      _ <- lightningTalkRepo.updateSlackThread(proposalId, config.lightningChannelId, ref.ts, permalink)
       _ <- broadcast(LightningTalkActionConfirmed.SlackThreadLinked(proposal.id, permalink))
     yield ()
     effect.catchAll(err => ZIO.logError(s"Slack integration failed for lightning proposal $proposalId: $err"))
@@ -207,7 +207,7 @@ class SlackNotifierLive(
     val effect = for
       row <- lightningTalkRepo.findById(proposalId.unwrap).someOrFail(new Exception(s"Lightning talk $proposalId not found"))
       ts <- ZIO.fromOption(row.slackThreadTs).orElseFail(new Exception(s"No Slack thread for lightning talk $proposalId"))
-      channelId = row.slackChannelId.getOrElse(config.channelId)
+      channelId = row.slackChannelId.getOrElse(config.lightningChannelId)
       blocks = buildLightningUpdateBlocks(row)
       _ <- slackClient.updateMessage(channelId, ts, blocks)
     yield ()
@@ -220,7 +220,7 @@ class SlackNotifierLive(
   ): Task[Unit] =
     slackThreadTs match
       case Some(ts) =>
-        val channelId = slackChannelId.getOrElse(config.channelId)
+        val channelId = slackChannelId.getOrElse(config.lightningChannelId)
         slackClient
           .deleteMessage(channelId, ts)
           .catchAll(err => ZIO.logError(s"Slack delete failed for lightning talk $proposalId: $err"))
@@ -462,19 +462,24 @@ object SlackNotifier:
           case Some(envConfig) =>
             val effect = for
               channelId <- resolveOrCreateChannel(client, envConfig.botToken, envConfig.channelName)
+              lightningChannelId <- resolveOrCreateChannel(client, envConfig.botToken, envConfig.lightningChannelName)
               hackathonChannelId <- resolveOrCreateChannel(client, envConfig.botToken, envConfig.hackathonChannelName)
               accessRequestChannelId <- resolveOrCreateChannel(client, envConfig.botToken, envConfig.accessRequestChannelName)
               config = SlackConfig(
                 envConfig.botToken,
                 channelId,
                 envConfig.channelName,
+                lightningChannelId,
+                envConfig.lightningChannelName,
                 hackathonChannelId,
                 envConfig.hackathonChannelName,
                 accessRequestChannelId,
                 envConfig.accessRequestChannelName,
                 envConfig.appBaseUrl,
               )
-              _ <- ZIO.logInfo(s"Slack integration enabled for channels #${envConfig.channelName} ($channelId), #${envConfig.hackathonChannelName} ($hackathonChannelId), #${envConfig.accessRequestChannelName} ($accessRequestChannelId)")
+              _ <- ZIO.logInfo(
+                s"Slack integration enabled for channels #${envConfig.channelName} ($channelId), #${envConfig.lightningChannelName} ($lightningChannelId), #${envConfig.hackathonChannelName} ($hackathonChannelId), #${envConfig.accessRequestChannelName} ($accessRequestChannelId)"
+              )
             yield SlackNotifierLive(
               SlackClientLive(client, config),
               config,
@@ -495,7 +500,7 @@ object SlackNotifier:
 
   private def resolveOrCreateChannel(client: Client, botToken: String, channelName: String): Task[String] =
     // Create a temporary SlackClient just for channel resolution
-    val tempConfig = SlackConfig(botToken, "", "", "", "", "", "", "")
+    val tempConfig = SlackConfig(botToken, "", "", "", "", "", "", "", "", "")
     val slackClient = SlackClientLive(client, tempConfig)
     
     for

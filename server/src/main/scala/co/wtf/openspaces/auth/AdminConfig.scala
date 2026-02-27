@@ -22,8 +22,8 @@ object AdminConfig:
         .filter(_.nonEmpty)
         .toSet
       val accessRequestChannel = sys.env.getOrElse(
-        "SLACK_ACCESS_REQUEST_CHANNEL", 
-        DefaultAccessRequestChannelName
+        "SLACK_ACCESS_REQUEST_CHANNEL_NAME",
+        sys.env.getOrElse("SLACK_ACCESS_REQUEST_CHANNEL", DefaultAccessRequestChannelName),
       )
       AdminConfig(adminUsers, accessRequestChannel)
 
