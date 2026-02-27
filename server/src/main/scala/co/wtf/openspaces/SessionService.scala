@@ -1,7 +1,7 @@
 package co.wtf.openspaces
 
 import co.wtf.openspaces.auth.{AdminConfig, AuthenticatedTicketService}
-import co.wtf.openspaces.db.{ConfirmedActionRepository, UserRepository}
+import co.wtf.openspaces.db.{ConfirmedActionRepository, DiscussionRepository, UserRepository}
 import co.wtf.openspaces.discussions.{DiscussionAction, DiscussionActionConfirmed, DiscussionState, DiscussionStore}
 import co.wtf.openspaces.hackathon.*
 import co.wtf.openspaces.lightning_talks.LightningTalkService
@@ -39,7 +39,8 @@ case class SessionService(
   adminConfig: AdminConfig,
   slackNotifier: SlackNotifier,
   confirmedActionRepository: ConfirmedActionRepository,
-  userRepository: UserRepository):
+  userRepository: UserRepository,
+  discussionRepository: DiscussionRepository):
 
   def handleMessage(
     message: WebSocketMessageFromClient,
@@ -153,13 +154,13 @@ case class SessionService(
 
   /** Delete one topic as an admin operation and force state reconciliation.
     *
-    * Returns true when the topic is absent after DB reload, which is treated as
-    * successful for admin cleanup (deleted now or already gone previously).
+    * This path bypasses the discussion action pipeline so admin cleanup is not
+    * blocked by tertiary concerns (event-log/slack failures).
     */
   def deleteTopicAsAdmin(topicId: TopicId): Task[Boolean] =
+    import neotype.unwrap
     for
-      result <- discussionStore.applyAction(DiscussionAction.Delete(topicId))
-      _ <- handleActionResult(result, None)
+      _ <- discussionRepository.softDelete(topicId.unwrap)
       reloadedDiscussionState <- discussionStore.reloadFromDatabase
       _ <- broadcastToAll(
         DiscussionActionConfirmedMessage(
@@ -806,4 +807,5 @@ object SessionService:
           ZIO.service[SlackNotifier].run,
           ZIO.service[ConfirmedActionRepository].run,
           ZIO.service[UserRepository].run,
+          ZIO.service[DiscussionRepository].run,
         )
