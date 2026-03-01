@@ -1269,6 +1269,74 @@ button {
     cursor: not-allowed;
 }
 
+.AdminControls-button--secondary {
+    background: var(--color-bg-surface);
+    color: var(--color-text-primary);
+    border: 1px solid var(--color-border);
+}
+
+.AdminControls-button--secondary:hover {
+    background: var(--color-bg-hover);
+}
+
+.AdminControls-confirmOverlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.6);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+}
+
+.AdminControls-confirmDialog {
+    background: var(--color-bg-surface);
+    border-radius: var(--radius-lg);
+    padding: var(--pad-xl);
+    max-width: 400px;
+    width: 90%;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+}
+
+.AdminControls-confirmDialog h3 {
+    margin: 0 0 var(--pad-md) 0;
+    color: var(--color-text-primary);
+}
+
+.AdminControls-confirmDialog p {
+    margin: 0 0 var(--pad-md) 0;
+    color: var(--color-text-secondary);
+}
+
+.AdminControls-confirmHint {
+    font-weight: 600;
+    color: var(--color-text-primary) !important;
+}
+
+.AdminControls-confirmInput {
+    width: 100%;
+    padding: var(--pad-sm) var(--pad-md);
+    border: 2px solid var(--color-border);
+    border-radius: var(--radius-md);
+    font-size: 1rem;
+    margin-bottom: var(--pad-md);
+    box-sizing: border-box;
+}
+
+.AdminControls-confirmInput:focus {
+    outline: none;
+    border-color: var(--color-primary);
+}
+
+.AdminControls-confirmButtons {
+    display: flex;
+    gap: var(--pad-sm);
+    justify-content: flex-end;
+}
+
 .AdminModeToggle {
     display: flex;
     justify-content: flex-end;

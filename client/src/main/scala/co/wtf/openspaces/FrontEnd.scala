@@ -573,10 +573,7 @@ object FrontEnd extends ZIOAppDefault{
           // Admin controls (only visible when admin AND admin mode enabled)
           AdminControls(
             isAdmin.combineWith(adminModeEnabled.signal).map { case (admin, enabled) => admin && enabled },
-            sendDiscussionAction,
-            connectionStatus,
             randomActionClient,
-            Observer(_ => currentAppView.set(AppView.Replay)),
           ),
           ViewToggle(currentAppView, adminModeEnabled.signal),
           // Conditional view rendering based on current app view

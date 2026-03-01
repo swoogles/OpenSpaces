@@ -3,106 +3,42 @@ package co.wtf.openspaces.components
 import com.raquo.laminar.api.L.{*, given}
 import org.scalajs.dom
 
-import co.wtf.openspaces.{Person, SafeStorage}
-import co.wtf.openspaces.discussions.DiscussionAction
 import co.wtf.openspaces.AppState
-import co.wtf.openspaces.*
-import io.laminext.websocket.*
+import co.wtf.openspaces.RandomActionClient
 import scala.util.{Failure, Success}
 
-/** Admin controls component - chaos buttons, auto-schedule, delete all, and reset user.
+/** Admin controls component - safe admin actions with confirmation dialogs.
   * 
-  * Extracted from AppState.scala for better code organization.
+  * Dangerous chaos/test buttons have been removed for production safety.
+  * Destructive actions require typing a confirmation phrase.
   */
 object AdminControls:
   def apply(
     $showAdminControls: Signal[Boolean],
-    topicUpdates: DiscussionAction => Unit,
-    connectionStatus: ConnectionStatusUI,
     randomActionClient: RandomActionClient,
-    openReplayView: Observer[Unit],
   ): HtmlElement =
     import scala.concurrent.ExecutionContext.Implicits.global
-    
-    // Full chaos state
-    val isChaosActive: Var[Boolean] = Var(false)
-    val chaosLoading: Var[Boolean] = Var(false)
-    
-    // Schedule-only chaos state
-    val isScheduleChaosActive: Var[Boolean] = Var(false)
-    
-    // Hackathon chaos state
-    val isHackathonChaosActive: Var[Boolean] = Var(false)
-    val hackathonChaosLoading: Var[Boolean] = Var(false)
     
     // Auto-schedule state
     val scheduleLoading: Var[Boolean] = Var(false)
     val clearScheduleLoading: Var[Boolean] = Var(false)
-    val scheduleChaosLoading: Var[Boolean] = Var(false)
     val reloadLoading: Var[Boolean] = Var(false)
     val scheduleSummary: Var[String] = Var("")
     
-    val deleteLoading: Var[Boolean] = Var(false)
-    val deleteRandomUsersLoading: Var[Boolean] = Var(false)
-    val resetLoading: Var[Boolean] = Var(false)
+    // Confirmation dialog state
+    val showClearConfirm: Var[Boolean] = Var(false)
+    val clearConfirmInput: Var[String] = Var("")
     
     // Deployed version hash
     val deployedVersion: Var[String] = Var("...")
     
     // Fetch initial state on mount
     def fetchStatus(): Unit =
-      // Version
       randomActionClient.version
         .onComplete {
-          case Success(info) => deployedVersion.set(info.version.take(7)) // Short hash
+          case Success(info) => deployedVersion.set(info.version.take(7))
           case Failure(_) => deployedVersion.set("?")
         }
-      // Full chaos status
-      randomActionClient.randomActionStatus
-        .foreach(status => isChaosActive.set(status.active))
-      // Schedule chaos status
-      randomActionClient.randomScheduleStatus
-        .foreach(status => isScheduleChaosActive.set(status.active))
-      // Hackathon chaos status
-      randomActionClient.hackathonChaosStatus
-        .foreach(status => isHackathonChaosActive.set(status.active))
-    
-    def toggleChaos(): Unit = {
-      chaosLoading.set(true)
-      
-      randomActionClient.randomActionToggle
-        .onComplete {
-          case Success(status) =>
-            isChaosActive.set(status.active)
-            chaosLoading.set(false)
-          case Failure(_) =>
-            chaosLoading.set(false)
-        }
-    }
-
-    def toggleScheduleChaos(): Unit = {
-      scheduleChaosLoading.set(true)
-      randomActionClient.randomScheduleActionToggle
-        .onComplete {
-          case Success(status) =>
-            isScheduleChaosActive.set(status.active)
-            scheduleChaosLoading.set(false)
-          case Failure(_) =>
-            scheduleChaosLoading.set(false)
-        }
-      }
-
-    def toggleHackathonChaos(): Unit = {
-      hackathonChaosLoading.set(true)
-      randomActionClient.hackathonChaosToggle
-        .onComplete {
-          case Success(status) =>
-            isHackathonChaosActive.set(status.active)
-            hackathonChaosLoading.set(false)
-          case Failure(_) =>
-            hackathonChaosLoading.set(false)
-        }
-    }
 
     def runScheduling(): Unit =
       scheduleLoading.set(true)
@@ -119,17 +55,18 @@ object AdminControls:
         }
 
     def clearSchedule(): Unit =
-      if dom.window.confirm("Clear the entire schedule? All topics will be unscheduled but not deleted.") then
-        clearScheduleLoading.set(true)
-        randomActionClient.clearSchedule
-          .onComplete {
-            case Success(result) =>
-              scheduleSummary.set(s"Cleared ${result.cleared} topics from schedule")
-              clearScheduleLoading.set(false)
-            case Failure(_) =>
-              scheduleSummary.set("Clear schedule failed.")
-              clearScheduleLoading.set(false)
-          }
+      clearScheduleLoading.set(true)
+      randomActionClient.clearSchedule
+        .onComplete {
+          case Success(result) =>
+            scheduleSummary.set(s"Cleared ${result.cleared} topics from schedule")
+            clearScheduleLoading.set(false)
+            showClearConfirm.set(false)
+            clearConfirmInput.set("")
+          case Failure(_) =>
+            scheduleSummary.set("Clear schedule failed.")
+            clearScheduleLoading.set(false)
+        }
 
     def reloadStateFromDatabase(): Unit =
       reloadLoading.set(true)
@@ -145,108 +82,63 @@ object AdminControls:
             reloadLoading.set(false)
         }
 
-    def deleteAll(): Unit =
-      if dom.window.confirm("Delete ALL topics? This cannot be undone.") then
-        deleteLoading.set(true)
-        randomActionClient.deleteAllTopics
-          .onComplete { _ =>
-            deleteLoading.set(false)
-          }
-
-    def deleteRandomUsersRecords(): Unit =
-      if dom.window.confirm("Delete all DB records attributed to RandomUsers.pool? This cannot be undone.") then
-        deleteRandomUsersLoading.set(true)
-        randomActionClient.deleteAllRandomUsersRecords
-          .onComplete { _ =>
-            deleteRandomUsersLoading.set(false)
-          }
-
-    def resetUser(): Unit =
-      if dom.window.confirm("Reset your user? This will delete your topics, remove your votes, and reset your swipe hint.") then
-        // Resilience check: ensure connection is ready before sending
-        if !connectionStatus.checkReady() then
-          connectionStatus.reportError("Cannot reset user while disconnected. Please wait for reconnection.")
-          return
-          
-        resetLoading.set(true)
-        val user = AppState.name.now()
-        
-        // Send single reset action to server (handles topic deletion + vote clearing)
-        topicUpdates(DiscussionAction.ResetUser(user))
-        
-        // Reset client-side state
-        AppState.showSwipeHint.set(true)
-        AppState.hasSeenSwipeHint.set(false)
-        SafeStorage.setItem("hasSeenSwipeHint", "false")
-        
-        resetLoading.set(false)
+    // Confirmation dialog component
+    def confirmationDialog(
+      show: Var[Boolean],
+      inputVar: Var[String],
+      requiredPhrase: String,
+      title: String,
+      description: String,
+      onConfirm: () => Unit,
+      loading: Signal[Boolean],
+    ): HtmlElement =
+      div(
+        cls := "AdminControls-confirmOverlay",
+        display <-- show.signal.map(if _ then "flex" else "none"),
+        onClick --> { _ => show.set(false) },
+        div(
+          cls := "AdminControls-confirmDialog",
+          onClick.stopPropagation --> { _ => () },
+          h3(title),
+          p(description),
+          p(cls := "AdminControls-confirmHint", s"Type \"$requiredPhrase\" to confirm:"),
+          input(
+            cls := "AdminControls-confirmInput",
+            typ := "text",
+            placeholder := requiredPhrase,
+            controlled(
+              value <-- inputVar.signal,
+              onInput.mapToValue --> inputVar.writer,
+            ),
+          ),
+          div(
+            cls := "AdminControls-confirmButtons",
+            button(
+              cls := "AdminControls-button AdminControls-button--secondary",
+              "Cancel",
+              onClick --> { _ => 
+                show.set(false)
+                inputVar.set("")
+              },
+            ),
+            button(
+              cls := "AdminControls-button AdminControls-button--danger",
+              disabled <-- Signal.combine(inputVar.signal, loading).map { case (input, isLoading) =>
+                input.toLowerCase.trim != requiredPhrase.toLowerCase || isLoading
+              },
+              child.text <-- loading.map(if _ then "⏳" else "Confirm"),
+              onClick --> { _ => onConfirm() },
+            ),
+          ),
+        ),
+      )
     
     div(
       cls := "AdminControls",
-      // Only show when admin mode is active
       display <-- $showAdminControls.map(if _ then "flex" else "none"),
       onMountCallback(_ => fetchStatus()),
-      // Full chaos button
-      button(
-        cls := "AdminControls-button",
-        cls <-- Signal.combine(isChaosActive.signal, chaosLoading.signal).map {
-          case (isActive, _) =>
-            if isActive then "AdminControls-button--active" else ""
-        },
-        cls <-- chaosLoading.signal.map { isLoading =>
-          if isLoading then "AdminControls-button--loading" else ""
-        },
-        disabled <-- chaosLoading.signal,
-        onClick --> { _ => toggleChaos() },
-        child.text <-- Signal.combine(isChaosActive.signal, chaosLoading.signal).map {
-          case (_, true) => "⏳"
-          case (true, _) => "🎲 Stop Chaos"
-          case (false, _) => "🎲 Start Chaos"
-        },
-      ),
-      // Schedule-only chaos button
-      button(
-        cls := "AdminControls-button",
-        cls <-- Signal.combine(isScheduleChaosActive.signal, scheduleChaosLoading.signal).map {
-          case (isActive, _) =>
-            if isActive then "AdminControls-button--schedule-active" else ""
-        },
-        cls <-- scheduleChaosLoading.signal.map { isLoading =>
-          if isLoading then "AdminControls-button--loading" else ""
-        },
-        disabled <-- scheduleChaosLoading.signal,
-        onClick --> { _ => toggleScheduleChaos() },
-        child.text <-- Signal.combine(isScheduleChaosActive.signal, scheduleChaosLoading.signal).map {
-          case (_, true) => "⏳"
-          case (true, _) => "📅 Stop Sched"
-          case (false, _) => "📅 Sched"
-        },
-      ),
-      // Hackathon chaos button
-      button(
-        cls := "AdminControls-button",
-        cls <-- Signal.combine(isHackathonChaosActive.signal, hackathonChaosLoading.signal).map {
-          case (isActive, _) =>
-            if isActive then "AdminControls-button--hackathon-active" else ""
-        },
-        cls <-- hackathonChaosLoading.signal.map { isLoading =>
-          if isLoading then "AdminControls-button--loading" else ""
-        },
-        disabled <-- hackathonChaosLoading.signal,
-        onClick --> { _ => toggleHackathonChaos() },
-        child.text <-- Signal.combine(isHackathonChaosActive.signal, hackathonChaosLoading.signal).map {
-          case (_, true) => "⏳"
-          case (true, _) => "🛠️ Stop Hack"
-          case (false, _) => "🛠️ Hack"
-        },
-      ),
+      
       // Auto-schedule button
-      button(
-        cls := "AdminControls-button",
-        cls := "AdminControls-button--primary",
-        onClick.mapToUnit --> openReplayView,
-        "▶ Replay",
-      ),
       button(
         cls := "AdminControls-button",
         cls := "AdminControls-button--primary",
@@ -260,19 +152,16 @@ object AdminControls:
           case false => "✨ Schedule Topics"
         },
       ),
+      
+      // Clear Schedule button (opens confirmation dialog)
       button(
         cls := "AdminControls-button",
         cls := "AdminControls-button--warning",
-        cls <-- clearScheduleLoading.signal.map { loading =>
-          if loading then "AdminControls-button--loading" else ""
-        },
-        disabled <-- clearScheduleLoading.signal,
-        onClick --> { _ => clearSchedule() },
-        child.text <-- clearScheduleLoading.signal.map {
-          case true => "⏳"
-          case false => "🧹 Clear Schedule"
-        },
+        onClick --> { _ => showClearConfirm.set(true) },
+        "🧹 Clear Schedule",
       ),
+      
+      // Reload DB button
       button(
         cls := "AdminControls-button",
         cls := "AdminControls-button--primary",
@@ -286,45 +175,7 @@ object AdminControls:
           case false => "↻ Reload DB"
         },
       ),
-      button(
-        cls := "AdminControls-button",
-        cls := "AdminControls-button--danger",
-        cls <-- deleteLoading.signal.map { loading =>
-          if loading then "AdminControls-button--loading" else ""
-        },
-        disabled <-- deleteLoading.signal,
-        onClick --> { _ => deleteAll() },
-        child.text <-- deleteLoading.signal.map {
-          case true => "⏳"
-          case false => "🗑️ Delete All"
-        },
-      ),
-      button(
-        cls := "AdminControls-button",
-        cls := "AdminControls-button--danger",
-        cls <-- deleteRandomUsersLoading.signal.map { loading =>
-          if loading then "AdminControls-button--loading" else ""
-        },
-        disabled <-- deleteRandomUsersLoading.signal,
-        onClick --> { _ => deleteRandomUsersRecords() },
-        child.text <-- deleteRandomUsersLoading.signal.map {
-          case true => "⏳"
-          case false => "🧹 Purge RandomUsers"
-        },
-      ),
-      button(
-        cls := "AdminControls-button",
-        cls := "AdminControls-button--warning",
-        cls <-- resetLoading.signal.map { loading =>
-          if loading then "AdminControls-button--loading" else ""
-        },
-        disabled <-- resetLoading.signal,
-        onClick --> { _ => resetUser() },
-        child.text <-- resetLoading.signal.map {
-          case true => "⏳"
-          case false => "🔄 Reset User"
-        },
-      ),
+      
       // User Management button
       button(
         cls := "AdminControls-button",
@@ -332,6 +183,7 @@ object AdminControls:
         "👥 Users",
         onClick --> { _ => AppState.showUserManagement.set(true) },
       ),
+      
       // Version display
       span(
         cls := "AdminControls-version",
@@ -340,5 +192,16 @@ object AdminControls:
       span(
         cls := "AdminControls-version",
         child.text <-- scheduleSummary.signal,
+      ),
+      
+      // Confirmation dialog
+      confirmationDialog(
+        show = showClearConfirm,
+        inputVar = clearConfirmInput,
+        requiredPhrase = "unschedule all",
+        title = "⚠️ Clear Entire Schedule",
+        description = "This will unschedule all topics. Topics will not be deleted, but all room/time assignments will be cleared.",
+        onConfirm = () => clearSchedule(),
+        loading = clearScheduleLoading.signal,
       ),
     )
