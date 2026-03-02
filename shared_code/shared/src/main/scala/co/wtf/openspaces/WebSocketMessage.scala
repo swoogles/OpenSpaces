@@ -142,10 +142,10 @@ case class SlackReplyCountsMessage(
     extends WebSocketMessageFromServer
     derives JsonCodec
 
-/** Reply counts for all entity types, keyed by entity ID */
+/** Reply counts for all entity types, keyed by entity ID (as String for JSON compatibility) */
 case class SlackReplyCounts(
-  discussions: Map[Long, Int],
-  lightningTalks: Map[Long, Int],
-  hackathonProjects: Map[Long, Int],
-  activities: Map[Long, Int],
+  discussions: Map[String, Int],
+  lightningTalks: Map[String, Int],
+  hackathonProjects: Map[String, Int],
+  activities: Map[String, Int],
 ) derives JsonCodec

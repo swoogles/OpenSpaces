@@ -229,7 +229,7 @@ object ActivityCard:
               img(src := "/icons/slack.svg", cls := "SlackIcon"),
               // Show reply count if available
               child <-- AppState.slackReplyCounts.signal.map { counts =>
-                counts.activities.get(activity.id.unwrap) match {
+                counts.activities.get(activity.id.unwrap.toString) match {
                   case Some(count) if count > 0 =>
                     span(cls := "SlackReplyCount", count.toString)
                   case _ => emptyNode

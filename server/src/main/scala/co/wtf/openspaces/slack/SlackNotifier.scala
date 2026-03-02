@@ -461,14 +461,15 @@ class SlackNotifierLive(
 
   private def fetchCountsForEntities(
     entities: Vector[(Long, String, String)] // (id, channelId, threadTs)
-  ): Task[Map[Long, Int]] =
+  ): Task[Map[String, Int]] =
     // Process sequentially with 500ms delay between calls to respect Slack rate limits
     // Slack allows ~1 req/sec for Web API; 500ms gives us headroom
+    // Keys are String for JSON compatibility (JS object keys are always strings)
     ZIO.foreach(entities) { case (id, channel, threadTs) =>
       for
         _ <- ZIO.sleep(500.millis)
         result <- slackClient.getReplyCount(channel, threadTs).flatMap {
-          case ReplyCountResult.Count(n) => ZIO.some(id -> n)
+          case ReplyCountResult.Count(n) => ZIO.some(id.toString -> n)
           case ReplyCountResult.MissingScope =>
             // Log once, then suppress
             hasLoggedMissingScope.get.flatMap { alreadyLogged =>

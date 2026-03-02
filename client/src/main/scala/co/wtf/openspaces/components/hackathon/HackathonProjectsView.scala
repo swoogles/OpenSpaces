@@ -372,7 +372,7 @@ object HackathonProjectCard:
           span("💬 Discuss in Slack"),
           // Show reply count if available
           child <-- AppState.slackReplyCounts.signal.map { counts =>
-            counts.hackathonProjects.get(project.id.unwrap) match {
+            counts.hackathonProjects.get(project.id.unwrap.toString) match {
               case Some(count) if count > 0 =>
                 span(cls := "SlackReplyCount", count.toString)
               case _ => emptyNode
