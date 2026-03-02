@@ -389,6 +389,14 @@ case class SessionService(
         )
         .run
       ZIO.foreachDiscard(buffered)(message => channel.send(message).ignore).run
+      slackNotifier
+        .fetchReplyCounts
+        .flatMap(counts => channel.send(SlackReplyCountsMessage(counts)))
+        .tapError(err =>
+          ZIO.logError(s"Failed to send initial SlackReplyCountsMessage to client: ${err.getMessage}")
+        )
+        .ignore
+        .run
 
   private def broadcastToAll(
     message: WebSocketMessageFromServer,
@@ -429,11 +437,24 @@ case class SessionService(
           )
         )
         .run
-      ZIO
-        .foreachParDiscard(channels)(channel =>
-          channel.send(message).ignore,
-        )
-        .run
+      message match
+        case _: SlackReplyCountsMessage =>
+          ZIO
+            .foreachParDiscard(channels)(channel =>
+              channel
+                .send(message)
+                .tapError(err =>
+                  ZIO.logError(s"Failed to broadcast SlackReplyCountsMessage: ${err.getMessage}")
+                )
+                .ignore,
+            )
+            .run
+        case _ =>
+          ZIO
+            .foreachParDiscard(channels)(channel =>
+              channel.send(message).ignore,
+            )
+            .run
 
   /** Persist action to confirmed_actions log, skipping Rejected/Unauthorized/StateReplace. */
   private def persistIfLoggable(message: WebSocketMessageFromServer): Task[Unit] =
