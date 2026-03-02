@@ -389,14 +389,6 @@ case class SessionService(
         )
         .run
       ZIO.foreachDiscard(buffered)(message => channel.send(message).ignore).run
-      slackNotifier
-        .fetchReplyCounts
-        .flatMap(counts => channel.send(SlackReplyCountsMessage(counts)))
-        .tapError(err =>
-          ZIO.logError(s"Failed to send initial SlackReplyCountsMessage to client: ${err.getMessage}")
-        )
-        .ignore
-        .run
 
   private def broadcastToAll(
     message: WebSocketMessageFromServer,

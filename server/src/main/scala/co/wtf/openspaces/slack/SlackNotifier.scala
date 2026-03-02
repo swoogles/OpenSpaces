@@ -437,6 +437,7 @@ class SlackNotifierLive(
     success: Int = 0,
     missingScope: Int = 0,
     notFound: Int = 0,
+    rateLimited: Int = 0,
     errors: Int = 0,
   )
 
@@ -541,8 +542,20 @@ class SlackNotifierLive(
                 diagnostics.copy(notFound = diagnostics.notFound + 1),
               ),
             )
+          case ReplyCountResult.Error("ratelimited") =>
+            ZIO.logWarning(
+              s"Slack rate limited while fetching $entityType reply count for id=$id channel=$channel thread=$threadTs"
+            ) *>
+            ZIO.succeed(
+              (
+                counts,
+                diagnostics.copy(rateLimited = diagnostics.rateLimited + 1),
+              ),
+            )
           case ReplyCountResult.Error(msg) =>
-            ZIO.logWarning(s"Failed to fetch reply count for thread $threadTs: $msg") *>
+            ZIO.logWarning(
+              s"Failed to fetch $entityType reply count for id=$id channel=$channel thread=$threadTs: $msg"
+            ) *>
             ZIO.succeed(
               (
                 counts,
@@ -553,7 +566,7 @@ class SlackNotifierLive(
       yield result
     }.flatMap { case (counts, diagnostics) =>
       ZIO.logInfo(
-        s"Slack reply count fetch for $entityType: tracked=${entities.size}, successes=${diagnostics.success}, missingScope=${diagnostics.missingScope}, notFound=${diagnostics.notFound}, errors=${diagnostics.errors}"
+        s"Slack reply count fetch for $entityType: tracked=${entities.size}, successes=${diagnostics.success}, missingScope=${diagnostics.missingScope}, notFound=${diagnostics.notFound}, rateLimited=${diagnostics.rateLimited}, errors=${diagnostics.errors}"
       ).as(counts)
     }
 
@@ -562,6 +575,7 @@ class SlackNotifierLive(
     interval: Duration = 3.minutes,
   ): Task[Fiber.Runtime[Throwable, Unit]] =
     val refreshLoop = (for
+      startedAt <- Clock.nanoTime
       _ <- ZIO.logInfo(s"Fetching Slack reply counts...")
       counts <- fetchReplyCounts
       total = counts.discussions.size + counts.lightningTalks.size + 
@@ -574,6 +588,9 @@ class SlackNotifierLive(
         ZIO.logInfo(s"Broadcasting reply counts for $total threads (total replies: $totalReplies)") *>
         broadcast(SlackReplyCountsMessage(counts))
       )
+      finishedAt <- Clock.nanoTime
+      elapsedSeconds = (finishedAt - startedAt) / 1000000000L
+      _ <- ZIO.logInfo(s"Slack reply count refresh cycle completed in ${elapsedSeconds}s")
     yield ()).catchAll { error =>
       ZIO.logError(s"Error fetching Slack reply counts: ${error.getMessage}")
     }
