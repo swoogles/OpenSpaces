@@ -357,19 +357,25 @@ case class SessionService(
         )
         .run
       val latestSlackReplyCounts = slackReplyCounts.get.run
-      channel
-        .send(
-          SlackReplyCountsMessage(latestSlackReplyCounts),
-        )
-        .tapError(_ =>
-          channelRegistry.update(reg =>
-            reg.copy(
-              connected = reg.connected - channel,
-              pending = reg.pending - channel,
+      val hasCachedSlackReplyCounts =
+        latestSlackReplyCounts.discussions.nonEmpty ||
+        latestSlackReplyCounts.lightningTalks.nonEmpty ||
+        latestSlackReplyCounts.hackathonProjects.nonEmpty ||
+        latestSlackReplyCounts.activities.nonEmpty
+      if hasCachedSlackReplyCounts then
+        channel
+          .send(
+            SlackReplyCountsMessage(latestSlackReplyCounts),
+          )
+          .tapError(_ =>
+            channelRegistry.update(reg =>
+              reg.copy(
+                connected = reg.connected - channel,
+                pending = reg.pending - channel,
+              ),
             ),
-          ),
-        )
-        .run
+          )
+          .run
       val buffered = channelRegistry
         .modify(reg =>
           val queued = reg.pending.getOrElse(channel, Vector.empty)

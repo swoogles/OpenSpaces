@@ -551,7 +551,14 @@ object FrontEnd extends ZIOAppDefault{
                     case _ => ()
 
                 case SlackReplyCountsMessage(counts) =>
-                  org.scalajs.dom.console.log(s"Received SlackReplyCountsMessage with ${counts.discussions.size} discussions, ${counts.hackathonProjects.size} hackathon projects")
+                  val totalReplies =
+                    counts.discussions.values.sum +
+                    counts.lightningTalks.values.sum +
+                    counts.hackathonProjects.values.sum +
+                    counts.activities.values.sum
+                  org.scalajs.dom.console.log(
+                    s"Received SlackReplyCountsMessage: tracked=${counts.discussions.size + counts.lightningTalks.size + counts.hackathonProjects.size + counts.activities.size}, totalReplies=$totalReplies"
+                  )
                   AppState.slackReplyCounts.set(counts)
 
                 case KeepAliveMessage =>
