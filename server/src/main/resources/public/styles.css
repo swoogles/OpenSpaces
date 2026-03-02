@@ -1596,13 +1596,23 @@ button {
     fill: currentColor;
 }
 
-/* Jump to Now button */
-.LinearScheduleView-jumpButton {
+/* Sticky header container (buttons + form) */
+.LinearScheduleView-stickyHeader {
     position: sticky;
     top: 0;
     z-index: 25;
     padding: var(--pad-sm) 0;
     background-color: var(--color-bg-page);
+}
+
+/* Button row inside sticky header */
+.LinearScheduleView-buttonRow {
+    display: flex;
+    justify-content: center;
+}
+
+/* Legacy class for backwards compat */
+.LinearScheduleView-jumpButton {
     display: flex;
     justify-content: center;
 }
@@ -1677,10 +1687,10 @@ button {
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.15);
 }
 
-/* Inline activity creation form (below sticky bar) */
+/* Inline activity creation form (inside sticky header) */
 .LinearScheduleView-inlineForm {
     padding: var(--pad-md);
-    margin-bottom: var(--pad-md);
+    margin-top: var(--pad-sm);
     background-color: var(--color-bg-card);
     border-radius: var(--radius-md);
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
