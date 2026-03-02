@@ -17,9 +17,10 @@ import co.wtf.openspaces.activities.{Activity, ActivityAction, ActivityState}
 import co.wtf.openspaces.util.ScrollPreserver
 import co.wtf.openspaces.FrontEnd.connectionStatus
 import co.wtf.openspaces.components.lightning_talks.LightningTalkProposalCard
-import co.wtf.openspaces.components.activities.ActivityCard
+import co.wtf.openspaces.components.activities.{ActivityCard, NewActivityForm}
 import co.wtf.openspaces.components.discussions.TopicCard
 import co.wtf.openspaces.components.schedule.ScheduleSlotComponent
+import co.wtf.openspaces.ConnectionStatusUI
 import java.time.format.DateTimeFormatter
 import java.time.LocalDateTime
 
@@ -263,6 +264,7 @@ object LinearScheduleView:
     name: StrictSignal[Person],
     isAdmin: Signal[Boolean],
     setErrorMsg: Observer[Option[String]],
+    connectionStatus: ConnectionStatusUI,
     unscheduledMenuState: Var[Option[RoomSlot]],
   ): HtmlElement =
     val _ = unscheduledMenuState
@@ -273,13 +275,16 @@ object LinearScheduleView:
     // Local vars to hold current state for onClick handler
     val currentStateVar = Var(DiscussionState.empty)
     val currentActivityStateVar = Var(ActivityState.empty)
+    
+    // State for inline activity creation
+    val showCreateActivityForm = Var(false)
 
     div(
       cls := "LinearScheduleView",
       // Keep state vars in sync with the signals
       $discussionState --> currentStateVar.writer,
       $activityState --> currentActivityStateVar.writer,
-      // Jump to Now button
+      // Jump to Now button + Add Activity button
       div(
         cls := "LinearScheduleView-jumpButton",
         button(
@@ -291,7 +296,35 @@ object LinearScheduleView:
             scrollToNextItem(currentStateVar.now(), activities)
           },
         ),
+        child <-- showCreateActivityForm.signal.map {
+          case false =>
+            button(
+              cls := "AddActivityButton",
+              "+",
+              title := "Propose Activity",
+              onClick --> Observer(_ => showCreateActivityForm.set(true)),
+            )
+          case true =>
+            emptyNode
+        },
       ),
+      // Inline activity creation form (appears below sticky bar when open)
+      child <-- showCreateActivityForm.signal.map {
+        case true =>
+          div(
+            cls := "LinearScheduleView-inlineForm",
+            NewActivityForm(
+              name = name,
+              sendActivityAction = sendActivityAction,
+              setErrorMsg = setErrorMsg,
+              connectionStatus = connectionStatus,
+              onClose = () => showCreateActivityForm.set(false),
+              compact = true,
+            ),
+          )
+        case false =>
+          emptyNode
+      },
       children <-- Signal.combine($discussionState, $lightningTalkState, $activityState).map { (state, lightningState, activityState) =>
         val daySlotsByDate = state.slots.map(ds => ds.date -> ds).toMap
         val activityDates = activityState.activities.values.map(_.eventTime.toLocalDate).toSet

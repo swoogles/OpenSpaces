@@ -1646,6 +1646,52 @@ button {
     }
 }
 
+/* Add Activity button (next to Jump to Now) */
+.AddActivityButton {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    height: 36px;
+    margin-left: var(--pad-sm);
+    background-color: var(--color-success);
+    color: var(--color-white);
+    border: none;
+    border-radius: 50%;
+    font-size: 1.5rem;
+    font-weight: var(--font-weight-bold);
+    line-height: 1;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+}
+
+.AddActivityButton:hover {
+    background-color: var(--color-success-hover, #3a9e5e);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+}
+
+.AddActivityButton:active {
+    transform: translateY(0);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.15);
+}
+
+/* Inline activity creation form (below sticky bar) */
+.LinearScheduleView-inlineForm {
+    padding: var(--pad-md);
+    margin-bottom: var(--pad-md);
+    background-color: var(--color-bg-card);
+    border-radius: var(--radius-md);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.HackathonProjects-createForm--compact {
+    display: flex;
+    flex-direction: column;
+    gap: var(--pad-sm);
+}
+
 .SwipeableCardContainer {
     position: relative;
     overflow: hidden;

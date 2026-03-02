@@ -14,27 +14,7 @@ import co.wtf.openspaces.components.lightning_talks.LightningTalksView
 import co.wtf.openspaces.lighting_talks.*
 
 object ActivitiesView:
-  @js.native
-  private trait ShowPickerCapable extends js.Object:
-    def showPicker(): Unit = js.native
-
-  private val dateTimeInputFormat = DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm")
   private val displayFormat = DateTimeFormatter.ofPattern("EEE h:mm a")
-
-  private def nowDateTimeInputValue(): String =
-    LocalDateTime.now().format(dateTimeInputFormat)
-
-  def parseLocalDateTime(raw: String): Option[LocalDateTime] =
-    scala.util.Try(LocalDateTime.parse(raw.trim, dateTimeInputFormat)).toOption
-
-  def showNativePicker(input: dom.html.Input): Unit =
-    try
-      input.asInstanceOf[ShowPickerCapable].showPicker()
-    catch
-      case _: Throwable =>
-        try input.click()
-        catch case _: Throwable => ()
-        input.focus()
 
   def apply(
     lightningTalkState: Var[LightningTalkState],
@@ -46,10 +26,7 @@ object ActivitiesView:
     setErrorMsg: Observer[Option[String]],
     connectionStatus: ConnectionStatusUI,
   ): HtmlElement =
-    val newDescription = Var("")
-    val newEventTime = Var(nowDateTimeInputValue())
     val showCreateForm = Var(false)
-    var createTimeInputRef: Option[dom.html.Input] = None
 
     val $activities = activityState.signal.map { state =>
       state.activities.values.toList.sortBy(activity =>
@@ -61,26 +38,6 @@ object ActivitiesView:
         ),
       )
     }
-
-    def validateAndCreate(): Unit =
-      val descriptionRaw = newDescription.now().trim
-      val eventTimeRaw = newEventTime.now().trim
-      val parsedDescription = ActivityDescription.make(descriptionRaw)
-      val parsedTime = parseLocalDateTime(eventTimeRaw)
-
-      (parsedDescription, parsedTime) match
-        case (Left(error), _) =>
-          setErrorMsg.onNext(Some(error))
-        case (_, None) =>
-          setErrorMsg.onNext(Some("Please choose a valid date and time"))
-        case (Right(description), Some(eventTime)) =>
-          if !connectionStatus.checkReady() then
-            setErrorMsg.onNext(Some("Reconnecting... please wait and try again."))
-          else
-            sendActivityAction(ActivityAction.Create(description, eventTime, name.now()))
-            newDescription.set("")
-            newEventTime.set(nowDateTimeInputValue())
-            showCreateForm.set(false)
 
     div(
       cls := "ActivitiesView",
@@ -103,53 +60,15 @@ object ActivitiesView:
             button(
               cls := "HackathonProjects-createButton",
               "✨ Propose Activity",
-              onClick --> Observer { _ =>
-                showCreateForm.set(true)
-                newEventTime.set(nowDateTimeInputValue())
-              },
+              onClick --> Observer(_ => showCreateForm.set(true)),
             )
           case true =>
-            div(
-              cls := "HackathonProjects-createForm",
-              input(
-                cls := "HackathonProjects-input",
-                typ := "text",
-                placeholder := "Short activity description",
-                controlled(
-                  value <-- newDescription.signal,
-                  onInput.mapToValue --> newDescription.writer,
-                ),
-              ),
-              input(
-                cls := "HackathonProjects-input",
-                typ := "datetime-local",
-                onMountCallback(ctx => createTimeInputRef = Some(ctx.thisNode.ref)),
-                onFocus --> Observer(_ => createTimeInputRef.foreach(showNativePicker)),
-                controlled(
-                  value <-- newEventTime.signal,
-                  onInput.mapToValue --> newEventTime.writer,
-                ),
-                onKeyDown --> Observer { (e: dom.KeyboardEvent) =>
-                  if e.key == "Enter" then validateAndCreate()
-                },
-              ),
-              div(
-                cls := "HackathonProjects-createFormButtons",
-                button(
-                  cls := "HackathonProjects-submitButton",
-                  "Create",
-                  onClick --> Observer(_ => validateAndCreate()),
-                ),
-                button(
-                  cls := "HackathonProjects-cancelButton",
-                  "Cancel",
-                  onClick --> Observer { _ =>
-                    showCreateForm.set(false)
-                    newDescription.set("")
-                    newEventTime.set(nowDateTimeInputValue())
-                  },
-                ),
-              ),
+            NewActivityForm(
+              name = name,
+              sendActivityAction = sendActivityAction,
+              setErrorMsg = setErrorMsg,
+              connectionStatus = connectionStatus,
+              onClose = () => showCreateForm.set(false),
             )
         },
       ),
@@ -257,7 +176,7 @@ object ActivityCard:
                   cls := "HackathonProjects-input",
                   typ := "datetime-local",
                   onMountCallback(ctx => editTimeInputRef = Some(ctx.thisNode.ref)),
-                  onFocus --> Observer(_ => editTimeInputRef.foreach(ActivitiesView.showNativePicker)),
+                  onFocus --> Observer(_ => editTimeInputRef.foreach(NewActivityForm.showNativePicker)),
                   controlled(
                     value <-- editEventTime.signal,
                     onInput.mapToValue --> editEventTime.writer,
@@ -270,7 +189,7 @@ object ActivityCard:
                     "Save",
                     onClick --> Observer { _ =>
                       val parsedDescription = ActivityDescription.make(editDescription.now().trim)
-                      val parsedTime = ActivitiesView.parseLocalDateTime(editEventTime.now().trim)
+                      val parsedTime = NewActivityForm.parseLocalDateTime(editEventTime.now().trim)
 
                       (parsedDescription, parsedTime) match
                         case (Left(error), _) =>

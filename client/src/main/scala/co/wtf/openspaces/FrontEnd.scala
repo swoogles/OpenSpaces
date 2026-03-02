@@ -641,6 +641,7 @@ object FrontEnd extends ZIOAppDefault{
                 name.signal,
                 isAdmin,
                 errorBanner.errorObserver,
+                connectionStatus,
                 unscheduledMenuState,
               )
             case AppView.Replay =>
