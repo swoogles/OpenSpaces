@@ -72,6 +72,9 @@ object Backend extends ZIOAppDefault {
 
       // Start the random action spawner (runs in background, controlled via admin API)
       ZIO.serviceWithZIO[RandomActionSpawner](_.startSpawningRandomActions).run
+
+      // Run the real auto-scheduler every 30 minutes, anchored to 2026-03-03 09:00 MST.
+      ZIO.serviceWithZIO[SchedulingService](_.startAutomaticScheduling).run
       
       // Start the Slack reply count refresh (runs in background, gracefully handles missing permissions)
       // 5-minute interval to stay well within Slack rate limits

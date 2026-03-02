@@ -191,16 +191,14 @@ object LinearScheduleView:
     val formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd-HH-mm")
     s"activity-${eventTime.format(formatter)}"
 
-  /** Find the next upcoming rendered item (scheduled topic slot or activity). */
+  /** Find the next upcoming rendered item (discussion slot or activity). */
   private def findNextUpcomingId(state: DiscussionState, activities: List[Activity]): Option[String] =
     val now = LocalDateTime.now()
     
-    // Match rendered linear schedule behavior: only slots with at least one scheduled topic exist in the DOM.
     val nextSlot: Option[(LocalDateTime, String)] = state.slots
       .flatMap(_.slots)
       .collect {
-        case slot if slot.time.endTime.isAfter(now) &&
-          slot.rooms.exists(room => state.roomSlotContent(RoomSlot(room, slot.time)).isDefined) =>
+        case slot if slot.time.endTime.isAfter(now) =>
             (slot.time.startTime, slotId(slot.time.startTime))
       }
       .sortBy(_._1)
@@ -221,13 +219,12 @@ object LinearScheduleView:
       case (None, Some((_, id))) => Some(id)
       case (None, None) => None
 
-  /** Find the first rendered item in schedule order (scheduled topic slot or activity). */
+  /** Find the first rendered item in schedule order (discussion slot or activity). */
   private def findFirstRenderedId(state: DiscussionState, activities: List[Activity]): Option[String] =
     val firstRenderedSlot: Option[(LocalDateTime, String)] = state.slots
       .flatMap(_.slots)
       .collect {
-        case slot if slot.rooms.exists(room => state.roomSlotContent(RoomSlot(room, slot.time)).isDefined) =>
-          (slot.time.startTime, slotId(slot.time.startTime))
+        case slot => (slot.time.startTime, slotId(slot.time.startTime))
       }
       .sortBy(_._1)
       .headOption
@@ -364,13 +361,17 @@ object LinearScheduleView:
                 state.roomSlotContent(roomSlot).map(discussion => (room, discussion))
               }
 
-              if scheduledRooms.isEmpty then leadingActivities
-              else
-                val slot =
-                  div(
-                    cls := "LinearTimeSlot",
-                    idAttr := slotId(timeSlotForAllRooms.time.startTime),
-                    div(cls := "LinearTimeHeader", timeSlotForAllRooms.time.displayString),
+              val slot =
+                div(
+                  cls := "LinearTimeSlot",
+                  idAttr := slotId(timeSlotForAllRooms.time.startTime),
+                  div(cls := "LinearTimeHeader", timeSlotForAllRooms.time.displayString),
+                  if scheduledRooms.isEmpty then
+                    div(
+                      cls := "LinearEmptyTimeSlotMessage",
+                      "No topics scheduled yet",
+                    )
+                  else
                     scheduledRooms.map { (room, discussion) =>
                       div(
                         cls := "LinearRoomSlot",
@@ -386,8 +387,8 @@ object LinearScheduleView:
                         ),
                       )
                     },
-                  )
-                leadingActivities :+ slot
+                )
+              leadingActivities :+ slot
             } ++ consumeRemainingActivities().map(renderActivity) ++ daySlotOpt.toList.flatMap(_ => maybeLightningNight.toList).map { _ =>
               div(
                 cls := "LinearTimeSlot LinearTimeSlot--lightning",

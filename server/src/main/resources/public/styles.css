@@ -1565,6 +1565,14 @@ button {
     margin-bottom: var(--pad-sm);
 }
 
+.LinearEmptyTimeSlotMessage {
+    padding: var(--pad-md);
+    border-left: 3px solid var(--color-border);
+    color: var(--color-text-muted);
+    font-size: var(--font-size-sm);
+    font-style: italic;
+}
+
 .LinearEmptySlot {
     padding: var(--pad-lg);
     background-color: var(--color-bg-page);

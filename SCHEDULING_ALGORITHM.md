@@ -16,13 +16,13 @@ Auto-scheduling topics to room slots based on interest, conflicts, and room capa
 
 ### Frozen Slots
 
-A time slot becomes **frozen** when it starts in less than 15 minutes. Frozen slots are excluded from all scheduling operations.
+An occupied room slot becomes **frozen** when its time slot starts in less than 15 minutes. The scheduled topic stays put, but empty rooms in that same time slot remain available until the slot start time.
 
 ```
-if (slot.startTime - now) < 15.minutes then FROZEN
+if roomSlot.isOccupied && (slot.startTime - now) < 15.minutes then FROZEN
 ```
 
-This happens per-slot, so the schedule incrementally locks in over the course of the event.
+This happens per occupied room slot, so the schedule incrementally locks in over the course of the event without losing late open capacity.
 
 ### Conflict Score
 

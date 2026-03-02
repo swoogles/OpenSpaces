@@ -2,8 +2,7 @@ package co.wtf.openspaces.discussions
 
 import co.wtf.openspaces.{Person, Room, RoomSlot, SessionService, TimeSlot, TopicId}
 import zio.*
-import java.time.LocalDateTime
-import java.time.Duration
+import java.time.{Duration as JavaDuration, Instant, LocalDateTime, ZoneOffset, ZonedDateTime}
 import neotype.unwrap
 
 /** Auto-scheduler that assigns topics to room slots based on votes and conflict minimization. */
@@ -49,13 +48,14 @@ case class SchedulingService(
       allRooms = slots.flatMap(_.slots.flatMap(_.rooms)).distinct.sortBy(-_.capacity)
       allTimeSlots = slots.flatMap(_.slots.map(_.time)).distinct
       
-      // Compute frozen slots (starting in < 15 minutes)
-      frozenSlots = allTimeSlots.filter { ts =>
-        Duration.between(now, ts.startTime).toMinutes < 15
+      // Freeze already-placed topics in slots starting soon, but keep empty rooms
+      // available until the slot actually starts.
+      frozenRoomSlots = discussions.flatMap(_.roomSlot).filter { roomSlot =>
+        SchedulingService.shouldFreezeOccupiedSlot(now, roomSlot.timeSlot)
       }.toSet
       
       // Run the algorithm
-      actions = computeSchedule(discussions, allRooms, allTimeSlots, frozenSlots)
+      actions = computeSchedule(discussions, allRooms, allTimeSlots, frozenRoomSlots, now)
       
       // Apply computed actions
       _ <- ZIO.foreachDiscard(actions) { action =>
@@ -80,17 +80,43 @@ case class SchedulingService(
       _ <- ZIO.logInfo(s"Scheduling complete: $summary")
     yield summary
 
+  /** Start a background loop that runs the scheduler every 30 minutes,
+    * anchored to 2026-03-03 09:00 MST.
+    */
+  def startAutomaticScheduling: UIO[Fiber.Runtime[Nothing, Unit]] =
+    for
+      now <- Clock.instant
+      initialDelay = SchedulingService.nextAutoSchedulingDelay(now)
+      _ <- ZIO.logInfo(
+        s"Automatic scheduling cadence active (anchor=2026-03-03T09:00:00-07:00, initialDelay=$initialDelay, interval=30 minutes)"
+      )
+      fiber <- (
+        ZIO.sleep(initialDelay) *>
+          runScheduling
+            .tap(summary =>
+              ZIO.logInfo(s"Automatic scheduling run complete: $summary")
+            )
+            .catchAll(error =>
+              ZIO.logErrorCause("Automatic scheduling run failed", Cause.fail(error))
+            )
+            .unit
+            .repeat(Schedule.spaced(SchedulingService.automaticSchedulingInterval) && Schedule.forever)
+            .unit
+      ).forkDaemon
+    yield fiber
+
   /** Core scheduling algorithm - computes optimal assignments */
   private def computeSchedule(
     discussions: List[Discussion],
     rooms: List[Room],
     timeSlots: List[TimeSlot],
-    frozenSlots: Set[TimeSlot]
+    frozenRoomSlots: Set[RoomSlot],
+    now: LocalDateTime,
   ): List[DiscussionAction] =
     
     // Phase 1: Partition topics
     val frozen = discussions.filter(d =>
-      d.roomSlot.exists(rs => frozenSlots.contains(rs.timeSlot))
+      d.roomSlot.exists(frozenRoomSlots.contains)
     )
     val locked = discussions.filter(_.lockedTimeslot)
     val immovableIds = (frozen ++ locked).map(_.id).toSet
@@ -101,11 +127,12 @@ case class SchedulingService(
     
     // Phase 3: Compute available slots (unfrozen)
     val lockedSlots = locked.flatMap(_.roomSlot).toSet
+    val unavailableSlots = lockedSlots ++ frozenRoomSlots
     val availableSlots: List[RoomSlot] = for
-      ts <- timeSlots if !frozenSlots.contains(ts)
+      ts <- timeSlots if SchedulingService.canAssignIntoSlot(now, ts)
       room <- rooms.sortBy(-_.capacity)
       slot = RoomSlot(room, ts)
-      if !lockedSlots.contains(slot)
+      if !unavailableSlots.contains(slot)
     yield slot
     
     // Phase 4: Greedy assignment with conflict minimization
@@ -224,6 +251,38 @@ case class SchedulingSummary(
     s"scheduled=$scheduled, moved=$moved, unscheduled=$unscheduled, lockedExcluded=$lockedExcluded"
 
 object SchedulingService:
+  private[openspaces] val automaticSchedulingAnchor: Instant =
+    ZonedDateTime
+      .of(2026, 3, 2, 9, 30, 0, 0, ZoneOffset.ofHours(-7))
+      .toInstant
+
+  private val automaticSchedulingInterval = 30.minutes
+
+  private[openspaces] def shouldFreezeOccupiedSlot(
+    now: LocalDateTime,
+    timeSlot: TimeSlot,
+  ): Boolean =
+    JavaDuration.between(now, timeSlot.startTime).toMinutes < 15
+
+  private[openspaces] def canAssignIntoSlot(
+    now: LocalDateTime,
+    timeSlot: TimeSlot,
+  ): Boolean =
+    timeSlot.startTime.isAfter(now)
+
+  private[openspaces] def nextAutoSchedulingDelay(now: Instant): zio.Duration =
+    if now.isBefore(automaticSchedulingAnchor) then
+      zio.Duration.fromJava(JavaDuration.between(now, automaticSchedulingAnchor))
+    else
+      val elapsedMillis = JavaDuration
+        .between(automaticSchedulingAnchor, now)
+        .toMillis
+      val intervalMillis = automaticSchedulingInterval.toMillis
+      val remainderMillis = Math.floorMod(elapsedMillis, intervalMillis)
+
+      if remainderMillis == 0 then zio.Duration.Zero
+      else zio.Duration.fromMillis(intervalMillis - remainderMillis)
+
   val layer: ZLayer[SessionService & DiscussionStore, Nothing, SchedulingService] =
     ZLayer.fromZIO:
       for
