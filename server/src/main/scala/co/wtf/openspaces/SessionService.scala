@@ -316,7 +316,10 @@ case class SessionService(
         .modify(reg =>
           val queued = reg.pending.getOrElse(channel, Vector.empty)
           (
-            initialMessages ++ queued,
+            // Send the authoritative snapshots last so any queued stale deltas
+            // (for example after out-of-band DB edits followed by a reload)
+            // cannot override the fresh state on newly authenticated clients.
+            queued ++ initialMessages,
             reg.copy(
               connected = reg.connected + channel,
               pending = reg.pending - channel,
