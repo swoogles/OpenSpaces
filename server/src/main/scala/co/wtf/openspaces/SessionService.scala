@@ -790,10 +790,34 @@ case class SessionService(
     * Periodically fetches reply counts for all threads and broadcasts to clients.
     */
   def startSlackReplyCountRefresh(interval: Duration = 3.minutes): Task[Fiber.Runtime[Throwable, Unit]] =
-    slackNotifier.startReplyCountRefresh(
-      broadcast = msg => broadcastToAll(msg),
-      interval = interval,
-    )
+    val refreshLoop =
+      (for
+        startedAt <- Clock.nanoTime
+        _ <- ZIO.logInfo("Fetching Slack reply counts...")
+        counts <- slackNotifier.fetchReplyCounts
+        _ <- slackReplyCounts.set(counts)
+        total =
+          counts.discussions.size +
+            counts.lightningTalks.size +
+            counts.hackathonProjects.size +
+            counts.activities.size
+        totalReplies =
+          counts.discussions.values.sum +
+            counts.lightningTalks.values.sum +
+            counts.hackathonProjects.values.sum +
+            counts.activities.values.sum
+        _ <- ZIO.when(total > 0)(
+          ZIO.logInfo(s"Broadcasting reply counts for $total threads (total replies: $totalReplies)") *>
+            broadcastToAll(SlackReplyCountsMessage(counts))
+        )
+        finishedAt <- Clock.nanoTime
+        elapsedSeconds = (finishedAt - startedAt) / 1000000000L
+        _ <- ZIO.logInfo(s"Slack reply count refresh cycle completed in ${elapsedSeconds}s")
+      yield ()).catchAll { error =>
+        ZIO.logError(s"Error fetching Slack reply counts: ${error.getMessage}")
+      }
+
+    (refreshLoop *> refreshLoop.schedule(Schedule.fixed(interval)).unit).fork
 
   /** Start a lightweight websocket heartbeat so Heroku does not close idle sockets. */
   def startWebSocketKeepAlive(interval: Duration = 25.seconds): Task[Fiber.Runtime[Throwable, Unit]] =
