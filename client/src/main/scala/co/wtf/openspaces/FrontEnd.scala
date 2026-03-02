@@ -551,10 +551,11 @@ object FrontEnd extends ZIOAppDefault{
                     case _ => ()
 
                 case SlackReplyCountsMessage(counts) =>
+                  org.scalajs.dom.console.log(s"Received SlackReplyCountsMessage with ${counts.discussions.size} discussions, ${counts.hackathonProjects.size} hackathon projects")
                   AppState.slackReplyCounts.set(counts)
 
-                case _ =>
-                  ()
+                case other =>
+                  org.scalajs.dom.console.log(s"Received unhandled WebSocket message: ${other.getClass.getName}")
           },
           errorBanner.component,
           // Pending approval banner for unauthorized users
