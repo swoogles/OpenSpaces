@@ -462,24 +462,29 @@ class SlackNotifierLive(
   private def fetchCountsForEntities(
     entities: Vector[(Long, String, String)] // (id, channelId, threadTs)
   ): Task[Map[Long, Int]] =
+    // Process sequentially with 500ms delay between calls to respect Slack rate limits
+    // Slack allows ~1 req/sec for Web API; 500ms gives us headroom
     ZIO.foreach(entities) { case (id, channel, threadTs) =>
-      slackClient.getReplyCount(channel, threadTs).flatMap {
-        case ReplyCountResult.Count(n) => ZIO.some(id -> n)
-        case ReplyCountResult.MissingScope =>
-          // Log once, then suppress
-          hasLoggedMissingScope.get.flatMap { alreadyLogged =>
-            if !alreadyLogged then
-              ZIO.logWarning("Slack channels:history scope not granted - reply counts unavailable") *>
-              hasLoggedMissingScope.set(true) *>
-              ZIO.none
-            else
-              ZIO.none
-          }
-        case ReplyCountResult.NotFound => ZIO.none
-        case ReplyCountResult.Error(msg) =>
-          ZIO.logWarning(s"Failed to fetch reply count for thread $threadTs: $msg") *>
-          ZIO.none
-      }
+      for
+        _ <- ZIO.sleep(500.millis)
+        result <- slackClient.getReplyCount(channel, threadTs).flatMap {
+          case ReplyCountResult.Count(n) => ZIO.some(id -> n)
+          case ReplyCountResult.MissingScope =>
+            // Log once, then suppress
+            hasLoggedMissingScope.get.flatMap { alreadyLogged =>
+              if !alreadyLogged then
+                ZIO.logWarning("Slack channels:history scope not granted - reply counts unavailable") *>
+                hasLoggedMissingScope.set(true) *>
+                ZIO.none
+              else
+                ZIO.none
+            }
+          case ReplyCountResult.NotFound => ZIO.none
+          case ReplyCountResult.Error(msg) =>
+            ZIO.logWarning(s"Failed to fetch reply count for thread $threadTs: $msg") *>
+            ZIO.none
+        }
+      yield result
     }.map(_.flatten.toMap)
 
   def startReplyCountRefresh(

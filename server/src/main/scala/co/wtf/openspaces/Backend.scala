@@ -74,7 +74,8 @@ object Backend extends ZIOAppDefault {
       ZIO.serviceWithZIO[RandomActionSpawner](_.startSpawningRandomActions).run
       
       // Start the Slack reply count refresh (runs in background, gracefully handles missing permissions)
-      ZIO.serviceWithZIO[SessionService](_.startSlackReplyCountRefresh()).run
+      // 5-minute interval to stay well within Slack rate limits
+      ZIO.serviceWithZIO[SessionService](_.startSlackReplyCountRefresh(interval = 5.minutes)).run
 
       val requestLogAnnotations =
         Middleware.logAnnotate((req: Request) =>
