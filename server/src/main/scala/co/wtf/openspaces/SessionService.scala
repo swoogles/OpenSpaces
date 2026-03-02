@@ -31,6 +31,7 @@ private case class ChannelRegistry(
   */
 case class SessionService(
   channelRegistry: Ref[ChannelRegistry],
+  slackReplyCounts: Ref[SlackReplyCounts],
   discussionStore: DiscussionStore,
   lightningTalkService: LightningTalkService,
   hackathonProjectService: HackathonProjectService,
@@ -355,6 +356,20 @@ case class SessionService(
           ),
         )
         .run
+      val latestSlackReplyCounts = slackReplyCounts.get.run
+      channel
+        .send(
+          SlackReplyCountsMessage(latestSlackReplyCounts),
+        )
+        .tapError(_ =>
+          channelRegistry.update(reg =>
+            reg.copy(
+              connected = reg.connected - channel,
+              pending = reg.pending - channel,
+            ),
+          ),
+        )
+        .run
       val buffered = channelRegistry
         .modify(reg =>
           val queued = reg.pending.getOrElse(channel, Vector.empty)
@@ -386,6 +401,8 @@ case class SessionService(
           hackathonProjectService.applyConfirmed(hackathonConfirmed).run
         case ActivityActionConfirmedMessage(activityConfirmed) =>
           activityService.applyConfirmed(activityConfirmed).run
+        case SlackReplyCountsMessage(counts) =>
+          slackReplyCounts.set(counts).run
         case _ =>
           ZIO.unit.run
       val channels = channelRegistry
@@ -812,6 +829,14 @@ object SessionService:
             ChannelRegistry(
               connected = Set.empty,
               pending = Map.empty,
+            ),
+          ).run,
+          Ref.make(
+            SlackReplyCounts(
+              discussions = Map.empty,
+              lightningTalks = Map.empty,
+              hackathonProjects = Map.empty,
+              activities = Map.empty,
             ),
           ).run,
           ZIO.service[DiscussionStore].run,
