@@ -287,86 +287,46 @@ case class SessionService(
       val lightningState = lightningTalkService.snapshot.run
       val hackathonState = hackathonProjectService.snapshot.run
       val activityState = activityService.snapshot.run
-      channel
-        .send(
-          DiscussionActionConfirmedMessage(
-            DiscussionActionConfirmed.StateReplace(
-              state.data.values.toList,
-              state.slots,
-            ),
-          ),
-        )
-        .tapError(_ =>
-          channelRegistry.update(reg =>
-            reg.copy(
-              connected = reg.connected - channel,
-              pending = reg.pending - channel,
-            ),
-          ),
-        )
-        .run
-      channel
-        .send(
-          LightningTalkActionConfirmedMessage(
-            LightningTalkActionConfirmed.StateReplace(
-              lightningState.proposals.values.toList,
-            ),
-          ),
-        )
-        .tapError(_ =>
-          channelRegistry.update(reg =>
-            reg.copy(
-              connected = reg.connected - channel,
-              pending = reg.pending - channel,
-            ),
-          ),
-        )
-        .run
-      channel
-        .send(
-          HackathonProjectActionConfirmedMessage(
-            HackathonProjectActionConfirmed.StateReplace(
-              hackathonState.projects.values.toList,
-            ),
-          ),
-        )
-        .tapError(_ =>
-          channelRegistry.update(reg =>
-            reg.copy(
-              connected = reg.connected - channel,
-              pending = reg.pending - channel,
-            ),
-          ),
-        )
-        .run
-      channel
-        .send(
-          ActivityActionConfirmedMessage(
-            ActivityActionConfirmed.StateReplace(
-              activityState.activities.values.toList,
-            ),
-          ),
-        )
-        .tapError(_ =>
-          channelRegistry.update(reg =>
-            reg.copy(
-              connected = reg.connected - channel,
-              pending = reg.pending - channel,
-            ),
-          ),
-        )
-        .run
       val latestSlackReplyCounts = slackReplyCounts.get.run
-      val hasCachedSlackReplyCounts =
-        latestSlackReplyCounts.discussions.nonEmpty ||
-        latestSlackReplyCounts.lightningTalks.nonEmpty ||
-        latestSlackReplyCounts.hackathonProjects.nonEmpty ||
-        latestSlackReplyCounts.activities.nonEmpty
-      if hasCachedSlackReplyCounts then
-        channel
-          .send(
-            SlackReplyCountsMessage(latestSlackReplyCounts),
+      val initialMessages = Vector[WebSocketMessageFromServer](
+        DiscussionActionConfirmedMessage(
+          DiscussionActionConfirmed.StateReplace(
+            state.data.values.toList,
+            state.slots,
+          ),
+        ),
+        LightningTalkActionConfirmedMessage(
+          LightningTalkActionConfirmed.StateReplace(
+            lightningState.proposals.values.toList,
+          ),
+        ),
+        HackathonProjectActionConfirmedMessage(
+          HackathonProjectActionConfirmed.StateReplace(
+            hackathonState.projects.values.toList,
+          ),
+        ),
+        ActivityActionConfirmedMessage(
+          ActivityActionConfirmed.StateReplace(
+            activityState.activities.values.toList,
+          ),
+        ),
+        SlackReplyCountsMessage(latestSlackReplyCounts),
+      )
+      val messagesToSend = channelRegistry
+        .modify(reg =>
+          val queued = reg.pending.getOrElse(channel, Vector.empty)
+          (
+            initialMessages ++ queued,
+            reg.copy(
+              connected = reg.connected + channel,
+              pending = reg.pending - channel,
+            ),
           )
+        )
+        .run
+      ZIO.foreachDiscard(messagesToSend)(message =>
+        channel
+          .send(message)
           .tapError(_ =>
             channelRegistry.update(reg =>
               reg.copy(
@@ -375,20 +335,8 @@ case class SessionService(
               ),
             ),
           )
-          .run
-      val buffered = channelRegistry
-        .modify(reg =>
-          val queued = reg.pending.getOrElse(channel, Vector.empty)
-          (
-            queued,
-            reg.copy(
-              connected = reg.connected + channel,
-              pending = reg.pending - channel,
-            ),
-          )
-        )
-        .run
-      ZIO.foreachDiscard(buffered)(message => channel.send(message).ignore).run
+          .ignore,
+      ).run
 
   private def broadcastToAll(
     message: WebSocketMessageFromServer,
