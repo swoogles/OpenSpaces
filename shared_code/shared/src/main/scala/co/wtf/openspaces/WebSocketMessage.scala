@@ -136,6 +136,11 @@ enum AuthorizationActionConfirmed derives JsonCodec:
 
 // Slack reply counts
 
+/** Lightweight heartbeat frame to keep websocket connections from going idle */
+case object KeepAliveMessage
+    extends WebSocketMessageFromServer
+    derives JsonCodec
+
 /** Broadcast from server with updated Slack thread reply counts */
 case class SlackReplyCountsMessage(
   counts: SlackReplyCounts)

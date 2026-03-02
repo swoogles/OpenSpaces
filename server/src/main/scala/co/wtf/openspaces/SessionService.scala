@@ -820,6 +820,16 @@ case class SessionService(
       interval = interval,
     )
 
+  /** Start a lightweight websocket heartbeat so Heroku does not close idle sockets. */
+  def startWebSocketKeepAlive(interval: Duration = 25.seconds): Task[Fiber.Runtime[Throwable, Unit]] =
+    (ZIO.sleep(interval) *>
+      channelRegistry.get.flatMap(reg =>
+        ZIO.foreachParDiscard(reg.connected)(channel =>
+          channel.send(KeepAliveMessage).ignore,
+        ),
+      )).forever
+      .fork
+
 object SessionService:
   val layer =
     ZLayer.fromZIO:

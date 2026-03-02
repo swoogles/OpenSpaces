@@ -77,6 +77,9 @@ object Backend extends ZIOAppDefault {
       // 5-minute interval to stay well within Slack rate limits
       ZIO.serviceWithZIO[SessionService](_.startSlackReplyCountRefresh(interval = 5.minutes)).run
 
+      // Keep websocket connections active so Heroku does not drop them for idleness.
+      ZIO.serviceWithZIO[SessionService](_.startWebSocketKeepAlive(interval = 25.seconds)).run
+
       val requestLogAnnotations =
         Middleware.logAnnotate((req: Request) =>
           Set(

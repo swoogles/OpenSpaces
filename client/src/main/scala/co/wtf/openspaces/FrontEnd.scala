@@ -554,6 +554,9 @@ object FrontEnd extends ZIOAppDefault{
                   org.scalajs.dom.console.log(s"Received SlackReplyCountsMessage with ${counts.discussions.size} discussions, ${counts.hackathonProjects.size} hackathon projects")
                   AppState.slackReplyCounts.set(counts)
 
+                case KeepAliveMessage =>
+                  ()
+
                 case other =>
                   org.scalajs.dom.console.log(s"Received unhandled WebSocket message: ${other.getClass.getName}")
           },
