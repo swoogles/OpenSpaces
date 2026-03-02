@@ -730,7 +730,16 @@ object FrontEnd extends ZIOAppDefault{
       .url("/discussions") // TODO Reference the Zio Endpoint to keep this in sync
       .text[WebSocketMessageFromServer, WebSocketMessageFromClient](
         _.toJson,
-        _.fromJson[WebSocketMessageFromServer].left.map(Exception(_)),
+        raw =>
+          raw.fromJson[WebSocketMessageFromServer] match
+            case Right(message) =>
+              Right(message)
+            case Left(error) =>
+              org.scalajs.dom.console.error(
+                s"Failed to decode WebSocketMessageFromServer: $error",
+              )
+              org.scalajs.dom.console.error("Raw websocket payload:", raw)
+              Left(Exception(error)),
       )
       .build(
         autoReconnect = true,

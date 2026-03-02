@@ -244,7 +244,6 @@ executor: EndpointExecutor[Any, Unit, zio.Scope]
   ) = {
   
   Unsafe.unsafe { implicit unsafe =>
-    println("slightly less dumb future")
     runtime.unsafe.runToFuture(
       ZIO.scoped(
         executor(invocation)
