@@ -411,6 +411,14 @@ case class SessionService(
           slackReplyCounts.set(counts).run
         case _ =>
           ZIO.unit.run
+      val registryBeforeBroadcast = channelRegistry.get.run
+      message match
+        case SlackReplyCountsMessage(_) =>
+          ZIO.logInfo(
+            s"Broadcasting SlackReplyCountsMessage to connected=${registryBeforeBroadcast.connected.size}, pending=${registryBeforeBroadcast.pending.size}"
+          ).run
+        case _ =>
+          ZIO.unit.run
       val channels = channelRegistry
         .modify(reg =>
           val updatedPending =

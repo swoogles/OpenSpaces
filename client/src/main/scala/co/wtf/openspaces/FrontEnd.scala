@@ -360,6 +360,9 @@ object FrontEnd extends ZIOAppDefault{
           ticketCenter(topicUpdates, discussionState, randomActionClient),
           topicUpdates.received --> Observer {
             (event: WebSocketMessageFromServer) =>
+              org.scalajs.dom.console.log(
+                s"Received websocket message type: ${event.getClass.getName}",
+              )
               connectionStatus.recordMessageReceived()
 
               event match
