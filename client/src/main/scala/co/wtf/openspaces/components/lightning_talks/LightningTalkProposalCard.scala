@@ -47,7 +47,7 @@ object LightningTalkProposalCard:
                 // Show reply count if available
                 child <-- AppState.slackReplyCounts.signal.map { counts =>
                   counts.lightningTalks.get(proposal.id.unwrap.toString) match {
-                    case Some(count) if count > 0 =>
+                    case Some(count) =>
                       span(cls := "SlackReplyCount", count.toString)
                     case _ => emptyNode
                   }

@@ -497,8 +497,12 @@ class SlackNotifierLive(
       counts <- fetchReplyCounts
       total = counts.discussions.size + counts.lightningTalks.size + 
               counts.hackathonProjects.size + counts.activities.size
+      totalReplies = counts.discussions.values.sum +
+                     counts.lightningTalks.values.sum +
+                     counts.hackathonProjects.values.sum +
+                     counts.activities.values.sum
       _ <- ZIO.when(total > 0)(
-        ZIO.logInfo(s"Broadcasting reply counts for $total threads") *>
+        ZIO.logInfo(s"Broadcasting reply counts for $total threads (total replies: $totalReplies)") *>
         broadcast(SlackReplyCountsMessage(counts))
       )
     yield ()).catchAll { error =>
