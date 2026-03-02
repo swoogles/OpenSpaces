@@ -32,6 +32,13 @@ trait SlackNotifier:
     username: String,
     displayName: Option[String],
   ): Task[Unit]
+  /** Fetch reply counts for all entities with Slack threads */
+  def fetchReplyCounts: Task[SlackReplyCounts]
+  /** Start background fiber that periodically fetches and broadcasts reply counts */
+  def startReplyCountRefresh(
+    broadcast: SlackReplyCountsMessage => Task[Unit],
+    interval: Duration = 3.minutes,
+  ): Task[Fiber.Runtime[Throwable, Unit]]
 
 class SlackNotifierLive(
   slackClient: SlackClient,
@@ -420,6 +427,81 @@ class SlackNotifierLive(
   // Replace colons with Unicode ratio character (∶ U+2236) to prevent Slack emoji parsing
   private def escapeColonsForSlack(s: String): String = s.replace(":", "∶")
 
+  // Track whether we've logged the missing scope warning (to avoid log spam)
+  private val hasLoggedMissingScope: Ref[Boolean] = Unsafe.unsafe { implicit unsafe =>
+    Runtime.default.unsafe.run(Ref.make(false)).getOrThrow()
+  }
+
+  def fetchReplyCounts: Task[SlackReplyCounts] =
+    for
+      discussions <- discussionRepo.findAllActive
+      lightningTalks <- lightningTalkRepo.findAll
+      hackathonProjects <- hackathonProjectRepo.findAllActive
+      activities <- activityRepo.findAllActive
+      
+      // Fetch counts for each entity type, filtering to only those with Slack threads
+      discussionCounts <- fetchCountsForEntities(
+        discussions.flatMap(d => d.slackChannelId.zip(d.slackThreadTs).map((d.id, _, _)))
+      )
+      lightningCounts <- fetchCountsForEntities(
+        lightningTalks.flatMap(lt => lt.slackChannelId.zip(lt.slackThreadTs).map((lt.id, _, _)))
+      )
+      hackathonCounts <- fetchCountsForEntities(
+        hackathonProjects.flatMap(hp => hp.slackChannelId.zip(hp.slackThreadTs).map((hp.id, _, _)))
+      )
+      activityCounts <- fetchCountsForEntities(
+        activities.flatMap(a => a.slackChannelId.zip(a.slackThreadTs).map((a.id, _, _)))
+      )
+    yield SlackReplyCounts(
+      discussions = discussionCounts,
+      lightningTalks = lightningCounts,
+      hackathonProjects = hackathonCounts,
+      activities = activityCounts,
+    )
+
+  private def fetchCountsForEntities(
+    entities: Vector[(Long, String, String)] // (id, channelId, threadTs)
+  ): Task[Map[Long, Int]] =
+    ZIO.foreach(entities) { case (id, channel, threadTs) =>
+      slackClient.getReplyCount(channel, threadTs).flatMap {
+        case ReplyCountResult.Count(n) => ZIO.some(id -> n)
+        case ReplyCountResult.MissingScope =>
+          // Log once, then suppress
+          hasLoggedMissingScope.get.flatMap { alreadyLogged =>
+            if !alreadyLogged then
+              ZIO.logWarning("Slack channels:history scope not granted - reply counts unavailable") *>
+              hasLoggedMissingScope.set(true) *>
+              ZIO.none
+            else
+              ZIO.none
+          }
+        case ReplyCountResult.NotFound => ZIO.none
+        case ReplyCountResult.Error(msg) =>
+          ZIO.logWarning(s"Failed to fetch reply count for thread $threadTs: $msg") *>
+          ZIO.none
+      }
+    }.map(_.flatten.toMap)
+
+  def startReplyCountRefresh(
+    broadcast: SlackReplyCountsMessage => Task[Unit],
+    interval: Duration = 3.minutes,
+  ): Task[Fiber.Runtime[Throwable, Unit]] =
+    val refreshLoop = (for
+      _ <- ZIO.logInfo(s"Fetching Slack reply counts...")
+      counts <- fetchReplyCounts
+      total = counts.discussions.size + counts.lightningTalks.size + 
+              counts.hackathonProjects.size + counts.activities.size
+      _ <- ZIO.when(total > 0)(
+        ZIO.logInfo(s"Broadcasting reply counts for $total threads") *>
+        broadcast(SlackReplyCountsMessage(counts))
+      )
+    yield ()).catchAll { error =>
+      ZIO.logError(s"Error fetching Slack reply counts: ${error.getMessage}")
+    }
+    
+    // Initial fetch, then repeat on interval
+    (refreshLoop *> refreshLoop.schedule(Schedule.fixed(interval)).unit).fork
+
 
 class SlackNotifierNoOp extends SlackNotifier:
   def notifyDiscussion(
@@ -447,6 +529,14 @@ class SlackNotifierNoOp extends SlackNotifier:
     displayName: Option[String],
   ): Task[Unit] =
     ZIO.unit
+  def fetchReplyCounts: Task[SlackReplyCounts] =
+    ZIO.succeed(SlackReplyCounts(Map.empty, Map.empty, Map.empty, Map.empty))
+  def startReplyCountRefresh(
+    broadcast: SlackReplyCountsMessage => Task[Unit],
+    interval: Duration = 3.minutes,
+  ): Task[Fiber.Runtime[Throwable, Unit]] =
+    // No-op: just return a fiber that does nothing
+    ZIO.never.fork
 
 object SlackNotifier:
   val layer: ZLayer[Option[SlackConfigEnv] & DiscussionRepository & LightningTalkRepository & HackathonProjectRepository & co.wtf.openspaces.db.ActivityRepository & Client, Nothing, SlackNotifier] =

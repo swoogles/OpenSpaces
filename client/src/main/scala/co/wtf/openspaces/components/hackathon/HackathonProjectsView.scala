@@ -369,7 +369,15 @@ object HackathonProjectCard:
           cls := "HackathonProjectCard-slackLink",
           href := url,
           target := "_blank",
-          "💬 Discuss in Slack",
+          span("💬 Discuss in Slack"),
+          // Show reply count if available
+          child <-- AppState.slackReplyCounts.signal.map { counts =>
+            counts.hackathonProjects.get(project.id.unwrap) match {
+              case Some(count) if count > 0 =>
+                span(cls := "SlackReplyCount", count.toString)
+              case _ => emptyNode
+            }
+          },
         )
       }.getOrElse(span()),
     )

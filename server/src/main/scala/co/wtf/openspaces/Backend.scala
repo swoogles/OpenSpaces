@@ -72,6 +72,9 @@ object Backend extends ZIOAppDefault {
 
       // Start the random action spawner (runs in background, controlled via admin API)
       ZIO.serviceWithZIO[RandomActionSpawner](_.startSpawningRandomActions).run
+      
+      // Start the Slack reply count refresh (runs in background, gracefully handles missing permissions)
+      ZIO.serviceWithZIO[SessionService](_.startSlackReplyCountRefresh()).run
 
       val requestLogAnnotations =
         Middleware.logAnnotate((req: Request) =>

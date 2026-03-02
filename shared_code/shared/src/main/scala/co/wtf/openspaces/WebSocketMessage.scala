@@ -133,3 +133,19 @@ enum AuthorizationActionConfirmed derives JsonCodec:
   case Unauthorized(action: AuthorizationAction)
   case Rejected(action: AuthorizationAction, reason: String)
   case UserListRefreshed(pendingUsers: List[PendingUser], approvedUsers: List[ApprovedUser])
+
+// Slack reply counts
+
+/** Broadcast from server with updated Slack thread reply counts */
+case class SlackReplyCountsMessage(
+  counts: SlackReplyCounts)
+    extends WebSocketMessageFromServer
+    derives JsonCodec
+
+/** Reply counts for all entity types, keyed by entity ID */
+case class SlackReplyCounts(
+  discussions: Map[Long, Int],
+  lightningTalks: Map[Long, Int],
+  hackathonProjects: Map[Long, Int],
+  activities: Map[Long, Int],
+) derives JsonCodec

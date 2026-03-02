@@ -794,6 +794,15 @@ case class SessionService(
       case ActivityAction.Update(_, _, _, editor) => Some(editor)
       case ActivityAction.Delete(_, requester) => Some(requester)
 
+  /** Start the background Slack reply count refresh.
+    * Periodically fetches reply counts for all threads and broadcasts to clients.
+    */
+  def startSlackReplyCountRefresh(interval: Duration = 3.minutes): Task[Fiber.Runtime[Throwable, Unit]] =
+    slackNotifier.startReplyCountRefresh(
+      broadcast = msg => broadcastToAll(msg),
+      interval = interval,
+    )
+
 object SessionService:
   val layer =
     ZLayer.fromZIO:

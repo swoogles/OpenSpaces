@@ -131,3 +131,12 @@ object AppState:
 
   // Admin user management view state
   val showUserManagement: Var[Boolean] = Var(false)
+
+  // ============================================
+  // Slack Reply Counts
+  // ============================================
+
+  // Reply counts for Slack threads, keyed by entity ID
+  val slackReplyCounts: Var[SlackReplyCounts] = Var(
+    SlackReplyCounts(Map.empty, Map.empty, Map.empty, Map.empty)
+  )

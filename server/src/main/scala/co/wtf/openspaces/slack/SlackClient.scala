@@ -6,6 +6,13 @@ import zio.json.*
 
 case class SlackMessageRef(channel: String, ts: String)
 
+/** Result of fetching reply count - distinguishes between "0 replies" and "couldn't fetch" */
+enum ReplyCountResult:
+  case Count(n: Int)
+  case MissingScope   // Need channels:history permission
+  case NotFound       // Thread doesn't exist
+  case Error(msg: String)
+
 trait SlackClient:
   def postMessage(channel: String, blocks: String): Task[SlackMessageRef]
   def updateMessage(channel: String, ts: String, blocks: String): Task[Unit]
@@ -14,6 +21,7 @@ trait SlackClient:
   def getPermalink(channel: String, messageTs: String): Task[String]
   def findChannelByName(name: String): Task[Option[String]]
   def createChannel(name: String): Task[String]
+  def getReplyCount(channel: String, threadTs: String): Task[ReplyCountResult]
 
 class SlackClientLive(client: Client, config: SlackConfig) extends SlackClient:
 
@@ -147,3 +155,44 @@ class SlackClientLive(client: Client, config: SlackConfig) extends SlackClient:
           case Some(id) => ZIO.succeed(id)
           case None     => ZIO.fail(new Exception(s"Missing channel.id in Slack response: $json"))
       case _ => ZIO.fail(new Exception(s"Unexpected Slack response format: $json"))
+
+  def getReplyCount(channel: String, threadTs: String): Task[ReplyCountResult] =
+    ZIO.scoped:
+      for
+        res  <- slackRequest
+                  .addQueryParam("channel", channel)
+                  .addQueryParam("ts", threadTs)
+                  .addQueryParam("limit", "1") // We only need metadata, not actual messages
+                  .get("/conversations.replies")
+        body <- res.body.asString
+        result <- parseReplyCountResponse(body)
+      yield result
+
+  private def parseReplyCountResponse(body: String): Task[ReplyCountResult] =
+    ZIO.fromEither(body.fromJson[zio.json.ast.Json])
+      .mapError(e => new Exception(s"Failed to parse Slack response: $e"))
+      .map { json =>
+        json match
+          case zio.json.ast.Json.Obj(fields) =>
+            val ok = fields.collectFirst { case ("ok", zio.json.ast.Json.Bool(v)) => v }.getOrElse(false)
+            if ok then
+              // Reply count is in the first message's reply_count field
+              // The API returns messages array where first element is the parent
+              val replyCount = for
+                messages <- fields.collectFirst { case ("messages", zio.json.ast.Json.Arr(msgs)) => msgs }
+                firstMsg <- messages.headOption
+                count <- firstMsg match
+                  case zio.json.ast.Json.Obj(msgFields) =>
+                    msgFields.collectFirst { case ("reply_count", zio.json.ast.Json.Num(n)) => n.intValue }
+                  case _ => None
+              yield count
+              ReplyCountResult.Count(replyCount.getOrElse(0))
+            else
+              // Check error type
+              val error = fields.collectFirst { case ("error", zio.json.ast.Json.Str(e)) => e }.getOrElse("unknown")
+              error match
+                case "missing_scope" => ReplyCountResult.MissingScope
+                case "thread_not_found" | "message_not_found" => ReplyCountResult.NotFound
+                case other => ReplyCountResult.Error(other)
+          case _ => ReplyCountResult.Error("Unexpected response format")
+      }

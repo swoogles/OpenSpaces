@@ -550,6 +550,9 @@ object FrontEnd extends ZIOAppDefault{
                       AppState.approvedUsers.set(approved)
                     case _ => ()
 
+                case SlackReplyCountsMessage(counts) =>
+                  AppState.slackReplyCounts.set(counts)
+
                 case _ =>
                   ()
           },

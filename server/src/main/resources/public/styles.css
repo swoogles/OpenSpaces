@@ -1398,6 +1398,21 @@ button {
     height: 16px;
 }
 
+.SlackReplyCount {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 18px;
+    height: 18px;
+    padding: 0 5px;
+    margin-left: 4px;
+    font-size: 11px;
+    font-weight: 600;
+    color: white;
+    background: var(--color-primary);
+    border-radius: 9px;
+}
+
 @media (prefers-reduced-motion: reduce) {
     .ViewToggle-button {
         transition: none;
