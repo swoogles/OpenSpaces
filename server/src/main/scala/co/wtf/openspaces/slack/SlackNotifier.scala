@@ -499,12 +499,13 @@ class SlackNotifierLive(
     entityType: String,
     entities: Vector[(Long, String, String)] // (id, channelId, threadTs)
   ): Task[Map[String, Int]] =
-    // Process sequentially with a delay above 1 req/sec to avoid Slack Web API rate limits.
-    // 1.2s is conservative but still fine for a 5-minute refresh cycle.
+    // Process sequentially with delay to avoid Slack Web API rate limits.
+    // conversations.replies is Tier 3 (50+/min) but non-Marketplace apps face stricter limits.
+    // 3s delay = 20 req/min, safely within Tier 2 limits and tolerant of stricter enforcement.
     // Keys are String for JSON compatibility (JS object keys are always strings)
     ZIO.foldLeft(entities)((Map.empty[String, Int], ReplyCountDiagnostics())) { case ((counts, diagnostics), (id, channel, threadTs)) =>
       for
-        _ <- ZIO.sleep(1200.millis)
+        _ <- ZIO.sleep(3000.millis)
         result <- slackClient.getReplyCount(channel, threadTs).flatMap {
           case ReplyCountResult.Count(n) =>
             ZIO.succeed(
