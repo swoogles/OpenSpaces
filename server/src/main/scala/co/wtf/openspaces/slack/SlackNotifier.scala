@@ -7,6 +7,7 @@ import co.wtf.openspaces.hackathon.*
 import co.wtf.openspaces.lighting_talks.*
 import co.wtf.openspaces.activities.*
 import neotype.unwrap
+import java.net.URLDecoder
 import zio.*
 import zio.http.Client
 import zio.json.*
@@ -432,6 +433,13 @@ class SlackNotifierLive(
     Runtime.default.unsafe.run(Ref.make(false)).getOrThrow()
   }
 
+  private case class ReplyCountDiagnostics(
+    success: Int = 0,
+    missingScope: Int = 0,
+    notFound: Int = 0,
+    errors: Int = 0,
+  )
+
   def fetchReplyCounts: Task[SlackReplyCounts] =
     for
       discussions <- discussionRepo.findAllActive
@@ -439,18 +447,23 @@ class SlackNotifierLive(
       hackathonProjects <- hackathonProjectRepo.findAllActive
       activities <- activityRepo.findAllActive
       
-      // Fetch counts for each entity type, filtering to only those with Slack threads
+      // Fetch counts for each entity type, using stored channel/ts when available and
+      // falling back to parsing them from the Slack permalink for older rows.
       discussionCounts <- fetchCountsForEntities(
-        discussions.flatMap(d => d.slackChannelId.zip(d.slackThreadTs).map((d.id, _, _)))
+        "discussions",
+        discussions.flatMap(d => slackThreadRef(d.slackChannelId, d.slackThreadTs, d.slackPermalink).map((d.id, _, _)))
       )
       lightningCounts <- fetchCountsForEntities(
-        lightningTalks.flatMap(lt => lt.slackChannelId.zip(lt.slackThreadTs).map((lt.id, _, _)))
+        "lightning talks",
+        lightningTalks.flatMap(lt => slackThreadRef(lt.slackChannelId, lt.slackThreadTs, lt.slackPermalink).map((lt.id, _, _)))
       )
       hackathonCounts <- fetchCountsForEntities(
-        hackathonProjects.flatMap(hp => hp.slackChannelId.zip(hp.slackThreadTs).map((hp.id, _, _)))
+        "hackathon projects",
+        hackathonProjects.flatMap(hp => slackThreadRef(hp.slackChannelId, hp.slackThreadTs, hp.slackPermalink).map((hp.id, _, _)))
       )
       activityCounts <- fetchCountsForEntities(
-        activities.flatMap(a => a.slackChannelId.zip(a.slackThreadTs).map((a.id, _, _)))
+        "activities",
+        activities.flatMap(a => slackThreadRef(a.slackChannelId, a.slackThreadTs, a.slackPermalink).map((a.id, _, _)))
       )
     yield SlackReplyCounts(
       discussions = discussionCounts,
@@ -459,34 +472,89 @@ class SlackNotifierLive(
       activities = activityCounts,
     )
 
+  private def slackThreadRef(
+    channelId: Option[String],
+    threadTs: Option[String],
+    permalink: Option[String],
+  ): Option[(String, String)] =
+    channelId.zip(threadTs).orElse(
+      permalink.flatMap(extractSlackThreadRefFromPermalink),
+    )
+
+  private def extractSlackThreadRefFromPermalink(permalink: String): Option[(String, String)] =
+    val query = permalink.split("\\?", 2).lift(1)
+    query.flatMap { q =>
+      val params =
+        q.split("&").flatMap { pair =>
+          pair.split("=", 2) match
+            case Array(key, value) =>
+              Some(key -> URLDecoder.decode(value, "UTF-8"))
+            case _ =>
+              None
+        }.toMap
+      params.get("cid").zip(params.get("thread_ts"))
+    }
+
   private def fetchCountsForEntities(
+    entityType: String,
     entities: Vector[(Long, String, String)] // (id, channelId, threadTs)
   ): Task[Map[String, Int]] =
     // Process sequentially with 500ms delay between calls to respect Slack rate limits
     // Slack allows ~1 req/sec for Web API; 500ms gives us headroom
     // Keys are String for JSON compatibility (JS object keys are always strings)
-    ZIO.foreach(entities) { case (id, channel, threadTs) =>
+    ZIO.foldLeft(entities)((Map.empty[String, Int], ReplyCountDiagnostics())) { case ((counts, diagnostics), (id, channel, threadTs)) =>
       for
         _ <- ZIO.sleep(500.millis)
         result <- slackClient.getReplyCount(channel, threadTs).flatMap {
-          case ReplyCountResult.Count(n) => ZIO.some(id.toString -> n)
+          case ReplyCountResult.Count(n) =>
+            ZIO.succeed(
+              (
+                counts.updated(id.toString, n),
+                diagnostics.copy(success = diagnostics.success + 1),
+              ),
+            )
           case ReplyCountResult.MissingScope =>
             // Log once, then suppress
             hasLoggedMissingScope.get.flatMap { alreadyLogged =>
               if !alreadyLogged then
                 ZIO.logWarning("Slack channels:history scope not granted - reply counts unavailable") *>
                 hasLoggedMissingScope.set(true) *>
-                ZIO.none
+                ZIO.succeed(
+                  (
+                    counts,
+                    diagnostics.copy(missingScope = diagnostics.missingScope + 1),
+                  ),
+                )
               else
-                ZIO.none
+                ZIO.succeed(
+                  (
+                    counts,
+                    diagnostics.copy(missingScope = diagnostics.missingScope + 1),
+                  ),
+                )
             }
-          case ReplyCountResult.NotFound => ZIO.none
+          case ReplyCountResult.NotFound =>
+            ZIO.succeed(
+              (
+                counts,
+                diagnostics.copy(notFound = diagnostics.notFound + 1),
+              ),
+            )
           case ReplyCountResult.Error(msg) =>
             ZIO.logWarning(s"Failed to fetch reply count for thread $threadTs: $msg") *>
-            ZIO.none
+            ZIO.succeed(
+              (
+                counts,
+                diagnostics.copy(errors = diagnostics.errors + 1),
+              ),
+            )
         }
       yield result
-    }.map(_.flatten.toMap)
+    }.flatMap { case (counts, diagnostics) =>
+      ZIO.logInfo(
+        s"Slack reply count fetch for $entityType: tracked=${entities.size}, successes=${diagnostics.success}, missingScope=${diagnostics.missingScope}, notFound=${diagnostics.notFound}, errors=${diagnostics.errors}"
+      ).as(counts)
+    }
 
   def startReplyCountRefresh(
     broadcast: SlackReplyCountsMessage => Task[Unit],
