@@ -304,6 +304,9 @@ object LinearScheduleView:
     val currentDayVar = Var[Option[String]](None)
     val currentTimeVar = Var[Option[String]](None)
     
+    // Scroll progress (0.0 to 1.0)
+    val scrollProgress = Var(0.0)
+    
     // Reference to the sticky header for calculating intersection margins
     val stickyHeaderRef = Var[Option[dom.Element]](None)
 
@@ -342,9 +345,9 @@ object LinearScheduleView:
               emptyNode
           },
         ),
-        // Unified context header (day on left, time on right)
-        child <-- Signal.combine(currentDayVar.signal, currentTimeVar.signal).map {
-          case (Some(day), timeOpt) =>
+        // Unified context header (day on left, time on right, progress bar at bottom)
+        child <-- Signal.combine(currentDayVar.signal, currentTimeVar.signal, scrollProgress.signal).map {
+          case (Some(day), timeOpt, progress) =>
             div(
               cls := "LinearContextHeader",
               div(cls := "LinearContextHeader-day", day),
@@ -352,6 +355,13 @@ object LinearScheduleView:
                 cls := "LinearContextHeader-time",
                 timeOpt.getOrElse("")
               ),
+              div(
+                cls := "LinearContextHeader-progressBar",
+                div(
+                  cls := "LinearContextHeader-progressFill",
+                  styleAttr := s"width: ${(progress * 100).toInt}%"
+                )
+              )
             )
           case _ => emptyNode
         },
@@ -376,6 +386,23 @@ object LinearScheduleView:
       // Main content area with intersection observer setup
       div(
         cls := "LinearScheduleView-content",
+        // Track scroll progress for the progress bar
+        inContext { thisNode =>
+          val scrollHandler: js.Function1[dom.Event, Unit] = { (_: dom.Event) =>
+            val el = dom.document.documentElement
+            val scrollTop = dom.window.pageYOffset
+            val scrollHeight = el.scrollHeight - el.clientHeight
+            val progress = if scrollHeight > 0 then (scrollTop / scrollHeight).min(1.0).max(0.0) else 0.0
+            scrollProgress.set(progress)
+          }
+          
+          onMountCallback { _ =>
+            dom.window.addEventListener("scroll", scrollHandler)
+          }
+          onUnmountCallback { _ =>
+            dom.window.removeEventListener("scroll", scrollHandler)
+          }
+        },
         onMountCallback { ctx =>
           // Set up IntersectionObserver for day and time tracking
           val contentEl = ctx.thisNode.ref

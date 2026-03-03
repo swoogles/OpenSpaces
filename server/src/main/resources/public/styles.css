@@ -1517,10 +1517,12 @@ button {
 
 /* Unified context header: day on left, time on right */
 .LinearContextHeader {
+    position: relative; /* For progress bar positioning */
     display: flex;
     justify-content: space-between;
     align-items: center;
     padding: var(--pad-sm) var(--pad-lg);
+    padding-bottom: calc(var(--pad-sm) + 3px); /* Extra space for progress bar */
     background-color: var(--color-bg-surface);
     border-radius: var(--radius-sm);
     margin-top: var(--pad-sm);
@@ -1539,6 +1541,24 @@ button {
     color: var(--color-text-secondary);
     font-weight: var(--font-weight-semibold);
     transition: opacity 0.1s ease;
+}
+
+/* Progress bar at bottom of context header - colorblind friendly blue */
+.LinearContextHeader-progressBar {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 3px;
+    background-color: rgba(0, 0, 0, 0.1);
+    border-radius: 0 0 var(--radius-sm) var(--radius-sm);
+    overflow: hidden;
+}
+
+.LinearContextHeader-progressFill {
+    height: 100%;
+    background-color: #2563eb; /* Blue-600: excellent visibility for all color vision types */
+    transition: width 0.1s ease-out;
 }
 
 .LinearTimeSlot {
