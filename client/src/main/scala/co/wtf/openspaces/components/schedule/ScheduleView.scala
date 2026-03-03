@@ -574,7 +574,7 @@ object LinearScheduleView:
               } ++ consumeRemainingActivities().map(renderActivity) ++ daySlotOpt.toList.flatMap(_ => maybeLightningNight.toList).map { _ =>
                 div(
                   cls := "LinearTimeSlot LinearTimeSlot--lightning",
-                  dataAttr("time") := "Evening Lightning Talks",
+                  dataAttr("time") := "8:00 PM Lightning Talks",
                   div(
                     cls := "LightningTalk-night LightningTalk-night--schedule",
                     (1 to 10).toList.map { slotNumber =>
