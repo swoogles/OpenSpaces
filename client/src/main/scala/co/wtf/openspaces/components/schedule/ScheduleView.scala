@@ -296,36 +296,12 @@ object LinearScheduleView:
       // Keep state vars in sync with the signals
       $discussionState --> currentStateVar.writer,
       $activityState --> currentActivityStateVar.writer,
-      // Sticky container for buttons, context header, AND form
+      // Sticky container for context header AND form (at top)
       div(
         cls := "LinearScheduleView-stickyHeader",
         onMountCallback { ctx =>
           stickyHeaderRef.set(Some(ctx.thisNode.ref))
         },
-        // Button row
-        div(
-          cls := "LinearScheduleView-buttonRow",
-          button(
-            cls := "JumpToNowButton",
-            SvgIcon(GlyphiconUtils.schedule),
-            span("Jump to Now"),
-            onClick --> Observer { _ =>
-              val activities = currentActivityStateVar.now().activities.values.toList
-              scrollToNextItem(currentStateVar.now(), activities)
-            },
-          ),
-          child <-- showCreateActivityForm.signal.map {
-            case false =>
-              button(
-                cls := "AddActivityButton",
-                "+",
-                title := "Propose Activity",
-                onClick --> Observer(_ => showCreateActivityForm.set(true)),
-              )
-            case true =>
-              emptyNode
-          },
-        ),
         // Unified context header (day on left, time on right, progress bar at bottom)
         child <-- Signal.combine(currentDayVar.signal, currentTimeVar.signal, scrollProgress.signal).map {
           case (Some(day), timeOpt, progress) =>
@@ -551,6 +527,33 @@ object LinearScheduleView:
             )
           }
         },
+      ),
+      // Sticky button row at bottom
+      div(
+        cls := "LinearScheduleView-stickyFooter",
+        div(
+          cls := "LinearScheduleView-buttonRow",
+          button(
+            cls := "JumpToNowButton",
+            SvgIcon(GlyphiconUtils.schedule),
+            span("Jump to Now"),
+            onClick --> Observer { _ =>
+              val activities = currentActivityStateVar.now().activities.values.toList
+              scrollToNextItem(currentStateVar.now(), activities)
+            },
+          ),
+          child <-- showCreateActivityForm.signal.map {
+            case false =>
+              button(
+                cls := "AddActivityButton",
+                "+",
+                title := "Propose Activity",
+                onClick --> Observer(_ => showCreateActivityForm.set(true)),
+              )
+            case true =>
+              emptyNode
+          },
+        ),
       ),
     )
 

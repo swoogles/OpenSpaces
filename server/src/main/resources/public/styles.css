@@ -1661,6 +1661,14 @@ button {
     background-color: var(--color-bg-page);
 }
 
+.LinearScheduleView-stickyFooter {
+    position: sticky;
+    bottom: 0;
+    z-index: 25;
+    padding: var(--pad-sm) 0;
+    background-color: var(--color-bg-page);
+}
+
 /* Button row inside sticky header */
 .LinearScheduleView-buttonRow {
     display: flex;
