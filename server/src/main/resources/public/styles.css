@@ -1510,36 +1510,60 @@ button {
     margin-bottom: calc(var(--pad-lg) + var(--pad-sm));
 }
 
+/* Day header is no longer sticky - context header handles it */
 .LinearDayHeader {
+    display: none; /* Hidden - day shown in unified context header */
+}
+
+/* Unified context header: day on left, time on right */
+.LinearContextHeader {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: var(--pad-sm) var(--pad-lg);
+    background-color: var(--color-bg-surface);
+    border-radius: var(--radius-sm);
+    margin-top: var(--pad-sm);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.08);
+}
+
+.LinearContextHeader-day {
     font-size: var(--font-size-title);
     font-weight: var(--font-weight-bold);
-    padding: var(--pad-md) var(--pad-lg);
-    border-bottom: 2px solid var(--color-border);
-    margin-bottom: 0;
-    position: sticky;
-    top: 52px; /* Below jump button */
-    background-color: var(--color-bg-page);
-    z-index: 20;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.LinearContextHeader-time {
+    font-size: var(--font-size-base);
+    color: var(--color-text-secondary);
+    font-weight: var(--font-weight-semibold);
+    transition: opacity 0.1s ease;
 }
 
 .LinearTimeSlot {
     margin-bottom: var(--pad-lg);
+    padding-top: var(--pad-md);
+    border-top: 1px solid var(--color-border);
+}
+
+.LinearTimeSlot:first-child {
+    border-top: none;
+    padding-top: 0;
+}
+
+/* Content area wrapper */
+.LinearScheduleView-content {
+    padding-top: var(--pad-md);
 }
 
 .LinearTimeSlot--lightning {
     margin-top: var(--pad-sm);
 }
 
+/* Time header is no longer sticky - context header handles it */
 .LinearTimeHeader {
-    color: var(--color-text-secondary);
-    padding: var(--pad-sm) var(--pad-md);
-    background-color: var(--color-bg-surface);
-    border-radius: var(--radius-sm);
-    margin-bottom: var(--pad-md);
-    position: sticky;
-    top: 104px; /* Below jump button (52px) + day header (52px) */
-    z-index: 10;
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+    display: none; /* Hidden - time shown in unified context header */
 }
 
 .LinearTimeHeader--lightning {
