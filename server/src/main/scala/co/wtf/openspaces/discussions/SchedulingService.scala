@@ -10,6 +10,14 @@ case class SchedulingService(
   discussionService: SessionService,
   discussionStore: DiscussionStore
 ):
+  private case class SchedulingPlan(
+    actions: List[DiscussionAction],
+    target: Map[TopicId, RoomSlot],
+    availableSlots: List[RoomSlot],
+    ranked: List[Discussion],
+    immovableIds: Set[TopicId]
+  )
+
 
   /** Clear all room slot assignments without deleting topics.
     * Returns count of topics that were unscheduled.
@@ -55,12 +63,14 @@ case class SchedulingService(
       }.toSet
       
       // Run the algorithm
-      actions = computeSchedule(discussions, allRooms, allTimeSlots, frozenRoomSlots, now)
+      plan = computeSchedule(discussions, allRooms, allTimeSlots, frozenRoomSlots, now)
+      actions = plan.actions
       
       // Apply computed actions
       _ <- ZIO.foreachDiscard(actions) { action =>
         discussionService.applyAndBroadcast(action)
       }
+      _ <- logUnscheduledDiagnostics(discussions, plan)
       
       summary = SchedulingSummary(
         scheduled = actions.count {
@@ -112,7 +122,7 @@ case class SchedulingService(
     timeSlots: List[TimeSlot],
     frozenRoomSlots: Set[RoomSlot],
     now: LocalDateTime,
-  ): List[DiscussionAction] =
+  ): SchedulingPlan =
     
     // Phase 1: Partition topics
     val frozen = discussions.filter(d =>
@@ -142,7 +152,49 @@ case class SchedulingService(
     val rightSized = rightSizeRooms(assignments, rooms, discussions)
     
     // Phase 6: Compute diff (actions needed)
-    computeActions(discussions, rightSized, immovableIds)
+    SchedulingPlan(
+      actions = computeActions(discussions, rightSized, immovableIds),
+      target = rightSized,
+      availableSlots = availableSlots,
+      ranked = ranked,
+      immovableIds = immovableIds,
+    )
+
+  private def logUnscheduledDiagnostics(
+    discussions: List[Discussion],
+    plan: SchedulingPlan
+  ): UIO[Unit] =
+    val rankedIndexById = plan.ranked.zipWithIndex.map { case (discussion, idx) =>
+      discussion.id -> (idx + 1)
+    }.toMap
+    val availableSlotCount = plan.availableSlots.size
+
+    val unscheduled = discussions.filter { discussion =>
+      val finalSlot =
+        if plan.immovableIds.contains(discussion.id) then discussion.roomSlot
+        else plan.target.get(discussion.id)
+      finalSlot.isEmpty
+    }
+
+    ZIO.foreachDiscard(unscheduled) { discussion =>
+      val reason =
+        if discussion.lockedTimeslot then
+          "locked_timeslot"
+        else if plan.availableSlots.isEmpty then
+          "no_available_future_slots"
+        else
+          rankedIndexById.get(discussion.id) match
+            case Some(rank) if rank > availableSlotCount =>
+              s"out_ranked rank=$rank available_slots=$availableSlotCount votes=${discussion.votes}"
+            case Some(rank) =>
+              s"no_assignment rank=$rank available_slots=$availableSlotCount votes=${discussion.votes}"
+            case None =>
+              "frozen_or_excluded"
+
+      ZIO.logInfo(
+        s"Scheduling left topic unscheduled: id=${discussion.id.unwrap}, topic=${discussion.topic.unwrap}, reason=$reason"
+      )
+    }.unit
 
   /** Greedy assignment: process topics by vote count, assign to slot with fewest conflicts */
   private def assignTopics(
