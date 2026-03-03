@@ -177,25 +177,6 @@ object SlotSchedules:
   */
 object LinearScheduleView:
   import scala.scalajs.js
-  import scala.scalajs.js.annotation.JSGlobal
-
-  @js.native
-  @JSGlobal
-  class IntersectionObserver(callback: js.Function2[js.Array[IntersectionObserverEntry], IntersectionObserver, Unit], options: js.UndefOr[IntersectionObserverInit] = js.undefined) extends js.Object:
-    def observe(target: dom.Element): Unit = js.native
-    def unobserve(target: dom.Element): Unit = js.native
-    def disconnect(): Unit = js.native
-
-  trait IntersectionObserverEntry extends js.Object:
-    val target: dom.Element
-    val isIntersecting: Boolean
-    val boundingClientRect: dom.DOMRect
-    val intersectionRatio: Double
-
-  trait IntersectionObserverInit extends js.Object:
-    val root: js.UndefOr[dom.Element]
-    val rootMargin: js.UndefOr[String]
-    val threshold: js.UndefOr[Double | js.Array[Double]]
 
   private def lightningNightForDay(dayName: String): Option[LightningTalkNight] =
     dayName match
@@ -383,90 +364,57 @@ object LinearScheduleView:
             emptyNode
         },
       ),
-      // Main content area with intersection observer setup
+      // Main content area - scroll-based tracking for day/time/progress
       div(
         cls := "LinearScheduleView-content",
-        // Track scroll progress for the progress bar
-        onMountCallback { _ =>
-          val scrollHandler: js.Function1[dom.Event, Unit] = { (_: dom.Event) =>
-            val el = dom.document.documentElement
-            val scrollTop = dom.window.pageYOffset
-            val scrollHeight = el.scrollHeight - el.clientHeight
-            val progress = if scrollHeight > 0 then (scrollTop / scrollHeight).min(1.0).max(0.0) else 0.0
-            scrollProgress.set(progress)
-          }
-          dom.window.addEventListener("scroll", scrollHandler)
-        },
         onMountCallback { ctx =>
-          // Set up IntersectionObserver for day and time tracking
           val contentEl = ctx.thisNode.ref
           
-          // Calculate the sticky header height for the root margin
-          val headerHeight = stickyHeaderRef.now().map(_.asInstanceOf[dom.html.Element].offsetHeight).getOrElse(52.0)
+          // Unified scroll handler for progress bar AND day/time tracking
+          val scrollHandler: js.Function1[dom.Event, Unit] = { (_: dom.Event) =>
+            val docEl = dom.document.documentElement
+            val scrollTop = dom.window.pageYOffset
+            val scrollHeight = docEl.scrollHeight - docEl.clientHeight
+            
+            // Update progress bar
+            val progress = if scrollHeight > 0 then (scrollTop / scrollHeight).min(1.0).max(0.0) else 0.0
+            scrollProgress.set(progress)
+            
+            // Calculate header height for threshold
+            val headerHeight = stickyHeaderRef.now()
+              .map(_.asInstanceOf[dom.html.Element].offsetHeight)
+              .getOrElse(80.0)
+            val threshold = headerHeight + 20 // A bit below the sticky header
+            
+            // Find which day is currently in view (last one whose top is above threshold)
+            val dayElements = contentEl.querySelectorAll("[data-day]")
+            var currentDay: Option[String] = None
+            dayElements.foreach { el =>
+              val rect = el.asInstanceOf[dom.Element].getBoundingClientRect()
+              if rect.top <= threshold then
+                val dayName = el.asInstanceOf[dom.Element].getAttribute("data-day")
+                if dayName != null && dayName.nonEmpty then
+                  currentDay = Some(dayName)
+            }
+            currentDay.foreach(d => currentDayVar.set(Some(d)))
+            
+            // Find which time slot is currently in view
+            val timeElements = contentEl.querySelectorAll("[data-time]")
+            var currentTime: Option[String] = None
+            timeElements.foreach { el =>
+              val rect = el.asInstanceOf[dom.Element].getBoundingClientRect()
+              if rect.top <= threshold then
+                val timeText = el.asInstanceOf[dom.Element].getAttribute("data-time")
+                if timeText != null && timeText.nonEmpty then
+                  currentTime = Some(timeText)
+            }
+            currentTime.foreach(t => currentTimeVar.set(Some(t)))
+          }
           
-          // Day observer - tracks which day section is at the top
-          val dayObserverOptions = js.Dynamic.literal(
-            rootMargin = s"-${headerHeight.toInt}px 0px -90% 0px",
-            threshold = 0.0
-          ).asInstanceOf[IntersectionObserverInit]
+          dom.window.addEventListener("scroll", scrollHandler)
           
-          val dayObserver = new IntersectionObserver(
-            { (entries, _) =>
-              entries.foreach { entry =>
-                if entry.isIntersecting then
-                  val dayName = entry.target.getAttribute("data-day")
-                  if dayName != null && dayName.nonEmpty then
-                    currentDayVar.set(Some(dayName))
-              }
-            },
-            dayObserverOptions
-          )
-          
-          // Time observer - tracks which time slot is at the top
-          val timeObserverOptions = js.Dynamic.literal(
-            rootMargin = s"-${headerHeight.toInt + 40}px 0px -85% 0px",
-            threshold = 0.0
-          ).asInstanceOf[IntersectionObserverInit]
-          
-          val timeObserver = new IntersectionObserver(
-            { (entries, _) =>
-              entries.foreach { entry =>
-                if entry.isIntersecting then
-                  val timeText = entry.target.getAttribute("data-time")
-                  if timeText != null && timeText.nonEmpty then
-                    currentTimeVar.set(Some(timeText))
-              }
-            },
-            timeObserverOptions
-          )
-          
-          // Observe all day sections and time slots after a small delay to ensure DOM is ready
-          dom.window.setTimeout(
-            () => {
-              contentEl.querySelectorAll("[data-day]").foreach { el =>
-                dayObserver.observe(el.asInstanceOf[dom.Element])
-              }
-              contentEl.querySelectorAll("[data-time]").foreach { el =>
-                timeObserver.observe(el.asInstanceOf[dom.Element])
-              }
-              
-              // Initialize with first visible day/time
-              val firstDay = contentEl.querySelector("[data-day]")
-              if firstDay != null then
-                val dayName = firstDay.getAttribute("data-day")
-                if dayName != null then currentDayVar.set(Some(dayName))
-              
-              val firstTime = contentEl.querySelector("[data-time]")
-              if firstTime != null then
-                val timeText = firstTime.getAttribute("data-time")
-                if timeText != null then currentTimeVar.set(Some(timeText))
-            },
-            100
-          )
-          
-        },
-        onUnmountCallback { _ =>
-          // Note: observers will be garbage collected when the element unmounts
+          // Initialize on mount
+          dom.window.setTimeout(() => scrollHandler(null), 100)
         },
         children <-- Signal.combine($discussionState, $lightningTalkState, $activityState).map { (state, lightningState, activityState) =>
           val daySlotsByDate = state.slots.map(ds => ds.date -> ds).toMap
