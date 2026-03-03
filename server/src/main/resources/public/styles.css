@@ -1510,9 +1510,14 @@ button {
     margin-bottom: calc(var(--pad-lg) + var(--pad-sm));
 }
 
-/* Day header is no longer sticky - context header handles it */
+/* Day header scrolls inline - sticky context header shows current */
 .LinearDayHeader {
-    display: none; /* Hidden - day shown in unified context header */
+    font-size: var(--font-size-title);
+    font-weight: var(--font-weight-bold);
+    padding: var(--pad-md) var(--pad-lg);
+    border-bottom: 2px solid var(--color-border);
+    margin-bottom: 0;
+    background-color: var(--color-bg-page);
 }
 
 /* Unified context header: day on left, time on right */
@@ -1581,9 +1586,14 @@ button {
     margin-top: var(--pad-sm);
 }
 
-/* Time header is no longer sticky - context header handles it */
+/* Time header scrolls inline - sticky context header shows current */
 .LinearTimeHeader {
-    display: none; /* Hidden - time shown in unified context header */
+    color: var(--color-text-secondary);
+    font-weight: var(--font-weight-semibold);
+    padding: var(--pad-sm) var(--pad-md);
+    background-color: var(--color-bg-surface);
+    border-radius: var(--radius-sm);
+    margin-bottom: var(--pad-md);
 }
 
 .LinearTimeHeader--lightning {

@@ -465,6 +465,7 @@ object LinearScheduleView:
                 cls := "LinearTimeSlot LinearTimeSlot--activity",
                 idAttr := activitySlotId(activity.eventTime),
                 dataAttr("time") := activity.eventTime.format(activityHeaderTimeFormat),
+                div(cls := "LinearTimeHeader", activity.eventTime.format(activityHeaderTimeFormat)),
                 ActivityCard(
                   activity = activity,
                   currentUser = name.now(),
@@ -478,6 +479,7 @@ object LinearScheduleView:
             div(
               cls := "LinearDay",
               dataAttr("day") := dayName,
+              div(cls := "LinearDayHeader", dayName),
               daySlotOpt.toList.flatMap(_.slots).flatMap { timeSlotForAllRooms =>
                 val leadingActivities = consumeActivitiesThrough(timeSlotForAllRooms.time.startTime).map(renderActivity)
                 val scheduledRooms = timeSlotForAllRooms.rooms.flatMap { room =>
@@ -490,6 +492,7 @@ object LinearScheduleView:
                     cls := "LinearTimeSlot",
                     idAttr := slotId(timeSlotForAllRooms.time.startTime),
                     dataAttr("time") := timeSlotForAllRooms.time.displayString,
+                    div(cls := "LinearTimeHeader", timeSlotForAllRooms.time.displayString),
                     if scheduledRooms.isEmpty then
                       div(
                         cls := "LinearEmptyTimeSlotMessage",
@@ -517,6 +520,7 @@ object LinearScheduleView:
                 div(
                   cls := "LinearTimeSlot LinearTimeSlot--lightning",
                   dataAttr("time") := "8:00 PM Lightning Talks",
+                  div(cls := "LinearTimeHeader LinearTimeHeader--lightning", "8:00 PM Lightning Talks"),
                   div(
                     cls := "LightningTalk-night LightningTalk-night--schedule",
                     (1 to 10).toList.map { slotNumber =>
