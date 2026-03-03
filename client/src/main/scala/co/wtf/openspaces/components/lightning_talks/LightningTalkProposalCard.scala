@@ -44,10 +44,10 @@ object LightningTalkProposalCard:
                 cls := "SlackThreadLink",
                 title := "Discuss in Slack",
                 img(src := "/icons/slack.svg", cls := "SlackIcon"),
-                // Show reply count if available
+                // Show reply count if available (hide if 0)
                 child <-- AppState.slackReplyCounts.signal.map { counts =>
                   counts.lightningTalks.get(proposal.id.unwrap.toString) match {
-                    case Some(count) =>
+                    case Some(count) if count > 0 =>
                       span(cls := "SlackReplyCount", count.toString)
                     case _ => emptyNode
                   }
