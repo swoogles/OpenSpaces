@@ -387,7 +387,7 @@ object LinearScheduleView:
       div(
         cls := "LinearScheduleView-content",
         // Track scroll progress for the progress bar
-        inContext { thisNode =>
+        onMountCallback { _ =>
           val scrollHandler: js.Function1[dom.Event, Unit] = { (_: dom.Event) =>
             val el = dom.document.documentElement
             val scrollTop = dom.window.pageYOffset
@@ -395,13 +395,7 @@ object LinearScheduleView:
             val progress = if scrollHeight > 0 then (scrollTop / scrollHeight).min(1.0).max(0.0) else 0.0
             scrollProgress.set(progress)
           }
-          
-          onMountCallback { _ =>
-            dom.window.addEventListener("scroll", scrollHandler)
-          }
-          onUnmountCallback { _ =>
-            dom.window.removeEventListener("scroll", scrollHandler)
-          }
+          dom.window.addEventListener("scroll", scrollHandler)
         },
         onMountCallback { ctx =>
           // Set up IntersectionObserver for day and time tracking
