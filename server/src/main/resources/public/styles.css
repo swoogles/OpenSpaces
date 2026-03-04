@@ -2650,3 +2650,246 @@ button {
     padding: var(--pad-md);
     text-align: center;
 }
+
+/* ==========================================================================
+   CalendarDayView - Desktop grid schedule view
+   ========================================================================== */
+
+.CalendarDayView {
+    padding: var(--pad-lg);
+    max-width: 1400px;
+    margin: 0 auto;
+}
+
+.CalendarDayView-header {
+    display: flex;
+    gap: var(--pad-sm);
+    margin-bottom: var(--pad-lg);
+    flex-wrap: wrap;
+}
+
+.CalendarDayView-dayButton {
+    padding: var(--pad-sm) var(--pad-md);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    background: var(--color-bg-card);
+    color: var(--color-text-primary);
+    cursor: pointer;
+    font-size: var(--font-size-body);
+    transition: all 0.15s ease;
+}
+
+.CalendarDayView-dayButton:hover {
+    background: var(--color-bg-page);
+    border-color: var(--color-interactive);
+}
+
+.CalendarDayView-dayButton--active {
+    background: var(--color-interactive);
+    color: white;
+    border-color: var(--color-interactive);
+}
+
+.CalendarDayView-grid {
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+    background: var(--color-border);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    overflow: hidden;
+}
+
+.CalendarDayView-row {
+    display: grid;
+    grid-template-columns: 100px repeat(4, 1fr);
+    gap: 1px;
+    background: var(--color-border);
+}
+
+.CalendarDayView-row--header {
+    background: var(--color-bg-page);
+}
+
+.CalendarDayView-timeCell {
+    background: var(--color-bg-card);
+    padding: var(--pad-md);
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+}
+
+.CalendarDayView-timeCell--header {
+    font-weight: var(--font-weight-bold);
+    color: var(--color-text-secondary);
+    text-transform: uppercase;
+    font-size: var(--font-size-meta);
+    letter-spacing: 0.5px;
+}
+
+.CalendarDayView-timeStart {
+    font-weight: var(--font-weight-bold);
+    color: var(--color-text-primary);
+}
+
+.CalendarDayView-timeEnd {
+    font-size: var(--font-size-meta);
+    color: var(--color-text-muted);
+}
+
+.CalendarDayView-roomHeader {
+    background: var(--color-bg-page);
+    padding: var(--pad-md);
+    text-align: center;
+}
+
+.CalendarDayView-roomName {
+    font-weight: var(--font-weight-bold);
+    color: var(--color-text-primary);
+    font-size: var(--font-size-body);
+}
+
+.CalendarDayView-roomCapacity {
+    font-size: var(--font-size-meta);
+    color: var(--color-text-muted);
+}
+
+.CalendarDayView-cell {
+    background: var(--color-bg-card);
+    padding: var(--pad-md);
+    min-height: 120px;
+}
+
+.CalendarDayView-cell--empty {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--color-text-muted);
+    font-style: italic;
+}
+
+.CalendarDayView-cell--filled {
+    display: flex;
+    flex-direction: column;
+    gap: var(--pad-xs);
+}
+
+.CalendarDayView-topic {
+    font-weight: var(--font-weight-bold);
+    color: var(--color-text-primary);
+    font-size: var(--font-size-body);
+    line-height: 1.3;
+    /* Truncate long topics */
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+
+.CalendarDayView-facilitator {
+    font-size: var(--font-size-meta);
+    color: var(--color-text-secondary);
+}
+
+.CalendarDayView-votes {
+    margin-top: auto;
+}
+
+.CalendarDayView-voteCount {
+    display: inline-block;
+    background: var(--color-interactive);
+    color: white;
+    padding: 2px 8px;
+    border-radius: 12px;
+    font-size: var(--font-size-meta);
+    font-weight: var(--font-weight-bold);
+}
+
+.CalendarDayView-voters {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    margin-top: var(--pad-xs);
+}
+
+.CalendarDayView-voter {
+    background: var(--color-bg-page);
+    color: var(--color-text-secondary);
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-size: 11px;
+}
+
+.CalendarDayView-empty {
+    text-align: center;
+    padding: var(--pad-xl);
+    color: var(--color-text-muted);
+}
+
+.CalendarDayView-debug {
+    background: #fef3c7;
+    color: #92400e;
+    padding: var(--pad-sm) var(--pad-md);
+    border-radius: var(--radius-md);
+    margin-bottom: var(--pad-md);
+    font-size: var(--font-size-meta);
+    font-family: monospace;
+}
+
+/* Activities section */
+.CalendarDayView-activitiesSection {
+    margin-top: var(--pad-lg);
+    padding: var(--pad-md);
+    background: var(--color-bg-card);
+    border-radius: var(--radius-md);
+    border: 1px solid var(--color-border);
+}
+
+.CalendarDayView-activitiesHeader {
+    font-weight: var(--font-weight-bold);
+    font-size: var(--font-size-title);
+    margin-bottom: var(--pad-md);
+    color: var(--color-text-primary);
+}
+
+.CalendarDayView-activity {
+    display: flex;
+    gap: var(--pad-md);
+    padding: var(--pad-sm) 0;
+    border-bottom: 1px solid var(--color-border);
+}
+
+.CalendarDayView-activity:last-child {
+    border-bottom: none;
+}
+
+.CalendarDayView-activityTime {
+    font-weight: var(--font-weight-bold);
+    color: var(--color-interactive);
+    min-width: 80px;
+}
+
+.CalendarDayView-activityContent {
+    flex: 1;
+}
+
+.CalendarDayView-activityDescription {
+    font-weight: var(--font-weight-bold);
+    color: var(--color-text-primary);
+}
+
+.CalendarDayView-activityCreator {
+    font-size: var(--font-size-meta);
+    color: var(--color-text-secondary);
+}
+
+.CalendarDayView-activityMembers {
+    font-size: var(--font-size-meta);
+    color: var(--color-text-muted);
+    margin-top: var(--pad-xs);
+}
+
+.CalendarDayView-memberList {
+    color: var(--color-text-secondary);
+}

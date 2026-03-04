@@ -183,7 +183,15 @@ object AdminControls:
         "👥 Users",
         onClick --> { _ => AppState.showUserManagement.set(true) },
       ),
-      
+
+      // Calendar Day View button
+      button(
+        cls := "AdminControls-button",
+        cls := "AdminControls-button--primary",
+        "📅 Calendar",
+        onClick --> { _ => AppState.currentAppView.set(AppView.CalendarDayView) },
+      ),
+
       // Version display
       span(
         cls := "AdminControls-version",

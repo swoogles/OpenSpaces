@@ -14,6 +14,7 @@ import co.wtf.openspaces.hackathon.*
 // Import extracted utilities
 import co.wtf.openspaces.util.{SlotPositionTracker, SwapAnimationState, MenuPositioning, ScrollPreserver}
 import co.wtf.openspaces.components.{AdminControls, ErrorBanner, ViewToggle, NameBadge, AdminModeToggle, LoadingPreviewToggle, Menu, UnscheduledDiscussionsMenu, ActiveDiscussionActionMenu, ScheduleView, LinearScheduleView, ReplayView, AppView, PendingApprovalBanner, UserManagementView}
+import co.wtf.openspaces.components.schedule.CalendarDayView
 import co.wtf.openspaces.components.discussions.DiscussionSubview
 import co.wtf.openspaces.components.discussions.TopicSubmission
 import co.wtf.openspaces.components.hackathon.HackathonProjectsView
@@ -55,8 +56,15 @@ object FrontEnd extends ZIOAppDefault{
         )
 
   // ZIO.config(Config.config.nested(serviceName))
-  def run =  ZIO.service[EndpointExecutor[Any, Unit, Scope]].map{ executor => 
+  def run =  ZIO.service[EndpointExecutor[Any, Unit, Scope]].map{ executor =>
   ServiceWorkerClient.registerServiceWorker()
+
+  // Expose view switcher to browser console for hidden views
+  import scala.scalajs.js
+  dom.window.asInstanceOf[js.Dynamic].showCalendarView = { () =>
+    AppState.currentAppView.set(AppView.CalendarDayView)
+  }: js.Function0[Unit]
+
   lazy val container = dom.document.getElementById("app")
 
   // App state moved to AppState.scala
@@ -646,6 +654,11 @@ object FrontEnd extends ZIOAppDefault{
               )
             case AppView.Replay =>
               ReplayView()
+            case AppView.CalendarDayView =>
+              CalendarDayView(
+                discussionState.signal,
+                activityState.signal,
+              )
           },
         )
       } else {
