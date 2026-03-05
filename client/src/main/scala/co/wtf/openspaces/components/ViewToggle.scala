@@ -124,87 +124,59 @@ object ViewToggle:
 
     div(
       cls := "BottomNav",
-      // === Action buttons row ===
-      div(
-        cls := "BottomNav-actions",
-        child <-- AppState.createSheetOpen.signal.map {
-          case false =>
-            button(
-              cls := "BottomNav-actionBtn",
-              "+",
-              title := "Create",
-              onClick --> Observer { _ =>
-                AppState.openCreateSheet()
-              },
-            )
-          case true =>
-            // Hide button when sheet is open
-            emptyNode
+      // Single row of 5 buttons: Topics | Activities | + | Hack | Schedule
+      // Admin button shown in header when enabled, not in nav
+      button(
+        cls := "BottomNav-tab",
+        cls <-- currentView.signal.map { view =>
+          if view == AppView.Topics then "BottomNav-tab--active" else ""
         },
-      ),
-      // === Navigation tabs row ===
-      div(
-        cls := "BottomNav-tabs",
-        // Admin button - only when admin mode is enabled
-        child.maybe <-- adminModeEnabled.map { enabled =>
-          Option.when(enabled)(
-            button(
-              cls := "BottomNav-tab",
-              cls <-- currentView.signal.map { view =>
-                if view == AppView.Admin then "BottomNav-tab--active" else ""
-              },
-              onClick --> Observer(_ => currentView.set(AppView.Admin)),
-              span(cls := "BottomNav-icon", "⚙"),
-              span(cls := "BottomNav-label", "Admin"),
-            )
-          )
-        },
-        button(
-          cls := "BottomNav-tab",
-          cls <-- currentView.signal.map { view =>
-            if view == AppView.Topics then "BottomNav-tab--active" else ""
-          },
-          onClick --> Observer(_ => currentView.set(AppView.Topics)),
-          span(
-            cls := "BottomNav-iconWrapper",
-            span(cls := "BottomNav-icon", "💬"),
-            child.maybe <-- unjudgedCount.map { count =>
-              Option.when(count > 0)(
-                span(
-                  cls := "BottomNav-badge",
-                  if count > 99 then "99+" else count.toString,
-                )
+        onClick --> Observer(_ => currentView.set(AppView.Topics)),
+        span(
+          cls := "BottomNav-iconWrapper",
+          span(cls := "BottomNav-icon", "💬"),
+          child.maybe <-- unjudgedCount.map { count =>
+            Option.when(count > 0)(
+              span(
+                cls := "BottomNav-badge",
+                if count > 99 then "99+" else count.toString,
               )
-            },
-          ),
-          span(cls := "BottomNav-label", "Topics"),
-        ),
-        button(
-          cls := "BottomNav-tab",
-          cls <-- currentView.signal.map { view =>
-            if view == AppView.LightningTalks then "BottomNav-tab--active" else ""
+            )
           },
-          onClick --> Observer(_ => currentView.set(AppView.LightningTalks)),
-          span(cls := "BottomNav-icon", "🎤"),
-          span(cls := "BottomNav-label", "Activities"),
         ),
-        button(
-          cls := "BottomNav-tab",
-          cls <-- currentView.signal.map { view =>
-            if view == AppView.Hackathon then "BottomNav-tab--active" else ""
-          },
-          onClick --> Observer(_ => currentView.set(AppView.Hackathon)),
-          span(cls := "BottomNav-icon", "🛠"),
-          span(cls := "BottomNav-label", "Hack"),
-        ),
-        button(
-          cls := "BottomNav-tab",
-          cls <-- currentView.signal.map { view =>
-            if view == AppView.Schedule then "BottomNav-tab--active" else ""
-          },
-          onClick --> Observer(_ => jumpToNow()),
-          span(cls := "BottomNav-icon", "📅"),
-          span(cls := "BottomNav-label", "Schedule"),
-        ),
+        span(cls := "BottomNav-label", "Topics"),
+      ),
+      button(
+        cls := "BottomNav-tab",
+        cls <-- currentView.signal.map { view =>
+          if view == AppView.LightningTalks then "BottomNav-tab--active" else ""
+        },
+        onClick --> Observer(_ => currentView.set(AppView.LightningTalks)),
+        span(cls := "BottomNav-icon", "🎤"),
+        span(cls := "BottomNav-label", "Activities"),
+      ),
+      // Center plus button for creating new entities
+      button(
+        cls := "BottomNav-tab BottomNav-tab--create",
+        onClick --> Observer(_ => AppState.openCreateSheet()),
+        span(cls := "BottomNav-icon BottomNav-icon--create", "+"),
+      ),
+      button(
+        cls := "BottomNav-tab",
+        cls <-- currentView.signal.map { view =>
+          if view == AppView.Hackathon then "BottomNav-tab--active" else ""
+        },
+        onClick --> Observer(_ => currentView.set(AppView.Hackathon)),
+        span(cls := "BottomNav-icon", "🛠"),
+        span(cls := "BottomNav-label", "Hack"),
+      ),
+      button(
+        cls := "BottomNav-tab",
+        cls <-- currentView.signal.map { view =>
+          if view == AppView.Schedule then "BottomNav-tab--active" else ""
+        },
+        onClick --> Observer(_ => jumpToNow()),
+        span(cls := "BottomNav-icon", "📅"),
+        span(cls := "BottomNav-label", "Schedule"),
       ),
     )
