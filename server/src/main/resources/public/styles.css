@@ -1374,7 +1374,7 @@ button {
     box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.1);
 }
 
-/* Action buttons row - uses existing JumpToNowButton and AddActivityButton styles */
+/* Action buttons row */
 .BottomNav-actions {
     display: flex;
     justify-content: center;
@@ -1382,6 +1382,40 @@ button {
     gap: var(--pad-sm);
     padding: var(--pad-sm) var(--pad-md);
     background-color: var(--color-bg-page);
+}
+
+/* Action buttons - match TopicSubmission-button style */
+.BottomNav-actionBtn {
+    display: flex;
+    align-items: center;
+    gap: var(--pad-sm);
+    padding: var(--pad-sm) var(--pad-lg);
+    border: 1px solid var(--color-border-strong);
+    border-radius: var(--radius-md);
+    color: var(--color-primary);
+    background: linear-gradient(135deg, var(--color-white) 0%, var(--color-bg-page) 100%);
+    font-size: var(--font-size-sm);
+    font-weight: var(--font-weight-medium);
+    cursor: pointer;
+    transition: all 0.2s ease;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.BottomNav-actionBtn:hover {
+    background: linear-gradient(135deg, var(--color-white) 0%, var(--color-bg-surface) 100%);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.BottomNav-actionBtn:active {
+    transform: translateY(0);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.BottomNav-actionBtn svg {
+    width: 16px;
+    height: 16px;
+    fill: currentColor;
 }
 
 /* Navigation tabs row */

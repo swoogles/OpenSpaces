@@ -111,7 +111,7 @@ object ViewToggle:
       div(
         cls := "BottomNav-actions",
         button(
-          cls := "JumpToNowButton",
+          cls := "BottomNav-actionBtn",
           SvgIcon(GlyphiconUtils.schedule),
           span("Jump to Now"),
           onClick --> Observer { _ =>
@@ -136,7 +136,7 @@ object ViewToggle:
         child <-- showCreateForm.signal.map {
           case false =>
             button(
-              cls := "AddActivityButton",
+              cls := "BottomNav-actionBtn",
               "+",
               title := "Propose Activity",
               onClick --> Observer { _ =>
