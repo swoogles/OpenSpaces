@@ -118,8 +118,10 @@ object CreateSheet:
               close()
 
         case CreateEntityType.LightningTalk =>
-          // Lightning talks use SetParticipation to indicate willingness to present
-          sendLightningTalkAction(LightningTalkAction.SetParticipation(name.now(), participating = true))
+          // Lightning talks use SetParticipation to toggle participation
+          val currentUser = name.now()
+          val hasProposal = AppState.lightningTalkState.now().speakerHasProposal(currentUser)
+          sendLightningTalkAction(LightningTalkAction.SetParticipation(currentUser, participating = !hasProposal))
           close()
 
         case CreateEntityType.HackathonProject =>
@@ -196,7 +198,7 @@ object CreateSheet:
                 case CreateEntityType.Activity =>
                   activityForm(descriptionText, eventTime, timeInputRef, errorMsg, () => submitForm(entityType))
                 case CreateEntityType.LightningTalk =>
-                  lightningTalkForm()
+                  lightningTalkForm(name)
                 case CreateEntityType.HackathonProject =>
                   hackathonForm(titleText, errorMsg, () => submitForm(entityType))
               ,
@@ -211,7 +213,12 @@ object CreateSheet:
                 entityType match
                   case CreateEntityType.Topic => "Submit Topic"
                   case CreateEntityType.Activity => "Create Activity"
-                  case CreateEntityType.LightningTalk => "Sign Me Up"
+                  case CreateEntityType.LightningTalk =>
+                    child.text <-- AppState.lightningTalkState.signal.combineWith(name).map {
+                      case (ltState, user) =>
+                        if ltState.speakerHasProposal(user) then "Opt Out"
+                        else "Sign Me Up"
+                    }
                   case CreateEntityType.HackathonProject => "Create Project"
                 ,
               ),
@@ -320,11 +327,22 @@ object CreateSheet:
       ),
     )
 
-  private def lightningTalkForm(): HtmlElement =
+  private def lightningTalkForm(name: StrictSignal[Person]): HtmlElement =
     div(
       cls := "CreateSheet-info",
-      p("By signing up, you're indicating you're willing to give a ~5 minute lightning talk."),
-      p("Topic/title will be assigned closer to the event."),
+      child <-- AppState.lightningTalkState.signal.combineWith(name).map {
+        case (ltState, user) =>
+          if ltState.speakerHasProposal(user) then
+            div(
+              p("You're already signed up to give a lightning talk!"),
+              p("If you'd like to opt out, click the button below."),
+            )
+          else
+            div(
+              p("By signing up, you're indicating you're willing to give a ~5 minute lightning talk."),
+              p("Topic/title will be assigned closer to the event."),
+            )
+      },
     )
 
   private def hackathonForm(
