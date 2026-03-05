@@ -54,25 +54,6 @@ object ActivitiesView:
         h3(cls := "TopicSection-title", "Proposed Activities"),
       ),
       div(
-        cls := "HackathonProjects-create",
-        child <-- showCreateForm.signal.map {
-          case false =>
-            button(
-              cls := "HackathonProjects-createButton",
-              "✨ Propose Activity",
-              onClick --> Observer(_ => showCreateForm.set(true)),
-            )
-          case true =>
-            NewActivityForm(
-              name = name,
-              sendActivityAction = sendActivityAction,
-              setErrorMsg = setErrorMsg,
-              connectionStatus = connectionStatus,
-              onClose = () => showCreateForm.set(false),
-            )
-        },
-      ),
-      div(
         cls := "HackathonProjects-list",
         child <-- $activities.map { activities =>
           if activities.isEmpty then

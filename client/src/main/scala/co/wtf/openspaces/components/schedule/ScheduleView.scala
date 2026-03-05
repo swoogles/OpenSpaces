@@ -279,10 +279,6 @@ object LinearScheduleView:
     // Local vars to hold current state for onClick handler
     val currentStateVar = Var(DiscussionState.empty)
     val currentActivityStateVar = Var(ActivityState.empty)
-    
-    // Use shared state for activity creation form
-    val showCreateActivityForm = AppState.showCreateActivityForm
-    
     // State for unified context header (day + time)
     val currentDayVar = Var[Option[String]](None)
     val currentTimeVar = Var[Option[String]](None)
@@ -323,23 +319,6 @@ object LinearScheduleView:
               )
             )
           case _ => emptyNode
-        },
-        // Inline activity creation form (inside sticky container)
-        child <-- showCreateActivityForm.signal.map {
-          case true =>
-            div(
-              cls := "LinearScheduleView-inlineForm",
-              NewActivityForm(
-                name = name,
-                sendActivityAction = sendActivityAction,
-                setErrorMsg = setErrorMsg,
-                connectionStatus = connectionStatus,
-                onClose = () => showCreateActivityForm.set(false),
-                compact = true,
-              ),
-            )
-          case false =>
-            emptyNode
         },
       ),
       // Main content area - scroll-based tracking for day/time/progress

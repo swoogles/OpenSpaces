@@ -170,13 +170,7 @@ object FrontEnd extends ZIOAppDefault{
     val $hasNextTopic = $nextUnjudgedTopic.map(_.nonEmpty)
 
     div(
-      TopicSubmission(submitNewTopic,
-                      name.signal,
-                      connectionStatus,
-      ),
-      // Counter showing remaining topics to vote on
-      div(
-        cls := "TopicGroups",
+      cls := "TopicGroups",
         div(
           cls := "TopicSection",
           h3(cls := "TopicSection-title", 
@@ -222,8 +216,7 @@ object FrontEnd extends ZIOAppDefault{
             connectionStatus,
           ),
         ),
-      ),
-    )
+      )
 
   val updateTargetDiscussion: Observer[Discussion] =
     Observer[Discussion] { discussion =>

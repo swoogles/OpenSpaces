@@ -236,55 +236,6 @@ object HackathonProjectsView:
           )
       },
       
-      // Create project section
-      div(
-        cls := "HackathonProjects-create",
-        child <-- showCreateForm.signal.map {
-          case false =>
-            button(
-              cls := "HackathonProjects-createButton",
-              "✨ Propose a Project",
-              onClick --> Observer(_ => showCreateForm.set(true)),
-            )
-          case true =>
-            div(
-              cls := "HackathonProjects-createForm",
-              input(
-                cls := "HackathonProjects-input",
-                typ := "text",
-                placeholder := "What do you want to build?",
-                controlled(
-                  value <-- newProjectTitle.signal,
-                  onInput.mapToValue --> newProjectTitle.writer,
-                ),
-                onKeyDown --> Observer { (e: dom.KeyboardEvent) =>
-                  if e.key == "Enter" then handleCreateProject()
-                  else if e.key == "Escape" then
-                    showCreateForm.set(false)
-                    newProjectTitle.set("")
-                },
-                onMountFocus,
-              ),
-              div(
-                cls := "HackathonProjects-createFormButtons",
-                button(
-                  cls := "HackathonProjects-submitButton",
-                  "Create",
-                  onClick --> Observer(_ => handleCreateProject()),
-                ),
-                button(
-                  cls := "HackathonProjects-cancelButton",
-                  "Cancel",
-                  onClick --> Observer { _ =>
-                    showCreateForm.set(false)
-                    newProjectTitle.set("")
-                  },
-                ),
-              ),
-            )
-        },
-      ),
-      
       // Other projects section (only show "no projects" message when there are truly zero projects)
       child <-- Signal.combine($hasNoProjects, $otherProjects).map { case (hasNoProjects, otherProjects) =>
         if hasNoProjects then

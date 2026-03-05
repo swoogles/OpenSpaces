@@ -29,18 +29,19 @@ object LightningTalksView:
 
     div(
       cls := "LightningTalks",
-      child <-- $myProposal.map {
+      // Show user's current lightning talk status (if signed up)
+      child.maybe <-- $myProposal.map {
         case Some(proposal) =>
-          div(
-            cls := "TopicSubmission",
+          Some(div(
+            cls := "LightningTalks-myStatus",
             LightningTalkProposalCard(
               proposal = proposal,
               metaText = Some(LightningTalkProposalCard.locationLabel(proposal)),
               rowClass = "LightningTalk-row LightningTalk-row--myProposal",
             ),
-            span("Spots will be randomly assigned...sometime. TBD."),
+            span(cls := "LightningTalks-statusNote", "Spots will be randomly assigned...sometime. TBD."),
             button(
-              cls := "TopicSubmission-button",
+              cls := "LightningTalks-optOutBtn",
               onClick --> Observer { _ =>
                 if !connectionStatus.checkReady() then
                   setErrorMsg.onNext(Some("Reconnecting... please wait and try again."))
@@ -52,28 +53,11 @@ object LightningTalksView:
                     ),
                   )
               },
-              span("Nevermind, I would prefer to not give a lightning talk."),
+              "Opt out of lightning talks",
             ),
-          )
+          ))
         case None =>
-          div(
-            cls := "TopicSubmission",
-            button(
-              cls := "TopicSubmission-button",
-              onClick --> Observer { _ =>
-                if !connectionStatus.checkReady() then
-                  setErrorMsg.onNext(Some("Reconnecting... please wait and try again."))
-                else
-                  sendLightningAction(
-                    LightningTalkAction.SetParticipation(
-                      name.now(),
-                      participating = true,
-                    ),
-                  )
-              },
-              span("I'm willing to give a lightning talk"),
-            ),
-          )
+          None // Use unified plus button to sign up
       },
       child.maybe <-- showAdminControls.map { show =>
         Option.when(show)(
