@@ -13,7 +13,7 @@ import co.wtf.openspaces.hackathon.*
 
 // Import extracted utilities
 import co.wtf.openspaces.util.{SlotPositionTracker, SwapAnimationState, MenuPositioning, ScrollPreserver}
-import co.wtf.openspaces.components.{AdminControls, ErrorBanner, ViewToggle, NameBadge, AdminModeToggle, LoadingPreviewToggle, Menu, UnscheduledDiscussionsMenu, ActiveDiscussionActionMenu, ScheduleView, LinearScheduleView, ReplayView, AppView, PendingApprovalBanner, UserManagementView}
+import co.wtf.openspaces.components.{AdminControls, CreateSheet, ErrorBanner, ViewToggle, NameBadge, AdminModeToggle, LoadingPreviewToggle, Menu, UnscheduledDiscussionsMenu, ActiveDiscussionActionMenu, ScheduleView, LinearScheduleView, ReplayView, AppView, PendingApprovalBanner, UserManagementView}
 import co.wtf.openspaces.components.schedule.CalendarDayView
 import co.wtf.openspaces.components.discussions.DiscussionSubview
 import co.wtf.openspaces.components.discussions.TopicSubmission
@@ -673,6 +673,16 @@ object FrontEnd extends ZIOAppDefault{
           },
           // Bottom navigation - fixed at bottom of screen
           ViewToggle(currentAppView, adminModeEnabled.signal),
+          // Unified creation sheet - persists across views
+          CreateSheet(
+            name.signal,
+            submitNewTopic,
+            sendActivityAction,
+            sendLightningAction,
+            sendHackathonAction,
+            hackathonProjectState,
+            connectionStatus,
+          ),
         )
       } else {
         // Login screen - shown when user is not authenticated

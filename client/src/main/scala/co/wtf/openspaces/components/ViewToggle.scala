@@ -103,7 +103,6 @@ object ViewToggle:
     val unjudgedCount = AppState.unjudgedTopicCount
     val discussionState = AppState.discussionState
     val activityState = AppState.activityState
-    val showCreateForm = AppState.showCreateActivityForm
 
     def jumpToNow(): Unit =
       // Switch to schedule view if not there, then scroll to now
@@ -128,20 +127,18 @@ object ViewToggle:
       // === Action buttons row ===
       div(
         cls := "BottomNav-actions",
-        child <-- showCreateForm.signal.map {
+        child <-- AppState.createSheetOpen.signal.map {
           case false =>
             button(
               cls := "BottomNav-actionBtn",
               "+",
-              title := "Propose Activity",
+              title := "Create",
               onClick --> Observer { _ =>
-                // Switch to schedule view and show form
-                currentView.set(AppView.Schedule)
-                showCreateForm.set(true)
+                AppState.openCreateSheet()
               },
             )
           case true =>
-            // Hide button when form is open
+            // Hide button when sheet is open
             emptyNode
         },
       ),

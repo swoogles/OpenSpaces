@@ -157,10 +157,30 @@ object AppState:
     }
 
   // ============================================
-  // Activity Creation (shared for bottom bar)
+  // ============================================
+  // Unified Entity Creation (bottom sheet)
   // ============================================
 
-  // Whether the activity creation form is shown
+  /** Entity types that can be created via the unified bottom sheet */
+  enum CreateEntityType:
+    case Topic
+    case Activity
+    case LightningTalk
+    case HackathonProject
+
+  /** Whether the create sheet is open */
+  val createSheetOpen: Var[Boolean] = Var(false)
+
+  /** Open the create sheet */
+  def openCreateSheet(): Unit =
+    createSheetOpen.set(true)
+
+  /** Close the create sheet */
+  def closeCreateSheet(): Unit =
+    createSheetOpen.set(false)
+
+  // Legacy alias for backwards compatibility during transition
+  @deprecated("Use createSheetState instead", "")
   val showCreateActivityForm: Var[Boolean] = Var(false)
 
   // ID of newly created activity to scroll to (set after creation, cleared after scroll)
