@@ -134,6 +134,7 @@ object TopicCard:
               .sortBy(_.firstVotedAtEpochMs.getOrElse(Long.MaxValue))
               .map(_.voter),
             voterListExpanded,
+            AppState.approvedUsers.signal,
           ),
           if admin then
             button(

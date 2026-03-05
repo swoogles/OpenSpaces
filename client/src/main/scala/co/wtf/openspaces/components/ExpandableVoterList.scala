@@ -4,7 +4,7 @@ import com.raquo.laminar.api.L.*
 import neotype.unwrap
 import org.scalajs.dom
 
-import co.wtf.openspaces.{AppState, Person}
+import co.wtf.openspaces.{AppState, ApprovedUser, Person}
 
 /** Expandable voter list that shows GitHub avatars + names in a vertical list.
   *
@@ -16,6 +16,7 @@ object ExpandableVoterList:
   def apply(
     people: List[Person],
     expanded: Signal[Boolean],
+    approvedUsers: Signal[List[ApprovedUser]],
   ): HtmlElement =
     val containerRef = Var[Option[dom.Element]](None)
     
@@ -49,20 +50,24 @@ object ExpandableVoterList:
       },
       div(
         cls := "ExpandableVoterList-content",
-        people.map { person =>
-          val username = person.unwrap
-          div(
-            cls := "ExpandableVoterList-item",
-            img(
-              cls := "ExpandableVoterList-avatar",
-              src := s"https://github.com/$username.png?size=40",
-              alt := username,
-            ),
-            span(
-              cls := "ExpandableVoterList-name",
-              username,
-            ),
-          )
+        children <-- approvedUsers.map { users =>
+          val userMap = users.map(u => u.username.toLowerCase -> u.displayName).toMap
+          people.map { person =>
+            val username = person.unwrap
+            val displayName = userMap.getOrElse(username.toLowerCase, None).getOrElse(username)
+            div(
+              cls := "ExpandableVoterList-item",
+              img(
+                cls := "ExpandableVoterList-avatar",
+                src := s"https://github.com/$username.png?size=40",
+                alt := username,
+              ),
+              span(
+                cls := "ExpandableVoterList-name",
+                displayName,
+              ),
+            )
+          }
         },
       ),
     )
