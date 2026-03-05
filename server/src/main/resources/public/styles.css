@@ -401,7 +401,7 @@ button {
     width: 100%;
     max-width: 420px;
     margin-inline: auto;
-    padding-bottom: 70px; /* Space for bottom nav */
+    padding-bottom: 120px; /* Space for bottom nav (tabs + actions) */
 }
 
 .LoginScreen {
@@ -1357,7 +1357,7 @@ button {
 }
 
 /* ============================================
-   Bottom Navigation Bar
+   Bottom Navigation Bar (Unified)
    ============================================ */
 
 .BottomNav {
@@ -1366,15 +1366,76 @@ button {
     left: 0;
     right: 0;
     display: flex;
+    flex-direction: column;
     background-color: var(--color-white);
     border-top: 1px solid var(--color-border);
-    padding: var(--pad-xs) var(--pad-sm);
     padding-bottom: max(var(--pad-xs), env(safe-area-inset-bottom));
     z-index: 100;
     box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.1);
 }
 
-.BottomNav-button {
+/* Action buttons row (Jump to Now, Add Activity) */
+.BottomNav-actions {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: var(--pad-sm);
+    padding: var(--pad-sm) var(--pad-md);
+    background-color: var(--color-bg-page);
+    border-bottom: 1px solid var(--color-border);
+}
+
+.BottomNav-actionBtn {
+    display: flex;
+    align-items: center;
+    gap: var(--pad-sm);
+    padding: var(--pad-sm) var(--pad-lg);
+    border: none;
+    border-radius: var(--radius-full);
+    font-size: var(--font-size-sm);
+    font-weight: var(--font-weight-semibold);
+    cursor: pointer;
+    transition: all 0.15s ease;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.12);
+}
+
+.BottomNav-jumpBtn {
+    background-color: var(--color-interactive);
+    color: var(--color-white);
+}
+
+.BottomNav-jumpBtn:hover {
+    background-color: var(--color-interactive-hover);
+}
+
+.BottomNav-jumpBtn svg {
+    width: 16px;
+    height: 16px;
+    fill: currentColor;
+}
+
+.BottomNav-addBtn {
+    width: 36px;
+    height: 36px;
+    padding: 0;
+    justify-content: center;
+    background-color: var(--color-success);
+    color: var(--color-white);
+    font-size: 1.4rem;
+    line-height: 1;
+}
+
+.BottomNav-addBtn:hover {
+    background-color: var(--color-success-muted);
+}
+
+/* Navigation tabs row */
+.BottomNav-tabs {
+    display: flex;
+    padding: var(--pad-xs) var(--pad-sm);
+}
+
+.BottomNav-tab {
     flex: 1;
     display: flex;
     flex-direction: column;
@@ -1391,11 +1452,11 @@ button {
     min-width: 0;
 }
 
-.BottomNav-button:hover {
+.BottomNav-tab:hover {
     color: var(--color-text-secondary);
 }
 
-.BottomNav-button--active {
+.BottomNav-tab--active {
     color: var(--color-primary);
 }
 
@@ -1726,12 +1787,9 @@ button {
     background-color: var(--color-bg-page);
 }
 
+/* LinearScheduleView-stickyFooter - no longer used, buttons moved to BottomNav */
 .LinearScheduleView-stickyFooter {
-    position: sticky;
-    bottom: 70px; /* Above the bottom nav */
-    z-index: 25;
-    padding: var(--pad-sm) 0;
-    background-color: var(--color-bg-page);
+    display: none;
 }
 
 /* Button row inside sticky header */

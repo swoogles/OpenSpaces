@@ -152,3 +152,13 @@ object AppState:
         !topic.interestedParties.exists(_.voter == currentUser)
       )
     }
+
+  // ============================================
+  // Activity Creation (shared for bottom bar)
+  // ============================================
+
+  // Whether the activity creation form is shown
+  val showCreateActivityForm: Var[Boolean] = Var(false)
+
+  // ID of newly created activity to scroll to (set after creation, cleared after scroll)
+  val scrollToActivityId: Var[Option[String]] = Var(None)

@@ -6,7 +6,7 @@ import org.scalajs.dom
 import neotype.unwrap
 
 import co.wtf.openspaces.{
-  Person, Room, RoomSlot,
+  AppState, Person, Room, RoomSlot,
   SvgIcon, GlyphiconUtils
 }
 import co.wtf.openspaces.discussions.DaySlots
@@ -279,8 +279,8 @@ object LinearScheduleView:
     val currentStateVar = Var(DiscussionState.empty)
     val currentActivityStateVar = Var(ActivityState.empty)
     
-    // State for inline activity creation
-    val showCreateActivityForm = Var(false)
+    // Use shared state for activity creation form
+    val showCreateActivityForm = AppState.showCreateActivityForm
     
     // State for unified context header (day + time)
     val currentDayVar = Var[Option[String]](None)
@@ -529,33 +529,7 @@ object LinearScheduleView:
           }
         },
       ),
-      // Sticky button row at bottom
-      div(
-        cls := "LinearScheduleView-stickyFooter",
-        div(
-          cls := "LinearScheduleView-buttonRow",
-          button(
-            cls := "JumpToNowButton",
-            SvgIcon(GlyphiconUtils.schedule),
-            span("Jump to Now"),
-            onClick --> Observer { _ =>
-              val activities = currentActivityStateVar.now().activities.values.toList
-              scrollToNextItem(currentStateVar.now(), activities)
-            },
-          ),
-          child <-- showCreateActivityForm.signal.map {
-            case false =>
-              button(
-                cls := "AddActivityButton",
-                "+",
-                title := "Propose Activity",
-                onClick --> Observer(_ => showCreateActivityForm.set(true)),
-              )
-            case true =>
-              emptyNode
-          },
-        ),
-      ),
+      // Note: Jump to Now and Add Activity buttons moved to BottomNav
     )
 
 /** Long-press binder for active discussion context menu.

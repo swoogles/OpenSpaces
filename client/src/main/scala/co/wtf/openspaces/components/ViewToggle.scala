@@ -1,84 +1,214 @@
 package co.wtf.openspaces.components
 
 import com.raquo.laminar.api.L.{*, given}
-import co.wtf.openspaces.AppState
-// AppView is defined in ScheduleView.scala in the same package
+import org.scalajs.dom
+import scala.scalajs.js
+import java.time.LocalDateTime
+import java.time.format.DateTimeFormatter
 
-/** Bottom navigation bar with view tabs.
-  * Fixed to bottom of screen for thumb-friendly mobile use.
-  * Shows badge on Topics tab when there are unvoted topics.
-  * Admin controls integrated when admin mode is enabled.
+import co.wtf.openspaces.{AppState, SvgIcon, GlyphiconUtils}
+import co.wtf.openspaces.discussions.DiscussionState
+import co.wtf.openspaces.activities.{Activity, ActivityState}
+
+/** Unified bottom navigation bar.
+  * Fixed to bottom of screen with:
+  * - Action buttons (Jump to Now, Add Activity)
+  * - Navigation tabs (Topics, Activities, Hack, Schedule, Admin)
+  * - Badge on Topics tab for unvoted count
   */
 object ViewToggle:
+  
+  /** Generate a unique slot ID for scrolling (discussion slots). */
+  private def slotId(startTime: LocalDateTime): String =
+    val formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd-HH-mm")
+    s"slot-${startTime.format(formatter)}"
+
+  /** Generate a unique activity ID for scrolling. */
+  private def activitySlotId(eventTime: LocalDateTime): String =
+    val formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd-HH-mm")
+    s"activity-${eventTime.format(formatter)}"
+
+  /** Find the next upcoming rendered item (discussion slot or activity). */
+  private def findNextUpcomingId(state: DiscussionState, activities: List[Activity]): Option[String] =
+    val now = LocalDateTime.now()
+    
+    val nextSlot: Option[(LocalDateTime, String)] = state.slots
+      .flatMap(_.slots)
+      .collect {
+        case slot if slot.time.endTime.isAfter(now) =>
+            (slot.time.startTime, slotId(slot.time.startTime))
+      }
+      .sortBy(_._1)
+      .headOption
+    
+    // Find next activity (by event time)
+    val nextActivity: Option[(LocalDateTime, String)] = activities
+      .filter(_.eventTime.isAfter(now))
+      .sortBy(_.eventTime)
+      .headOption
+      .map(a => (a.eventTime, activitySlotId(a.eventTime)))
+    
+    // Return whichever comes first
+    (nextSlot, nextActivity) match
+      case (Some((slotTime, slotDomId)), Some((actTime, actDomId))) =>
+        if actTime.isBefore(slotTime) then Some(actDomId) else Some(slotDomId)
+      case (Some((_, id)), None) => Some(id)
+      case (None, Some((_, id))) => Some(id)
+      case (None, None) => None
+
+  /** Find the first rendered item in schedule order (discussion slot or activity). */
+  private def findFirstRenderedId(state: DiscussionState, activities: List[Activity]): Option[String] =
+    val firstRenderedSlot: Option[(LocalDateTime, String)] = state.slots
+      .flatMap(_.slots)
+      .collect {
+        case slot => (slot.time.startTime, slotId(slot.time.startTime))
+      }
+      .sortBy(_._1)
+      .headOption
+
+    val firstActivity: Option[(LocalDateTime, String)] = activities
+      .sortBy(_.eventTime)
+      .headOption
+      .map(a => (a.eventTime, activitySlotId(a.eventTime)))
+
+    (firstRenderedSlot, firstActivity) match
+      case (Some((slotTime, slotDomId)), Some((actTime, actDomId))) =>
+        if actTime.isBefore(slotTime) then Some(actDomId) else Some(slotDomId)
+      case (Some((_, id)), None) => Some(id)
+      case (None, Some((_, id))) => Some(id)
+      case (None, None) => None
+
+  /** Scroll to a specific element by ID */
+  private def scrollToElement(targetId: String): Unit =
+    Option(dom.document.getElementById(targetId)).foreach { element =>
+      element.asInstanceOf[js.Dynamic].scrollIntoView(
+        js.Dynamic.literal(behavior = "smooth", block = "center")
+      )
+    }
+
+  /** Scroll to the next upcoming schedule item */
+  def scrollToNextItem(state: DiscussionState, activities: List[Activity]): Unit =
+    findNextUpcomingId(state, activities)
+      .orElse(findFirstRenderedId(state, activities))
+      .foreach(scrollToElement)
+
   def apply(
     currentView: Var[AppView],
     adminModeEnabled: Signal[Boolean],
   ) =
     val unjudgedCount = AppState.unjudgedTopicCount
-    val isAdmin = AppState.isAdmin
+    val discussionState = AppState.discussionState
+    val activityState = AppState.activityState
+    val showCreateForm = AppState.showCreateActivityForm
 
     div(
       cls := "BottomNav",
-      // Admin button - only when admin mode is enabled
-      child.maybe <-- adminModeEnabled.map { enabled =>
-        Option.when(enabled)(
-          button(
-            cls := "BottomNav-button",
-            cls <-- currentView.signal.map { view =>
-              if view == AppView.Admin then "BottomNav-button--active" else ""
-            },
-            onClick --> Observer(_ => currentView.set(AppView.Admin)),
-            span(cls := "BottomNav-icon", "⚙"),
-            span(cls := "BottomNav-label", "Admin"),
-          )
-        )
-      },
-      button(
-        cls := "BottomNav-button",
-        cls <-- currentView.signal.map { view =>
-          if view == AppView.Topics then "BottomNav-button--active" else ""
-        },
-        onClick --> Observer(_ => currentView.set(AppView.Topics)),
-        span(
-          cls := "BottomNav-iconWrapper",
-          span(cls := "BottomNav-icon", "💬"),
-          // Badge for unvoted topics
-          child.maybe <-- unjudgedCount.map { count =>
-            Option.when(count > 0)(
-              span(
-                cls := "BottomNav-badge",
-                if count > 99 then "99+" else count.toString,
+      // === Action buttons row ===
+      div(
+        cls := "BottomNav-actions",
+        button(
+          cls := "BottomNav-actionBtn BottomNav-jumpBtn",
+          SvgIcon(GlyphiconUtils.schedule),
+          span("Now"),
+          onClick --> Observer { _ =>
+            // Switch to schedule view if not there
+            if currentView.now() != AppView.Schedule then
+              currentView.set(AppView.Schedule)
+              // Small delay to let view render before scrolling
+              dom.window.setTimeout(
+                () => scrollToNextItem(
+                  discussionState.now(),
+                  activityState.now().activities.values.toList
+                ),
+                100
               )
-            )
+            else
+              scrollToNextItem(
+                discussionState.now(),
+                activityState.now().activities.values.toList
+              )
           },
         ),
-        span(cls := "BottomNav-label", "Topics"),
-      ),
-      button(
-        cls := "BottomNav-button",
-        cls <-- currentView.signal.map { view =>
-          if view == AppView.LightningTalks then "BottomNav-button--active" else ""
+        child <-- showCreateForm.signal.map {
+          case false =>
+            button(
+              cls := "BottomNav-actionBtn BottomNav-addBtn",
+              "+",
+              title := "Propose Activity",
+              onClick --> Observer { _ =>
+                // Switch to schedule view and show form
+                currentView.set(AppView.Schedule)
+                showCreateForm.set(true)
+              },
+            )
+          case true =>
+            // Hide button when form is open
+            emptyNode
         },
-        onClick --> Observer(_ => currentView.set(AppView.LightningTalks)),
-        span(cls := "BottomNav-icon", "🎤"),
-        span(cls := "BottomNav-label", "Activities"),
       ),
-      button(
-        cls := "BottomNav-button",
-        cls <-- currentView.signal.map { view =>
-          if view == AppView.Hackathon then "BottomNav-button--active" else ""
+      // === Navigation tabs row ===
+      div(
+        cls := "BottomNav-tabs",
+        // Admin button - only when admin mode is enabled
+        child.maybe <-- adminModeEnabled.map { enabled =>
+          Option.when(enabled)(
+            button(
+              cls := "BottomNav-tab",
+              cls <-- currentView.signal.map { view =>
+                if view == AppView.Admin then "BottomNav-tab--active" else ""
+              },
+              onClick --> Observer(_ => currentView.set(AppView.Admin)),
+              span(cls := "BottomNav-icon", "⚙"),
+              span(cls := "BottomNav-label", "Admin"),
+            )
+          )
         },
-        onClick --> Observer(_ => currentView.set(AppView.Hackathon)),
-        span(cls := "BottomNav-icon", "🛠"),
-        span(cls := "BottomNav-label", "Hack"),
-      ),
-      button(
-        cls := "BottomNav-button",
-        cls <-- currentView.signal.map { view =>
-          if view == AppView.Schedule then "BottomNav-button--active" else ""
-        },
-        onClick --> Observer(_ => currentView.set(AppView.Schedule)),
-        span(cls := "BottomNav-icon", "📅"),
-        span(cls := "BottomNav-label", "Schedule"),
+        button(
+          cls := "BottomNav-tab",
+          cls <-- currentView.signal.map { view =>
+            if view == AppView.Topics then "BottomNav-tab--active" else ""
+          },
+          onClick --> Observer(_ => currentView.set(AppView.Topics)),
+          span(
+            cls := "BottomNav-iconWrapper",
+            span(cls := "BottomNav-icon", "💬"),
+            child.maybe <-- unjudgedCount.map { count =>
+              Option.when(count > 0)(
+                span(
+                  cls := "BottomNav-badge",
+                  if count > 99 then "99+" else count.toString,
+                )
+              )
+            },
+          ),
+          span(cls := "BottomNav-label", "Topics"),
+        ),
+        button(
+          cls := "BottomNav-tab",
+          cls <-- currentView.signal.map { view =>
+            if view == AppView.LightningTalks then "BottomNav-tab--active" else ""
+          },
+          onClick --> Observer(_ => currentView.set(AppView.LightningTalks)),
+          span(cls := "BottomNav-icon", "🎤"),
+          span(cls := "BottomNav-label", "Activities"),
+        ),
+        button(
+          cls := "BottomNav-tab",
+          cls <-- currentView.signal.map { view =>
+            if view == AppView.Hackathon then "BottomNav-tab--active" else ""
+          },
+          onClick --> Observer(_ => currentView.set(AppView.Hackathon)),
+          span(cls := "BottomNav-icon", "🛠"),
+          span(cls := "BottomNav-label", "Hack"),
+        ),
+        button(
+          cls := "BottomNav-tab",
+          cls <-- currentView.signal.map { view =>
+            if view == AppView.Schedule then "BottomNav-tab--active" else ""
+          },
+          onClick --> Observer(_ => currentView.set(AppView.Schedule)),
+          span(cls := "BottomNav-icon", "📅"),
+          span(cls := "BottomNav-label", "Schedule"),
+        ),
       ),
     )
