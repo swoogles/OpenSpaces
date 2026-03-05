@@ -1,43 +1,54 @@
 package co.wtf.openspaces.lighting_talks
 
+import java.time.LocalDate
+
 enum LightningDrawError:
   case NoOpenNights
   case NightIsNotNextOpen(
     requested: LightningTalkNight,
-    nextOpen: LightningTalkNight,
-  )
+    nextOpen: LightningTalkNight)
 
 case class LightningNightDrawResult(
   night: LightningTalkNight,
-  assignments: List[LightningDrawAssignment],
-)
+  assignments: List[LightningDrawAssignment])
 
 object LightningTalkDraw:
 
-  /** Public API entrypoint: draw for the next available night.
-    * This is intended to back /draw-for-next-night.
+  /** Public API entrypoint: draw for the next available night. This
+    * is intended to back /draw-for-next-night.
     */
   def drawForNextNight(
     state: LightningTalkState,
-    randomize: List[LightningTalkProposal] => List[LightningTalkProposal],
+    randomize: List[LightningTalkProposal] => List[
+      LightningTalkProposal,
+    ],
+    today: LocalDate,
   ): Either[LightningDrawError, LightningNightDrawResult] =
-    state.nextNightWithOpenSlot match
+    state.nextNightWithOpenSlot(today) match
       case None => Left(LightningDrawError.NoOpenNights)
       case Some(nextNight) =>
-        drawForNight(state, nextNight, randomize)
+        drawForNight(state, nextNight, randomize, today)
 
-  /** Internal API: draw for a specific night, rejecting if it is not the next open night.
+  /** Internal API: draw for a specific night, rejecting if it is not
+    * the next open night.
     */
   def drawForNight(
     state: LightningTalkState,
     requestedNight: LightningTalkNight,
-    randomize: List[LightningTalkProposal] => List[LightningTalkProposal],
+    randomize: List[LightningTalkProposal] => List[
+      LightningTalkProposal,
+    ],
+    today: LocalDate,
   ): Either[LightningDrawError, LightningNightDrawResult] =
-    state.nextNightWithOpenSlot match
+    state.nextNightWithOpenSlot(today) match
       case None =>
         Left(LightningDrawError.NoOpenNights)
       case Some(nextNight) if nextNight != requestedNight =>
-        Left(LightningDrawError.NightIsNotNextOpen(requestedNight, nextNight))
+        Left(
+          LightningDrawError.NightIsNotNextOpen(requestedNight,
+                                                nextNight,
+          ),
+        )
       case Some(_) =>
         val openSlots = state.openSlotsForNight(requestedNight)
         val unassigned = state.unassignedProposals

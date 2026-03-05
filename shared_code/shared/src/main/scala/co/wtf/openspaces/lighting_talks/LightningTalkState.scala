@@ -2,10 +2,10 @@ package co.wtf.openspaces.lighting_talks
 
 import co.wtf.openspaces.Person
 import neotype.unwrap
+import java.time.LocalDate
 
 case class LightningTalkState(
-  proposals: Map[LightningTalkId, LightningTalkProposal],
-):
+  proposals: Map[LightningTalkId, LightningTalkProposal]):
   def proposalForSpeaker(
     speaker: Person,
   ): Option[LightningTalkProposal] =
@@ -13,8 +13,7 @@ case class LightningTalkState(
 
   def speakerHasProposal(
     speaker: Person,
-  ): Boolean =
-    proposalForSpeaker(speaker).isDefined
+  ): Boolean = proposalForSpeaker(speaker).isDefined
 
   def assignmentOccupied(
     assignment: LightningAssignment,
@@ -34,32 +33,44 @@ case class LightningTalkState(
         .filter(_.night == night)
         .map(_.slot)
         .toSet
-    (1 to 10)
-      .toList
-      .flatMap(slotNumber => LightningTalkSlot.make(slotNumber).toOption)
+    (1 to 10).toList
+      .flatMap(slotNumber =>
+        LightningTalkSlot.make(slotNumber).toOption,
+      )
       .filterNot(occupiedSlots.contains)
 
-  def nextNightWithOpenSlot: Option[LightningTalkNight] =
-    LightningTalkNight.ordered.find(night => openSlotsForNight(night).nonEmpty)
+  def nextNightWithOpenSlot(
+    today: LocalDate,
+  ): Option[LightningTalkNight] =
+    LightningTalkNight
+      .futureNights(today)
+      .find(night => openSlotsForNight(night).nonEmpty)
 
-  def allSlotsFilled: Boolean =
-    nextNightWithOpenSlot.isEmpty
+  def allSlotsFilled(
+    today: LocalDate,
+  ): Boolean = nextNightWithOpenSlot(today).isEmpty
 
   def isNextNightWithOpenSlot(
     night: LightningTalkNight,
-  ): Boolean =
-    nextNightWithOpenSlot.contains(night)
+    today: LocalDate,
+  ): Boolean = nextNightWithOpenSlot(today).contains(night)
 
-  def nextOpenAssignment: Option[LightningAssignment] =
-    nextNightWithOpenSlot.flatMap(night =>
-      openSlotsForNight(night).headOption.map(slot => LightningAssignment(night, slot)),
+  def nextOpenAssignment(
+    today: LocalDate,
+  ): Option[LightningAssignment] =
+    nextNightWithOpenSlot(today).flatMap(night =>
+      openSlotsForNight(night).headOption.map(slot =>
+        LightningAssignment(night, slot),
+      ),
     )
 
   def unassignedProposals: List[LightningTalkProposal] =
     proposals.values
       .filter(_.assignment.isEmpty)
       .toList
-      .sortBy(proposal => (proposal.createdAtEpochMs, proposal.id.unwrap))
+      .sortBy(proposal =>
+        (proposal.createdAtEpochMs, proposal.id.unwrap),
+      )
 
   def assignedForNight(
     night: LightningTalkNight,
@@ -69,7 +80,9 @@ case class LightningTalkState(
       .toList
       .sortBy(proposal =>
         (
-          proposal.assignment.map(_.slot.unwrap).getOrElse(Int.MaxValue),
+          proposal.assignment
+            .map(_.slot.unwrap)
+            .getOrElse(Int.MaxValue),
           proposal.createdAtEpochMs,
           proposal.id.unwrap,
         ),
@@ -97,9 +110,14 @@ case class LightningTalkState(
                 slackThreadUrl,
               ) =>
             proposals.updatedWith(proposalId) {
-              _.map(value => value.copy(slackThreadUrl = Some(slackThreadUrl)))
+              _.map(value =>
+                value.copy(slackThreadUrl = Some(slackThreadUrl)),
+              )
             }
-          case LightningTalkActionConfirmed.Delete(proposalId, _, _) =>
+          case LightningTalkActionConfirmed.Delete(proposalId,
+                                                   _,
+                                                   _,
+              ) =>
             proposals - proposalId
           case LightningTalkActionConfirmed.SetAssignment(
                 proposalId,
@@ -112,10 +130,18 @@ case class LightningTalkState(
                 _,
                 assignments,
               ) =>
-            assignments.foldLeft(proposals) { (acc, assignment) =>
-              acc.updatedWith(assignment.proposalId) {
-                _.map(value => value.copy(assignment = Some(assignment.assignment)))
-              }
+            assignments.foldLeft(proposals) {
+              (
+                acc,
+                assignment,
+              ) =>
+                acc.updatedWith(assignment.proposalId) {
+                  _.map(value =>
+                    value.copy(assignment =
+                      Some(assignment.assignment),
+                    ),
+                  )
+                }
             }
           case LightningTalkActionConfirmed.Unauthorized(_) =>
             proposals

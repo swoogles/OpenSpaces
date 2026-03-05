@@ -2,7 +2,11 @@ package co.wtf.openspaces.lightning_talks
 
 import co.wtf.openspaces.{Person, RandomUsers}
 import co.wtf.openspaces.github.GitHubProfileService
-import co.wtf.openspaces.db.{LightningTalkRepository, LightningTalkRow, UserRepository}
+import co.wtf.openspaces.db.{
+  LightningTalkRepository,
+  LightningTalkRow,
+  UserRepository,
+}
 import co.wtf.openspaces.lighting_talks.*
 import neotype.unwrap
 import zio.*
@@ -12,23 +16,27 @@ case class LightningTalkService(
   state: Ref[LightningTalkState],
   lightningTalkRepo: LightningTalkRepository,
   userRepo: UserRepository,
-  gitHubProfileService: GitHubProfileService,
-):
-  def snapshot: UIO[LightningTalkState] =
-    state.get
+  gitHubProfileService: GitHubProfileService):
+  def snapshot: UIO[LightningTalkState] = state.get
 
   def reloadFromDatabase: Task[LightningTalkState] =
     for
-      reloaded <- LightningTalkService.loadInitialState(lightningTalkRepo, gitHubProfileService)
+      reloaded <- LightningTalkService.loadInitialState(
+        lightningTalkRepo,
+        gitHubProfileService,
+      )
       _ <- state.set(reloaded)
     yield reloaded
 
-  def applyConfirmed(action: LightningTalkActionConfirmed): UIO[Unit] =
-    state.update(_(action))
+  def applyConfirmed(
+    action: LightningTalkActionConfirmed,
+  ): UIO[Unit] = state.update(_(action))
 
   def listProposals: UIO[List[LightningTalkProposal]] =
     snapshot.map(
-      _.proposals.values.toList.sortBy(p => (p.createdAtEpochMs, p.id.unwrap)),
+      _.proposals.values.toList.sortBy(p =>
+        (p.createdAtEpochMs, p.id.unwrap),
+      ),
     )
 
   def applyAction(
@@ -40,23 +48,33 @@ case class LightningTalkService(
             participating,
           ) =>
         for
-          _ <- ensureUserExists(speaker.unwrap)
+          _       <- ensureUserExists(speaker.unwrap)
           current <- state.get
-          result <- (current.proposalForSpeaker(speaker), participating) match
+          result <- (current.proposalForSpeaker(speaker),
+                     participating,
+          ) match
             case (Some(_), true) =>
-              ZIO.succeed(LightningTalkActionConfirmed.Rejected(setParticipation))
+              ZIO.succeed(
+                LightningTalkActionConfirmed.Rejected(
+                  setParticipation,
+                ),
+              )
             case (None, false) =>
-              ZIO.succeed(LightningTalkActionConfirmed.Rejected(setParticipation))
+              ZIO.succeed(
+                LightningTalkActionConfirmed.Rejected(
+                  setParticipation,
+                ),
+              )
             case (None, true) =>
               for
                 proposal <- createProposal(speaker)
-                _ <- persistProposal(proposal)
-                _ <- state.update(_(proposal))
+                _        <- persistProposal(proposal)
+                _        <- state.update(_(proposal))
               yield LightningTalkActionConfirmed.AddResult(proposal)
             case (Some(existing), false) =>
               for
                 row <- lightningTalkRepo.findById(existing.id.unwrap)
-                _ <- lightningTalkRepo.delete(existing.id.unwrap)
+                _   <- lightningTalkRepo.delete(existing.id.unwrap)
                 confirmed = LightningTalkActionConfirmed.Delete(
                   existing.id,
                   row.flatMap(_.slackChannelId),
@@ -75,48 +93,65 @@ case class LightningTalkService(
           current <- state.get
           result <- current.proposals.get(proposalId) match
             case None =>
-              ZIO.succeed(LightningTalkActionConfirmed.Rejected(setAssignment))
+              ZIO.succeed(
+                LightningTalkActionConfirmed.Rejected(setAssignment),
+              )
             case Some(existing) =>
-              val currentMatches = existing.assignment == expectedCurrentAssignment
-              val targetOccupied = newAssignment.exists(
-                assignment =>
-                  current.assignmentOccupied(
-                    assignment,
-                    excludingProposalId = Some(proposalId),
-                  ),
+              val currentMatches =
+                existing.assignment == expectedCurrentAssignment
+              val targetOccupied = newAssignment.exists(assignment =>
+                current.assignmentOccupied(
+                  assignment,
+                  excludingProposalId = Some(proposalId),
+                ),
               )
               if !currentMatches || targetOccupied then
-                ZIO.succeed(LightningTalkActionConfirmed.Rejected(setAssignment))
+                ZIO.succeed(
+                  LightningTalkActionConfirmed.Rejected(setAssignment),
+                )
               else
                 for
-                  _ <- updateProposal(existing.copy(assignment = newAssignment))
-                  confirmed = LightningTalkActionConfirmed.SetAssignment(
-                    proposalId,
-                    newAssignment,
+                  _ <- updateProposal(
+                    existing.copy(assignment = newAssignment),
                   )
+                  confirmed = LightningTalkActionConfirmed
+                    .SetAssignment(
+                      proposalId,
+                      newAssignment,
+                    )
                   _ <- state.update(_(confirmed))
                 yield confirmed
         yield result
 
       case draw @ LightningTalkAction.DrawForNextNight =>
         for
+          today   <- Clock.localDateTime.map(_.toLocalDate)
           current <- state.get
           shuffled = ScalaRandom.shuffle(current.unassignedProposals)
-          result <- LightningTalkDraw.drawForNextNight(current, _ => shuffled) match
+          result <- LightningTalkDraw.drawForNextNight(current,
+                                                       _ => shuffled,
+                                                       today,
+          ) match
             case Left(_) =>
               ZIO.succeed(LightningTalkActionConfirmed.Rejected(draw))
             case Right(drawResult) =>
-              val confirmed = LightningTalkActionConfirmed.DrawForNightResult(
-                drawResult.night,
-                drawResult.assignments,
-              )
+              val confirmed =
+                LightningTalkActionConfirmed.DrawForNightResult(
+                  drawResult.night,
+                  drawResult.assignments,
+                )
               for
-                _ <- ZIO.foreachDiscard(drawResult.assignments) { assignment =>
-                  current.proposals.get(assignment.proposalId) match
-                    case Some(proposal) =>
-                      updateProposal(proposal.copy(assignment = Some(assignment.assignment)))
-                    case None =>
-                      ZIO.unit
+                _ <- ZIO.foreachDiscard(drawResult.assignments) {
+                  assignment =>
+                    current.proposals.get(assignment.proposalId) match
+                      case Some(proposal) =>
+                        updateProposal(
+                          proposal.copy(assignment =
+                            Some(assignment.assignment),
+                          ),
+                        )
+                      case None =>
+                        ZIO.unit
                 }
                 _ <- state.update(_(confirmed))
               yield confirmed
@@ -124,26 +159,32 @@ case class LightningTalkService(
 
   def randomLightningAction: Task[LightningTalkActionConfirmed] =
     for
-      person <- randomPerson
+      person  <- randomPerson
       current <- state.get
       action = current.proposalForSpeaker(person) match
         case Some(_) =>
-          LightningTalkAction.SetParticipation(person, participating = false)
+          LightningTalkAction.SetParticipation(person,
+                                               participating = false,
+          )
         case None =>
-          LightningTalkAction.SetParticipation(person, participating = true)
+          LightningTalkAction.SetParticipation(person,
+                                               participating = true,
+          )
       result <- applyAction(action)
     yield result
 
-  private def ensureUserExists(username: String): Task[Unit] =
+  private def ensureUserExists(
+    username: String,
+  ): Task[Unit] =
     if username == "system" then
       userRepo.upsert(username, Some(username)).unit
-    else
-      gitHubProfileService.ensureUserWithDisplayName(username).unit
+    else gitHubProfileService.ensureUserWithDisplayName(username).unit
 
-  private def randomPerson: UIO[Person] =
-    RandomUsers.randomPerson
+  private def randomPerson: UIO[Person] = RandomUsers.randomPerson
 
-  private def createProposal(speaker: Person): Task[LightningTalkProposal] =
+  private def createProposal(
+    speaker: Person,
+  ): Task[LightningTalkProposal] =
     for
       id <- zio.Random.nextLong.map { n =>
         if n == Long.MinValue then 0L else math.abs(n)
@@ -158,17 +199,23 @@ case class LightningTalkService(
       createdAtEpochMs = createdAtEpochMs,
     )
 
-  private def persistProposal(proposal: LightningTalkProposal): Task[Unit] =
-    lightningTalkRepo.insert(toRow(proposal))
+  private def persistProposal(
+    proposal: LightningTalkProposal,
+  ): Task[Unit] = lightningTalkRepo.insert(toRow(proposal))
 
-  private def updateProposal(proposal: LightningTalkProposal): Task[Unit] =
-    lightningTalkRepo.update(toRow(proposal))
+  private def updateProposal(
+    proposal: LightningTalkProposal,
+  ): Task[Unit] = lightningTalkRepo.update(toRow(proposal))
 
-  private def toRow(proposal: LightningTalkProposal): LightningTalkRow =
+  private def toRow(
+    proposal: LightningTalkProposal,
+  ): LightningTalkRow =
     val (night, slot) =
       proposal.assignment match
         case Some(assignment) =>
-          (Some(assignment.night.toString), Some(assignment.slot.unwrap))
+          (Some(assignment.night.toString),
+           Some(assignment.slot.unwrap),
+          )
         case None =>
           (None, None)
     val createdAt = java.time.OffsetDateTime.ofInstant(
@@ -191,13 +238,15 @@ object LightningTalkService:
     row: LightningTalkRow,
     speakerDisplayName: Option[String],
   ): Option[LightningTalkProposal] =
-    for
-      assignment <- row.assignmentNight match
+    for assignment <- row.assignmentNight match
         case None =>
           Some(None)
         case Some(nightRaw) =>
-          val parsedNight = LightningTalkNight.values.find(_.toString == nightRaw)
-          val parsedSlot = row.assignmentSlot.flatMap(LightningTalkSlot.make(_).toOption)
+          val parsedNight =
+            LightningTalkNight.values.find(_.toString == nightRaw)
+          val parsedSlot = row.assignmentSlot.flatMap(
+            LightningTalkSlot.make(_).toOption,
+          )
           parsedNight.zip(parsedSlot).map { case (night, slot) =>
             Some(LightningAssignment(night, slot))
           }
@@ -218,19 +267,35 @@ object LightningTalkService:
       rows <- lightningTalkRepo.findAll
       speakers = rows.map(_.speaker).distinct
       userRows <- ZIO.foreach(speakers)(speaker =>
-        gitHubProfileService.ensureUserWithDisplayName(speaker).either.map(_.toOption),
+        gitHubProfileService
+          .ensureUserWithDisplayName(speaker)
+          .either
+          .map(_.toOption),
       )
-      userMap = userRows.flatten.map(u => u.githubUsername -> u.displayName.orElse(Some(u.githubUsername))).toMap
-      proposals = rows.flatMap(row => fromRow(row, userMap.get(row.speaker).flatten))
+      userMap = userRows.flatten
+        .map(u =>
+          u.githubUsername -> u.displayName
+            .orElse(Some(u.githubUsername)),
+        )
+        .toMap
+      proposals = rows.flatMap(row =>
+        fromRow(row, userMap.get(row.speaker).flatten),
+      )
     yield LightningTalkState(proposals.map(p => p.id -> p).toMap)
 
-  val layer: ZLayer[LightningTalkRepository & UserRepository & GitHubProfileService, Throwable, LightningTalkService] =
+  val layer: ZLayer[LightningTalkRepository & UserRepository &
+                      GitHubProfileService,
+                    Throwable,
+                    LightningTalkService,
+  ] =
     ZLayer.fromZIO:
       for
-        lightningTalkRepo <- ZIO.service[LightningTalkRepository]
-        userRepo <- ZIO.service[UserRepository]
+        lightningTalkRepo    <- ZIO.service[LightningTalkRepository]
+        userRepo             <- ZIO.service[UserRepository]
         gitHubProfileService <- ZIO.service[GitHubProfileService]
-        initialState <- loadInitialState(lightningTalkRepo, gitHubProfileService)
+        initialState <- loadInitialState(lightningTalkRepo,
+                                         gitHubProfileService,
+        )
         stateRef <- Ref.make(initialState)
       yield LightningTalkService(
         stateRef,
