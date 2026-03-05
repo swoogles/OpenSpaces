@@ -105,34 +105,29 @@ object ViewToggle:
     val activityState = AppState.activityState
     val showCreateForm = AppState.showCreateActivityForm
 
+    def jumpToNow(): Unit =
+      // Switch to schedule view if not there, then scroll to now
+      if currentView.now() != AppView.Schedule then
+        currentView.set(AppView.Schedule)
+        // Small delay to let view render before scrolling
+        dom.window.setTimeout(
+          () => scrollToNextItem(
+            discussionState.now(),
+            activityState.now().activities.values.toList
+          ),
+          100
+        )
+      else
+        scrollToNextItem(
+          discussionState.now(),
+          activityState.now().activities.values.toList
+        )
+
     div(
       cls := "BottomNav",
       // === Action buttons row ===
       div(
         cls := "BottomNav-actions",
-        button(
-          cls := "BottomNav-actionBtn",
-          SvgIcon(GlyphiconUtils.schedule),
-          span("Jump to Now"),
-          onClick --> Observer { _ =>
-            // Switch to schedule view if not there
-            if currentView.now() != AppView.Schedule then
-              currentView.set(AppView.Schedule)
-              // Small delay to let view render before scrolling
-              dom.window.setTimeout(
-                () => scrollToNextItem(
-                  discussionState.now(),
-                  activityState.now().activities.values.toList
-                ),
-                100
-              )
-            else
-              scrollToNextItem(
-                discussionState.now(),
-                activityState.now().activities.values.toList
-              )
-          },
-        ),
         child <-- showCreateForm.signal.map {
           case false =>
             button(
@@ -210,7 +205,7 @@ object ViewToggle:
           cls <-- currentView.signal.map { view =>
             if view == AppView.Schedule then "BottomNav-tab--active" else ""
           },
-          onClick --> Observer(_ => currentView.set(AppView.Schedule)),
+          onClick --> Observer(_ => jumpToNow()),
           span(cls := "BottomNav-icon", "📅"),
           span(cls := "BottomNav-label", "Schedule"),
         ),
