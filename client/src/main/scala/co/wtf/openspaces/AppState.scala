@@ -44,6 +44,9 @@ object AppState:
   // Topics currently showing celebration animation (cleared after animation ends)
   val celebratingTopics: Var[Map[TopicId, VotePosition]] = Var(Map.empty)
 
+  // Track which topic (if any) has its voter list expanded - ensures only one at a time
+  val expandedVoterListTopicId: Var[Option[TopicId]] = Var(None)
+
   // ============================================
   // Swipe Hint (one-time onboarding)
   // ============================================

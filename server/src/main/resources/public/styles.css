@@ -2021,6 +2021,73 @@ button {
     font-size: var(--font-size-caption);
 }
 
+.VoteIndicator--clickable {
+    cursor: pointer;
+    pointer-events: auto;
+}
+
+.VoteIndicator--clickable:hover {
+    opacity: 0.85;
+}
+
+.VoteIndicator--expanded {
+    background-color: rgba(74, 144, 217, 0.2);
+}
+
+/* Expandable voter list */
+.ExpandableVoterList {
+    position: absolute;
+    left: 32px;
+    top: 0;
+    z-index: 100;
+    max-height: 0;
+    overflow: hidden;
+    opacity: 0;
+    transition: max-height 0.3s ease, opacity 0.2s ease;
+    background: var(--color-white);
+    border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    min-width: 180px;
+}
+
+.ExpandableVoterList--expanded {
+    max-height: 300px;
+    opacity: 1;
+    overflow-y: auto;
+}
+
+.ExpandableVoterList-content {
+    padding: var(--pad-sm);
+}
+
+.ExpandableVoterList-item {
+    display: flex;
+    align-items: center;
+    gap: var(--pad-sm);
+    padding: var(--pad-xs) var(--pad-sm);
+    border-radius: var(--radius-xs);
+    transition: background-color 0.15s ease;
+}
+
+.ExpandableVoterList-item:hover {
+    background-color: var(--color-gray-100);
+}
+
+.ExpandableVoterList-avatar {
+    width: 28px;
+    height: 28px;
+    border-radius: var(--radius-full);
+    flex-shrink: 0;
+}
+
+.ExpandableVoterList-name {
+    font-size: var(--font-sm);
+    color: var(--color-text);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
 .VoteCount--hidden {
     opacity: 0.45;
 }

@@ -10,7 +10,7 @@ import co.wtf.openspaces.discussions.DiscussionAction
 import co.wtf.openspaces.discussions.Feedback
 import co.wtf.openspaces.AppState
 import co.wtf.openspaces.*
-import co.wtf.openspaces.components.{ConfirmationModal, InlineEditableTitle, InterestedPartyAvatars, SwipeableCard}
+import co.wtf.openspaces.components.{ConfirmationModal, ExpandableVoterList, InlineEditableTitle, SwipeableCard}
 import io.laminext.websocket.*
 import neotype.unwrap
 
@@ -35,6 +35,10 @@ object TopicCard:
 
         // Background color based on the user's personal vote
         val currentUserFeedback = topic.interestedParties.find(_.voter == name.now())
+        
+        // Derive expanded state from global AppState (ensures only one topic's list is open at a time)
+        val voterListExpanded = AppState.expandedVoterListTopicId.signal.map(_ == Some(topic.id))
+        
         val voteBackgroundClass = currentUserFeedback match
           case Some(feedback) if feedback.position == VotePosition.Interested => "TopicCard--interested"
           case Some(feedback) if feedback.position == VotePosition.NotInterested => "TopicCard--notinterested"
@@ -84,9 +88,10 @@ object TopicCard:
               )
             else Seq.empty
           },
-          // Vote status indicator (unified left position) - shows icon + vote count
+          // Vote status indicator - clickable to expand voter list
           div(
             cls := "VoteIndicator",
+            cls <-- voterListExpanded.map(if _ then "VoteIndicator--expanded" else ""),
             voteStatus match
               case Some(VotePosition.Interested) =>
                 cls := "VoteIndicator--interested"
@@ -95,6 +100,16 @@ object TopicCard:
               case None => emptyMod
             ,
             if hasVoted then cls := "VoteIndicator--visible" else emptyMod,
+            if votes > 0 then cls := "VoteIndicator--clickable" else emptyMod,
+            onClick.stopPropagation --> Observer { _ =>
+              if votes > 0 then
+                // Toggle: if this topic is already expanded, close it; otherwise open it (closing any other)
+                val currentlyExpanded = AppState.expandedVoterListTopicId.now()
+                if currentlyExpanded == Some(topic.id) then
+                  AppState.expandedVoterListTopicId.set(None)
+                else
+                  AppState.expandedVoterListTopicId.set(Some(topic.id))
+            },
             // Icon based on vote type
             span(
               cls := "VoteIndicator-icon",
@@ -103,11 +118,22 @@ object TopicCard:
                 case Some(VotePosition.NotInterested) => "✗"
                 case None => ""
             ),
-            // Vote count (only shown after voting)
+            // Vote count
             if hasVoted then
+              span(cls := "VoteIndicator-count", votes.toString)
+            else if votes > 0 then
               span(cls := "VoteIndicator-count", votes.toString)
             else
               span(),
+          ),
+          // Expandable voter list
+          ExpandableVoterList(
+            topic.interestedParties
+              .filter(_.position == VotePosition.Interested)
+              .toList
+              .sortBy(_.firstVotedAtEpochMs.getOrElse(Long.MaxValue))
+              .map(_.voter),
+            voterListExpanded,
           ),
           if admin then
             button(
@@ -160,13 +186,6 @@ object TopicCard:
           ),
           div(
             cls := "SecondaryActive",
-            InterestedPartyAvatars(
-              topic.interestedParties
-                .filter(_.position == VotePosition.Interested)
-                .toList
-                .sortBy(_.firstVotedAtEpochMs.getOrElse(Long.MaxValue))
-                .map(_.voter)
-            ),
             topic.roomSlot match {
               case Some(roomSlot) =>
                 span(

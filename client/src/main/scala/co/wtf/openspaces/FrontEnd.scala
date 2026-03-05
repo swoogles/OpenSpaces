@@ -752,12 +752,14 @@ object FrontEnd extends ZIOAppDefault{
   // WebSocket configuration constants
   private val MaxReconnectRetries = 10
   
+  // ZZZ
   val topicUpdates
     : WebSocket[WebSocketMessageFromServer, WebSocketMessageFromClient] = {
     // If I don't confine the scope of it, it clashes with laminar's `span`. Weird.
     import scala.concurrent.duration._
       WebSocket
       .url("/discussions") // TODO Reference the Zio Endpoint to keep this in sync
+      // ZZZ
       .text[WebSocketMessageFromServer, WebSocketMessageFromClient](
         _.toJson,
         raw =>
