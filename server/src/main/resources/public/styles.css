@@ -1728,7 +1728,7 @@ button {
 
 .LinearScheduleView-stickyFooter {
     position: sticky;
-    bottom: 0;
+    bottom: 70px; /* Above the bottom nav */
     z-index: 25;
     padding: var(--pad-sm) 0;
     background-color: var(--color-bg-page);
