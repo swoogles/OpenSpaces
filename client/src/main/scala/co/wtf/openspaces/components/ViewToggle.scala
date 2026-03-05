@@ -92,6 +92,10 @@ object ViewToggle:
       .orElse(findFirstRenderedId(state, activities))
       .foreach(scrollToElement)
 
+  /** Scroll to a specific activity by its event time */
+  def scrollToActivity(eventTime: LocalDateTime): Unit =
+    scrollToElement(activitySlotId(eventTime))
+
   def apply(
     currentView: Var[AppView],
     adminModeEnabled: Signal[Boolean],
@@ -107,9 +111,9 @@ object ViewToggle:
       div(
         cls := "BottomNav-actions",
         button(
-          cls := "BottomNav-actionBtn BottomNav-jumpBtn",
+          cls := "JumpToNowButton",
           SvgIcon(GlyphiconUtils.schedule),
-          span("Now"),
+          span("Jump to Now"),
           onClick --> Observer { _ =>
             // Switch to schedule view if not there
             if currentView.now() != AppView.Schedule then
@@ -132,7 +136,7 @@ object ViewToggle:
         child <-- showCreateForm.signal.map {
           case false =>
             button(
-              cls := "BottomNav-actionBtn BottomNav-addBtn",
+              cls := "AddActivityButton",
               "+",
               title := "Propose Activity",
               onClick --> Observer { _ =>

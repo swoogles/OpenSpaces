@@ -522,6 +522,14 @@ object FrontEnd extends ZIOAppDefault{
                       )
                     case ActivityActionConfirmed.StateReplace(_) =>
                       connectionStatus.markStateSynchronized()
+                    case ActivityActionConfirmed.Created(activity) =>
+                      // If we created this activity, scroll to it
+                      if activity.creator == name.now() then
+                        // Small delay to let DOM update
+                        dom.window.setTimeout(
+                          () => ViewToggle.scrollToActivity(activity.eventTime),
+                          150
+                        )
                     case _ => ()
                   activityState.update(existing => existing(activityEvent))
 
