@@ -19,6 +19,9 @@ import neotype.unwrap
   * Extracted from FrontEnd.scala for better code organization.
   */
 object TopicCard:
+  /** @param compact When true (schedule view), hides room/time info for tighter vertical spacing.
+    *                When false (topics view, default), shows room/time slot.
+    */
   def apply(
     name: StrictSignal[Person],
     topicUpdates: DiscussionAction => Unit,
@@ -27,6 +30,7 @@ object TopicCard:
     connectionStatus: ConnectionStatusUI,
     transition: Option[Transition] = None,
     enableSwipe: Boolean = true,
+    compact: Boolean = false,
   ): Signal[HtmlElement] =
     Signal.combine(signal, isAdmin).map {
       case (Some(topic), admin) =>
@@ -51,6 +55,7 @@ object TopicCard:
         val cardContent = div(
           cls := "TopicCard",
           cls := voteBackgroundClass,
+          if compact then cls := "TopicCard--compact" else emptyMod,
           if topic.lockedTimeslot then cls := "TopicCard--locked" else emptyMod,
           // Celebration animation class when vote is confirmed
           cls <-- AppState.celebratingTopics.signal.map { celebrating =>
@@ -136,70 +141,79 @@ object TopicCard:
             voterListExpanded,
             AppState.approvedUsers.signal,
           ),
-          if admin then
-            button(
-              cls := "TopicCardLockButton",
-              cls := (if topic.lockedTimeslot then "TopicCardLockButton--locked"
-                      else "TopicCardLockButton--unlocked"),
-              if topic.roomSlot.isEmpty then cls := "TopicCardLockButton--disabled"
-              else emptyMod,
-              title := (
-                if topic.roomSlot.isEmpty then
-                  "Schedule topic first to lock its timeslot"
-                else if topic.lockedTimeslot then
-                  "Unlock timeslot for auto-scheduling"
-                else
-                  "Lock timeslot from auto-scheduling"
+          // Content column: title + room/time (non-compact only)
+          div(
+            cls := "TopicCard-content",
+            div(
+              cls := "MainActive",
+              // Inline editable topic name (only for the facilitator)
+              InlineEditableTitle(
+                topic,
+                name.now(),
+                newTitle => {
+                  if connectionStatus.checkReady() then
+                    Topic.make(newTitle) match
+                      case Right(validTopic) =>
+                        topicUpdates(DiscussionAction.Rename(topic.id, validTopic))
+                      case Left(_) => () // Invalid topic name, ignore
+                  else
+                    connectionStatus.reportError("Syncing latest topics. Please wait a moment.")
+                },
               ),
-              disabled := topic.roomSlot.isEmpty,
-              onClick.stopPropagation --> Observer { _ =>
-                if connectionStatus.checkReady() then
-                  topicUpdates(
-                    DiscussionAction.SetLockedTimeslot(
-                      topic.id,
-                      topic.lockedTimeslot,
-                      !topic.lockedTimeslot,
-                    ),
-                  )
-                else
-                  connectionStatus.reportError("Syncing latest topics. Please wait a moment.")
-              },
-              if topic.lockedTimeslot then "🔒" else "🔓",
-            )
-          else
-            span(),
-          div(
-            cls := "MainActive",
-            // Inline editable topic name (only for the facilitator)
-            InlineEditableTitle(
-              topic,
-              name.now(),
-              newTitle => {
-                if connectionStatus.checkReady() then
-                  Topic.make(newTitle) match
-                    case Right(validTopic) =>
-                      topicUpdates(DiscussionAction.Rename(topic.id, validTopic))
-                    case Left(_) => () // Invalid topic name, ignore
-                else
-                  connectionStatus.reportError("Syncing latest topics. Please wait a moment.")
-              },
             ),
+            // Room/time slot (topics view only, not in compact/schedule view)
+            if !compact then
+              topic.roomSlot match {
+                case Some(roomSlot) =>
+                  span(
+                    cls := "RoomSlot",
+                    roomSlot.displayString,
+                  )
+                case None =>
+                  span(
+                    cls := "RoomSlot",
+                    cls := "RoomSlot--unscheduled",
+                    "Unscheduled",
+                  )
+              }
+            else
+              emptyNode,
           ),
+          // Actions column: lock + slack, vertically stacked
           div(
-            cls := "SecondaryActive",
-            topic.roomSlot match {
-              case Some(roomSlot) =>
-                span(
-                  cls := "RoomSlot",
-                  roomSlot.displayString,
-                )
-              case None =>
-                span(
-                  cls := "RoomSlot",
-                  cls := "RoomSlot--unscheduled",
-                  "Unscheduled",
-                )
-            },
+            cls := "TopicCard-actions",
+            if admin then
+              button(
+                cls := "TopicCardLockButton",
+                cls := (if topic.lockedTimeslot then "TopicCardLockButton--locked"
+                        else "TopicCardLockButton--unlocked"),
+                if topic.roomSlot.isEmpty then cls := "TopicCardLockButton--disabled"
+                else emptyMod,
+                title := (
+                  if topic.roomSlot.isEmpty then
+                    "Schedule topic first to lock its timeslot"
+                  else if topic.lockedTimeslot then
+                    "Unlock timeslot for auto-scheduling"
+                  else
+                    "Lock timeslot from auto-scheduling"
+                ),
+                disabled := topic.roomSlot.isEmpty,
+                onClick.stopPropagation --> Observer { _ =>
+                  if connectionStatus.checkReady() then
+                    topicUpdates(
+                      DiscussionAction.SetLockedTimeslot(
+                        topic.id,
+                        topic.lockedTimeslot,
+                        !topic.lockedTimeslot,
+                      ),
+                    )
+                  else
+                    connectionStatus.reportError("Syncing latest topics. Please wait a moment.")
+                },
+                if topic.lockedTimeslot then "🔒" else "🔓",
+              )
+            else
+              emptyNode,
             topic.slackThreadUrl match {
               case Some(url) =>
                 a(
@@ -208,7 +222,6 @@ object TopicCard:
                   cls := "SlackThreadLink",
                   title := "Discuss in Slack",
                   img(src := "/icons/slack.svg", cls := "SlackIcon"),
-                  // Show reply count if available (hide if 0)
                   child <-- AppState.slackReplyCounts.signal.map { counts =>
                     counts.discussions.get(topic.id.unwrap.toString) match {
                       case Some(count) if count > 0 =>
@@ -217,7 +230,7 @@ object TopicCard:
                     }
                   },
                 )
-              case None => span()
+              case None => emptyNode
             },
           ),
         )

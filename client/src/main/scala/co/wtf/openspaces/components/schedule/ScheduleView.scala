@@ -98,6 +98,7 @@ object ScheduleView:
             activeDiscussion.signal,
             isAdmin,
             connectionStatus,
+            compact = true,
           ),
         ),
       ),
@@ -487,6 +488,7 @@ object LinearScheduleView:
                               Signal.fromValue(Some(discussion)),
                               isAdmin,
                               connectionStatus,
+                              compact = true,
                             ),
                           ),
                         )
