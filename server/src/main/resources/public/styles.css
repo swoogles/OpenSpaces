@@ -1443,10 +1443,17 @@ button {
 
 .BottomNav-tab:hover {
     color: var(--color-text-secondary);
+    background-color: var(--color-bg-surface);
 }
 
 .BottomNav-tab--active {
     color: var(--color-primary);
+    background-color: rgba(102, 126, 234, 0.1);
+    border-radius: var(--radius-md);
+}
+
+.BottomNav-tab--active .BottomNav-label {
+    font-weight: var(--font-weight-semibold);
 }
 
 .BottomNav-icon {
