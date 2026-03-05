@@ -140,3 +140,15 @@ object AppState:
   val slackReplyCounts: Var[SlackReplyCounts] = Var(
     SlackReplyCounts(Map.empty, Map.empty, Map.empty, Map.empty)
   )
+
+  // ============================================
+  // Unjudged Topics Count (for nav badge)
+  // ============================================
+
+  // Derived signal: count of topics the current user hasn't voted on
+  val unjudgedTopicCount: Signal[Int] = 
+    discussionState.signal.combineWith(name.signal).map { case (state, currentUser) =>
+      state.data.values.count(topic => 
+        !topic.interestedParties.exists(_.voter == currentUser)
+      )
+    }

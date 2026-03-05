@@ -591,16 +591,19 @@ object FrontEnd extends ZIOAppDefault{
             else
               emptyNode
           },
-          // Admin mode toggle at the very top (only visible to admins)
-          AdminModeToggle(isAdmin, adminModeEnabled),
-          LoadingPreviewToggle(isAdmin, AppState.showLoadingPreview),
+          // Name badge and sound toggle at the top
           NameBadge(name, connectionStatus.state, soundMuted),
+          // Admin mode toggles (only visible to admins, compact in header)
+          div(
+            cls := "AdminToggles",
+            AdminModeToggle(isAdmin, adminModeEnabled),
+            LoadingPreviewToggle(isAdmin, AppState.showLoadingPreview),
+          ),
           // Admin controls (only visible when admin AND admin mode enabled)
           AdminControls(
             isAdmin.combineWith(adminModeEnabled.signal).map { case (admin, enabled) => admin && enabled },
             randomActionClient,
           ),
-          ViewToggle(currentAppView, adminModeEnabled.signal),
           // Conditional view rendering based on current app view
           child <-- currentAppView.signal.map {
             case AppView.Admin =>
@@ -660,6 +663,8 @@ object FrontEnd extends ZIOAppDefault{
                 activityState.signal,
               )
           },
+          // Bottom navigation - fixed at bottom of screen
+          ViewToggle(currentAppView, adminModeEnabled.signal),
         )
       } else {
         // Login screen - shown when user is not authenticated

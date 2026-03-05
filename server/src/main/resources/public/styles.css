@@ -401,6 +401,7 @@ button {
     width: 100%;
     max-width: 420px;
     margin-inline: auto;
+    padding-bottom: 70px; /* Space for bottom nav */
 }
 
 .LoginScreen {
@@ -1350,35 +1351,99 @@ button {
     color: var(--color-warning-dark);
 }
 
+/* Legacy ViewToggle - keeping for reference, replaced by BottomNav */
 .ViewToggle {
-    display: flex;
-    background-color: var(--color-bg-surface);
-    border-radius: var(--radius-md);
-    padding: var(--pad-xs);
-    margin: var(--pad-md) var(--pad-lg);
+    display: none;
 }
 
-.ViewToggle-button {
+/* ============================================
+   Bottom Navigation Bar
+   ============================================ */
+
+.BottomNav {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    display: flex;
+    background-color: var(--color-white);
+    border-top: 1px solid var(--color-border);
+    padding: var(--pad-xs) var(--pad-sm);
+    padding-bottom: max(var(--pad-xs), env(safe-area-inset-bottom));
+    z-index: 100;
+    box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.1);
+}
+
+.BottomNav-button {
     flex: 1;
-    padding: var(--pad-md);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: var(--pad-sm) var(--pad-xs);
     border: none;
     background-color: transparent;
+    color: var(--color-text-muted);
+    font-size: var(--font-size-xs);
+    cursor: pointer;
+    transition: color 0.15s ease;
+    gap: 2px;
+    min-width: 0;
+}
+
+.BottomNav-button:hover {
     color: var(--color-text-secondary);
-    font-size: var(--font-size-lg);
-    transition: all 0.2s ease;
 }
 
-.ViewToggle-button:hover {
-    background-color: rgba(255, 255, 255, 0.5);
+.BottomNav-button--active {
+    color: var(--color-primary);
 }
 
-.ViewToggle-button--active {
-    background-color: var(--color-white);
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+.BottomNav-icon {
+    font-size: 20px;
+    line-height: 1;
 }
 
-.ViewToggle-button--active:hover {
-    background-color: var(--color-white);
+.BottomNav-iconWrapper {
+    position: relative;
+    display: inline-flex;
+}
+
+.BottomNav-badge {
+    position: absolute;
+    top: -6px;
+    right: -10px;
+    min-width: 18px;
+    height: 18px;
+    padding: 0 5px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 10px;
+    font-weight: 700;
+    color: white;
+    background: var(--color-error);
+    border-radius: 9px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+}
+
+.BottomNav-label {
+    font-weight: var(--font-weight-medium);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* Admin toggles in header - compact row */
+.AdminToggles {
+    display: flex;
+    gap: var(--pad-sm);
+    padding: 0 var(--pad-lg);
+    margin-bottom: var(--pad-sm);
+}
+
+.AdminToggles:empty {
+    display: none;
 }
 
 .SlackThreadLink {
@@ -1414,7 +1479,7 @@ button {
 }
 
 @media (prefers-reduced-motion: reduce) {
-    .ViewToggle-button {
+    .BottomNav-button {
         transition: none;
     }
 }
