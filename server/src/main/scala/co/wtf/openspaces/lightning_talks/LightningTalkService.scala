@@ -125,7 +125,7 @@ case class LightningTalkService(
 
       case draw @ LightningTalkAction.DrawForNextNight =>
         for
-          today   <- Clock.localDateTime.map(_.toLocalDate)
+          today <- Clock.instant.map(_.atZone(java.time.ZoneId.of("America/Denver")).toLocalDate)
           current <- state.get
           shuffled = ScalaRandom.shuffle(current.unassignedProposals)
           result <- LightningTalkDraw.drawForNextNight(current,
