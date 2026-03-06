@@ -88,20 +88,22 @@ trait UserRepository:
   def revokeUser(username: String): Task[Boolean]
   def isApproved(username: String): Task[Boolean]
   def linkSlackUserId(githubUsername: String, slackUserId: String): Task[Unit]
+  def linkSlackAccount(githubUsername: String, slackUserId: String, accessToken: String): Task[Unit]
   def unlinkSlackUserId(githubUsername: String): Task[Unit]
   def findUsersWithSlackIds(githubUsernames: List[String]): Task[Map[String, String]]
+  def findSlackAccessToken(githubUsername: String): Task[Option[String]]
 
 class UserRepositoryLive(ds: DataSource) extends UserRepository:
   def findByUsername(username: String): Task[Option[UserRow]] =
     transactZIO(ds):
-      sql"SELECT github_username, display_name, created_at, approved, slack_user_id FROM users WHERE github_username = $username"
+      sql"SELECT github_username, display_name, created_at, approved, slack_user_id, slack_access_token FROM users WHERE github_username = $username"
         .query[UserRow]
         .run()
         .headOption
 
   def upsert(username: String, displayName: Option[String]): Task[UpsertResult] =
     transactZIO(ds):
-      val existing = sql"SELECT github_username, display_name, created_at, approved, slack_user_id FROM users WHERE github_username = $username"
+      val existing = sql"SELECT github_username, display_name, created_at, approved, slack_user_id, slack_access_token FROM users WHERE github_username = $username"
         .query[UserRow]
         .run()
         .headOption
@@ -120,11 +122,11 @@ class UserRepositoryLive(ds: DataSource) extends UserRepository:
           val now = OffsetDateTime.now()
           val normalizedDisplayName = displayName.map(_.trim).filter(_.nonEmpty)
           sql"""INSERT INTO users (github_username, display_name, created_at, approved) VALUES ($username, $normalizedDisplayName, $now, false)""".update.run()
-          UpsertResult(UserRow(username, normalizedDisplayName, now, approved = false, slackUserId = None), isNewUser = true)
+          UpsertResult(UserRow(username, normalizedDisplayName, now, approved = false, slackUserId = None, slackAccessToken = None), isNewUser = true)
 
   def findAll: Task[Vector[UserRow]] =
     transactZIO(ds):
-      sql"SELECT github_username, display_name, created_at, approved, slack_user_id FROM users".query[UserRow].run()
+      sql"SELECT github_username, display_name, created_at, approved, slack_user_id, slack_access_token FROM users".query[UserRow].run()
 
   def deleteByUsernames(usernames: List[String]): Task[Int] =
     transactZIO(ds):
@@ -134,13 +136,13 @@ class UserRepositoryLive(ds: DataSource) extends UserRepository:
 
   def findPendingUsers: Task[Vector[UserRow]] =
     transactZIO(ds):
-      sql"SELECT github_username, display_name, created_at, approved, slack_user_id FROM users WHERE approved = false ORDER BY created_at"
+      sql"SELECT github_username, display_name, created_at, approved, slack_user_id, slack_access_token FROM users WHERE approved = false ORDER BY created_at"
         .query[UserRow]
         .run()
 
   def findApprovedUsers: Task[Vector[UserRow]] =
     transactZIO(ds):
-      sql"SELECT github_username, display_name, created_at, approved, slack_user_id FROM users WHERE approved = true ORDER BY github_username"
+      sql"SELECT github_username, display_name, created_at, approved, slack_user_id, slack_access_token FROM users WHERE approved = true ORDER BY github_username"
         .query[UserRow]
         .run()
 
@@ -167,10 +169,22 @@ class UserRepositoryLive(ds: DataSource) extends UserRepository:
       sql"""UPDATE users SET slack_user_id = $slackUserId WHERE github_username = $githubUsername""".update.run()
       ()
 
+  def linkSlackAccount(githubUsername: String, slackUserId: String, accessToken: String): Task[Unit] =
+    transactZIO(ds):
+      sql"""UPDATE users SET slack_user_id = $slackUserId, slack_access_token = $accessToken WHERE github_username = $githubUsername""".update.run()
+      ()
+
   def unlinkSlackUserId(githubUsername: String): Task[Unit] =
     transactZIO(ds):
-      sql"""UPDATE users SET slack_user_id = NULL WHERE github_username = $githubUsername""".update.run()
+      sql"""UPDATE users SET slack_user_id = NULL, slack_access_token = NULL WHERE github_username = $githubUsername""".update.run()
       ()
+
+  def findSlackAccessToken(githubUsername: String): Task[Option[String]] =
+    transactZIO(ds):
+      sql"SELECT slack_access_token FROM users WHERE github_username = $githubUsername AND slack_access_token IS NOT NULL"
+        .query[String]
+        .run()
+        .headOption
 
   def findUsersWithSlackIds(githubUsernames: List[String]): Task[Map[String, String]] =
     transactZIO(ds):

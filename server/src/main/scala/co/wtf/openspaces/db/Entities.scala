@@ -18,12 +18,13 @@ case class UserRow(
   displayName: Option[String],
   createdAt: OffsetDateTime,
   approved: Boolean,
-  slackUserId: Option[String]
+  slackUserId: Option[String],
+  slackAccessToken: Option[String]
 ) derives DbCodec, JsonCodec
 
 object UserRow:
-  def create(githubUsername: String, displayName: Option[String], approved: Boolean = false, slackUserId: Option[String] = None): UserRow =
-    UserRow(githubUsername, displayName, OffsetDateTime.now(), approved, slackUserId)
+  def create(githubUsername: String, displayName: Option[String], approved: Boolean = false, slackUserId: Option[String] = None, slackAccessToken: Option[String] = None): UserRow =
+    UserRow(githubUsername, displayName, OffsetDateTime.now(), approved, slackUserId, slackAccessToken)
 
 // Room entity
 case class RoomRow(

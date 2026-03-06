@@ -7,22 +7,17 @@ import zio.json.*
 
 import java.util.Base64
 
-/** Response from Slack OpenID Connect token exchange */
-case class SlackOIDCTokenResponse(
+/** Response from Slack OAuth v2 token exchange */
+case class SlackOAuthResponse(
   ok: Boolean,
-  access_token: Option[String],
-  token_type: Option[String],
-  id_token: Option[String],
+  authed_user: Option[SlackAuthedUser],
   error: Option[String]
 ) derives JsonCodec
 
-/** Claims from the Slack OIDC id_token JWT (subset we care about) */
-case class SlackIdTokenClaims(
-  sub: String,                    // Slack user ID (e.g., "U1234567890")
-  `https://slack.com/team_id`: Option[String],
-  email: Option[String],
-  name: Option[String],
-  picture: Option[String]
+/** The authenticated user from Slack OAuth */
+case class SlackAuthedUser(
+  id: String,
+  access_token: Option[String]
 ) derives JsonCodec
 
 trait SlackOAuthService:
@@ -41,23 +36,25 @@ class SlackOAuthServiceLive(
   client: Client
 ) extends SlackOAuthService:
 
-  // OIDC endpoints for Sign in with Slack
-  private val slackOIDCAuthUrl = "https://slack.com/openid/connect/authorize"
-  private val slackOIDCTokenUrl = URL.decode("https://slack.com/api/openid.connect.token").getOrElse(
-    throw new Exception("Invalid Slack OIDC token URL")
+  // Traditional OAuth 2.0 endpoints (supports user_scope for chat:write)
+  private val slackOAuthUrl = "https://slack.com/oauth/v2/authorize"
+  private val slackTokenUrl = URL.decode("https://slack.com/api/oauth.v2.access").getOrElse(
+    throw new Exception("Invalid Slack OAuth token URL")
   )
 
-  /** Generate the Slack OIDC authorization URL.
-    * Uses OpenID Connect scopes for modern Sign in with Slack.
+  /** Generate the Slack OAuth URL for user identity linking.
+    * Uses traditional OAuth 2.0 with user_scope for chat:write permission.
     * State parameter contains the GitHub username (simple encoding for now).
     */
   def getAuthUrl(githubUsername: String): String =
     // Simple state encoding - in production you'd want to sign/encrypt this
     val state = Base64.getUrlEncoder.encodeToString(githubUsername.getBytes("UTF-8"))
-    val scopes = "openid email profile"
-    s"$slackOIDCAuthUrl?client_id=${config.clientId}&scope=${java.net.URLEncoder.encode(scopes, "UTF-8")}&redirect_uri=${java.net.URLEncoder.encode(config.redirectUri, "UTF-8")}&state=$state&response_type=code"
+    // user_scope for permissions that act on behalf of the user
+    // reactions:write allows adding reactions as the user (for auto-following threads via wave emoji)
+    val userScopes = "reactions:write"
+    s"$slackOAuthUrl?client_id=${config.clientId}&user_scope=${java.net.URLEncoder.encode(userScopes, "UTF-8")}&redirect_uri=${java.net.URLEncoder.encode(config.redirectUri, "UTF-8")}&state=$state"
 
-  /** Exchange authorization code for Slack user ID via OIDC */
+  /** Exchange authorization code for Slack user ID and access token */
   def handleCallback(code: String, state: String): Task[String] =
     for
       // Decode state to get GitHub username
@@ -65,58 +62,43 @@ class SlackOAuthServiceLive(
         new String(Base64.getUrlDecoder.decode(state), "UTF-8")
       }.mapError(e => new Exception(s"Invalid state parameter: $e"))
 
-      // Exchange code for OIDC tokens
+      // Exchange code for access token
       response <- ZIO.scoped {
         client
           .addHeader(Header.ContentType(MediaType.application.`x-www-form-urlencoded`))
-          .url(slackOIDCTokenUrl)
+          .url(slackTokenUrl)
           .post("")(
             Body.fromURLEncodedForm(Form(
               FormField.simpleField("client_id", config.clientId),
               FormField.simpleField("client_secret", config.clientSecret),
               FormField.simpleField("code", code),
               FormField.simpleField("redirect_uri", config.redirectUri),
-              FormField.simpleField("grant_type", "authorization_code"),
             ))
           )
           .flatMap(_.body.asString)
       }
 
       // Parse response
-      tokenResponse <- ZIO.fromEither(response.fromJson[SlackOIDCTokenResponse])
-        .mapError(e => new Exception(s"Failed to parse Slack OIDC response: $e - body: $response"))
+      oauthResponse <- ZIO.fromEither(response.fromJson[SlackOAuthResponse])
+        .mapError(e => new Exception(s"Failed to parse Slack OAuth response: $e - body: $response"))
 
       // Check for errors
-      _ <- ZIO.when(!tokenResponse.ok)(
-        ZIO.fail(new Exception(s"Slack OIDC error: ${tokenResponse.error.getOrElse("unknown")}"))
+      _ <- ZIO.when(!oauthResponse.ok)(
+        ZIO.fail(new Exception(s"Slack OAuth error: ${oauthResponse.error.getOrElse("unknown")}"))
       )
 
-      // Extract and decode the id_token JWT to get the Slack user ID
-      idToken <- ZIO.fromOption(tokenResponse.id_token)
-        .orElseFail(new Exception("No id_token in Slack OIDC response"))
+      // Extract user info
+      authedUser <- ZIO.fromOption(oauthResponse.authed_user)
+        .orElseFail(new Exception("No authed_user in Slack OAuth response"))
 
-      claims <- decodeIdToken(idToken)
+      slackUserId = authedUser.id
 
-      slackUserId = claims.sub
+      accessToken <- ZIO.fromOption(authedUser.access_token)
+        .orElseFail(new Exception("No access_token for authed_user in Slack OAuth response"))
 
-      // Link Slack user ID to GitHub user
-      _ <- userRepo.linkSlackUserId(githubUsername, slackUserId)
+      // Link Slack user ID and access token to GitHub user
+      _ <- userRepo.linkSlackAccount(githubUsername, slackUserId, accessToken)
     yield githubUsername
-
-  /** Decode the JWT id_token payload (we trust Slack's signature, just extract claims) */
-  private def decodeIdToken(idToken: String): Task[SlackIdTokenClaims] =
-    ZIO.attempt {
-      // JWT format: header.payload.signature
-      val parts = idToken.split("\\.")
-      if parts.length != 3 then
-        throw new Exception("Invalid JWT format")
-
-      // Decode the payload (middle part) - use URL-safe Base64 decoder
-      val payloadJson = new String(Base64.getUrlDecoder.decode(parts(1)), "UTF-8")
-      payloadJson.fromJson[SlackIdTokenClaims] match
-        case Right(claims) => claims
-        case Left(err) => throw new Exception(s"Failed to parse id_token claims: $err")
-    }
 
   def unlinkSlack(githubUsername: String): Task[Unit] =
     userRepo.unlinkSlackUserId(githubUsername)

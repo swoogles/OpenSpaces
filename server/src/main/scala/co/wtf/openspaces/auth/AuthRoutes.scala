@@ -24,7 +24,7 @@ case class AuthRoutes(
           userOpt <- userRepository.findByUsername(username).orDie
           isAdmin = adminConfig.isAdmin(username)
           approved = userOpt.exists(_.approved) || isAdmin // Admins are always approved
-          slackLinked = userOpt.exists(_.slackUserId.isDefined)
+          slackLinked = userOpt.exists(u => u.slackUserId.isDefined && u.slackAccessToken.isDefined)
           pendingUsers <- if isAdmin then
             userRepository.findPendingUsers.map(users =>
               Some(users.map(u => PendingUserInfo(

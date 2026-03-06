@@ -2,7 +2,7 @@ package co.wtf.openspaces.slack
 
 import co.wtf.openspaces.*
 import co.wtf.openspaces.db.{DiscussionRepository, LightningTalkRepository, LightningTalkRow, HackathonProjectRepository, HackathonProjectRow, TopicVoteRepository, HackathonProjectMemberRepository, ActivityInterestRepository, SlackRosterMessageRepository, UserRepository}
-import co.wtf.openspaces.discussions.{Discussion, DiscussionActionConfirmed}
+import co.wtf.openspaces.discussions.{Discussion, DiscussionActionConfirmed, Feedback, VotePosition}
 import co.wtf.openspaces.hackathon.*
 import co.wtf.openspaces.lighting_talks.*
 import co.wtf.openspaces.activities.*
@@ -52,6 +52,8 @@ class SlackNotifierLive(
   hackathonMemberRepo: HackathonProjectMemberRepository,
   activityInterestRepo: ActivityInterestRepository,
   rosterService: SlackRosterService,
+  userRepo: UserRepository,
+  httpClient: Client,
 ) extends SlackNotifier:
 
   private val retryPolicy = Schedule.exponential(1.second) && Schedule.recurs(2)
@@ -76,8 +78,8 @@ class SlackNotifierLive(
       case DiscussionActionConfirmed.SwapTopics(_, _, _, _) =>
         ZIO.unit
 
-      case DiscussionActionConfirmed.Vote(topicId, _) =>
-        handleVoteRosterUpdate(topicId).fork.unit
+      case DiscussionActionConfirmed.Vote(topicId, feedback) =>
+        handleVoteRosterUpdate(topicId, feedback).fork.unit
 
       case _ => ZIO.unit // SlackThreadLinked, Rejected are no-ops
 
@@ -205,7 +207,7 @@ class SlackNotifierLive(
 
     effect.catchAll(err => ZIO.logError(s"Slack delete failed for topic $topicId: $err"))
 
-  private def handleVoteRosterUpdate(topicId: TopicId): Task[Unit] =
+  private def handleVoteRosterUpdate(topicId: TopicId, feedback: Feedback): Task[Unit] =
     val effect = for
       row <- discussionRepo.findById(topicId.unwrap).someOrFail(new Exception(s"Discussion $topicId not found"))
       channelId <- ZIO.fromOption(row.slackChannelId).orElseFail(new Exception(s"No Slack channel for topic $topicId"))
@@ -216,9 +218,52 @@ class SlackNotifierLive(
       interestedUsers = topicVotes.map(v => Person(v.githubUsername)).toList
       // Update the roster message
       _ <- rosterService.updateRoster("discussion", topicId.unwrap, channelId, threadTs, interestedUsers)
+      // If user voted "Interested" and has a Slack access token, post wave emoji as them to auto-follow thread
+      _ <- ZIO.when(feedback.position == VotePosition.Interested)(
+        postWaveAsUser(feedback.voter.unwrap, channelId, threadTs)
+      )
     yield ()
 
     effect.catchAll(err => ZIO.logWarning(s"Roster update failed for topic $topicId: ${err.getMessage}"))
+
+  /** Add a wave reaction as the user to make them auto-follow the thread */
+  private def postWaveAsUser(githubUsername: String, channelId: String, threadTs: String): Task[Unit] =
+    val effect = for
+      accessTokenOpt <- userRepo.findSlackAccessToken(githubUsername)
+      _ <- accessTokenOpt match
+        case Some(accessToken) =>
+          addReactionAsUser(accessToken, channelId, threadTs, "wave")
+        case None =>
+          ZIO.logDebug(s"User $githubUsername has no Slack access token, skipping wave reaction")
+    yield ()
+    effect.catchAll(err => ZIO.logWarning(s"Failed to add wave reaction as $githubUsername: ${err.getMessage}"))
+
+  /** Add a reaction to a message using a user's access token */
+  private def addReactionAsUser(accessToken: String, channelId: String, messageTs: String, emoji: String): Task[Unit] =
+    import zio.http.*
+    ZIO.scoped {
+      for
+        url <- ZIO.fromEither(URL.decode("https://slack.com/api/reactions.add"))
+          .mapError(e => new Exception(s"Invalid Slack URL: $e"))
+        payload = s"""{"channel":"$channelId","timestamp":"$messageTs","name":"$emoji"}"""
+        response <- httpClient
+          .addHeader(Header.Authorization.Bearer(accessToken))
+          .addHeader(Header.ContentType(MediaType.application.json))
+          .url(url)
+          .post("")(Body.fromString(payload))
+        body <- response.body.asString
+        json <- ZIO.fromEither(body.fromJson[zio.json.ast.Json])
+          .mapError(e => new Exception(s"Invalid JSON from Slack: $e"))
+        ok = json match
+          case zio.json.ast.Json.Obj(fields) => fields.collectFirst { case ("ok", zio.json.ast.Json.Bool(v)) => v }.getOrElse(false)
+          case _ => false
+        // "already_reacted" is fine - user already has this reaction
+        error = json match
+          case zio.json.ast.Json.Obj(fields) => fields.collectFirst { case ("error", zio.json.ast.Json.Str(e)) => e }
+          case _ => None
+        _ <- ZIO.when(!ok && error != Some("already_reacted"))(ZIO.logWarning(s"Slack reactions.add failed: $body"))
+      yield ()
+    }
 
   private def handleHackathonRosterUpdate(projectId: HackathonProjectId): Task[Unit] =
     val effect = for
@@ -743,6 +788,8 @@ object SlackNotifier:
               hackathonMemberRepo,
               activityInterestRepo,
               rosterService,
+              userRepo,
+              client,
             )
 
             effect.catchAll { err =>
