@@ -2,7 +2,7 @@ package co.wtf.openspaces.discussions
 
 import co.wtf.openspaces.{Person, Room, RoomSlot, SessionService, TimeSlot, TopicId}
 import zio.*
-import java.time.{Duration as JavaDuration, Instant, LocalDateTime, ZoneOffset, ZonedDateTime}
+import java.time.{Duration as JavaDuration, Instant, LocalDateTime, ZoneId, ZoneOffset, ZonedDateTime}
 import neotype.unwrap
 
 /** Auto-scheduler that assigns topics to room slots based on votes and conflict minimization. */
@@ -46,7 +46,7 @@ case class SchedulingService(
     */
   def runScheduling: Task[SchedulingSummary] =
     for
-      now <- Clock.localDateTime
+      now <- Clock.instant.map(_.atZone(SchedulingService.conferenceZone).toLocalDateTime)
       state <- discussionStore.snapshot
       discussions = state.data.values.toList
       slots = state.slots
@@ -303,6 +303,8 @@ case class SchedulingSummary(
     s"scheduled=$scheduled, moved=$moved, unscheduled=$unscheduled, lockedExcluded=$lockedExcluded"
 
 object SchedulingService:
+  private[openspaces] val conferenceZone: ZoneId = ZoneId.of("America/Denver")
+
   private[openspaces] val automaticSchedulingAnchor: Instant =
     ZonedDateTime
       .of(2026, 3, 2, 9, 30, 0, 0, ZoneOffset.ofHours(-7))
