@@ -1,7 +1,7 @@
 package co.wtf.openspaces.slack
 
 import co.wtf.openspaces.*
-import co.wtf.openspaces.db.{DiscussionRepository, LightningTalkRepository, LightningTalkRow, HackathonProjectRepository, HackathonProjectRow}
+import co.wtf.openspaces.db.{DiscussionRepository, LightningTalkRepository, LightningTalkRow, HackathonProjectRepository, HackathonProjectRow, TopicVoteRepository, HackathonProjectMemberRepository, ActivityInterestRepository, SlackRosterMessageRepository, UserRepository}
 import co.wtf.openspaces.discussions.{Discussion, DiscussionActionConfirmed}
 import co.wtf.openspaces.hackathon.*
 import co.wtf.openspaces.lighting_talks.*
@@ -48,6 +48,10 @@ class SlackNotifierLive(
   lightningTalkRepo: LightningTalkRepository,
   hackathonProjectRepo: HackathonProjectRepository,
   activityRepo: co.wtf.openspaces.db.ActivityRepository,
+  topicVoteRepo: TopicVoteRepository,
+  hackathonMemberRepo: HackathonProjectMemberRepository,
+  activityInterestRepo: ActivityInterestRepository,
+  rosterService: SlackRosterService,
 ) extends SlackNotifier:
 
   private val retryPolicy = Schedule.exponential(1.second) && Schedule.recurs(2)
@@ -72,7 +76,10 @@ class SlackNotifierLive(
       case DiscussionActionConfirmed.SwapTopics(_, _, _, _) =>
         ZIO.unit
 
-      case _ => ZIO.unit // Vote, SlackThreadLinked, Rejected are no-ops
+      case DiscussionActionConfirmed.Vote(topicId, _) =>
+        handleVoteRosterUpdate(topicId).fork.unit
+
+      case _ => ZIO.unit // SlackThreadLinked, Rejected are no-ops
 
   def notifyLightning(
     action: LightningTalkActionConfirmed,
@@ -99,10 +106,10 @@ class SlackNotifierLive(
     action match
       case HackathonProjectActionConfirmed.Created(project) =>
         handleHackathonCreate(project, broadcast).fork.unit
-      case HackathonProjectActionConfirmed.Joined(_, _, _) =>
-        ZIO.unit
-      case HackathonProjectActionConfirmed.Left(_, _, _) =>
-        ZIO.unit
+      case HackathonProjectActionConfirmed.Joined(projectId, _, _) =>
+        handleHackathonRosterUpdate(projectId).fork.unit
+      case HackathonProjectActionConfirmed.Left(projectId, _, _) =>
+        handleHackathonRosterUpdate(projectId).fork.unit
       case HackathonProjectActionConfirmed.Renamed(projectId, newTitle) =>
         handleHackathonRename(projectId, newTitle).fork.unit
       case HackathonProjectActionConfirmed.Deleted(projectId) =>
@@ -121,6 +128,8 @@ class SlackNotifierLive(
         handleActivityUpdate(activityId, newDescription, newEventTime).fork.unit
       case ActivityActionConfirmed.Deleted(activityId, slackChannelId, slackThreadTs) =>
         handleActivityDelete(activityId, slackChannelId, slackThreadTs).fork.unit
+      case ActivityActionConfirmed.InterestSet(activityId, _, _, _, _) =>
+        handleActivityRosterUpdate(activityId).fork.unit
       case _ =>
         ZIO.unit
 
@@ -190,9 +199,54 @@ class SlackNotifierLive(
       // Use the channel where the thread was created, not the current config channel
       channelId = row.slackChannelId.getOrElse(config.channelId)
       _   <- slackClient.deleteMessage(channelId, ts)
+      // Also clean up the roster message
+      _   <- rosterService.deleteRoster("discussion", topicId.unwrap)
     yield ()
 
     effect.catchAll(err => ZIO.logError(s"Slack delete failed for topic $topicId: $err"))
+
+  private def handleVoteRosterUpdate(topicId: TopicId): Task[Unit] =
+    val effect = for
+      row <- discussionRepo.findById(topicId.unwrap).someOrFail(new Exception(s"Discussion $topicId not found"))
+      channelId <- ZIO.fromOption(row.slackChannelId).orElseFail(new Exception(s"No Slack channel for topic $topicId"))
+      threadTs <- ZIO.fromOption(row.slackThreadTs).orElseFail(new Exception(s"No Slack thread for topic $topicId"))
+      // Get all current votes for this topic
+      allVotes <- topicVoteRepo.findAllForActiveDiscussions
+      topicVotes = allVotes.filter(v => v.topicId == topicId.unwrap && v.position == "Interested")
+      interestedUsers = topicVotes.map(v => Person(v.githubUsername)).toList
+      // Update the roster message
+      _ <- rosterService.updateRoster("discussion", topicId.unwrap, channelId, threadTs, interestedUsers)
+    yield ()
+
+    effect.catchAll(err => ZIO.logWarning(s"Roster update failed for topic $topicId: ${err.getMessage}"))
+
+  private def handleHackathonRosterUpdate(projectId: HackathonProjectId): Task[Unit] =
+    val effect = for
+      row <- hackathonProjectRepo.findById(projectId.unwrap).someOrFail(new Exception(s"Project $projectId not found"))
+      channelId <- ZIO.fromOption(row.slackChannelId).orElseFail(new Exception(s"No Slack channel for project $projectId"))
+      threadTs <- ZIO.fromOption(row.slackThreadTs).orElseFail(new Exception(s"No Slack thread for project $projectId"))
+      // Get all current members for this project
+      members <- hackathonMemberRepo.findActiveByProject(projectId.unwrap)
+      memberUsers = members.map(m => Person(m.githubUsername)).toList
+      // Update the roster message
+      _ <- rosterService.updateRoster("hackathon_project", projectId.unwrap, channelId, threadTs, memberUsers)
+    yield ()
+
+    effect.catchAll(err => ZIO.logWarning(s"Roster update failed for hackathon project $projectId: ${err.getMessage}"))
+
+  private def handleActivityRosterUpdate(activityId: ActivityId): Task[Unit] =
+    val effect = for
+      row <- activityRepo.findById(activityId.unwrap).someOrFail(new Exception(s"Activity $activityId not found"))
+      channelId <- ZIO.fromOption(row.slackChannelId).orElseFail(new Exception(s"No Slack channel for activity $activityId"))
+      threadTs <- ZIO.fromOption(row.slackThreadTs).orElseFail(new Exception(s"No Slack thread for activity $activityId"))
+      // Get all current interested users for this activity
+      interested <- activityInterestRepo.findByActivity(activityId.unwrap)
+      interestedUsers = interested.map(i => Person(i.githubUsername)).toList
+      // Update the roster message
+      _ <- rosterService.updateRoster("activity", activityId.unwrap, channelId, threadTs, interestedUsers)
+    yield ()
+
+    effect.catchAll(err => ZIO.logWarning(s"Roster update failed for activity $activityId: ${err.getMessage}"))
 
   private def handleLightningAdd(
     proposal: LightningTalkProposal,
@@ -342,6 +396,8 @@ class SlackNotifierLive(
       ts  <- ZIO.fromOption(row.slackThreadTs).orElseFail(new Exception(s"No Slack thread for project $projectId"))
       channelId = row.slackChannelId.getOrElse(config.hackathonChannelId)
       _ <- slackClient.deleteMessage(channelId, ts)
+      // Also clean up the roster message
+      _ <- rosterService.deleteRoster("hackathon_project", projectId.unwrap)
     yield ()
 
     effect.catchAll(err => ZIO.logError(s"Slack delete failed for hackathon project $projectId: $err"))
@@ -635,7 +691,7 @@ class SlackNotifierNoOp extends SlackNotifier:
     ZIO.never.fork
 
 object SlackNotifier:
-  val layer: ZLayer[Option[SlackConfigEnv] & DiscussionRepository & LightningTalkRepository & HackathonProjectRepository & co.wtf.openspaces.db.ActivityRepository & Client, Nothing, SlackNotifier] =
+  val layer: ZLayer[Option[SlackConfigEnv] & DiscussionRepository & LightningTalkRepository & HackathonProjectRepository & co.wtf.openspaces.db.ActivityRepository & TopicVoteRepository & HackathonProjectMemberRepository & ActivityInterestRepository & SlackRosterMessageRepository & UserRepository & Client, Nothing, SlackNotifier] =
     ZLayer.fromZIO:
       for
         maybeEnvConfig <- ZIO.service[Option[SlackConfigEnv]]
@@ -643,6 +699,11 @@ object SlackNotifier:
         lightningTalkRepo <- ZIO.service[LightningTalkRepository]
         hackathonProjectRepo <- ZIO.service[HackathonProjectRepository]
         activityRepo <- ZIO.service[co.wtf.openspaces.db.ActivityRepository]
+        topicVoteRepo <- ZIO.service[TopicVoteRepository]
+        hackathonMemberRepo <- ZIO.service[HackathonProjectMemberRepository]
+        activityInterestRepo <- ZIO.service[ActivityInterestRepository]
+        rosterMessageRepo <- ZIO.service[SlackRosterMessageRepository]
+        userRepo <- ZIO.service[UserRepository]
         client         <- ZIO.service[Client]
         notifier <- maybeEnvConfig match
           case Some(envConfig) =>
@@ -666,18 +727,24 @@ object SlackNotifier:
                 envConfig.accessRequestChannelName,
                 envConfig.appBaseUrl,
               )
+              slackClient = SlackClientLive(client, config)
+              rosterService = SlackRosterServiceLive(slackClient, rosterMessageRepo, userRepo)
               _ <- ZIO.logInfo(
                 s"Slack integration enabled for channels #${envConfig.channelName} ($channelId), #${envConfig.lightningChannelName} ($lightningChannelId), #${envConfig.activityChannelName} ($activityChannelId), #${envConfig.hackathonChannelName} ($hackathonChannelId), #${envConfig.accessRequestChannelName} ($accessRequestChannelId)"
               )
             yield SlackNotifierLive(
-              SlackClientLive(client, config),
+              slackClient,
               config,
               discussionRepo,
               lightningTalkRepo,
               hackathonProjectRepo,
               activityRepo,
+              topicVoteRepo,
+              hackathonMemberRepo,
+              activityInterestRepo,
+              rosterService,
             )
-            
+
             effect.catchAll { err =>
               ZIO.logError(s"Failed to initialize Slack channels: $err") *>
                 ZIO.succeed(SlackNotifierNoOp())

@@ -35,6 +35,7 @@ case class AuthStatusResponse(
   username: String,
   approved: Boolean,
   isAdmin: Boolean,
+  slackLinked: Boolean = false,
   pendingUsers: Option[List[PendingUserInfo]] = None,
   approvedUsers: Option[List[ApprovedUserInfo]] = None,
 ) derives Schema, JsonCodec

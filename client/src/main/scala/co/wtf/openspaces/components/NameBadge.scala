@@ -1,8 +1,9 @@
 package co.wtf.openspaces.components
 
 import com.raquo.laminar.api.L.{*, given}
+import neotype.unwrap
 import org.scalajs.dom
-import co.wtf.openspaces.{ConnectionState, Person, GitHubAvatar}
+import co.wtf.openspaces.{AppState, ConnectionState, Person, GitHubAvatar}
 import co.wtf.openspaces.ConnectionStatusIndicator
 import co.wtf.openspaces.services.AuthService
 
@@ -20,6 +21,8 @@ object NameBadge:
       ),
       div(
         cls := "UserProfileSection",
+        // Slack link button - prominent call to action for unlinked users
+        SlackLinkButton(name.signal.map(_.unwrap), AppState.slackLinked.signal),
         // Sound toggle button
         button(
           cls := "sound-toggle",

@@ -113,6 +113,7 @@ object AuthService:
       randomActionClient.authStatus(username).map { response =>
         AppState.isAuthorized.set(response.approved)
         AppState.isServerAdmin.set(response.isAdmin)
+        AppState.slackLinked.set(response.slackLinked)
         // Convert PendingUserInfo to PendingUser
         response.pendingUsers.foreach { users =>
           AppState.pendingUsers.set(users.map(u => PendingUser(u.username, u.displayName, u.requestedAt)))

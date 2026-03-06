@@ -61,3 +61,22 @@ object SlackConfigEnv:
 
   val layer: ZLayer[Any, Nothing, Option[SlackConfigEnv]] =
     ZLayer.fromZIO(fromEnv)
+
+/** OAuth config for Slack user identity linking (Sign in with Slack). */
+case class SlackOAuthConfig(
+  clientId: String,
+  clientSecret: String,
+  redirectUri: String
+)
+
+object SlackOAuthConfig:
+  def fromEnv: UIO[Option[SlackOAuthConfig]] =
+    ZIO.succeed:
+      for
+        clientId     <- sys.env.get("SLACK_CLIENT_ID")
+        clientSecret <- sys.env.get("SLACK_CLIENT_SECRET")
+        baseUrl      <- sys.env.get("APP_BASE_URL")
+      yield SlackOAuthConfig(clientId, clientSecret, s"$baseUrl/slack/callback")
+
+  val layer: ZLayer[Any, Nothing, Option[SlackOAuthConfig]] =
+    ZLayer.fromZIO(fromEnv)

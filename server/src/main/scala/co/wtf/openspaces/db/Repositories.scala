@@ -87,22 +87,25 @@ trait UserRepository:
   def approveUser(username: String): Task[Boolean]
   def revokeUser(username: String): Task[Boolean]
   def isApproved(username: String): Task[Boolean]
+  def linkSlackUserId(githubUsername: String, slackUserId: String): Task[Unit]
+  def unlinkSlackUserId(githubUsername: String): Task[Unit]
+  def findUsersWithSlackIds(githubUsernames: List[String]): Task[Map[String, String]]
 
 class UserRepositoryLive(ds: DataSource) extends UserRepository:
   def findByUsername(username: String): Task[Option[UserRow]] =
     transactZIO(ds):
-      sql"SELECT github_username, display_name, created_at, approved FROM users WHERE github_username = $username"
+      sql"SELECT github_username, display_name, created_at, approved, slack_user_id FROM users WHERE github_username = $username"
         .query[UserRow]
         .run()
         .headOption
 
   def upsert(username: String, displayName: Option[String]): Task[UpsertResult] =
     transactZIO(ds):
-      val existing = sql"SELECT github_username, display_name, created_at, approved FROM users WHERE github_username = $username"
+      val existing = sql"SELECT github_username, display_name, created_at, approved, slack_user_id FROM users WHERE github_username = $username"
         .query[UserRow]
         .run()
         .headOption
-      
+
       existing match
         case Some(row) =>
           val normalizedDisplayName = displayName.map(_.trim).filter(_.nonEmpty)
@@ -117,11 +120,11 @@ class UserRepositoryLive(ds: DataSource) extends UserRepository:
           val now = OffsetDateTime.now()
           val normalizedDisplayName = displayName.map(_.trim).filter(_.nonEmpty)
           sql"""INSERT INTO users (github_username, display_name, created_at, approved) VALUES ($username, $normalizedDisplayName, $now, false)""".update.run()
-          UpsertResult(UserRow(username, normalizedDisplayName, now, approved = false), isNewUser = true)
+          UpsertResult(UserRow(username, normalizedDisplayName, now, approved = false, slackUserId = None), isNewUser = true)
 
   def findAll: Task[Vector[UserRow]] =
     transactZIO(ds):
-      sql"SELECT github_username, display_name, created_at, approved FROM users".query[UserRow].run()
+      sql"SELECT github_username, display_name, created_at, approved, slack_user_id FROM users".query[UserRow].run()
 
   def deleteByUsernames(usernames: List[String]): Task[Int] =
     transactZIO(ds):
@@ -131,13 +134,13 @@ class UserRepositoryLive(ds: DataSource) extends UserRepository:
 
   def findPendingUsers: Task[Vector[UserRow]] =
     transactZIO(ds):
-      sql"SELECT github_username, display_name, created_at, approved FROM users WHERE approved = false ORDER BY created_at"
+      sql"SELECT github_username, display_name, created_at, approved, slack_user_id FROM users WHERE approved = false ORDER BY created_at"
         .query[UserRow]
         .run()
 
   def findApprovedUsers: Task[Vector[UserRow]] =
     transactZIO(ds):
-      sql"SELECT github_username, display_name, created_at, approved FROM users WHERE approved = true ORDER BY github_username"
+      sql"SELECT github_username, display_name, created_at, approved, slack_user_id FROM users WHERE approved = true ORDER BY github_username"
         .query[UserRow]
         .run()
 
@@ -158,6 +161,29 @@ class UserRepositoryLive(ds: DataSource) extends UserRepository:
         .run()
         .headOption
         .getOrElse(false)
+
+  def linkSlackUserId(githubUsername: String, slackUserId: String): Task[Unit] =
+    transactZIO(ds):
+      sql"""UPDATE users SET slack_user_id = $slackUserId WHERE github_username = $githubUsername""".update.run()
+      ()
+
+  def unlinkSlackUserId(githubUsername: String): Task[Unit] =
+    transactZIO(ds):
+      sql"""UPDATE users SET slack_user_id = NULL WHERE github_username = $githubUsername""".update.run()
+      ()
+
+  def findUsersWithSlackIds(githubUsernames: List[String]): Task[Map[String, String]] =
+    transactZIO(ds):
+      if githubUsernames.isEmpty then Map.empty
+      else
+        // Use individual queries to avoid IN clause complexity with Magnum
+        githubUsernames.flatMap { username =>
+          sql"""SELECT github_username, slack_user_id FROM users
+                WHERE github_username = $username AND slack_user_id IS NOT NULL"""
+            .query[(String, String)]
+            .run()
+            .headOption
+        }.toMap
 
 object UserRepository:
   val layer: ZLayer[DataSource, Nothing, UserRepository] =
@@ -703,3 +729,38 @@ class ConfirmedActionRepositoryLive(ds: DataSource) extends ConfirmedActionRepos
 object ConfirmedActionRepository:
   val layer: ZLayer[DataSource, Nothing, ConfirmedActionRepository] =
     ZLayer.fromFunction(ds => ConfirmedActionRepositoryLive(ds))
+
+// Slack roster messages - tracks the editable @mention message in each thread
+
+trait SlackRosterMessageRepository:
+  def findByEntity(entityType: String, entityId: Long): Task[Option[SlackRosterMessageRow]]
+  def upsert(entityType: String, entityId: Long, channelId: String, threadTs: String, rosterTs: String): Task[Unit]
+  def delete(entityType: String, entityId: Long): Task[Unit]
+
+class SlackRosterMessageRepositoryLive(ds: DataSource) extends SlackRosterMessageRepository:
+  def findByEntity(entityType: String, entityId: Long): Task[Option[SlackRosterMessageRow]] =
+    transactZIO(ds):
+      sql"""SELECT entity_type, entity_id, slack_channel_id, slack_thread_ts,
+                   roster_message_ts, created_at, updated_at
+            FROM slack_roster_messages
+            WHERE entity_type = $entityType AND entity_id = $entityId"""
+        .query[SlackRosterMessageRow]
+        .run()
+        .headOption
+
+  def upsert(entityType: String, entityId: Long, channelId: String, threadTs: String, rosterTs: String): Task[Unit] =
+    transactZIO(ds):
+      sql"""INSERT INTO slack_roster_messages (entity_type, entity_id, slack_channel_id, slack_thread_ts, roster_message_ts)
+            VALUES ($entityType, $entityId, $channelId, $threadTs, $rosterTs)
+            ON CONFLICT (entity_type, entity_id)
+            DO UPDATE SET roster_message_ts = $rosterTs, updated_at = NOW()""".update.run()
+      ()
+
+  def delete(entityType: String, entityId: Long): Task[Unit] =
+    transactZIO(ds):
+      sql"""DELETE FROM slack_roster_messages WHERE entity_type = $entityType AND entity_id = $entityId""".update.run()
+      ()
+
+object SlackRosterMessageRepository:
+  val layer: ZLayer[DataSource, Nothing, SlackRosterMessageRepository] =
+    ZLayer.fromFunction(ds => SlackRosterMessageRepositoryLive(ds))

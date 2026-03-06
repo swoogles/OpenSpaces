@@ -129,6 +129,7 @@ object TicketRoutesApp:
 case class ApplicationState(
   clientId: ClientId,
   clientSecret: ClientSecret,
+  appBaseUrl: Option[String],
   client: Client,
   ticketRoutesApp: TicketRoutesApp,
   userRepository: UserRepository,
@@ -140,12 +141,12 @@ case class ApplicationState(
 
   val authRoutes =
     Routes(
-      // TODO Build this URL way sooner
       Method.GET / "auth" -> handler {
+        val redirectUri = appBaseUrl.map(base => s"&redirect_uri=${encodeQueryValue(s"$base/callback")}").getOrElse("")
         ZIO
           .fromEither(
             URL.decode(
-              s"https://github.com/login/oauth/authorize?client_id=$clientId",
+              s"https://github.com/login/oauth/authorize?client_id=$clientId$redirectUri",
             ),
           )
           .mapBoth(
@@ -361,6 +362,7 @@ object ApplicationState:
             .orDie
             .map(ClientSecret(_))
             .run,
+          System.env("APP_BASE_URL").orDie.run,
           ZIO.service[Client].run,
           ZIO.service[TicketRoutesApp].run,
           ZIO.service[UserRepository].run,

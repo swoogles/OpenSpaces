@@ -135,6 +135,9 @@ object AppState:
   // Admin user management view state
   val showUserManagement: Var[Boolean] = Var(false)
 
+  // Whether the current user has linked their Slack account
+  val slackLinked: Var[Boolean] = Var(false)
+
   // ============================================
   // Slack Reply Counts
   // ============================================

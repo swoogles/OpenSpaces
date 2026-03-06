@@ -68,7 +68,10 @@ object Backend extends ZIOAppDefault {
         ZIO.serviceWith[RandomActionSpawner](_.routes).run
       val authRoutes =
         ZIO.serviceWith[AuthRoutes](_.routes).run
-      val allRoutes = statefulRoutes ++ socketRoutes ++ randomActionRoutes ++ authRoutes ++ swaggerRoutes
+      // Slack OAuth routes are optional - only available if SLACK_CLIENT_ID is configured
+      val slackOAuthRoutes =
+        ZIO.serviceWith[Option[SlackOAuthRoutes]](_.map(_.routes).getOrElse(Routes.empty)).run
+      val allRoutes = statefulRoutes ++ socketRoutes ++ randomActionRoutes ++ authRoutes ++ slackOAuthRoutes ++ swaggerRoutes
 
       // Start the random action spawner (runs in background, controlled via admin API)
       ZIO.serviceWithZIO[RandomActionSpawner](_.startSpawningRandomActions).run
@@ -131,6 +134,26 @@ object Backend extends ZIOAppDefault {
       // Slack integration
       SlackConfigEnv.layer,
       SlackNotifier.layer,
+      SlackRosterMessageRepository.layer,
+      // Slack OAuth (optional - requires SLACK_CLIENT_ID and SLACK_CLIENT_SECRET)
+      SlackOAuthConfig.layer,
+      ZLayer.fromZIO(
+        for
+          configOpt <- ZIO.service[Option[SlackOAuthConfig]]
+          serviceOpt <- configOpt match
+            case Some(config) =>
+              for
+                userRepo <- ZIO.service[UserRepository]
+                client <- ZIO.service[Client]
+              yield Some(SlackOAuthServiceLive(config, userRepo, client): SlackOAuthService)
+            case None =>
+              ZIO.logInfo("Slack OAuth not configured (missing SLACK_CLIENT_ID or SLACK_CLIENT_SECRET)") *>
+              ZIO.succeed(None)
+        yield serviceOpt
+      ),
+      ZLayer.fromZIO(
+        ZIO.serviceWith[Option[SlackOAuthService]](_.map(SlackOAuthRoutes.apply))
+      ),
       // Authorization
       AdminConfig.layer,
       AuthRoutes.layer,

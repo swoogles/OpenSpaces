@@ -17,12 +17,13 @@ case class UserRow(
   githubUsername: String,
   displayName: Option[String],
   createdAt: OffsetDateTime,
-  approved: Boolean
+  approved: Boolean,
+  slackUserId: Option[String]
 ) derives DbCodec, JsonCodec
 
 object UserRow:
-  def create(githubUsername: String, displayName: Option[String], approved: Boolean = false): UserRow =
-    UserRow(githubUsername, displayName, OffsetDateTime.now(), approved)
+  def create(githubUsername: String, displayName: Option[String], approved: Boolean = false, slackUserId: Option[String] = None): UserRow =
+    UserRow(githubUsername, displayName, OffsetDateTime.now(), approved, slackUserId)
 
 // Room entity
 case class RoomRow(
@@ -150,4 +151,15 @@ case class ConfirmedActionRow(
   actionType: String,   // 'Vote', 'AddResult', 'Created', etc.
   payload: String,      // JSON string
   actor: Option[String], // GitHub username of the actor
+) derives DbCodec
+
+// Slack roster messages - tracks the editable @mention message in each thread
+case class SlackRosterMessageRow(
+  entityType: String,     // 'discussion', 'hackathon_project', 'activity'
+  entityId: Long,
+  slackChannelId: String,
+  slackThreadTs: String,
+  rosterMessageTs: String,
+  createdAt: OffsetDateTime,
+  updatedAt: OffsetDateTime
 ) derives DbCodec

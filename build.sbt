@@ -86,8 +86,19 @@ lazy val server = (project in file("server"))
     Compile / mainClass := Some("co.wtf.openspaces.Backend"),
 
     // Load env vars from ../.env for forked runs (reStart uses a forked JVM)
-    // This avoids sbt-dotenv plugins that use reflection hacks incompatible with modern JDKs.
-    reStart / envVars := Dotenv.load(baseDirectory.value.getParentFile / ".env", streams.value.log),
+    // Automatically starts ngrok tunnel and uses HTTPS URL for APP_BASE_URL (for Slack OAuth)
+    reStart / envVars := {
+      val log = streams.value.log
+      val port = 8080
+      val baseEnv = Dotenv.load(baseDirectory.value.getParentFile / ".env", log)
+
+      Ngrok.ensureTunnel(port, log) match {
+        case Some(ngrokUrl) => Ngrok.overrideBaseUrl(baseEnv, ngrokUrl)
+        case None =>
+          log.warn("ngrok not available - using .env APP_BASE_URL")
+          baseEnv
+      }
+    },
 
     // Production packaging uses full optimized frontend artifacts
     stage := (stage dependsOn (client / Compile / fullOptJS) dependsOn (serviceworker / Compile / fullOptJS)).value,

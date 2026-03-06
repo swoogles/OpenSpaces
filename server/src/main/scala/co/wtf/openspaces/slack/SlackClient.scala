@@ -18,6 +18,10 @@ trait SlackClient:
   def updateMessage(channel: String, ts: String, blocks: String): Task[Unit]
   def deleteMessage(channel: String, ts: String): Task[Unit]
   def postReply(channel: String, threadTs: String, text: String): Task[Unit]
+  /** Post a reply and return the message timestamp (for future updates) */
+  def postReplyWithTs(channel: String, threadTs: String, text: String): Task[String]
+  /** Update an existing text message */
+  def updateReply(channel: String, ts: String, text: String): Task[Unit]
   def getPermalink(channel: String, messageTs: String): Task[String]
   def findChannelByName(name: String): Task[Option[String]]
   def createChannel(name: String): Task[String]
@@ -76,6 +80,27 @@ class SlackClientLive(client: Client, config: SlackConfig) extends SlackClient:
         escapedText <- ZIO.succeed(text.replace("\"", "\\\""))
         payload     <- ZIO.succeed(s"""{"channel":"$channel","thread_ts":"$threadTs","text":"$escapedText"}""")
         res         <- slackRequest.post("/chat.postMessage")(Body.fromString(payload))
+        body        <- res.body.asString
+        _           <- parseSlackResponse(body)
+      yield ()
+
+  def postReplyWithTs(channel: String, threadTs: String, text: String): Task[String] =
+    ZIO.scoped:
+      for
+        escapedText <- ZIO.succeed(text.replace("\"", "\\\""))
+        payload     <- ZIO.succeed(s"""{"channel":"$channel","thread_ts":"$threadTs","text":"$escapedText"}""")
+        res         <- slackRequest.post("/chat.postMessage")(Body.fromString(payload))
+        body        <- res.body.asString
+        json        <- parseSlackResponse(body)
+        ref         <- extractMessageRef(json)
+      yield ref.ts
+
+  def updateReply(channel: String, ts: String, text: String): Task[Unit] =
+    ZIO.scoped:
+      for
+        escapedText <- ZIO.succeed(text.replace("\"", "\\\""))
+        payload     <- ZIO.succeed(s"""{"channel":"$channel","ts":"$ts","text":"$escapedText"}""")
+        res         <- slackRequest.post("/chat.update")(Body.fromString(payload))
         body        <- res.body.asString
         _           <- parseSlackResponse(body)
       yield ()
