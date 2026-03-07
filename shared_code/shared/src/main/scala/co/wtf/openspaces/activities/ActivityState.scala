@@ -21,10 +21,10 @@ case class ActivityState(
       case ActivityActionConfirmed.InterestSet(activityId, person, interested, joinedAtEpochMs, newOwner) =>
         copy(activities = activities.updatedWith(activityId) {
           _.map { activity =>
-            val updatedMembers =
+            val updated =
               if interested then activity.withMember(person, joinedAtEpochMs.getOrElse(activity.createdAtEpochMs))
-              else activity.withoutMember(person)
-            newOwner.fold(updatedMembers)(updatedMembers.withOwner)
+              else activity.withDismissal(person)
+            newOwner.fold(updated)(updated.withOwner)
           }
         })
       case ActivityActionConfirmed.Updated(activityId, newDescription, newEventTime) =>

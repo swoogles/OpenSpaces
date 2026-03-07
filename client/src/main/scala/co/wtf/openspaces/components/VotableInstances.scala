@@ -19,13 +19,13 @@ object VotableInstances:
       def sortKey: (Long, String) =
         (item.createdAtEpochMs, item.id.unwrap.toString)
 
-  /** Activity voting - user has voted if they're a member */
+  /** Activity voting - user has voted if they're a member OR dismissed */
   given Votable[Activity, ActivityId] with
     extension (item: Activity)
       def votableId: ActivityId = item.id
 
       def hasVotedOn(user: Person): Boolean =
-        item.hasMember(user)
+        item.hasVoted(user)
 
       def sortKey: (Long, String) =
         (item.createdAtEpochMs, item.id.unwrap.toString)

@@ -702,6 +702,39 @@ object ActivityInterestRepository:
   val layer: ZLayer[DataSource, Nothing, ActivityInterestRepository] =
     ZLayer.fromFunction(ds => ActivityInterestRepositoryLive(ds))
 
+trait ActivityDismissalRepository:
+  def findByActivity(activityId: Long): Task[Vector[ActivityDismissalRow]]
+  def addDismissal(activityId: Long, username: String): Task[ActivityDismissalRow]
+  def removeDismissal(activityId: Long, username: String): Task[Unit]
+
+class ActivityDismissalRepositoryLive(ds: DataSource) extends ActivityDismissalRepository:
+  def findByActivity(activityId: Long): Task[Vector[ActivityDismissalRow]] =
+    transactZIO(ds):
+      sql"""SELECT activity_id, github_username, dismissed_at
+            FROM activity_dismissal
+            WHERE activity_id = $activityId"""
+        .query[ActivityDismissalRow]
+        .run()
+
+  def addDismissal(activityId: Long, username: String): Task[ActivityDismissalRow] =
+    transactZIO(ds):
+      val now = OffsetDateTime.now()
+      sql"""INSERT INTO activity_dismissal (activity_id, github_username, dismissed_at)
+            VALUES ($activityId, $username, $now)
+            ON CONFLICT (activity_id, github_username)
+            DO UPDATE SET dismissed_at = $now""".update.run()
+      ActivityDismissalRow(activityId, username, now)
+
+  def removeDismissal(activityId: Long, username: String): Task[Unit] =
+    transactZIO(ds):
+      sql"""DELETE FROM activity_dismissal
+            WHERE activity_id = $activityId AND github_username = $username""".update.run()
+      ()
+
+object ActivityDismissalRepository:
+  val layer: ZLayer[DataSource, Nothing, ActivityDismissalRepository] =
+    ZLayer.fromFunction(ds => ActivityDismissalRepositoryLive(ds))
+
 // Confirmed action log (for visualization and replay)
 
 trait ConfirmedActionRepository:

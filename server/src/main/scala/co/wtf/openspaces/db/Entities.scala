@@ -144,6 +144,12 @@ case class ActivityInterestRow(
   interestedAt: OffsetDateTime,
 ) derives DbCodec
 
+case class ActivityDismissalRow(
+  activityId: Long,
+  githubUsername: String,
+  dismissedAt: OffsetDateTime,
+) derives DbCodec
+
 // Confirmed action log (for visualization and replay)
 case class ConfirmedActionRow(
   id: Long,

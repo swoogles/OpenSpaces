@@ -35,6 +35,7 @@ case class Activity(
   members: List[ActivityMember],
   createdAtEpochMs: Long,
   slackThreadUrl: Option[String] = None,
+  dismissedBy: Set[Person] = Set.empty,
 ) derives JsonCodec:
   val descriptionText: String = description.unwrap
   val creatorName: String = creatorDisplayName.getOrElse(creator.unwrap)
@@ -42,6 +43,13 @@ case class Activity(
 
   def hasMember(person: Person): Boolean =
     members.exists(_.person == person)
+
+  def hasDismissed(person: Person): Boolean =
+    dismissedBy.contains(person)
+
+  /** Returns true if the user has voted (either interested or dismissed) */
+  def hasVoted(person: Person): Boolean =
+    hasMember(person) || hasDismissed(person)
 
   def isOwner(person: Person): Boolean =
     creator == person
@@ -58,10 +66,23 @@ case class Activity(
 
   def withMember(person: Person, joinedAtEpochMs: Long): Activity =
     if hasMember(person) then this
-    else copy(members = members :+ ActivityMember(person, joinedAtEpochMs))
+    else copy(
+      members = members :+ ActivityMember(person, joinedAtEpochMs),
+      dismissedBy = dismissedBy - person, // Remove from dismissed if they become interested
+    )
 
   def withoutMember(person: Person): Activity =
     copy(members = members.filterNot(_.person == person))
+
+  def withDismissal(person: Person): Activity =
+    if hasDismissed(person) then this
+    else copy(
+      dismissedBy = dismissedBy + person,
+      members = members.filterNot(_.person == person), // Remove from members if they dismiss
+    )
+
+  def withoutDismissal(person: Person): Activity =
+    copy(dismissedBy = dismissedBy - person)
 
   def withOwner(newOwner: Person): Activity =
     copy(creator = newOwner)

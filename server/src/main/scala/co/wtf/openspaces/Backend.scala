@@ -132,6 +132,7 @@ object Backend extends ZIOAppDefault {
       HackathonProjectMemberRepository.layer,
       ActivityRepository.layer,
       ActivityInterestRepository.layer,
+      ActivityDismissalRepository.layer,
       ConfirmedActionRepository.layer,
       PersistentDiscussionStore.layer,
       // Hackathon projects (Wednesday)

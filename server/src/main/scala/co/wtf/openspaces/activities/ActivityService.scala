@@ -2,6 +2,7 @@ package co.wtf.openspaces.activities
 
 import co.wtf.openspaces.{Person, RandomUsers}
 import co.wtf.openspaces.db.{
+  ActivityDismissalRepository,
   ActivityInterestRepository,
   ActivityRepository,
   ActivityRow,
@@ -17,6 +18,7 @@ case class ActivityService(
   state: Ref[ActivityState],
   activityRepo: ActivityRepository,
   activityInterestRepo: ActivityInterestRepository,
+  activityDismissalRepo: ActivityDismissalRepository,
   timeSlotRepo: TimeSlotRepository,
   userRepo: UserRepository,
   gitHubProfileService: GitHubProfileService,
@@ -28,7 +30,7 @@ case class ActivityService(
 
   def reloadFromDatabase: Task[ActivityState] =
     for
-      reloaded <- ActivityService.loadInitialState(activityRepo, activityInterestRepo, gitHubProfileService)
+      reloaded <- ActivityService.loadInitialState(activityRepo, activityInterestRepo, activityDismissalRepo, gitHubProfileService)
       _ <- state.set(reloaded)
     yield reloaded
 
@@ -61,10 +63,12 @@ case class ActivityService(
               ZIO.succeed(ActivityActionConfirmed.Rejected(setInterest))
             case Some(activity) =>
               if interested then
+                // Interested: add to members (remove from dismissed if applicable)
                 if activity.hasMember(person) then
                   ZIO.succeed(ActivityActionConfirmed.Rejected(setInterest))
                 else
                   for
+                    _ <- activityDismissalRepo.removeDismissal(activityId.unwrap, person.unwrap)
                     row <- activityInterestRepo.addInterest(activityId.unwrap, person.unwrap)
                     joinedAtEpochMs = Some(row.interestedAt.toInstant.toEpochMilli)
                     confirmed = ActivityActionConfirmed.InterestSet(
@@ -77,13 +81,17 @@ case class ActivityService(
                     _ <- state.update(_(confirmed))
                   yield confirmed
               else
-                if !activity.hasMember(person) then
+                // Not interested: either leave (if member) or dismiss (if never voted)
+                if activity.hasDismissed(person) then
+                  // Already dismissed, reject
                   ZIO.succeed(ActivityActionConfirmed.Rejected(setInterest))
-                else
+                else if activity.hasMember(person) then
+                  // Was a member, leaving
                   val shouldDelete = activity.wouldBeDeletedIfLeaves(person)
                   val nextOwner = if activity.isOwner(person) then activity.nextOwner else None
                   for
                     _ <- activityInterestRepo.removeInterest(activityId.unwrap, person.unwrap)
+                    _ <- activityDismissalRepo.addDismissal(activityId.unwrap, person.unwrap)
                     confirmed <- if shouldDelete then
                       for
                         row <- activityRepo.findById(activityId.unwrap)
@@ -105,6 +113,19 @@ case class ActivityService(
                         joinedAtEpochMs = None,
                         newOwner = nextOwner,
                       )
+                    _ <- state.update(_(confirmed))
+                  yield confirmed
+                else
+                  // Never voted, just dismissing
+                  for
+                    _ <- activityDismissalRepo.addDismissal(activityId.unwrap, person.unwrap)
+                    confirmed = ActivityActionConfirmed.InterestSet(
+                      activityId,
+                      person,
+                      interested = false,
+                      joinedAtEpochMs = None,
+                      newOwner = None,
+                    )
                     _ <- state.update(_(confirmed))
                   yield confirmed
         yield result
@@ -274,6 +295,7 @@ object ActivityService:
     row: ActivityRow,
     displayName: Option[String],
     members: List[ActivityMember],
+    dismissedBy: Set[Person],
   ): Activity =
     Activity(
       id = ActivityId(row.id),
@@ -284,11 +306,13 @@ object ActivityService:
       members = members,
       createdAtEpochMs = row.createdAt.toInstant.toEpochMilli,
       slackThreadUrl = row.slackPermalink,
+      dismissedBy = dismissedBy,
     )
 
   def loadInitialState(
     activityRepo: ActivityRepository,
     activityInterestRepo: ActivityInterestRepository,
+    activityDismissalRepo: ActivityDismissalRepository,
     gitHubProfileService: GitHubProfileService,
   ): Task[ActivityState] =
     for
@@ -297,6 +321,7 @@ object ActivityService:
         for
           creator <- gitHubProfileService.ensureUserWithDisplayName(row.creator).either.map(_.toOption)
           interests <- activityInterestRepo.findByActivity(row.id)
+          dismissals <- activityDismissalRepo.findByActivity(row.id)
           members = interests
             .map(i =>
               ActivityMember(
@@ -306,16 +331,17 @@ object ActivityService:
             )
             .toList
             .sortBy(_.joinedAtEpochMs)
+          dismissedBy = dismissals.map(d => Person(d.githubUsername)).toSet
           creatorPerson = Person(row.creator)
           normalizedMembers =
             if members.exists(_.person == creatorPerson) then members
             else ActivityMember(creatorPerson, row.createdAt.toInstant.toEpochMilli) :: members
-        yield fromRow(row, creator.flatMap(_.displayName), normalizedMembers)
+        yield fromRow(row, creator.flatMap(_.displayName), normalizedMembers, dismissedBy)
       }
     yield ActivityState(activities.map(a => a.id -> a).toMap)
 
   val layer: ZLayer[
-    ActivityRepository & ActivityInterestRepository & TimeSlotRepository & UserRepository & GitHubProfileService,
+    ActivityRepository & ActivityInterestRepository & ActivityDismissalRepository & TimeSlotRepository & UserRepository & GitHubProfileService,
     Throwable,
     ActivityService,
   ] =
@@ -323,15 +349,17 @@ object ActivityService:
       for
         activityRepo <- ZIO.service[ActivityRepository]
         activityInterestRepo <- ZIO.service[ActivityInterestRepository]
+        activityDismissalRepo <- ZIO.service[ActivityDismissalRepository]
         timeSlotRepo <- ZIO.service[TimeSlotRepository]
         userRepo <- ZIO.service[UserRepository]
         gitHubProfileService <- ZIO.service[GitHubProfileService]
-        initialState <- loadInitialState(activityRepo, activityInterestRepo, gitHubProfileService)
+        initialState <- loadInitialState(activityRepo, activityInterestRepo, activityDismissalRepo, gitHubProfileService)
         stateRef <- Ref.make(initialState)
       yield ActivityService(
         stateRef,
         activityRepo,
         activityInterestRepo,
+        activityDismissalRepo,
         timeSlotRepo,
         userRepo,
         gitHubProfileService,
