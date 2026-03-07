@@ -41,6 +41,8 @@ object ActivitiesView:
 
     div(
       cls := "ActivitiesView",
+      // Location sharing map at the top
+      LocationMapView(),
       LightningTalksView(
         lightningTalkState = lightningTalkState,
         name = name,

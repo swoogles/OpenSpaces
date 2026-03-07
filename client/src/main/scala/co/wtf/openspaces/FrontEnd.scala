@@ -115,6 +115,12 @@ object FrontEnd extends ZIOAppDefault{
       topicUpdates.sendOne(ActivityActionMessage(action))
     }
 
+  import co.wtf.openspaces.location.LocationAction
+  val sendLocationAction: LocationAction => Unit = action =>
+    connectionStatus.withReady("Updating location. Please wait a moment.") {
+      topicUpdates.sendOne(LocationActionMessage(action))
+    }
+
   val submitNewTopic: Observer[DiscussionAction] = Observer {
     case discussion @ (add: DiscussionAction.Add) =>
       if (add.facilitator.unwrap.trim.length < 2)
@@ -576,6 +582,38 @@ object FrontEnd extends ZIOAppDefault{
                 case KeepAliveMessage =>
                   ()
 
+                case LocationActionConfirmedMessage(locationEvent) =>
+                  import co.wtf.openspaces.location.{LocationActionConfirmed, StopReason}
+                  locationEvent match
+                    case LocationActionConfirmed.SharingStarted(location) =>
+                      // If this is me, update my expiration time
+                      if location.person == name.now() then
+                        AppState.setLocationSharing(true, Some(location.expiresAt))
+                      AppState.locationState.update(_.applyConfirmed(locationEvent))
+                    case LocationActionConfirmed.LocationUpdated(location) =>
+                      AppState.locationState.update(_.applyConfirmed(locationEvent))
+                    case LocationActionConfirmed.SharingStopped(person, reason) =>
+                      // If this is me, update local state and maybe notify
+                      if person == name.now() then
+                        AppState.setLocationSharing(false, None)
+                        services.GeolocationService.stopSharing()
+                        // Show notification if expired (not user-initiated)
+                        reason match
+                          case StopReason.Expired =>
+                            services.NotificationService.showLocationExpiredNotification()
+                          case _ => ()
+                      AppState.locationState.update(_.applyConfirmed(locationEvent))
+                    case LocationActionConfirmed.StateReplace(locations) =>
+                      // Check if I'm in the list (still sharing from a previous session)
+                      val myUsername = name.now()
+                      val myLocation = locations.find(_.person == myUsername)
+                      myLocation match
+                        case Some(loc) =>
+                          AppState.setLocationSharing(true, Some(loc.expiresAt))
+                        case None =>
+                          AppState.setLocationSharing(false, None)
+                      AppState.locationState.update(_.applyConfirmed(locationEvent))
+
                 case other =>
                   org.scalajs.dom.console.log(s"Received unhandled WebSocket message: ${other.getClass.getName}")
           },
@@ -593,7 +631,7 @@ object FrontEnd extends ZIOAppDefault{
               emptyNode
           },
           // Name badge and sound toggle at the top
-          NameBadge(name, connectionStatus.state, soundMuted),
+          NameBadge(name, connectionStatus.state, soundMuted, sendLocationAction),
           // Admin mode toggles (only visible to admins, compact in header)
           div(
             cls := "AdminToggles",

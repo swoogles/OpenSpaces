@@ -8,6 +8,7 @@ import co.wtf.openspaces.lightning_talks.LightningTalkService
 import co.wtf.openspaces.lighting_talks.*
 import co.wtf.openspaces.activities.*
 import co.wtf.openspaces.activities.ActivityService
+import co.wtf.openspaces.location.*
 import co.wtf.openspaces.slack.SlackNotifier
 import zio.*
 import zio.direct.*
@@ -36,12 +37,14 @@ case class SessionService(
   lightningTalkService: LightningTalkService,
   hackathonProjectService: HackathonProjectService,
   activityService: ActivityService,
+  locationService: LocationService,
   authenticatedTicketService: AuthenticatedTicketService,
   adminConfig: AdminConfig,
   slackNotifier: SlackNotifier,
   confirmedActionRepository: ConfirmedActionRepository,
   userRepository: UserRepository,
-  discussionRepository: DiscussionRepository):
+  discussionRepository: DiscussionRepository,
+  channelToUser: Ref[Map[OpenSpacesServerChannel, Person]]):
 
   def handleMessage(
     message: WebSocketMessageFromClient,
@@ -82,6 +85,14 @@ case class SessionService(
           }
           else {
             handleUnticketedActivityAction(channel, activityAction).run
+          }
+      case LocationActionMessage(locationAction) =>
+        defer:
+          if (channelRegistry.get.run.connected.contains(channel)) {
+            handleLocationAction(channel, locationAction).run
+          }
+          else {
+            ZIO.unit.run // Ignore location actions from unauthenticated channels
           }
 
   /** Generate a random action and broadcast to all connected clients */
@@ -287,6 +298,7 @@ case class SessionService(
       val lightningState = lightningTalkService.snapshot.run
       val hackathonState = hackathonProjectService.snapshot.run
       val activityState = activityService.snapshot.run
+      val locationState = locationService.snapshot.run
       val latestSlackReplyCounts = slackReplyCounts.get.run
       val initialMessages = Vector[WebSocketMessageFromServer](
         DiscussionActionConfirmedMessage(
@@ -308,6 +320,11 @@ case class SessionService(
         ActivityActionConfirmedMessage(
           ActivityActionConfirmed.StateReplace(
             activityState.activities.values.toList,
+          ),
+        ),
+        LocationActionConfirmedMessage(
+          LocationActionConfirmed.StateReplace(
+            locationState.locations.values.toList,
           ),
         ),
         SlackReplyCountsMessage(latestSlackReplyCounts),
@@ -358,6 +375,8 @@ case class SessionService(
           hackathonProjectService.applyConfirmed(hackathonConfirmed).run
         case ActivityActionConfirmedMessage(activityConfirmed) =>
           activityService.applyConfirmed(activityConfirmed).run
+        case LocationActionConfirmedMessage(locationConfirmed) =>
+          locationService.applyConfirmed(locationConfirmed).run
         case SlackReplyCountsMessage(counts) =>
           slackReplyCounts.set(counts).run
         case _ =>
@@ -493,15 +512,25 @@ case class SessionService(
       AuthorizationActionConfirmed.UserRevoked(username)
     ))
 
-  def removeChannel(channel: OpenSpacesServerChannel): UIO[Unit] =
-    channelRegistry
-      .update(reg =>
+  def removeChannel(channel: OpenSpacesServerChannel): Task[Unit] =
+    for
+      // Check if this channel had an associated user sharing location
+      userOpt <- channelToUser.modify(m => (m.get(channel), m - channel))
+      // If user was sharing, broadcast that they stopped
+      _ <- userOpt match
+        case Some(person) =>
+          locationService.removeUser(person).flatMap {
+            case Some(confirmed) => broadcastToAll(LocationActionConfirmedMessage(confirmed))
+            case None => ZIO.unit
+          }
+        case None => ZIO.unit
+      _ <- channelRegistry.update(reg =>
         reg.copy(
           connected = reg.connected - channel,
           pending = reg.pending - channel,
         ),
       )
-      .unit
+    yield ()
 
   /** Apply an action and broadcast to all clients + Slack. Used by scheduler. */
   def applyAndBroadcast(action: DiscussionAction): Task[DiscussionActionConfirmed] =
@@ -744,6 +773,36 @@ case class SessionService(
       )
       .ignore
 
+  private def handleLocationAction(
+    channel: OpenSpacesServerChannel,
+    locationAction: LocationAction,
+  ): Task[Unit] =
+    for
+      // Track which user is on which channel for disconnect cleanup
+      _ <- locationAction match
+        case LocationAction.StartSharing(person, _, _, _) =>
+          channelToUser.update(_ + (channel -> person))
+        case LocationAction.StopSharing(person) =>
+          channelToUser.update(_ - channel)
+        case _ => ZIO.unit
+      result <- locationService.applyAction(locationAction)
+      _ <- broadcastToAll(LocationActionConfirmedMessage(result))
+    yield ()
+
+  /** Start background fiber to expire stale locations (every 30 seconds) */
+  def startLocationExpirationCheck(interval: Duration = 30.seconds): Task[Fiber.Runtime[Throwable, Unit]] =
+    val checkLoop =
+      (for
+        expired <- locationService.expireStaleLocations
+        _ <- ZIO.foreachDiscard(expired)(confirmed =>
+          broadcastToAll(LocationActionConfirmedMessage(confirmed))
+        )
+      yield ()).catchAll { error =>
+        ZIO.logError(s"Error checking location expiration: ${error.getMessage}")
+      }
+
+    (checkLoop *> checkLoop.schedule(Schedule.fixed(interval)).unit).fork
+
   private def isTicketedActionAuthorized(
     channel: OpenSpacesServerChannel,
     actionActor: Option[Person],
@@ -855,10 +914,12 @@ object SessionService:
           ZIO.service[LightningTalkService].run,
           ZIO.service[HackathonProjectService].run,
           ZIO.service[ActivityService].run,
+          ZIO.service[LocationService].run,
           ZIO.service[AuthenticatedTicketService].run,
           ZIO.service[AdminConfig].run,
           ZIO.service[SlackNotifier].run,
           ZIO.service[ConfirmedActionRepository].run,
           ZIO.service[UserRepository].run,
           ZIO.service[DiscussionRepository].run,
+          Ref.make(Map.empty[OpenSpacesServerChannel, Person]).run,
         )

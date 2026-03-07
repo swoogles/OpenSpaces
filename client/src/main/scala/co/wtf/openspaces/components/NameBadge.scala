@@ -5,13 +5,15 @@ import neotype.unwrap
 import org.scalajs.dom
 import co.wtf.openspaces.{AppState, ConnectionState, Person, GitHubAvatar}
 import co.wtf.openspaces.ConnectionStatusIndicator
-import co.wtf.openspaces.services.AuthService
+import co.wtf.openspaces.services.{AuthService, GeolocationService, NotificationService}
+import co.wtf.openspaces.location.LocationAction
 
 object NameBadge:
   def apply(
     name: Var[Person],
     connectionState: Signal[ConnectionState],
     soundMuted: Var[Boolean],
+    sendLocationAction: LocationAction => Unit,
   ) =
     div(
       cls := "Banner",
@@ -23,6 +25,34 @@ object NameBadge:
         cls := "UserProfileSection",
         // Slack link button - prominent call to action for unlinked users
         SlackLinkButton(name.signal.map(_.unwrap), AppState.slackLinked.signal),
+        // Location sharing toggle button
+        button(
+          cls := "location-toggle",
+          cls <-- AppState.locationSharingEnabled.signal.map { sharing =>
+            if sharing then "location-toggle--active" else ""
+          },
+          title <-- AppState.locationSharingEnabled.signal.combineWith(AppState.sharersCount).map {
+            case (sharing, count) =>
+              if sharing then s"Sharing your location (${count} people sharing)"
+              else s"Share your location (${count} people sharing)"
+          },
+          aria.label <-- AppState.locationSharingEnabled.signal.map { sharing =>
+            if sharing then "Stop sharing location" else "Share your location"
+          },
+          child.text <-- AppState.locationSharingEnabled.signal.map { sharing =>
+            if sharing then "📍" else "📌"
+          },
+          onClick --> Observer { _ =>
+            if GeolocationService.isAvailable then
+              GeolocationService.toggleSharing(
+                sendLocationAction,
+                // On stop, send StopSharing action
+                sendLocationAction(LocationAction.StopSharing(AppState.name.now()))
+              )
+            else
+              dom.window.alert("Location services are not available in this browser.")
+          },
+        ),
         // Sound toggle button
         button(
           cls := "sound-toggle",

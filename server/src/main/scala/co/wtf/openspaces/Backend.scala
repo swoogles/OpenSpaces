@@ -7,6 +7,7 @@ import co.wtf.openspaces.github.GitHubProfileService
 import co.wtf.openspaces.hackathon.HackathonProjectService
 import co.wtf.openspaces.lightning_talks.LightningTalkService
 import co.wtf.openspaces.activities.ActivityService
+import co.wtf.openspaces.location.LocationService
 import co.wtf.openspaces.slack._
 import zio.direct._
 import zio.http._
@@ -86,6 +87,9 @@ object Backend extends ZIOAppDefault {
       // Keep websocket connections active so Heroku does not drop them for idleness.
       ZIO.serviceWithZIO[SessionService](_.startWebSocketKeepAlive(interval = 25.seconds)).run
 
+      // Start location sharing expiration check (every 30 seconds)
+      ZIO.serviceWithZIO[SessionService](_.startLocationExpirationCheck(interval = 30.seconds)).run
+
       val requestLogAnnotations =
         Middleware.logAnnotate((req: Request) =>
           Set(
@@ -106,6 +110,7 @@ object Backend extends ZIOAppDefault {
       SchedulingService.layer,
       LightningTalkService.layer,
       ActivityService.layer,
+      LocationService.layer,
       RandomActionSpawner.layer(initialActive = false),
       GlyphiconService.layer,
       Client.default,

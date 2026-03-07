@@ -4,6 +4,7 @@ import co.wtf.openspaces.discussions.{DiscussionAction, DiscussionActionConfirme
 import co.wtf.openspaces.hackathon.{HackathonProjectAction, HackathonProjectActionConfirmed}
 import co.wtf.openspaces.lighting_talks.{LightningTalkAction, LightningTalkActionConfirmed}
 import co.wtf.openspaces.activities.{ActivityAction, ActivityActionConfirmed}
+import co.wtf.openspaces.location.{LocationAction, LocationActionConfirmed}
 import neotype.*
 import neotype.given
 import neotype.interop.zioschema.given
@@ -133,6 +134,20 @@ enum AuthorizationActionConfirmed derives JsonCodec:
   case Unauthorized(action: AuthorizationAction)
   case Rejected(action: AuthorizationAction, reason: String)
   case UserListRefreshed(pendingUsers: List[PendingUser], approvedUsers: List[ApprovedUser])
+
+// Location sharing messages
+
+/** Sent from client to server to manage location sharing */
+case class LocationActionMessage(
+  action: LocationAction)
+    extends WebSocketMessageFromClient
+    derives JsonCodec
+
+/** Broadcast from server when location state changes */
+case class LocationActionConfirmedMessage(
+  event: LocationActionConfirmed)
+    extends WebSocketMessageFromServer
+    derives JsonCodec
 
 // Slack reply counts
 

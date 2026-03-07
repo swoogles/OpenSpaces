@@ -188,3 +188,36 @@ object AppState:
 
   // ID of newly created activity to scroll to (set after creation, cleared after scroll)
   val scrollToActivityId: Var[Option[String]] = Var(None)
+
+  // ============================================
+  // Location Sharing
+  // ============================================
+
+  import co.wtf.openspaces.location.{LocationState, SharedLocation}
+
+  // Server-side state: who's currently sharing
+  val locationState: Var[LocationState] = Var(LocationState.empty)
+
+  // Am I currently sharing? (local toggle)
+  val locationSharingEnabled: Var[Boolean] = Var(false)
+
+  // When my sharing expires (for countdown display)
+  val locationExpiresAt: Var[Option[Long]] = Var(None)
+
+  // Derived signal: count of people sharing
+  val sharersCount: Signal[Int] = locationState.signal.map(_.sharingCount)
+
+  // Derived signal: get my location if I'm sharing
+  def myLocation: Signal[Option[SharedLocation]] =
+    locationState.signal.combineWith(name.signal).map { case (state, person) =>
+      state.locations.get(person)
+    }
+
+  // Update location state from server
+  def updateLocationState(newState: LocationState): Unit =
+    locationState.set(newState)
+
+  // When we start sharing, track expiration
+  def setLocationSharing(enabled: Boolean, expiresAt: Option[Long] = None): Unit =
+    locationSharingEnabled.set(enabled)
+    locationExpiresAt.set(expiresAt)
