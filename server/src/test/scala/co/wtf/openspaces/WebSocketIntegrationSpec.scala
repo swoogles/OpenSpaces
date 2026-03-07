@@ -360,6 +360,8 @@ object WebSocketIntegrationSpec extends ZIOSpecDefault:
       TestLayers.slackNotifierLayer,
       TestLayers.confirmedActionRepositoryLayer,
       TestLayers.userRepositoryLayer,
+      TestLayers.locationServiceLayer,
+      TestLayers.discussionRepositoryLayer,
       TestLayers.schedulingServiceLayer,
       RandomActionSpawner.layer(initialActive = false),
     ) @@ TestAspect.sequential
@@ -409,10 +411,22 @@ object TestLayers:
         stateRef,
         NoOpActivityRepository,
         NoOpActivityInterestRepository,
+        NoOpActivityDismissalRepository,
         NoOpTimeSlotRepository,
         NoOpUserRepository,
         NoOpGitHubProfileService,
       )
+
+  /** In-memory LocationService for tests */
+  val locationServiceLayer: ULayer[co.wtf.openspaces.location.LocationService] =
+    ZLayer.fromZIO:
+      for
+        stateRef <- Ref.make(co.wtf.openspaces.location.LocationState.empty)
+      yield co.wtf.openspaces.location.LocationService(stateRef, NoOpUserRepository)
+
+  /** No-op DiscussionRepository for tests */
+  val discussionRepositoryLayer: ULayer[co.wtf.openspaces.db.DiscussionRepository] =
+    ZLayer.succeed(NoOpDiscussionRepository)
 
   /** No-op ConfirmedActionRepository for tests */
   val confirmedActionRepositoryLayer
@@ -460,6 +474,8 @@ object TestLayers:
           displayName = Some(username),
           createdAt = java.time.OffsetDateTime.now(),
           approved = userApproved(username),
+          slackUserId = None,
+          slackAccessToken = None,
         ),
       ))
     def upsert(
@@ -473,6 +489,8 @@ object TestLayers:
             displayName = displayName,
             createdAt = java.time.OffsetDateTime.now(),
             approved = userApproved(username),
+            slackUserId = None,
+            slackAccessToken = None,
           ),
           isNewUser = false,
         ),
@@ -491,6 +509,16 @@ object TestLayers:
       ZIO.succeed(true)
     def isApproved(username: String): Task[Boolean] =
       ZIO.succeed(userApproved(username))
+    def linkSlackUserId(githubUsername: String, slackUserId: String): Task[Unit] =
+      ZIO.unit
+    def unlinkSlackUserId(githubUsername: String): Task[Unit] =
+      ZIO.unit
+    def linkSlackAccount(githubUsername: String, slackUserId: String, accessToken: String): Task[Unit] =
+      ZIO.unit
+    def findSlackAccessToken(githubUsername: String): Task[Option[String]] =
+      ZIO.none
+    def findUsersWithSlackIds(githubUsernames: List[String]): Task[Map[String, String]] =
+      ZIO.succeed(Map.empty)
 
   private object NoOpGitHubProfileService extends GitHubProfileService:
     def ensureUserWithDisplayName(
@@ -502,6 +530,8 @@ object TestLayers:
           displayName = Some(username),
           createdAt = java.time.OffsetDateTime.now(),
           approved = true,
+          slackUserId = None,
+          slackAccessToken = None,
         ),
       )
 
@@ -525,6 +555,18 @@ object TestLayers:
         ),
       )
     def removeInterest(activityId: Long, username: String): Task[Unit] = ZIO.unit
+
+  private object NoOpActivityDismissalRepository extends co.wtf.openspaces.db.ActivityDismissalRepository:
+    def findByActivity(activityId: Long): Task[Vector[co.wtf.openspaces.db.ActivityDismissalRow]] = ZIO.succeed(Vector.empty)
+    def addDismissal(activityId: Long, username: String): Task[co.wtf.openspaces.db.ActivityDismissalRow] =
+      ZIO.succeed(
+        co.wtf.openspaces.db.ActivityDismissalRow(
+          activityId,
+          username,
+          java.time.OffsetDateTime.now(),
+        ),
+      )
+    def removeDismissal(activityId: Long, username: String): Task[Unit] = ZIO.unit
 
   private object NoOpTimeSlotRepository extends co.wtf.openspaces.db.TimeSlotRepository:
     def findAll: Task[Vector[co.wtf.openspaces.db.TimeSlotRow]] = ZIO.succeed(Vector.empty)
@@ -599,3 +641,14 @@ object TestLayers:
       ZIO.succeed(Vector.empty)
     def deleteByActors(actors: List[String]): Task[Int] = ZIO.succeed(0)
     def truncate: Task[Unit] = ZIO.unit
+
+  private object NoOpDiscussionRepository
+      extends co.wtf.openspaces.db.DiscussionRepository:
+    def findById(id: Long): Task[Option[co.wtf.openspaces.db.DiscussionRow]] = ZIO.none
+    def findAllActive: Task[Vector[co.wtf.openspaces.db.DiscussionRow]] = ZIO.succeed(Vector.empty)
+    def insert(row: co.wtf.openspaces.db.DiscussionRow): Task[Unit] = ZIO.unit
+    def update(row: co.wtf.openspaces.db.DiscussionRow): Task[Unit] = ZIO.unit
+    def softDelete(id: Long): Task[Boolean] = ZIO.succeed(true)
+    def truncate: Task[Unit] = ZIO.unit
+    def updateSlackThread(topicId: Long, channelId: String, threadTs: String, permalink: String): Task[Unit] = ZIO.unit
+    def updateRoomSlot(topicId: Long, roomId: Option[Int], timeSlotId: Option[Int]): Task[Unit] = ZIO.unit
