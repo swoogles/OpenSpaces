@@ -148,7 +148,7 @@ object AppState:
   )
 
   // ============================================
-  // Unjudged Topics Count (for nav badge)
+  // Unjudged Counts (for nav badges)
   // ============================================
 
   // Derived signal: count of topics the current user hasn't voted on
@@ -159,7 +159,12 @@ object AppState:
       )
     }
 
-  // ============================================
+  // Derived signal: count of activities the current user hasn't voted on
+  val unjudgedActivityCount: Signal[Int] =
+    activityState.signal.combineWith(name.signal).map { case (state, currentUser) =>
+      state.activities.values.count(activity => !activity.hasMember(currentUser))
+    }
+
   // ============================================
   // Unified Entity Creation (bottom sheet)
   // ============================================

@@ -1,5 +1,6 @@
 package co.wtf.openspaces.components.activities
 
+import animus.*
 import com.raquo.laminar.api.L.{*, given}
 import org.scalajs.dom
 import java.time.LocalDateTime
@@ -9,7 +10,8 @@ import scala.scalajs.js
 
 import co.wtf.openspaces.*
 import co.wtf.openspaces.activities.*
-import co.wtf.openspaces.components.{ConfirmationModal, InterestedPartyAvatars, SwipeableCard}
+import co.wtf.openspaces.components.{ConfirmationModal, InterestedPartyAvatars, SwipeableCard, VotingQueueView}
+import co.wtf.openspaces.components.VotableInstances.given
 import co.wtf.openspaces.components.lightning_talks.LightningTalksView
 import co.wtf.openspaces.lighting_talks.*
 
@@ -26,18 +28,24 @@ object ActivitiesView:
     setErrorMsg: Observer[Option[String]],
     connectionStatus: ConnectionStatusUI,
   ): HtmlElement =
-    val showCreateForm = Var(false)
-
     val $activities = activityState.signal.map { state =>
-      state.activities.values.toList.sortBy(activity =>
-        (
-          activity.eventTime,
-          -activity.interestCount,
-          activity.createdAtEpochMs,
-          activity.id.unwrap,
-        ),
-      )
+      state.activities.values.toList
     }
+
+    def renderActivityCard(
+      activity: Activity,
+      signal: Signal[Activity],
+      transition: Option[Transition],
+    ): HtmlElement =
+      ActivityCard(
+        activitySignal = signal,
+        currentUser = name,
+        sendActivityAction = sendActivityAction,
+        connectionStatus = connectionStatus,
+        setErrorMsg = setErrorMsg,
+        displayFormat = displayFormat,
+        transition = transition,
+      )
 
     div(
       cls := "ActivitiesView",
@@ -53,27 +61,19 @@ object ActivitiesView:
       ),
       div(
         cls := "ActivitiesView-divider",
-        h3(cls := "TopicSection-title", "Proposed Activities"),
       ),
-      div(
-        cls := "HackathonProjects-list",
-        child <-- $activities.map { activities =>
-          if activities.isEmpty then
-            div(cls := "HackathonProjects-empty", "No activities yet. Be the first to propose one.")
-          else
-            div(
-              activities.map { activity =>
-                ActivityCard(
-                  activity = activity,
-                  currentUser = name.now(),
-                  sendActivityAction = sendActivityAction,
-                  connectionStatus = connectionStatus,
-                  setErrorMsg = setErrorMsg,
-                  displayFormat = displayFormat,
-                )
-              },
-            )
-        },
+      VotingQueueView[Activity, ActivityId](
+        items = $activities,
+        currentUser = name,
+        renderCard = renderActivityCard,
+        renderViewedCard = renderActivityCard,
+        queueTitle = count =>
+          if count == 1 then "1 activity needs your feedback!"
+          else s"$count activities need your feedback!",
+        queueSubtitle = "Swipe right if you're interested, left if not. Vote to reveal the next activity.",
+        emptyQueueMessage = "You've seen all activities! Check back later for new ones.",
+        viewedTitle = "Viewed Activities",
+        showSwipeHint = AppState.showSwipeHint.signal,
       ),
     )
 
@@ -83,6 +83,32 @@ object ActivityCard:
 
   private val dateTimeInputFormat = DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm")
 
+  /** Reactive version - for VotingQueueView where activity updates via Signal */
+  def apply(
+    activitySignal: Signal[Activity],
+    currentUser: StrictSignal[Person],
+    sendActivityAction: ActivityAction => Unit,
+    connectionStatus: ConnectionStatusUI,
+    setErrorMsg: Observer[Option[String]],
+    displayFormat: DateTimeFormatter,
+    transition: Option[Transition] = None,
+  ): HtmlElement =
+    // Wrapper div that reacts to signal changes
+    div(
+      child <-- activitySignal.map { activity =>
+        renderCard(
+          activity = activity,
+          currentUser = currentUser,
+          sendActivityAction = sendActivityAction,
+          connectionStatus = connectionStatus,
+          setErrorMsg = setErrorMsg,
+          displayFormat = displayFormat,
+          transition = transition,
+        )
+      }
+    )
+
+  /** Static version - for ScheduleView where activity doesn't need reactive updates */
   def apply(
     activity: Activity,
     currentUser: Person,
@@ -91,8 +117,28 @@ object ActivityCard:
     setErrorMsg: Observer[Option[String]],
     displayFormat: DateTimeFormatter,
   ): HtmlElement =
-    val isInterested = activity.hasMember(currentUser)
-    val isOwner = activity.creator == currentUser
+    renderCard(
+      activity = activity,
+      currentUser = Var(currentUser).signal,
+      sendActivityAction = sendActivityAction,
+      connectionStatus = connectionStatus,
+      setErrorMsg = setErrorMsg,
+      displayFormat = displayFormat,
+      transition = None,
+    )
+
+  private def renderCard(
+    activity: Activity,
+    currentUser: StrictSignal[Person],
+    sendActivityAction: ActivityAction => Unit,
+    connectionStatus: ConnectionStatusUI,
+    setErrorMsg: Observer[Option[String]],
+    displayFormat: DateTimeFormatter,
+    transition: Option[Transition],
+  ): HtmlElement =
+    val user = currentUser.now()
+    val isInterested = activity.hasMember(user)
+    val isOwner = activity.creator == user
     val editing = Var(false)
     val pendingOwnerLeave = Var(false)
     val editDescription = Var(activity.descriptionText)
@@ -103,11 +149,25 @@ object ActivityCard:
       if !connectionStatus.checkReady() then
         setErrorMsg.onNext(Some("Reconnecting... please wait and try again."))
       else
-        sendActivityAction(ActivityAction.SetInterest(activity.id, currentUser, interested))
+        sendActivityAction(ActivityAction.SetInterest(activity.id, user, interested))
 
     val cardContent = div(
       cls := "HackathonProjectCard",
       cls := (if isInterested then "HackathonProjectCard--interested" else ""),
+      transition match
+        case Some(value) =>
+          val $translateY = value.signal.map {
+            case TransitionStatus.Inserting => -100.0
+            case TransitionStatus.Removing => 100.0
+            case TransitionStatus.Active => 0.0
+          }.spring
+
+          Seq(
+            value.height,
+            transform <-- $translateY.map(pct => s"translateY($pct%)")
+          )
+        case None => emptyMod
+      ,
       div(
         cls := "HackathonProjectCard-header",
         h4(cls := "HackathonProjectCard-title", activity.descriptionText),
@@ -129,7 +189,6 @@ object ActivityCard:
               cls := "SlackThreadLink",
               title := "Discuss in Slack",
               img(src := "/icons/slack.svg", cls := "SlackIcon"),
-              // Show reply count if available (hide if 0)
               child <-- AppState.slackReplyCounts.signal.map { counts =>
                 counts.activities.get(activity.id.unwrap.toString) match {
                   case Some(count) if count > 0 =>
@@ -188,7 +247,7 @@ object ActivityCard:
                                 activity.id,
                                 description,
                                 eventTime,
-                                currentUser,
+                                user,
                               ),
                             )
                             editing.set(false)
@@ -238,7 +297,7 @@ object ActivityCard:
       ),
       child <-- pendingOwnerLeave.signal.map {
         case true =>
-          val wouldDelete = activity.wouldBeDeletedIfLeaves(currentUser)
+          val wouldDelete = activity.wouldBeDeletedIfLeaves(user)
           val nextOwner = activity.nextOwner.map(_.unwrap).getOrElse("someone else")
           val title =
             if wouldDelete then s"Delete '${activity.descriptionText}'?"

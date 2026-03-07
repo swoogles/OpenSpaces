@@ -100,7 +100,8 @@ object ViewToggle:
     currentView: Var[AppView],
     adminModeEnabled: Signal[Boolean],
   ) =
-    val unjudgedCount = AppState.unjudgedTopicCount
+    val unjudgedTopicCount = AppState.unjudgedTopicCount
+    val unjudgedActivityCount = AppState.unjudgedActivityCount
     val discussionState = AppState.discussionState
     val activityState = AppState.activityState
 
@@ -135,7 +136,7 @@ object ViewToggle:
         span(
           cls := "BottomNav-iconWrapper",
           span(cls := "BottomNav-icon", "💬"),
-          child.maybe <-- unjudgedCount.map { count =>
+          child.maybe <-- unjudgedTopicCount.map { count =>
             Option.when(count > 0)(
               span(
                 cls := "BottomNav-badge",
@@ -152,7 +153,18 @@ object ViewToggle:
           if view == AppView.LightningTalks then "BottomNav-tab--active" else ""
         },
         onClick --> Observer(_ => currentView.set(AppView.LightningTalks)),
-        span(cls := "BottomNav-icon", "🎤"),
+        span(
+          cls := "BottomNav-iconWrapper",
+          span(cls := "BottomNav-icon", "🎤"),
+          child.maybe <-- unjudgedActivityCount.map { count =>
+            Option.when(count > 0)(
+              span(
+                cls := "BottomNav-badge",
+                if count > 99 then "99+" else count.toString,
+              )
+            )
+          },
+        ),
         span(cls := "BottomNav-label", "Activities"),
       ),
       // Center plus button for creating new entities
