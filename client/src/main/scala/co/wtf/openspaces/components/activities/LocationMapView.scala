@@ -19,6 +19,7 @@ object Leaflet extends js.Object:
   def marker(latlng: js.Array[Double], options: js.Dynamic): Marker = js.native
   def popup(): Popup = js.native
   def icon(options: js.Dynamic): LeafletIcon = js.native
+  def circle(latlng: js.Array[Double], options: js.Dynamic): Circle = js.native
 
 @js.native
 trait LeafletMap extends js.Object:
@@ -47,11 +48,22 @@ trait Popup extends js.Object:
 @js.native
 trait LeafletIcon extends js.Object
 
+@js.native
+trait Circle extends js.Object:
+  def addTo(map: LeafletMap): Circle = js.native
+  def remove(): Unit = js.native
+  def setLatLng(latlng: js.Array[Double]): Circle = js.native
+  def setRadius(radius: Double): Circle = js.native
+
 /** Location map showing all users who are sharing their location */
 object LocationMapView:
-  // Track map instance and markers
+  // Track map instance, markers, and accuracy circles
   private var mapInstance: Option[LeafletMap] = None
   private var markers: Map[Person, Marker] = Map.empty
+  private var accuracyCircles: Map[Person, Circle] = Map.empty
+  // Track pending map initialization
+  private var pendingMapId: Option[String] = None
+  private var resizeObserver: Option[js.Dynamic] = None
 
   def apply(): HtmlElement =
     val expanded = Var(false)
@@ -85,10 +97,9 @@ object LocationMapView:
             div(
               idAttr := mapId,
               cls := "LocationMap-leaflet",
-              // Initialize map on mount
+              // Initialize map on mount with proper event-driven approach
               onMountCallback { ctx =>
-                // Small delay to let DOM settle
-                dom.window.setTimeout(() => initializeMap(mapId), 100)
+                initializeMapWhenReady(mapId, ctx.thisNode.ref)
               },
               onUnmountCallback { _ =>
                 cleanupMap()
@@ -110,12 +121,48 @@ object LocationMapView:
       },
     )
 
-  private def initializeMap(mapId: String): Unit =
+  /** Initialize map when the element has actual dimensions */
+  private def initializeMapWhenReady(mapId: String, element: dom.Element): Unit =
     // Check if Leaflet is loaded
     if js.isUndefined(js.Dynamic.global.L) then
       dom.console.warn("Leaflet not loaded yet")
       return
 
+    pendingMapId = Some(mapId)
+
+    // Use ResizeObserver for proper event-driven initialization
+    // This fires when the element gets actual dimensions
+    if !js.isUndefined(js.Dynamic.global.ResizeObserver) then
+      val observer = js.Dynamic.newInstance(js.Dynamic.global.ResizeObserver)(
+        (entries: js.Array[js.Dynamic]) => {
+          entries.foreach { entry =>
+            val rect = entry.contentRect
+            val width = rect.width.asInstanceOf[Double]
+            val height = rect.height.asInstanceOf[Double]
+            
+            // Only initialize once we have actual dimensions
+            if width > 0 && height > 0 && pendingMapId.contains(mapId) && mapInstance.isEmpty then
+              pendingMapId = None
+              initializeMap(mapId)
+          }
+        }
+      )
+      observer.observe(element)
+      resizeObserver = Some(observer)
+    else
+      // Fallback for browsers without ResizeObserver (rare)
+      // Use requestAnimationFrame loop instead of setTimeout
+      def checkDimensions(): Unit =
+        val rect = element.getBoundingClientRect()
+        if rect.width > 0 && rect.height > 0 && pendingMapId.contains(mapId) && mapInstance.isEmpty then
+          pendingMapId = None
+          initializeMap(mapId)
+        else if pendingMapId.contains(mapId) then
+          dom.window.requestAnimationFrame(_ => checkDimensions())
+      
+      dom.window.requestAnimationFrame(_ => checkDimensions())
+
+  private def initializeMap(mapId: String): Unit =
     val mapElement = dom.document.getElementById(mapId)
     if mapElement == null then
       dom.console.warn(s"Map element $mapId not found")
@@ -147,18 +194,31 @@ object LocationMapView:
       case e: Throwable =>
         dom.console.error(s"Error initializing map: ${e.getMessage}")
 
+  /** Format accuracy for display */
+  private def formatAccuracy(accuracy: Double): String =
+    if accuracy <= 0 then ""
+    else if accuracy < 10 then s"±${accuracy.toInt}m"
+    else if accuracy < 100 then s"±${(accuracy / 5).round * 5}m"  // Round to nearest 5m
+    else if accuracy < 1000 then s"±${(accuracy / 10).round * 10}m"  // Round to nearest 10m
+    else s"±${(accuracy / 100).round * 100}m"  // Round to nearest 100m
+
   private def updateMarkers(locations: List[SharedLocation]): Unit =
     mapInstance.foreach { map =>
       val currentPersons = locations.map(_.person).toSet
       
-      // Remove markers for users no longer sharing
+      // Remove markers and circles for users no longer sharing
       markers.foreach { case (person, marker) =>
         if !currentPersons.contains(person) then
           marker.remove()
       }
+      accuracyCircles.foreach { case (person, circle) =>
+        if !currentPersons.contains(person) then
+          circle.remove()
+      }
       markers = markers.filter { case (person, _) => currentPersons.contains(person) }
+      accuracyCircles = accuracyCircles.filter { case (person, _) => currentPersons.contains(person) }
 
-      // Add/update markers for current sharers
+      // Add/update markers and circles for current sharers
       locations.foreach { location =>
         val latlng = js.Array(location.latitude, location.longitude)
         val displayName = location.displayName.getOrElse(location.person.unwrap)
@@ -166,10 +226,16 @@ object LocationMapView:
         val ageText = if ageMinutes < 1 then "just now" 
                       else if ageMinutes < 60 then s"${ageMinutes}m ago"
                       else s"${ageMinutes / 60}h ago"
+        
+        // Format accuracy for popup
+        val accuracyText = formatAccuracy(location.accuracy)
+        val accuracyHtml = if accuracyText.nonEmpty then
+          s"""<br/><span class="accuracy" style="color: #666; font-size: 0.9em;">Accuracy: $accuracyText</span>"""
+        else ""
 
         val popupContent = s"""
           <div class="LocationPopup">
-            <strong>$displayName</strong><br/>
+            <strong>$displayName</strong>$accuracyHtml<br/>
             <small>Updated $ageText</small><br/>
             <a href="https://www.google.com/maps/dir/?api=1&destination=${location.latitude},${location.longitude}" 
                target="_blank" rel="noopener">
@@ -178,6 +244,7 @@ object LocationMapView:
           </div>
         """.trim
 
+        // Handle marker
         markers.get(location.person) match
           case Some(existingMarker) =>
             // Update position
@@ -192,6 +259,32 @@ object LocationMapView:
             marker.bindPopup(popupContent)
             marker.addTo(map)
             markers = markers + (location.person -> marker)
+
+        // Handle accuracy circle
+        val acc = location.accuracy
+        if acc > 0 then
+          accuracyCircles.get(location.person) match
+            case Some(existingCircle) =>
+              // Update existing circle
+              existingCircle.setLatLng(latlng)
+              existingCircle.setRadius(acc)
+            case None =>
+              // Create new accuracy circle
+              val circleOptions = js.Dynamic.literal(
+                radius = acc,
+                color = "#3388ff",
+                fillColor = "#3388ff",
+                fillOpacity = 0.15,
+                weight = 1,
+                opacity = 0.5
+              )
+              val circle = Leaflet.circle(latlng, circleOptions)
+              circle.addTo(map)
+              accuracyCircles = accuracyCircles + (location.person -> circle)
+        else
+          // Remove circle if accuracy not available
+          accuracyCircles.get(location.person).foreach(_.remove())
+          accuracyCircles = accuracyCircles - location.person
       }
 
       // Fit bounds if we have locations
@@ -204,6 +297,16 @@ object LocationMapView:
     }
 
   private def cleanupMap(): Unit =
+    // Disconnect resize observer
+    resizeObserver.foreach(_.disconnect())
+    resizeObserver = None
+    pendingMapId = None
+    
+    // Clean up circles
+    accuracyCircles.values.foreach(_.remove())
+    accuracyCircles = Map.empty
+    
+    // Clean up markers
     markers.values.foreach(_.remove())
     markers = Map.empty
     mapInstance = None

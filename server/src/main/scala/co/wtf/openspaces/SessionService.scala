@@ -789,8 +789,8 @@ case class SessionService(
       _ <- broadcastToAll(LocationActionConfirmedMessage(result))
     yield ()
 
-  /** Start background fiber to expire stale locations (every 30 seconds) */
-  def startLocationExpirationCheck(interval: Duration = 30.seconds): Task[Fiber.Runtime[Throwable, Unit]] =
+  /** Start background fiber to expire stale locations (every 10 minutes) */
+  def startLocationExpirationCheck(interval: Duration = 10.minutes): Task[Fiber.Runtime[Throwable, Unit]] =
     val checkLoop =
       (for
         expired <- locationService.expireStaleLocations

@@ -87,8 +87,8 @@ object Backend extends ZIOAppDefault {
       // Keep websocket connections active so Heroku does not drop them for idleness.
       ZIO.serviceWithZIO[SessionService](_.startWebSocketKeepAlive(interval = 25.seconds)).run
 
-      // Start location sharing expiration check (every 30 seconds)
-      ZIO.serviceWithZIO[SessionService](_.startLocationExpirationCheck(interval = 30.seconds)).run
+      // Start location sharing expiration check (every 10 minutes)
+      ZIO.serviceWithZIO[SessionService](_.startLocationExpirationCheck(interval = 10.minutes)).run
 
       val requestLogAnnotations =
         Middleware.logAnnotate((req: Request) =>
