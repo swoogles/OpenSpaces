@@ -1,6 +1,7 @@
 package co.wtf.openspaces.location
 
 import co.wtf.openspaces.Person
+import co.wtf.openspaces.db.UserRepository
 import neotype.unwrap
 import zio.*
 
@@ -11,6 +12,7 @@ import zio.*
   */
 case class LocationService(
   state: Ref[LocationState],
+  userRepository: UserRepository,
 ):
   def snapshot: UIO[LocationState] =
     state.get
@@ -18,26 +20,30 @@ case class LocationService(
   def applyConfirmed(action: LocationActionConfirmed): UIO[Unit] =
     state.update(_.applyConfirmed(action))
 
-  def applyAction(action: LocationAction): UIO[LocationActionConfirmed] =
+  def applyAction(action: LocationAction): Task[LocationActionConfirmed] =
     val now = java.lang.System.currentTimeMillis()
     action match
       case LocationAction.StartSharing(person, lat, lng, accuracy) =>
-        val location = SharedLocation.create(
-          person = person,
-          displayName = None, // TODO: Could look up display name from UserRepository
-          latitude = lat,
-          longitude = lng,
-          accuracy = accuracy,
-          now = now,
-        )
-        val confirmed = LocationActionConfirmed.SharingStarted(location)
-        state.update(_.applyConfirmed(confirmed)).as(confirmed)
+        for
+          userOpt <- userRepository.findByUsername(person.unwrap)
+          displayName = userOpt.flatMap(_.displayName)
+          location = SharedLocation.create(
+            person = person,
+            displayName = displayName,
+            latitude = lat,
+            longitude = lng,
+            accuracy = accuracy,
+            now = now,
+          )
+          confirmed = LocationActionConfirmed.SharingStarted(location)
+          _ <- state.update(_.applyConfirmed(confirmed))
+        yield confirmed
 
       case LocationAction.UpdateLocation(person, lat, lng, accuracy) =>
         state.get.flatMap { current =>
           current.locations.get(person) match
             case Some(existing) =>
-              // Keep the original expiresAt, just update position
+              // Keep the original expiresAt and displayName, just update position
               val updated = existing.copy(
                 latitude = lat,
                 longitude = lng,
@@ -48,16 +54,20 @@ case class LocationService(
               state.update(_.applyConfirmed(confirmed)).as(confirmed)
             case None =>
               // Not currently sharing, treat as StartSharing
-              val location = SharedLocation.create(
-                person = person,
-                displayName = None,
-                latitude = lat,
-                longitude = lng,
-                accuracy = accuracy,
-                now = now,
-              )
-              val confirmed = LocationActionConfirmed.SharingStarted(location)
-              state.update(_.applyConfirmed(confirmed)).as(confirmed)
+              for
+                userOpt <- userRepository.findByUsername(person.unwrap)
+                displayName = userOpt.flatMap(_.displayName)
+                location = SharedLocation.create(
+                  person = person,
+                  displayName = displayName,
+                  latitude = lat,
+                  longitude = lng,
+                  accuracy = accuracy,
+                  now = now,
+                )
+                confirmed = LocationActionConfirmed.SharingStarted(location)
+                _ <- state.update(_.applyConfirmed(confirmed))
+              yield confirmed
         }
 
       case LocationAction.StopSharing(person) =>
@@ -86,8 +96,9 @@ case class LocationService(
     }
 
 object LocationService:
-  val layer: ZLayer[Any, Nothing, LocationService] =
+  val layer: ZLayer[UserRepository, Nothing, LocationService] =
     ZLayer.fromZIO:
       for
         stateRef <- Ref.make(LocationState.empty)
-      yield LocationService(stateRef)
+        userRepo <- ZIO.service[UserRepository]
+      yield LocationService(stateRef, userRepo)
