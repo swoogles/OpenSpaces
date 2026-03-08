@@ -290,6 +290,8 @@ object FrontEnd extends ZIOAppDefault{
             else dom.window.location.pathname
           dom.window.history.replaceState(null, "", nextUrl)
         }
+        // Initialize URL-based routing (handles #replay, #schedule, etc.)
+        AppState.initRouting()
         // Fetch authorization status from server
         AuthService.fetchAuthStatus(randomActionClient)
       },

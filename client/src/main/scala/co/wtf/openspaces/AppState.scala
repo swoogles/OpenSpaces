@@ -3,6 +3,8 @@ package co.wtf.openspaces
 import com.raquo.laminar.api.L.{*, given}
 import neotype.unwrap
 
+import org.scalajs.dom
+
 import co.wtf.openspaces.discussions.DiscussionState
 import co.wtf.openspaces.hackathon.*
 import co.wtf.openspaces.services.AuthService
@@ -86,9 +88,58 @@ object AppState:
   val activeDiscussionMenuState: Var[Option[Discussion]] =
     Var(None)
 
+  // ============================================
+  // URL Routing
+  // ============================================
+
+  /** Parse URL hash to AppView */
+  def parseHashToView(hash: String): Option[AppView] =
+    val normalized = hash.stripPrefix("#").stripPrefix("/").toLowerCase.trim
+    normalized match
+      case "topics" => Some(AppView.Topics)
+      case "schedule" => Some(AppView.Schedule)
+      case "activities" | "lightning" | "lightningtalks" => Some(AppView.LightningTalks)
+      case "hackathon" | "hack" => Some(AppView.Hackathon)
+      case "replay" | "tetris" => Some(AppView.Replay)
+      case "admin" => Some(AppView.Admin)
+      case "calendar" => Some(AppView.CalendarDayView)
+      case _ => None
+
+  /** Get the URL hash for a view */
+  def viewToHash(view: AppView): String =
+    view match
+      case AppView.Topics => ""  // Default view, no hash
+      case AppView.Schedule => "#schedule"
+      case AppView.LightningTalks => "#activities"
+      case AppView.Hackathon => "#hackathon"
+      case AppView.Replay => "#replay"
+      case AppView.Admin => "#admin"
+      case AppView.CalendarDayView => "#calendar"
+
+  /** Navigate to a view (updates URL hash and state) */
+  def navigateTo(view: AppView): Unit =
+    currentAppView.set(view)
+    val hash = viewToHash(view)
+    if hash.nonEmpty then
+      dom.window.history.pushState(null, "", hash)
+    else
+      // Clear hash for default view
+      dom.window.history.pushState(null, "", dom.window.location.pathname)
+
+  /** Initialize routing from current URL hash */
+  def initRouting(): Unit =
+    // Set initial view from URL hash
+    val initialHash = dom.window.location.hash
+    parseHashToView(initialHash).foreach(currentAppView.set)
+
+    // Listen for browser back/forward navigation
+    dom.window.addEventListener("popstate", { (_: dom.PopStateEvent) =>
+      parseHashToView(dom.window.location.hash).foreach(currentAppView.set)
+    })
+
   // Current app view (Schedule or Topics)
   val currentAppView: Var[AppView] =
-    Var(AppView.Topics)
+    Var(parseHashToView(dom.window.location.hash).getOrElse(AppView.Topics))
 
   // Name from auth cookie (immutable from GitHub)
   val name: Var[Person] = AuthService.getGitHubUsername()

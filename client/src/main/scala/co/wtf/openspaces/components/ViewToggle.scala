@@ -108,7 +108,7 @@ object ViewToggle:
     def jumpToNow(): Unit =
       // Switch to schedule view if not there, then scroll to now
       if currentView.now() != AppView.Schedule then
-        currentView.set(AppView.Schedule)
+        AppState.navigateTo(AppView.Schedule)
         // Small delay to let view render before scrolling
         dom.window.setTimeout(
           () => scrollToNextItem(
@@ -132,7 +132,7 @@ object ViewToggle:
         cls <-- currentView.signal.map { view =>
           if view == AppView.Topics then "BottomNav-tab--active" else ""
         },
-        onClick --> Observer(_ => currentView.set(AppView.Topics)),
+        onClick --> Observer(_ => AppState.navigateTo(AppView.Topics)),
         span(
           cls := "BottomNav-iconWrapper",
           span(cls := "BottomNav-icon", "💬"),
@@ -152,7 +152,7 @@ object ViewToggle:
         cls <-- currentView.signal.map { view =>
           if view == AppView.LightningTalks then "BottomNav-tab--active" else ""
         },
-        onClick --> Observer(_ => currentView.set(AppView.LightningTalks)),
+        onClick --> Observer(_ => AppState.navigateTo(AppView.LightningTalks)),
         span(
           cls := "BottomNav-iconWrapper",
           span(cls := "BottomNav-icon", "🎤"),
@@ -178,7 +178,7 @@ object ViewToggle:
         cls <-- currentView.signal.map { view =>
           if view == AppView.Hackathon then "BottomNav-tab--active" else ""
         },
-        onClick --> Observer(_ => currentView.set(AppView.Hackathon)),
+        onClick --> Observer(_ => AppState.navigateTo(AppView.Hackathon)),
         span(cls := "BottomNav-icon", "🛠"),
         span(cls := "BottomNav-label", "Hack"),
       ),
