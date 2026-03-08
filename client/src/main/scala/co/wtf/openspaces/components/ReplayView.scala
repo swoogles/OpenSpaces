@@ -19,6 +19,19 @@ object ReplayView:
   private val BoardResetDelayMs = 220
   private val AvatarSizePx = 22
 
+  /** Parse the 'skip' query parameter from URL (e.g., #replay?skip=500) */
+  private def getSkipCount: Int =
+    val search = dom.window.location.search
+    val hash = dom.window.location.hash
+    // Check both ?skip= and #replay?skip= formats
+    val params = if search.nonEmpty then
+      new dom.URLSearchParams(search)
+    else if hash.contains("?") then
+      new dom.URLSearchParams(hash.substring(hash.indexOf("?")))
+    else
+      new dom.URLSearchParams("")
+    Option(params.get("skip")).flatMap(s => scala.util.Try(s.toInt).toOption).getOrElse(0).max(0)
+
   case class FallingAvatar(
     id: Int,
     actor: String,
@@ -150,6 +163,7 @@ object ReplayView:
       playNextAction()
 
     def fetchActions(): Unit =
+      val skipCount = getSkipCount
       val xhr = new dom.XMLHttpRequest()
       xhr.open("GET", "/api/admin/confirmed-actions")
       xhr.onload = { _ =>
@@ -157,10 +171,13 @@ object ReplayView:
           xhr.responseText.fromJson[ConfirmedActionsResponse] match
             case Right(response) =>
               val filtered = response.actions.filter(_.actor.exists(_.nonEmpty))
-              actions.set(filtered)
+              val skipped = filtered.drop(skipCount)
+              actions.set(skipped)
               errorMessage.set(None)
-              if filtered.nonEmpty then
+              if skipped.nonEmpty then
                 startPlayback()
+              else if filtered.nonEmpty then
+                errorMessage.set(Some(s"Skipped all ${filtered.size} actions (skip=$skipCount)"))
             case Left(err) =>
               errorMessage.set(Some(s"Failed to parse response: $err"))
         else
@@ -189,7 +206,9 @@ object ReplayView:
       div(
         cls := "ReplayView-progress",
         child.text <-- Signal.combine(currentIndex.signal, actions.signal).map {
-          case (idx, all) => s"$idx / ${all.size} actions"
+          case (idx, all) =>
+            val skipInfo = if getSkipCount > 0 then s" (skipped ${getSkipCount})" else ""
+            s"$idx / ${all.size} actions$skipInfo"
         },
       ),
       div(
