@@ -335,7 +335,37 @@ case class ApplicationState(
       },
     )
 
-  val routes = StaticFileRoutes.routes ++ authRoutes ++ ticketRoutesApp.routes
+  /** Test-only auth route - only works when TEST_MODE=true */
+  val testAuthRoutes =
+    Routes(
+      Method.GET / "api" / "test" / "auth" -> handler { (req: Request) =>
+        zio.System.env("TEST_MODE").orDie.flatMap {
+          case Some("true") =>
+            val username = req.url.queryParams.queryParam("username").getOrElse("testuser")
+            // Ensure the test user exists in the database
+            userRepository.upsert(username, Some(username)).orDie *>
+            ZIO.succeed(
+              Response.ok
+                .addHeader(Header.SetCookie(
+                  Cookie.Response("github_username", username)
+                    .copy(path = Some(Path.root), maxAge = Some(java.time.Duration.ofHours(8)))
+                ))
+                .addHeader(Header.SetCookie(
+                  Cookie.Response("access_token", s"test_token_$username")
+                    .copy(path = Some(Path.root), maxAge = Some(java.time.Duration.ofHours(8)))
+                ))
+                .addHeader(Header.SetCookie(
+                  Cookie.Response("access_token_expires_at", (java.lang.System.currentTimeMillis() + 8 * 3600 * 1000).toString)
+                    .copy(path = Some(Path.root), maxAge = Some(java.time.Duration.ofHours(8)))
+                ))
+            )
+          case _ =>
+            ZIO.succeed(Response.status(Status.NotFound))
+        }
+      },
+    )
+
+  val routes = StaticFileRoutes.routes ++ authRoutes ++ testAuthRoutes ++ ticketRoutesApp.routes
 
 object ApplicationState:
   val layer =
