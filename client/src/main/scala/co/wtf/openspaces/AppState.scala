@@ -94,7 +94,10 @@ object AppState:
 
   /** Parse URL hash to AppView */
   def parseHashToView(hash: String): Option[AppView] =
-    val normalized = hash.stripPrefix("#").stripPrefix("/").toLowerCase.trim
+    // Strip # prefix and any query params (e.g., #replay?skip=500 -> replay)
+    val withoutHash = hash.stripPrefix("#").stripPrefix("/")
+    val withoutQuery = if withoutHash.contains("?") then withoutHash.substring(0, withoutHash.indexOf("?")) else withoutHash
+    val normalized = withoutQuery.toLowerCase.trim
     normalized match
       case "topics" => Some(AppView.Topics)
       case "schedule" => Some(AppView.Schedule)
