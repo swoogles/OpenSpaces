@@ -19,9 +19,9 @@ import com.microsoft.playwright.{Playwright, Browser, BrowserType, Page, Browser
   */
 object PlaywrightE2ESpec extends ZIOSpecDefault:
 
-  // Skip E2E tests by default - set SKIP_E2E=false to run them
-  // Requires: sbt "server/Test/runMain com.microsoft.playwright.CLI install chromium"
-  val skipE2E: Boolean = sys.env.getOrElse("SKIP_E2E", "true").toBoolean
+  // Set SKIP_E2E=true to skip E2E tests (e.g., in CI without browsers)
+  // First run: sbt "server/Test/runMain com.microsoft.playwright.CLI install chromium"
+  val skipE2E: Boolean = sys.env.getOrElse("SKIP_E2E", "false").toBoolean
 
   val headless: Boolean = sys.env.getOrElse("HEADLESS", "true").toBoolean
   val testPort: Int = 18080
@@ -156,8 +156,12 @@ object PlaywrightE2ESpec extends ZIOSpecDefault:
       withPage { page =>
         for
           _ <- goToApp(page)
-          title <- ZIO.attemptBlocking(page.title())
-        yield assertTrue(title.nonEmpty || page.content().contains("html"))
+          result <- ZIO.attemptBlocking {
+            val title = page.title()
+            val content = page.content()
+            title.nonEmpty || content.contains("html")
+          }
+        yield assertTrue(result)
       }
     },
 

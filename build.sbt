@@ -121,8 +121,8 @@ lazy val server = (project in file("server"))
       "dev.zio" %% "zio-config-magnolia" % "4.0.4",
       "dev.zio" %% "zio-config-typesafe" % "4.0.4",
       "dev.zio" %% "zio-config-refined"  % "4.0.4",
-      // E2E testing with Playwright
-      "com.microsoft.playwright" % "playwright" % "1.41.0" % Test,
+      // E2E testing with Playwright (use latest for ARM Mac support)
+      "com.microsoft.playwright" % "playwright" % "1.49.0" % Test,
     ),
   )
 
