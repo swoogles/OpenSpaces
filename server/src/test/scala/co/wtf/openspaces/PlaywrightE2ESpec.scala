@@ -463,10 +463,8 @@ object PlaywrightE2ESpec extends ZIOSpecDefault:
     embeddedServerLayer,
     playwrightLayer,
     browserLayer,
-    // WebSocket and ticket services
     BackendSocketApp.layer,
     TicketRoutesApp.layer,
-    // Session management
     SessionService.layer,
     AuthenticatedTicketService.layer,
     ZLayer.succeed(AdminConfig(Set.empty, "test-channel")),
@@ -475,7 +473,6 @@ object PlaywrightE2ESpec extends ZIOSpecDefault:
       DiscussionDataStore.layer(useSampleData = true),
       GlyphiconService.layer,
     ),
-    GlyphiconService.layer,
     // Test layers (in-memory/no-op implementations)
     TestLayers.lightningTalkServiceLayer,
     TestLayers.hackathonProjectServiceLayer,
