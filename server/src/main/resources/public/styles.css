@@ -2068,21 +2068,11 @@ button {
     opacity: 0.45;
 }
 
-.TopicCard {
-    position: relative;
-    padding-left: calc(var(--pad-lg) * 2 + var(--pad-xs)) !important;
-    padding-right: var(--pad-md) !important;
-}
-
-.SwipeableCardContent .TopicCard {
-    padding-left: calc(var(--pad-lg) * 2 + var(--pad-xs)) !important;
-    padding-right: var(--pad-md) !important;
-}
-
 /* TopicCard layout: column with main row + expandable voter list */
 .TopicCard {
     display: flex;
     flex-direction: column;
+    position: relative;
 }
 
 /* TopicCard-main: horizontal row [VoteIndicator] [Content] [Actions] */
@@ -2090,6 +2080,9 @@ button {
     display: flex;
     align-items: center;
     position: relative;
+    /* Padding for VoteIndicator space on left, actions space on right */
+    padding-left: calc(var(--pad-lg) * 2 + var(--pad-xs));
+    padding-right: var(--pad-md);
 }
 
 .TopicCard-content {
