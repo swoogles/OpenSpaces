@@ -2015,24 +2015,21 @@ button {
 
 /* Expandable voter list */
 .ExpandableVoterList {
-    position: absolute;
-    left: 32px;
-    top: 0;
-    z-index: 100;
+    /* In-flow element that expands the card when shown */
     max-height: 0;
     overflow: hidden;
     opacity: 0;
-    transition: max-height 0.3s ease, opacity 0.2s ease;
-    background: var(--color-white);
-    border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-    min-width: 180px;
+    transition: max-height 0.3s ease, opacity 0.2s ease, margin 0.3s ease;
+    background: var(--color-gray-100);
+    border-radius: var(--radius-sm);
+    margin: 0 var(--pad-sm);
 }
 
 .ExpandableVoterList--expanded {
-    max-height: 300px;
+    max-height: 400px;
     opacity: 1;
     overflow-y: auto;
+    margin: var(--pad-sm) var(--pad-sm) var(--pad-xs) var(--pad-sm);
 }
 
 .ExpandableVoterList-content {
@@ -2082,10 +2079,17 @@ button {
     padding-right: var(--pad-md) !important;
 }
 
-/* TopicCard layout: [VoteIndicator] [Content] [Actions] */
+/* TopicCard layout: column with main row + expandable voter list */
 .TopicCard {
     display: flex;
+    flex-direction: column;
+}
+
+/* TopicCard-main: horizontal row [VoteIndicator] [Content] [Actions] */
+.TopicCard-main {
+    display: flex;
     align-items: center;
+    position: relative;
 }
 
 .TopicCard-content {

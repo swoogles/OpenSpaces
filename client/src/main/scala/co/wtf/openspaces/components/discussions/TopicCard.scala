@@ -93,56 +93,49 @@ object TopicCard:
               )
             else Seq.empty
           },
-          // Vote status indicator - clickable to expand voter list
+          // Main row: vote indicator + content + actions
           div(
-            cls := "VoteIndicator",
-            cls <-- voterListExpanded.map(if _ then "VoteIndicator--expanded" else ""),
-            voteStatus match
-              case Some(VotePosition.Interested) =>
-                cls := "VoteIndicator--interested"
-              case Some(VotePosition.NotInterested) =>
-                cls := "VoteIndicator--notinterested"
-              case None => emptyMod
-            ,
-            if hasVoted then cls := "VoteIndicator--visible" else emptyMod,
-            if votes > 0 then cls := "VoteIndicator--clickable" else emptyMod,
-            onClick.stopPropagation --> Observer { _ =>
-              if votes > 0 then
-                // Toggle: if this topic is already expanded, close it; otherwise open it (closing any other)
-                val currentlyExpanded = AppState.expandedVoterListTopicId.now()
-                if currentlyExpanded == Some(topic.id) then
-                  AppState.expandedVoterListTopicId.set(None)
-                else
-                  AppState.expandedVoterListTopicId.set(Some(topic.id))
-            },
-            // Icon based on vote type
-            span(
-              cls := "VoteIndicator-icon",
+            cls := "TopicCard-main",
+            // Vote status indicator - clickable to expand voter list
+            div(
+              cls := "VoteIndicator",
+              cls <-- voterListExpanded.map(if _ then "VoteIndicator--expanded" else ""),
               voteStatus match
-                case Some(VotePosition.Interested) => "♥"
-                case Some(VotePosition.NotInterested) => "✗"
-                case None => ""
+                case Some(VotePosition.Interested) =>
+                  cls := "VoteIndicator--interested"
+                case Some(VotePosition.NotInterested) =>
+                  cls := "VoteIndicator--notinterested"
+                case None => emptyMod
+              ,
+              if hasVoted then cls := "VoteIndicator--visible" else emptyMod,
+              if votes > 0 then cls := "VoteIndicator--clickable" else emptyMod,
+              onClick.stopPropagation --> Observer { _ =>
+                if votes > 0 then
+                  // Toggle: if this topic is already expanded, close it; otherwise open it (closing any other)
+                  val currentlyExpanded = AppState.expandedVoterListTopicId.now()
+                  if currentlyExpanded == Some(topic.id) then
+                    AppState.expandedVoterListTopicId.set(None)
+                  else
+                    AppState.expandedVoterListTopicId.set(Some(topic.id))
+              },
+              // Icon based on vote type
+              span(
+                cls := "VoteIndicator-icon",
+                voteStatus match
+                  case Some(VotePosition.Interested) => "♥"
+                  case Some(VotePosition.NotInterested) => "✗"
+                  case None => ""
+              ),
+              // Vote count
+              if hasVoted then
+                span(cls := "VoteIndicator-count", votes.toString)
+              else if votes > 0 then
+                span(cls := "VoteIndicator-count", votes.toString)
+              else
+                span(),
             ),
-            // Vote count
-            if hasVoted then
-              span(cls := "VoteIndicator-count", votes.toString)
-            else if votes > 0 then
-              span(cls := "VoteIndicator-count", votes.toString)
-            else
-              span(),
-          ),
-          // Expandable voter list
-          ExpandableVoterList(
-            topic.interestedParties
-              .filter(_.position == VotePosition.Interested)
-              .toList
-              .sortBy(_.firstVotedAtEpochMs.getOrElse(Long.MaxValue))
-              .map(_.voter),
-            voterListExpanded,
-            AppState.approvedUsers.signal,
-          ),
-          // Content column: title + room/time (non-compact only)
-          div(
+            // Content column: title + room/time (non-compact only)
+            div(
             cls := "TopicCard-content",
             div(
               cls := "MainActive",
@@ -232,6 +225,17 @@ object TopicCard:
                 )
               case None => emptyNode
             },
+          ),
+          ), // Close TopicCard-main
+          // Expandable voter list (below main row, expands card when shown)
+          ExpandableVoterList(
+            topic.interestedParties
+              .filter(_.position == VotePosition.Interested)
+              .toList
+              .sortBy(_.firstVotedAtEpochMs.getOrElse(Long.MaxValue))
+              .map(_.voter),
+            voterListExpanded,
+            AppState.approvedUsers.signal,
           ),
         )
 
