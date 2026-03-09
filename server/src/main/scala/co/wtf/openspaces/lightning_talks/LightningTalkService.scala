@@ -1,6 +1,6 @@
 package co.wtf.openspaces.lightning_talks
 
-import co.wtf.openspaces.{Person, RandomUsers}
+import co.wtf.openspaces.{Person, RandomUsers, UserOps}
 import co.wtf.openspaces.github.GitHubProfileService
 import co.wtf.openspaces.db.{
   LightningTalkRepository,
@@ -48,7 +48,7 @@ case class LightningTalkService(
             participating,
           ) =>
         for
-          _       <- ensureUserExists(speaker.unwrap)
+          _       <- UserOps.ensureUserExists(speaker.unwrap, userRepo, gitHubProfileService)
           current <- state.get
           result <- (current.proposalForSpeaker(speaker),
                      participating,
@@ -173,22 +173,13 @@ case class LightningTalkService(
       result <- applyAction(action)
     yield result
 
-  private def ensureUserExists(
-    username: String,
-  ): Task[Unit] =
-    if username == "system" then
-      userRepo.upsert(username, Some(username)).unit
-    else gitHubProfileService.ensureUserWithDisplayName(username).unit
-
   private def randomPerson: UIO[Person] = RandomUsers.randomPerson
 
   private def createProposal(
     speaker: Person,
   ): Task[LightningTalkProposal] =
     for
-      id <- zio.Random.nextLong.map { n =>
-        if n == Long.MinValue then 0L else math.abs(n)
-      }
+      id <- UserOps.generateId
       speakerUser <- userRepo.findByUsername(speaker.unwrap)
       createdAtEpochMs = java.lang.System.currentTimeMillis()
     yield LightningTalkProposal(

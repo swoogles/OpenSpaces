@@ -1,6 +1,6 @@
 package co.wtf.openspaces.activities
 
-import co.wtf.openspaces.{Person, RandomUsers}
+import co.wtf.openspaces.{Person, RandomUsers, UserOps}
 import co.wtf.openspaces.db.{
   ActivityDismissalRepository,
   ActivityInterestRepository,
@@ -41,7 +41,7 @@ case class ActivityService(
     action match
       case create @ ActivityAction.Create(description, eventTime, creator) =>
         for
-          _ <- ensureUserExists(creator.unwrap)
+          _ <- UserOps.ensureUserExists(creator.unwrap, userRepo, gitHubProfileService)
           inRange <- isEventTimeInAllowedWindow(eventTime)
           result <- if !inRange then
             ZIO.succeed(ActivityActionConfirmed.Rejected(create))
@@ -56,7 +56,7 @@ case class ActivityService(
 
       case setInterest @ ActivityAction.SetInterest(activityId, person, interested) =>
         for
-          _ <- ensureUserExists(person.unwrap)
+          _ <- UserOps.ensureUserExists(person.unwrap, userRepo, gitHubProfileService)
           current <- state.get
           result <- current.activities.get(activityId) match
             case None =>
@@ -249,17 +249,13 @@ case class ActivityService(
         false
     }
 
-  private def ensureUserExists(username: String): Task[Unit] =
-    if username == "system" then userRepo.upsert(username, Some(username)).unit
-    else gitHubProfileService.ensureUserWithDisplayName(username).unit
-
   private def createActivity(
     description: ActivityDescription,
     eventTime: LocalDateTime,
     creator: Person,
   ): Task[Activity] =
     for
-      id <- zio.Random.nextLong.map(n => if n == Long.MinValue then 0L else math.abs(n))
+      id <- UserOps.generateId
       creatorUser <- userRepo.findByUsername(creator.unwrap)
       createdAtEpochMs = java.lang.System.currentTimeMillis()
     yield Activity(

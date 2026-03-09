@@ -1,6 +1,6 @@
 package co.wtf.openspaces.hackathon
 
-import co.wtf.openspaces.{Person, RandomUsers}
+import co.wtf.openspaces.{Person, RandomUsers, UserOps}
 import co.wtf.openspaces.github.GitHubProfileService
 import co.wtf.openspaces.db.{
   HackathonProjectRepository,
@@ -46,7 +46,7 @@ case class HackathonProjectService(
     action match
       case create @ HackathonProjectAction.Create(title, creator) =>
         for
-          _ <- ensureUserExists(creator.unwrap)
+          _ <- UserOps.ensureUserExists(creator.unwrap, userRepo, gitHubProfileService)
           current <- state.get
           result <- current.personCurrentProject(creator) match
             // User already has a project - reject
@@ -62,7 +62,7 @@ case class HackathonProjectService(
 
       case join @ HackathonProjectAction.Join(projectId, person) =>
         for
-          _ <- ensureUserExists(person.unwrap)
+          _ <- UserOps.ensureUserExists(person.unwrap, userRepo, gitHubProfileService)
           current <- state.get
           targetProject = current.projects.get(projectId)
           currentProject = current.personCurrentProject(person)
@@ -183,15 +183,12 @@ case class HackathonProjectService(
         state.update(_(confirmed)).as(List(confirmed))
     yield results
 
-  private def ensureUserExists(username: String): Task[Unit] =
-    gitHubProfileService.ensureUserWithDisplayName(username).unit
-
   private def createProject(
     title: ProjectTitle,
     creator: Person,
   ): Task[HackathonProject] =
     for
-      id <- zio.Random.nextLong.map(n => if n == Long.MinValue then 0L else math.abs(n))
+      id <- UserOps.generateId
       creatorUser <- userRepo.findByUsername(creator.unwrap)
       createdAtEpochMs = java.lang.System.currentTimeMillis()
     yield HackathonProject.create(
