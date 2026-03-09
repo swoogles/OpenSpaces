@@ -16,10 +16,26 @@ import java.time.{LocalDate, LocalDateTime}
 import java.util.UUID
 
 sealed trait WebSocketMessage derives JsonCodec
-sealed trait WebSocketMessageFromClient extends WebSocketMessage
-    derives JsonCodec
-sealed trait WebSocketMessageFromServer extends WebSocketMessage
-    derives JsonCodec
+
+enum WebSocketMessageFromClient extends WebSocketMessage derives JsonCodec:
+  case Ticket(uuid: UUID)
+  case DiscussionActionMessage(action: DiscussionAction)
+  case LightningTalkActionMessage(action: LightningTalkAction)
+  case HackathonProjectActionMessage(action: HackathonProjectAction)
+  case ActivityActionMessage(action: ActivityAction)
+  case AuthorizationActionMessage(action: AuthorizationAction)
+  case LocationActionMessage(action: LocationAction)
+
+enum WebSocketMessageFromServer extends WebSocketMessage derives JsonCodec:
+  case DiscussionActionConfirmedMessage(event: DiscussionActionConfirmed)
+  case LightningTalkActionConfirmedMessage(event: LightningTalkActionConfirmed)
+  case HackathonProjectActionConfirmedMessage(event: HackathonProjectActionConfirmed)
+  case ActivityActionConfirmedMessage(event: ActivityActionConfirmed)
+  case AuthorizationStatusMessage(status: AuthorizationStatus)
+  case AuthorizationActionConfirmedMessage(event: AuthorizationActionConfirmed)
+  case LocationActionConfirmedMessage(event: LocationActionConfirmed)
+  case KeepAliveMessage
+  case SlackReplyCountsMessage(counts: SlackReplyCounts)
 
 given Schema[WebSocketMessageFromClient] =
   Schema[String].transformOrFail(
@@ -33,60 +49,8 @@ given Schema[WebSocketMessageFromServer] =
     message => Right(message.toJson),
   )
 
-case class Ticket(
-  uuid: UUID)
-    extends WebSocketMessageFromClient
-    derives JsonCodec,
-      Schema
-
-case class DiscussionActionMessage(
-  action: DiscussionAction)
-    extends WebSocketMessageFromClient
-
-case class DiscussionActionConfirmedMessage(
-  event: DiscussionActionConfirmed)
-    extends WebSocketMessageFromServer
-
-case class LightningTalkActionMessage(
-  action: LightningTalkAction)
-    extends WebSocketMessageFromClient
-
-case class LightningTalkActionConfirmedMessage(
-  event: LightningTalkActionConfirmed)
-    extends WebSocketMessageFromServer
-
-case class HackathonProjectActionMessage(
-  action: HackathonProjectAction)
-    extends WebSocketMessageFromClient
-
-case class HackathonProjectActionConfirmedMessage(
-  event: HackathonProjectActionConfirmed)
-    extends WebSocketMessageFromServer
-
-case class ActivityActionMessage(
-  action: ActivityAction)
-    extends WebSocketMessageFromClient
-
-case class ActivityActionConfirmedMessage(
-  event: ActivityActionConfirmed)
-    extends WebSocketMessageFromServer
-
-// Authorization messages
-
-/** Sent from server to client on connect to tell them their authorization status */
-case class AuthorizationStatusMessage(
-  status: AuthorizationStatus)
-    extends WebSocketMessageFromServer
-
-/** Sent from client (admin) to server to manage user authorization */
-case class AuthorizationActionMessage(
-  action: AuthorizationAction)
-    extends WebSocketMessageFromClient
-
-/** Broadcast from server when authorization changes */
-case class AuthorizationActionConfirmedMessage(
-  event: AuthorizationActionConfirmed)
-    extends WebSocketMessageFromServer
+given Schema[WebSocketMessageFromClient.Ticket] = DeriveSchema.gen
+given JsonCodec[WebSocketMessageFromClient.Ticket] = DeriveJsonCodec.gen
 
 // Authorization domain types
 
@@ -123,29 +87,6 @@ enum AuthorizationActionConfirmed derives JsonCodec:
   case Unauthorized(action: AuthorizationAction)
   case Rejected(action: AuthorizationAction, reason: String)
   case UserListRefreshed(pendingUsers: List[PendingUser], approvedUsers: List[ApprovedUser])
-
-// Location sharing messages
-
-/** Sent from client to server to manage location sharing */
-case class LocationActionMessage(
-  action: LocationAction)
-    extends WebSocketMessageFromClient
-
-/** Broadcast from server when location state changes */
-case class LocationActionConfirmedMessage(
-  event: LocationActionConfirmed)
-    extends WebSocketMessageFromServer
-
-// Slack reply counts
-
-/** Lightweight heartbeat frame to keep websocket connections from going idle */
-case object KeepAliveMessage
-    extends WebSocketMessageFromServer
-
-/** Broadcast from server with updated Slack thread reply counts */
-case class SlackReplyCountsMessage(
-  counts: SlackReplyCounts)
-    extends WebSocketMessageFromServer
 
 /** Reply counts for all entity types, keyed by entity ID (as String for JSON compatibility) */
 case class SlackReplyCounts(

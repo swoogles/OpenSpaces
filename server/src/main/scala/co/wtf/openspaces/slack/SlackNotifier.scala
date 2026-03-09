@@ -1,6 +1,7 @@
 package co.wtf.openspaces.slack
 
 import co.wtf.openspaces.*
+import co.wtf.openspaces.WebSocketMessageFromServer.*
 import co.wtf.openspaces.db.{DiscussionRepository, LightningTalkRepository, LightningTalkRow, HackathonProjectRepository, HackathonProjectRow, TopicVoteRepository, HackathonProjectMemberRepository, ActivityInterestRepository, SlackRosterMessageRepository, UserRepository}
 import co.wtf.openspaces.discussions.{Discussion, DiscussionActionConfirmed, Feedback, VotePosition}
 import co.wtf.openspaces.hackathon.*

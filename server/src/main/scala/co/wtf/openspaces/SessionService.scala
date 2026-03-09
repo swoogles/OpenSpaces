@@ -14,6 +14,8 @@ import zio.*
 import zio.direct.*
 import zio.http.*
 import zio.json.*
+import WebSocketMessageFromClient.*
+import WebSocketMessageFromServer.*
 
 private case class ChannelRegistry(
   connected: Set[OpenSpacesServerChannel],

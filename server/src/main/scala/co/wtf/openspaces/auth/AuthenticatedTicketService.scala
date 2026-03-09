@@ -1,6 +1,6 @@
 package co.wtf.openspaces.auth
 
-import co.wtf.openspaces.Ticket
+import co.wtf.openspaces.WebSocketMessageFromClient.Ticket
 import java.util.UUID
 import zio.*
 import zio.direct.*
@@ -10,7 +10,7 @@ case class AuthenticatedTicketService(
   tickets: Ref[List[Ticket]]):
   val create: ZIO[Any, Nothing, Ticket] =
     defer:
-      val newTicket =
+      val newTicket: Ticket =
         Ticket(Random.nextUUID.run)
       tickets.update(_ :+ newTicket).run
       newTicket

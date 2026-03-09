@@ -21,6 +21,8 @@ import co.wtf.openspaces.components.hackathon.HackathonProjectsView
 import co.wtf.openspaces.components.activities.ActivitiesView
 import co.wtf.openspaces.AppState.*
 import co.wtf.openspaces.*
+import co.wtf.openspaces.WebSocketMessageFromClient.*
+import co.wtf.openspaces.WebSocketMessageFromServer.*
 import co.wtf.openspaces.services.{AudioService, AuthService}
 import zio.http.endpoint.{Endpoint, EndpointExecutor}
 import co.wtf.openspaces.lighting_talks.*

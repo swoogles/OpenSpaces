@@ -10,6 +10,7 @@ import zio.http.endpoint._
 import zio.schema._
 import scala.concurrent.Future
 import scala.concurrent.ExecutionContext.Implicits.global
+import WebSocketMessageFromClient.Ticket
 
 case class ActiveStatus(active: Boolean) derives Schema, JsonCodec
 case class VersionInfo(version: String) derives Schema, JsonCodec

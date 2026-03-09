@@ -15,6 +15,8 @@ import zio.http.ChannelEvent.UserEvent
 import zio.json.*
 import zio.schema.codec.JsonCodec.zioJsonBinaryCodec
 import zio.test.*
+import WebSocketMessageFromClient.*
+import WebSocketMessageFromServer.*
 
 /** Focused WebSocket integration tests using ZIO HTTP's TestClient.
   *
