@@ -2121,6 +2121,112 @@ button {
     padding-bottom: var(--pad-xs) !important;
 }
 
+/* Warning variant (used for large hackathon groups) */
+.TopicCard--warning {
+    --entity-card-border-color: var(--color-warning-border);
+}
+
+/* ============================================
+   EntityCard Component Styles
+   ============================================ */
+
+.EntityCard-title {
+    font-size: var(--font-size-base);
+    font-weight: 500;
+    color: var(--color-text-main);
+    margin: 0;
+    line-height: var(--line-height-tight);
+}
+
+.EntityCard-meta {
+    font-size: var(--font-size-note);
+    color: var(--color-text-muted);
+    margin-top: var(--pad-xs);
+}
+
+.EntityCard-warning {
+    font-size: var(--font-size-note);
+    color: var(--color-warning-text);
+    background-color: var(--color-warning-light);
+    padding: var(--pad-xs) var(--pad-sm);
+    border-radius: var(--radius-sm);
+    margin-top: var(--pad-xs);
+}
+
+.EntityCard-editButton {
+    background: none;
+    border: none;
+    padding: var(--pad-xs);
+    cursor: pointer;
+    font-size: var(--font-size-base);
+    opacity: 0.6;
+    transition: opacity 0.2s ease;
+    border-radius: var(--radius-sm);
+}
+
+.EntityCard-editButton:hover {
+    opacity: 1;
+    background-color: rgba(0, 0, 0, 0.05);
+}
+
+.EntityCard-editForm {
+    display: flex;
+    flex-direction: column;
+    gap: var(--pad-xs);
+    padding: var(--pad-sm);
+    background: var(--color-bg-page);
+    border-radius: var(--radius-sm);
+    margin-top: var(--pad-xs);
+}
+
+.EntityCard-input {
+    padding: var(--pad-sm);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-sm);
+    font-size: var(--font-size-note);
+    width: 100%;
+    box-sizing: border-box;
+}
+
+.EntityCard-input:focus {
+    outline: none;
+    border-color: var(--color-accent);
+}
+
+.EntityCard-editButtons {
+    display: flex;
+    gap: var(--pad-xs);
+    justify-content: flex-end;
+}
+
+.EntityCard-saveButton,
+.EntityCard-cancelButton {
+    padding: var(--pad-xs) var(--pad-sm);
+    border: none;
+    border-radius: var(--radius-sm);
+    font-size: var(--font-size-note);
+    cursor: pointer;
+    transition: background-color 0.2s ease;
+}
+
+.EntityCard-saveButton {
+    background-color: var(--color-accent);
+    color: white;
+}
+
+.EntityCard-saveButton:hover {
+    background-color: var(--color-accent-hover);
+}
+
+.EntityCard-cancelButton {
+    background-color: var(--color-bg-elevated);
+    color: var(--color-text-muted);
+}
+
+.EntityCard-cancelButton:hover {
+    background-color: var(--color-bg-page);
+}
+
 @keyframes vote-poof {
     0% {
         transform: scale(1);

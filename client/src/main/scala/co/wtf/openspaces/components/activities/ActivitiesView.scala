@@ -10,7 +10,7 @@ import scala.scalajs.js
 
 import co.wtf.openspaces.*
 import co.wtf.openspaces.activities.*
-import co.wtf.openspaces.components.{ConfirmationModal, InterestedPartyAvatars, SwipeableCard, VotingQueueView}
+import co.wtf.openspaces.components.{ConfirmationModal, EntityCard, InterestedPartyAvatars, SwipeableCard, VotingQueueView}
 import co.wtf.openspaces.components.VotableInstances.given
 import co.wtf.openspaces.components.lightning_talks.LightningTalksView
 import co.wtf.openspaces.lighting_talks.*
@@ -151,71 +151,49 @@ object ActivityCard:
       else
         sendActivityAction(ActivityAction.SetInterest(activity.id, user, interested))
 
-    val cardContent = div(
-      cls := "HackathonProjectCard",
-      cls := (if isInterested then "HackathonProjectCard--interested" else ""),
-      transition match
-        case Some(value) =>
-          val $translateY = value.signal.map {
-            case TransitionStatus.Inserting => -100.0
-            case TransitionStatus.Removing => 100.0
-            case TransitionStatus.Active => 0.0
-          }.spring
+    def cancelOwnerLeave(): Unit =
+      pendingOwnerLeave.set(false)
 
-          Seq(
-            value.height,
-            transform <-- $translateY.map(pct => s"translateY($pct%)")
-          )
-        case None => emptyMod
-      ,
+    def confirmOwnerLeave(): Unit =
+      pendingOwnerLeave.set(false)
+      sendInterest(false)
+
+    // Content slot: title, event time, creator
+    val contentSlot = div(
       div(
-        cls := "HackathonProjectCard-header",
-        h4(cls := "HackathonProjectCard-title", activity.descriptionText),
+        cls := "MainActive",
+        h4(cls := "EntityCard-title", activity.descriptionText),
+      ),
+      span(
+        cls := "RoomSlot",
+        activity.eventTime.format(displayFormat),
       ),
       div(
-        cls := "HackathonProjectCard-members",
-        InterestedPartyAvatars(activity.members.map(_.person)),
-        span(cls := "HackathonProjectCard-memberCount", s"${activity.interestCount} interested"),
-        span(cls := "HackathonProjectCard-memberCount", activity.eventTime.format(displayFormat)),
+        cls := "EntityCard-meta",
+        s"By ${activity.creatorName}",
       ),
-      div(
-        cls := "LightningTalk-metaRow",
-        div(cls := "LightningTalk-meta", s"By ${activity.creatorName}"),
-        activity.slackThreadUrl match
-          case Some(url) =>
-            a(
-              href := url,
-              target := "_blank",
-              cls := "SlackThreadLink",
-              title := "Discuss in Slack",
-              img(src := "/icons/slack.svg", cls := "SlackIcon"),
-              child <-- AppState.slackReplyCounts.signal.map { counts =>
-                counts.activities.get(activity.id.unwrap.toString) match {
-                  case Some(count) if count > 0 =>
-                    span(cls := "SlackReplyCount", count.toString)
-                  case _ => emptyNode
-                }
-              },
-            )
-          case None =>
-            emptyNode,
-      ),
+    )
+
+    // Actions slot: edit button (for owner), slack link
+    val actionsSlot = div(
+      // Owner edit button
       if isOwner then
         div(
-          cls := "HackathonProjects-createFormButtons",
           child <-- editing.signal.map { isEditing =>
             if isEditing then
               div(
+                cls := "EntityCard-editForm",
                 input(
-                  cls := "HackathonProjects-input",
+                  cls := "EntityCard-input",
                   typ := "text",
+                  placeholder := "Description",
                   controlled(
                     value <-- editDescription.signal,
                     onInput.mapToValue --> editDescription.writer,
                   ),
                 ),
                 input(
-                  cls := "HackathonProjects-input",
+                  cls := "EntityCard-input",
                   typ := "datetime-local",
                   onMountCallback(ctx => editTimeInputRef = Some(ctx.thisNode.ref)),
                   onFocus --> Observer(_ => editTimeInputRef.foreach(NewActivityForm.showNativePicker)),
@@ -225,9 +203,9 @@ object ActivityCard:
                   ),
                 ),
                 div(
-                  cls := "HackathonProjects-createFormButtons",
+                  cls := "EntityCard-editButtons",
                   button(
-                    cls := "HackathonProjects-submitButton",
+                    cls := "EntityCard-saveButton",
                     "Save",
                     onClick --> Observer { _ =>
                       val parsedDescription = ActivityDescription.make(editDescription.now().trim)
@@ -254,46 +232,65 @@ object ActivityCard:
                     },
                   ),
                   button(
-                    cls := "HackathonProjects-cancelButton",
+                    cls := "EntityCard-cancelButton",
                     "Cancel",
                     onClick --> Observer(_ => editing.set(false)),
                   ),
                 ),
               )
             else
-              div(
-                button(
-                  cls := "ConfirmationModal-button ConfirmationModal-button--confirm",
-                  "Edit",
-                  onClick --> Observer(_ => editing.set(true)),
-                ),
+              button(
+                cls := "EntityCard-editButton",
+                "✎",
+                title := "Edit activity",
+                onClick.stopPropagation --> Observer(_ => editing.set(true)),
               )
           },
         )
       else emptyNode,
+      // Slack thread link
+      activity.slackThreadUrl match
+        case Some(url) =>
+          a(
+            href := url,
+            target := "_blank",
+            cls := "SlackThreadLink",
+            title := "Discuss in Slack",
+            img(src := "/icons/slack.svg", cls := "SlackIcon"),
+            child <-- AppState.slackReplyCounts.signal.map { counts =>
+              counts.activities.get(activity.id.unwrap.toString) match {
+                case Some(count) if count > 0 =>
+                  span(cls := "SlackReplyCount", count.toString)
+                case _ => emptyNode
+              }
+            },
+          )
+        case None =>
+          emptyNode,
     )
 
-    def cancelOwnerLeave(): Unit =
-      pendingOwnerLeave.set(false)
-
-    def confirmOwnerLeave(): Unit =
-      pendingOwnerLeave.set(false)
-      sendInterest(false)
+    val config = EntityCard.Config(
+      entityKey = s"activity-${activity.id.unwrap}",
+      isInterested = isInterested,
+      memberCount = activity.interestCount,
+      members = activity.members.map(_.person),
+    )
 
     div(
-      SwipeableCard[SwipeAction](
-        cardContent = cardContent,
-        onAction = Observer {
-          case SwipeAction.Interested =>
-            sendInterest(true)
-          case SwipeAction.NotInterested =>
-            if isOwner && isInterested then
-              pendingOwnerLeave.set(true)
-            else
-              sendInterest(false)
+      EntityCard(
+        config = config,
+        contentSlot = contentSlot,
+        actionsSlot = actionsSlot,
+        transition = transition,
+        onSwipeLeft = Some { () =>
+          if isOwner && isInterested then
+            pendingOwnerLeave.set(true)
+          else
+            sendInterest(false)
         },
-        leftAction = Some(SwipeableCard.Action(SwipeAction.NotInterested, "👈")),
-        rightAction = Some(SwipeableCard.Action(SwipeAction.Interested, "👉")),
+        onSwipeRight = Some(() => sendInterest(true)),
+        leftIcon = "👈",
+        rightIcon = "👉",
       ),
       child <-- pendingOwnerLeave.signal.map {
         case true =>

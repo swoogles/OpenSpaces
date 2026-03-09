@@ -49,6 +49,9 @@ object AppState:
   // Track which topic (if any) has its voter list expanded - ensures only one at a time
   val expandedVoterListTopicId: Var[Option[TopicId]] = Var(None)
 
+  // Track which entity (any type) has its member list expanded - for EntityCard components
+  val expandedEntityId: Var[Option[String]] = Var(None)
+
   // ============================================
   // Swipe Hint (one-time onboarding)
   // ============================================

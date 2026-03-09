@@ -5,7 +5,7 @@ import neotype.*
 import org.scalajs.dom
 
 import co.wtf.openspaces.*
-import co.wtf.openspaces.components.{ConfirmationModal, InterestedPartyAvatars, SwipeableCard}
+import co.wtf.openspaces.components.{ConfirmationModal, EntityCard, InterestedPartyAvatars, SwipeableCard}
 import co.wtf.openspaces.hackathon.*
 
 /** Hackathon Projects view for Wednesday hackday.
@@ -270,9 +270,6 @@ object HackathonProjectsView:
 
 /** Card component for displaying a hackathon project */
 object HackathonProjectCard:
-  enum SwipeAction:
-    case LeaveProject, JoinProject
-
   def apply(
     project: HackathonProject,
     currentUser: Person,
@@ -283,69 +280,62 @@ object HackathonProjectCard:
     val memberCount = project.memberCount
     val isLarge = project.isLargeGroup
 
-    val cardContent = div(
-      cls := "HackathonProjectCard",
-      cls := (if isInterested then "HackathonProjectCard--interested" else ""),
-      cls := (if isLarge then "HackathonProjectCard--large" else ""),
-      
-      // Project title
+    // Content slot: title + member count + large group warning
+    val contentSlot = div(
       div(
-        cls := "HackathonProjectCard-header",
-        h4(cls := "HackathonProjectCard-title", project.titleText),
+        cls := "MainActive",
+        h4(cls := "EntityCard-title", project.titleText),
       ),
-      
-      // Member info
-      div(
-        cls := "HackathonProjectCard-members",
-        InterestedPartyAvatars(project.members.map(_.person)),
-        span(
-          cls := "HackathonProjectCard-memberCount",
-          if memberCount == 1 then "1 person"
-          else s"$memberCount people",
-        ),
+      span(
+        cls := "RoomSlot",
+        if memberCount == 1 then "1 person"
+        else s"$memberCount people",
       ),
-      
       // Large group warning
       if isLarge && !isInterested then
         div(
-          cls := "HackathonProjectCard-largeWarning",
-          "⚠️ This group is getting big! Consider smaller projects below.",
+          cls := "EntityCard-warning",
+          "⚠️ This group is getting big!",
         )
       else
-        span(),
-      
-      // Slack thread link
-      project.slackThreadUrl.map { url =>
-        a(
-          cls := "HackathonProjectCard-slackLink",
-          href := url,
-          target := "_blank",
-          span("💬 Discuss in Slack"),
-          // Show reply count if available (hide if 0)
-          child <-- AppState.slackReplyCounts.signal.map { counts =>
-            counts.hackathonProjects.get(project.id.unwrap.toString) match {
-              case Some(count) if count > 0 =>
-                span(cls := "SlackReplyCount", count.toString)
-              case _ => emptyNode
-            }
-          },
-        )
-      }.getOrElse(span()),
+        emptyNode,
     )
 
-    val leftSwipeAction = onLeave.map(_ => SwipeableCard.Action(SwipeAction.LeaveProject, "👋"))
-    val rightSwipeAction = onJoin.map(_ => SwipeableCard.Action(SwipeAction.JoinProject, "🤝"))
-    val hasSwipeActions = leftSwipeAction.isDefined || rightSwipeAction.isDefined
+    // Actions slot: slack link
+    val actionsSlot = div(
+      project.slackThreadUrl match
+        case Some(url) =>
+          a(
+            href := url,
+            target := "_blank",
+            cls := "SlackThreadLink",
+            title := "Discuss in Slack",
+            img(src := "/icons/slack.svg", cls := "SlackIcon"),
+            child <-- AppState.slackReplyCounts.signal.map { counts =>
+              counts.hackathonProjects.get(project.id.unwrap.toString) match {
+                case Some(count) if count > 0 =>
+                  span(cls := "SlackReplyCount", count.toString)
+                case _ => emptyNode
+              }
+            },
+          )
+        case None => emptyNode,
+    )
 
-    if hasSwipeActions then
-      SwipeableCard[SwipeAction](
-        cardContent = cardContent,
-        onAction = Observer {
-          case SwipeAction.LeaveProject => onLeave.foreach(_())
-          case SwipeAction.JoinProject => onJoin.foreach(_())
-        },
-        leftAction = leftSwipeAction,
-        rightAction = rightSwipeAction,
-      )
-    else
-      cardContent
+    val config = EntityCard.Config(
+      entityKey = s"hackathon-${project.id.unwrap}",
+      isInterested = isInterested,
+      memberCount = memberCount,
+      members = project.members.map(_.person),
+      extraClass = if isLarge then Some("TopicCard--warning") else None,
+    )
+
+    EntityCard(
+      config = config,
+      contentSlot = contentSlot,
+      actionsSlot = actionsSlot,
+      onSwipeLeft = onLeave,
+      onSwipeRight = onJoin,
+      leftIcon = "👋",
+      rightIcon = "🤝",
+    )
