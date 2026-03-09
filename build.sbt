@@ -87,13 +87,20 @@ lazy val server = (project in file("server"))
 
     // Load env vars from ../.env for forked runs (reStart uses a forked JVM)
     // Automatically starts ngrok tunnel and uses HTTPS URL for APP_BASE_URL (for Slack OAuth)
+    // Also starts Caddy for local HTTPS
     reStart / envVars := {
       val log = streams.value.log
       val port = 8080
       val baseEnv = Dotenv.load(baseDirectory.value.getParentFile / ".env", log)
 
+      // Start Caddy for local HTTPS (https://localhost:8443 -> http://localhost:8080)
+      Caddy.ensureRunning(baseDirectory.value.getParentFile / "Caddyfile.dev", log)
+
       Ngrok.ensureTunnel(port, log) match {
-        case Some(ngrokUrl) => Ngrok.overrideBaseUrl(baseEnv, ngrokUrl)
+        case Some(ngrokUrl) => 
+          baseEnv
+          // Was causing trouble
+          // Ngrok.overrideBaseUrl(baseEnv, ngrokUrl)
         case None =>
           log.warn("ngrok not available - using .env APP_BASE_URL")
           baseEnv

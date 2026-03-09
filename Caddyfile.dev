@@ -1,0 +1,7 @@
+# Local development HTTPS proxy
+# Started automatically by `sbt server/reStart`
+
+https://localhost:8443 {
+	tls /Users/bfrasure/.local/share/dev-certs/localhost+2.pem /Users/bfrasure/.local/share/dev-certs/localhost+2-key.pem
+	reverse_proxy localhost:8080
+}

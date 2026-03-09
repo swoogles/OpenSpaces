@@ -47,7 +47,7 @@ object FrontEnd extends ZIOAppDefault{
         Map(
         "open-spaces.url" ->  
         (if (window.location.hostname == "localhost") 
-          "http://localhost:8080"
+          "https://localhost:8443"
         else
           window.location.origin
           )
