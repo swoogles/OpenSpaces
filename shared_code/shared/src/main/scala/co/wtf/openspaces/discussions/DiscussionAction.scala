@@ -1,6 +1,6 @@
 package co.wtf.openspaces.discussions
 
-import co.wtf.openspaces.{Person, Topic, TopicId, RoomSlot}
+import co.wtf.openspaces.{HasActor, Person, Topic, TopicId, RoomSlot}
 import neotype.*
 import neotype.given
 import neotype.interop.zioschema.given
@@ -42,7 +42,7 @@ enum DiscussionAction derives JsonCodec:
     topic2: TopicId,
     expectedRoomSlot2: RoomSlot)
     
-enum DiscussionActionConfirmed derives JsonCodec:
+enum DiscussionActionConfirmed extends HasActor derives JsonCodec:
   case Delete(
     topic: TopicId)
   case Vote(
@@ -82,6 +82,13 @@ enum DiscussionActionConfirmed derives JsonCodec:
     discussionAction: DiscussionAction)
   case Rejected(
     discussionAction: DiscussionAction)
+
+  def actor: Option[Person] = this match
+    case Vote(_, feedback) => Some(feedback.voter)
+    case AddResult(discussion) => Some(discussion.facilitator)
+    case ResetUser(person, _, _) => Some(person)
+    case FacilitatorChanged(_, newFacilitator, _) => Some(newFacilitator)
+    case _ => None
 
 object DiscussionActionConfirmed:
   def fromDiscussionAction(

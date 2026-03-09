@@ -1,6 +1,6 @@
 package co.wtf.openspaces.hackathon
 
-import co.wtf.openspaces.Person
+import co.wtf.openspaces.{HasActor, Person}
 import neotype.*
 import neotype.given
 import neotype.interop.zioschema.given
@@ -30,7 +30,7 @@ enum HackathonProjectAction derives JsonCodec:
     requester: Person)
     
     
-enum HackathonProjectActionConfirmed derives JsonCodec:
+enum HackathonProjectActionConfirmed extends HasActor derives JsonCodec:
   case Created(
     project: HackathonProject)
   case Joined(
@@ -58,3 +58,10 @@ enum HackathonProjectActionConfirmed derives JsonCodec:
     action: HackathonProjectAction)
   case Rejected(
     action: HackathonProjectAction)
+
+  def actor: Option[Person] = this match
+    case Created(project) => Some(project.owner)
+    case Joined(_, person, _) => Some(person)
+    case Left(_, person, _) => Some(person)
+    case OwnershipTransferred(_, newOwner) => Some(newOwner)
+    case _ => None

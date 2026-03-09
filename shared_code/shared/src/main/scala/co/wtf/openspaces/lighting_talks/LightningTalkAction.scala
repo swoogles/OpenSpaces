@@ -1,6 +1,6 @@
 package co.wtf.openspaces.lighting_talks
 
-import co.wtf.openspaces.Person
+import co.wtf.openspaces.{HasActor, Person}
 import neotype.*
 import neotype.given
 import neotype.interop.zioschema.given
@@ -20,7 +20,7 @@ enum LightningTalkAction derives JsonCodec:
     newAssignment: Option[LightningAssignment])
   case DrawForNextNight
 
-enum LightningTalkActionConfirmed derives JsonCodec:
+enum LightningTalkActionConfirmed extends HasActor derives JsonCodec:
   case AddResult(
     proposal: LightningTalkProposal)
   case SlackThreadLinked(
@@ -42,3 +42,7 @@ enum LightningTalkActionConfirmed derives JsonCodec:
     action: LightningTalkAction)
   case Rejected(
     action: LightningTalkAction)
+
+  def actor: Option[Person] = this match
+    case AddResult(proposal) => Some(proposal.speaker)
+    case _ => None

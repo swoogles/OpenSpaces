@@ -1,6 +1,6 @@
 package co.wtf.openspaces.activities
 
-import co.wtf.openspaces.Person
+import co.wtf.openspaces.{HasActor, Person}
 import neotype.interop.ziojson.given
 import zio.json.*
 import java.time.LocalDateTime
@@ -23,7 +23,7 @@ enum ActivityAction derives JsonCodec:
     activityId: ActivityId,
     requester: Person)
 
-enum ActivityActionConfirmed derives JsonCodec:
+enum ActivityActionConfirmed extends HasActor derives JsonCodec:
   case Created(
     activity: Activity)
   case InterestSet(
@@ -49,3 +49,8 @@ enum ActivityActionConfirmed derives JsonCodec:
     action: ActivityAction)
   case Rejected(
     action: ActivityAction)
+
+  def actor: Option[Person] = this match
+    case Created(activity) => Some(activity.creator)
+    case InterestSet(_, person, _, _, _) => Some(person)
+    case _ => None

@@ -1,6 +1,6 @@
 package co.wtf.openspaces.location
 
-import co.wtf.openspaces.Person
+import co.wtf.openspaces.{HasActor, Person}
 import neotype.interop.ziojson.given
 import zio.json.*
 
@@ -32,15 +32,21 @@ enum StopReason derives JsonCodec:
   case Disconnected   // WebSocket closed
 
 /** Confirmations broadcast from server to all clients */
-enum LocationActionConfirmed derives JsonCodec:
+enum LocationActionConfirmed extends HasActor derives JsonCodec:
   /** User started sharing */
   case SharingStarted(location: SharedLocation)
-  
+
   /** User's location updated */
   case LocationUpdated(location: SharedLocation)
-  
+
   /** User stopped sharing */
   case SharingStopped(person: Person, reason: StopReason)
-  
+
   /** Full state sync (sent on connect) */
   case StateReplace(locations: List[SharedLocation])
+
+  def actor: Option[Person] = this match
+    case SharingStarted(location) => Some(location.person)
+    case LocationUpdated(location) => Some(location.person)
+    case SharingStopped(person, _) => Some(person)
+    case StateReplace(_) => None
