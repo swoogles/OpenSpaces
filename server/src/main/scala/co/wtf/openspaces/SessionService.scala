@@ -422,85 +422,32 @@ case class SessionService(
 
   /** Persist action to confirmed_actions log, skipping Rejected/Unauthorized/StateReplace. */
   private def persistIfLoggable(message: WebSocketMessageFromServer): Task[Unit] =
+    import neotype.unwrap
+
+    def isLoggable(actionName: String): Boolean =
+      !actionName.contains("Rejected") &&
+      !actionName.contains("Unauthorized") &&
+      !actionName.contains("StateReplace")
+
+    def persistAction[A <: HasActor: zio.json.JsonEncoder](
+      entityType: String,
+      action: A,
+    ): Task[Unit] =
+      val actionType = action.getClass.getSimpleName.stripSuffix("$")
+      if isLoggable(actionType) then
+        confirmedActionRepository
+          .append(entityType, actionType, action.toJson, action.actor.map(_.unwrap))
+          .unit
+      else
+        ZIO.unit
+
     message match
-      case DiscussionActionConfirmedMessage(action) =>
-        action match
-          case _: DiscussionActionConfirmed.Rejected     => ZIO.unit
-          case _: DiscussionActionConfirmed.Unauthorized => ZIO.unit
-          case _: DiscussionActionConfirmed.StateReplace => ZIO.unit
-          case _ =>
-            val actionType = action.getClass.getSimpleName.stripSuffix("$")
-            val actor = extractDiscussionActor(action)
-            confirmedActionRepository
-              .append("Discussion", actionType, action.toJson, actor)
-              .unit
-      case LightningTalkActionConfirmedMessage(action) =>
-        action match
-          case _: LightningTalkActionConfirmed.Rejected     => ZIO.unit
-          case _: LightningTalkActionConfirmed.Unauthorized => ZIO.unit
-          case _: LightningTalkActionConfirmed.StateReplace => ZIO.unit
-          case _ =>
-            val actionType = action.getClass.getSimpleName.stripSuffix("$")
-            val actor = extractLightningActor(action)
-            confirmedActionRepository
-              .append("LightningTalk", actionType, action.toJson, actor)
-              .unit
-      case HackathonProjectActionConfirmedMessage(action) =>
-        action match
-          case _: HackathonProjectActionConfirmed.Rejected     => ZIO.unit
-          case _: HackathonProjectActionConfirmed.Unauthorized => ZIO.unit
-          case _: HackathonProjectActionConfirmed.StateReplace => ZIO.unit
-          case _ =>
-            val actionType = action.getClass.getSimpleName.stripSuffix("$")
-            val actor = extractHackathonActor(action)
-            confirmedActionRepository
-              .append("HackathonProject", actionType, action.toJson, actor)
-              .unit
-      case ActivityActionConfirmedMessage(action) =>
-        action match
-          case _: ActivityActionConfirmed.Rejected     => ZIO.unit
-          case _: ActivityActionConfirmed.Unauthorized => ZIO.unit
-          case _: ActivityActionConfirmed.StateReplace => ZIO.unit
-          case _ =>
-            val actionType = action.getClass.getSimpleName.stripSuffix("$")
-            val actor = extractActivityActor(action)
-            confirmedActionRepository
-              .append("Activity", actionType, action.toJson, actor)
-              .unit
-
-  /** Extract actor (GitHub username) from discussion action. */
-  private def extractDiscussionActor(action: DiscussionActionConfirmed): Option[String] =
-    import neotype.unwrap
-    action match
-      case DiscussionActionConfirmed.Vote(_, feedback)     => Some(feedback.voter.unwrap)
-      case DiscussionActionConfirmed.AddResult(discussion) => Some(discussion.facilitator.unwrap)
-      case DiscussionActionConfirmed.ResetUser(person, _, _) => Some(person.unwrap)
-      case _ => None
-
-  /** Extract actor (GitHub username) from lightning talk action. */
-  private def extractLightningActor(action: LightningTalkActionConfirmed): Option[String] =
-    import neotype.unwrap
-    action match
-      case LightningTalkActionConfirmed.AddResult(proposal) => Some(proposal.speaker.unwrap)
-      case _ => None
-
-  /** Extract actor (GitHub username) from hackathon project action. */
-  private def extractHackathonActor(action: HackathonProjectActionConfirmed): Option[String] =
-    import neotype.unwrap
-    action match
-      case HackathonProjectActionConfirmed.Created(project)          => Some(project.owner.unwrap)
-      case HackathonProjectActionConfirmed.Joined(_, person, _)      => Some(person.unwrap)
-      case HackathonProjectActionConfirmed.Left(_, person, _)        => Some(person.unwrap)
-      case HackathonProjectActionConfirmed.OwnershipTransferred(_, newOwner) => Some(newOwner.unwrap)
-      case _ => None
-
-  /** Extract actor (GitHub username) from activity action. */
-  private def extractActivityActor(action: ActivityActionConfirmed): Option[String] =
-    import neotype.unwrap
-    action match
-      case ActivityActionConfirmed.Created(activity) => Some(activity.creator.unwrap)
-      case ActivityActionConfirmed.InterestSet(_, person, _, _, _) => Some(person.unwrap)
-      case _ => None
+      case DiscussionActionConfirmedMessage(action) => persistAction("Discussion", action)
+      case LightningTalkActionConfirmedMessage(action) => persistAction("LightningTalk", action)
+      case HackathonProjectActionConfirmedMessage(action) => persistAction("HackathonProject", action)
+      case ActivityActionConfirmedMessage(action) => persistAction("Activity", action)
+      case LocationActionConfirmedMessage(action) => persistAction("Location", action)
+      case _ => ZIO.unit
 
   /** Broadcast authorization granted to all connected clients */
   def broadcastAuthorizationGranted(username: String): Task[Unit] =
