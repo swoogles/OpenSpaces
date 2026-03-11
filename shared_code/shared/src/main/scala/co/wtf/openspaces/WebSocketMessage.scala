@@ -15,9 +15,9 @@ import zio.json.*
 import java.time.{LocalDate, LocalDateTime}
 import java.util.UUID
 
-sealed trait WebSocketMessage derives JsonCodec
+sealed trait WebSocketMessage derives Schema, JsonCodec
 
-enum WebSocketMessageFromClient extends WebSocketMessage derives JsonCodec:
+enum WebSocketMessageFromClient extends WebSocketMessage derives Schema, JsonCodec:
   case Ticket(uuid: UUID)
   case DiscussionActionMessage(action: DiscussionAction)
   case LightningTalkActionMessage(action: LightningTalkAction)
@@ -26,7 +26,7 @@ enum WebSocketMessageFromClient extends WebSocketMessage derives JsonCodec:
   case AuthorizationActionMessage(action: AuthorizationAction)
   case LocationActionMessage(action: LocationAction)
 
-enum WebSocketMessageFromServer extends WebSocketMessage derives JsonCodec:
+enum WebSocketMessageFromServer extends WebSocketMessage derives Schema, JsonCodec:
   case DiscussionActionConfirmedMessage(event: DiscussionActionConfirmed)
   case LightningTalkActionConfirmedMessage(event: LightningTalkActionConfirmed)
   case HackathonProjectActionConfirmedMessage(event: HackathonProjectActionConfirmed)
@@ -36,18 +36,6 @@ enum WebSocketMessageFromServer extends WebSocketMessage derives JsonCodec:
   case LocationActionConfirmedMessage(event: LocationActionConfirmed)
   case KeepAliveMessage
   case SlackReplyCountsMessage(counts: SlackReplyCounts)
-
-given Schema[WebSocketMessageFromClient] =
-  Schema[String].transformOrFail(
-    raw => raw.fromJson[WebSocketMessageFromClient],
-    message => Right(message.toJson),
-  )
-
-given Schema[WebSocketMessageFromServer] =
-  Schema[String].transformOrFail(
-    raw => raw.fromJson[WebSocketMessageFromServer],
-    message => Right(message.toJson),
-  )
 
 given Schema[WebSocketMessageFromClient.Ticket] = DeriveSchema.gen
 given JsonCodec[WebSocketMessageFromClient.Ticket] = DeriveJsonCodec.gen
