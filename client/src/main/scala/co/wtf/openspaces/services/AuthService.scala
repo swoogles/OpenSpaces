@@ -7,8 +7,7 @@ import scala.scalajs.js.URIUtils
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
 
-import co.wtf.openspaces.{Person, RandomActionClient}
-import co.wtf.openspaces.WebSocketMessageFromClient.Ticket
+import co.wtf.openspaces.{Person, RandomActionClient, Ticket}
 
 object AuthService:
   private var refreshInFlight: Option[Future[Boolean]] = None

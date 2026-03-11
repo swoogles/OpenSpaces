@@ -54,7 +54,7 @@ case class SessionService(
   ): ZIO[Any, Throwable, Unit] =
     message match
       // TODO Decide what should happen when *Confirmed messages come through here. Just no op? Error?
-      case ticket: Ticket =>
+      case TicketMessage(ticket) =>
         handleTicket(ticket, channel)
       case DiscussionActionMessage(discussionAction) =>
         defer:

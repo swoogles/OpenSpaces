@@ -858,7 +858,7 @@ object FrontEnd extends ZIOAppDefault{
     connectionStatus.onSync {
       AuthService.fetchTicketAsync(randomActionClient).map { ticket =>
         println("Ticket received, sending to server for state sync")
-        topicUpdates.sendOne(ticket)
+        topicUpdates.sendOne(TicketMessage(ticket))
       }
     }
   
@@ -951,7 +951,7 @@ object FrontEnd extends ZIOAppDefault{
           case _ =>
             EventStream.empty
       } --> { case (ticket, action) =>
-        topicUpdates.sendOne(ticket)
+        topicUpdates.sendOne(TicketMessage(ticket))
         action match
           case action: DiscussionAction =>
             topicUpdates.sendOne(DiscussionActionMessage(action))

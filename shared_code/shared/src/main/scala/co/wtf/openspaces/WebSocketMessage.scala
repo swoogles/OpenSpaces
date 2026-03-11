@@ -17,8 +17,10 @@ import java.util.UUID
 
 sealed trait WebSocketMessage derives Schema, JsonCodec
 
+case class Ticket(uuid: UUID) derives Schema, JsonCodec
+
 enum WebSocketMessageFromClient extends WebSocketMessage derives Schema, JsonCodec:
-  case Ticket(uuid: UUID)
+  case TicketMessage(ticket: Ticket)
   case DiscussionActionMessage(action: DiscussionAction)
   case LightningTalkActionMessage(action: LightningTalkAction)
   case HackathonProjectActionMessage(action: HackathonProjectAction)
@@ -36,9 +38,6 @@ enum WebSocketMessageFromServer extends WebSocketMessage derives Schema, JsonCod
   case LocationActionConfirmedMessage(event: LocationActionConfirmed)
   case KeepAliveMessage
   case SlackReplyCountsMessage(counts: SlackReplyCounts)
-
-given Schema[WebSocketMessageFromClient.Ticket] = DeriveSchema.gen
-given JsonCodec[WebSocketMessageFromClient.Ticket] = DeriveJsonCodec.gen
 
 // Authorization domain types
 

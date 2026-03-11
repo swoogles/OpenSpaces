@@ -1,6 +1,6 @@
 package co.wtf.openspaces.auth
 
-import co.wtf.openspaces.WebSocketMessageFromClient.Ticket
+import co.wtf.openspaces.Ticket
 import java.util.UUID
 import zio.*
 import zio.direct.*
