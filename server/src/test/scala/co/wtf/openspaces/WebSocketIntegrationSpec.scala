@@ -94,7 +94,7 @@ object WebSocketIntegrationSpec extends ZIOSpecDefault:
 
           val clientApp = makeCollectingClient(
             receivedMessages,
-            onHandshake = channel => channel.send(ticket),
+            onHandshake = channel => channel.send(WebSocketMessageFromClient.TicketMessage(ticket)),
           )
 
           client.socket(clientApp).run
@@ -181,7 +181,7 @@ object WebSocketIntegrationSpec extends ZIOSpecDefault:
             receivedMessages,
             onHandshake = channel =>
               for
-                _ <- channel.send(ticket)
+                _ <- channel.send(WebSocketMessageFromClient.TicketMessage(ticket))
                 _ <- ZIO.withClock(Clock.ClockLive)(ZIO.sleep(100.millis))
                 _ <- channel.send(
                   DiscussionActionMessage(
@@ -222,7 +222,7 @@ object WebSocketIntegrationSpec extends ZIOSpecDefault:
             receivedMessages,
             onHandshake = channel =>
               for
-                _ <- channel.send(ticket)
+                _ <- channel.send(WebSocketMessageFromClient.TicketMessage(ticket))
                 // Small delay to ensure authentication completes
                 _ <- ZIO.withClock(Clock.ClockLive)(ZIO.sleep(100.millis))
                 _ <- channel.send(
@@ -288,7 +288,7 @@ object WebSocketIntegrationSpec extends ZIOSpecDefault:
             client1Messages,
             onHandshake = channel =>
               for
-                _ <- channel.send(ticket1)
+                _ <- channel.send(WebSocketMessageFromClient.TicketMessage(ticket1))
                 _ <- ZIO.withClock(Clock.ClockLive)(ZIO.sleep(100.millis))
                 _ <- client1Ready.succeed(())
                 // Wait for client 2 to be ready before sending action
@@ -310,7 +310,7 @@ object WebSocketIntegrationSpec extends ZIOSpecDefault:
             client2Messages,
             onHandshake = channel =>
               for
-                _ <- channel.send(ticket2)
+                _ <- channel.send(WebSocketMessageFromClient.TicketMessage(ticket2))
                 _ <- ZIO.withClock(Clock.ClockLive)(ZIO.sleep(100.millis))
                 _ <- client2Ready.succeed(())
               yield (),
