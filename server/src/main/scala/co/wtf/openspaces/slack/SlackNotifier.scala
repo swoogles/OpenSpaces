@@ -36,11 +36,6 @@ trait SlackNotifier:
   ): Task[Unit]
   /** Fetch reply counts for all entities with Slack threads */
   def fetchReplyCounts: Task[SlackReplyCounts]
-  /** Start background fiber that periodically fetches and broadcasts reply counts */
-  def startReplyCountRefresh(
-    broadcast: SlackReplyCountsMessage => Task[Unit],
-    interval: Duration = 3.minutes,
-  ): Task[Fiber.Runtime[Throwable, Unit]]
 
 class SlackNotifierLive(
   slackClient: SlackClient,
@@ -672,34 +667,6 @@ class SlackNotifierLive(
       ).as(counts)
     }
 
-  def startReplyCountRefresh(
-    broadcast: SlackReplyCountsMessage => Task[Unit],
-    interval: Duration = 3.minutes,
-  ): Task[Fiber.Runtime[Throwable, Unit]] =
-    val refreshLoop = (for
-      startedAt <- Clock.nanoTime
-      _ <- ZIO.logInfo(s"Fetching Slack reply counts...")
-      counts <- fetchReplyCounts
-      total = counts.discussions.size + counts.lightningTalks.size + 
-              counts.hackathonProjects.size + counts.activities.size
-      totalReplies = counts.discussions.values.sum +
-                     counts.lightningTalks.values.sum +
-                     counts.hackathonProjects.values.sum +
-                     counts.activities.values.sum
-      _ <- ZIO.when(total > 0)(
-        ZIO.logInfo(s"Broadcasting reply counts for $total threads (total replies: $totalReplies)") *>
-        broadcast(SlackReplyCountsMessage(counts))
-      )
-      finishedAt <- Clock.nanoTime
-      elapsedSeconds = (finishedAt - startedAt) / 1000000000L
-      _ <- ZIO.logInfo(s"Slack reply count refresh cycle completed in ${elapsedSeconds}s")
-    yield ()).catchAll { error =>
-      ZIO.logError(s"Error fetching Slack reply counts: ${error.getMessage}")
-    }
-    
-    // Initial fetch, then repeat on interval
-    (refreshLoop *> refreshLoop.schedule(Schedule.fixed(interval)).unit).fork
-
 
 class SlackNotifierNoOp extends SlackNotifier:
   def notifyDiscussion(
@@ -729,12 +696,6 @@ class SlackNotifierNoOp extends SlackNotifier:
     ZIO.unit
   def fetchReplyCounts: Task[SlackReplyCounts] =
     ZIO.succeed(SlackReplyCounts(Map.empty, Map.empty, Map.empty, Map.empty))
-  def startReplyCountRefresh(
-    broadcast: SlackReplyCountsMessage => Task[Unit],
-    interval: Duration = 3.minutes,
-  ): Task[Fiber.Runtime[Throwable, Unit]] =
-    // No-op: just return a fiber that does nothing
-    ZIO.never.fork
 
 object SlackNotifier:
   val layer: ZLayer[Option[SlackConfigEnv] & DiscussionRepository & LightningTalkRepository & HackathonProjectRepository & co.wtf.openspaces.db.ActivityRepository & TopicVoteRepository & HackathonProjectMemberRepository & ActivityInterestRepository & SlackRosterMessageRepository & UserRepository & Client, Nothing, SlackNotifier] =

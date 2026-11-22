@@ -2,17 +2,15 @@ package co.wtf.openspaces
 
 import co.wtf.openspaces.auth.{AdminConfig, AuthenticatedTicketService}
 import co.wtf.openspaces.db.{ConfirmedActionRepository, DiscussionRepository, UserRepository}
-import co.wtf.openspaces.discussions.{DiscussionAction, DiscussionActionConfirmed, DiscussionState, DiscussionStore}
+import co.wtf.openspaces.discussions.{DiscussionAction, DiscussionActionConfirmed, DiscussionStore}
 import co.wtf.openspaces.hackathon.*
 import co.wtf.openspaces.lightning_talks.LightningTalkService
 import co.wtf.openspaces.lighting_talks.*
 import co.wtf.openspaces.activities.*
-import co.wtf.openspaces.activities.ActivityService
 import co.wtf.openspaces.location.*
 import co.wtf.openspaces.slack.SlackNotifier
 import zio.*
 import zio.direct.*
-import zio.http.*
 import zio.json.*
 import WebSocketMessageFromClient.*
 import WebSocketMessageFromServer.*

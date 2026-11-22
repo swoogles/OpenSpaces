@@ -100,15 +100,6 @@ class PersistentDiscussionStore(
       topic <- DiscussionTopics.randomTopic
     yield DiscussionAction.Add(topic, person)
 
-  private def randomDeleteAction(currentState: DiscussionState): Task[DiscussionAction] =
-    for
-      topicIdOpt <- randomExistingTopicId(currentState)
-      person <- randomPerson
-      topic <- DiscussionTopics.randomTopic
-    yield topicIdOpt match
-      case Some(topicId) => DiscussionAction.Delete(topicId)
-      case None => DiscussionAction.Add(topic, person)
-
   private def randomVoteAction(currentState: DiscussionState): Task[DiscussionAction] =
     for
       topicIdOpt <- randomExistingTopicId(currentState)
@@ -126,15 +117,6 @@ class PersistentDiscussionStore(
     yield topicIdOpt match
       case Some(topicId) => DiscussionAction.Vote(topicId, Feedback(person, VotePosition.NotInterested))
       case None => DiscussionAction.Add(topic, person)
-
-  private def randomRenameAction(currentState: DiscussionState): Task[DiscussionAction] =
-    for
-      topicIdOpt <- randomExistingTopicId(currentState)
-      newTopic <- DiscussionTopics.randomTopic
-      person <- randomPerson
-    yield topicIdOpt match
-      case Some(topicId) => DiscussionAction.Rename(topicId, newTopic)
-      case None => DiscussionAction.Add(newTopic, person)
 
   private def randomScheduleAction(currentState: DiscussionState): Task[DiscussionAction] =
     for
