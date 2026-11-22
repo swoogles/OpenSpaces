@@ -493,9 +493,9 @@ class PersistentDiscussionStore(
   ): Task[Discussion] =
     for
       randomIcon <- glyphiconService.getRandomIcon
-      randomId   <- Random.nextLong
+      randomId   <- UserOps.generateId
       userRow    <- userRepo.findByUsername(facilitator.unwrap)
-      createdAtEpochMs = java.lang.System.currentTimeMillis()
+      createdAtEpochMs <- UserOps.nowMillis
       displayName = userRow.flatMap(_.displayName)
     yield Discussion(
       topic,
@@ -636,8 +636,7 @@ object PersistentDiscussionStore:
       rows <- discussionRepo.findAllActive
       voteRows <- topicVoteRepo.findAllForActiveDiscussions
       votesByTopic = voteRows.groupMap(_.topicId) { voteRow =>
-        VotePosition.values
-          .find(_.toString == voteRow.position)
+        scala.util.Try(VotePosition.valueOf(voteRow.position)).toOption
           .map(position =>
             Feedback(
               Person(voteRow.githubUsername),

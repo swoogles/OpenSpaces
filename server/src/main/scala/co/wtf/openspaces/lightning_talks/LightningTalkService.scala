@@ -10,7 +10,6 @@ import co.wtf.openspaces.db.{
 import co.wtf.openspaces.lighting_talks.*
 import neotype.unwrap
 import zio.*
-import scala.util.Random as ScalaRandom
 
 case class LightningTalkService(
   state: Ref[LightningTalkState],
@@ -127,7 +126,7 @@ case class LightningTalkService(
         for
           today <- Clock.instant.map(_.atZone(java.time.ZoneId.of("America/Denver")).toLocalDate)
           current <- state.get
-          shuffled = ScalaRandom.shuffle(current.unassignedProposals)
+          shuffled <- Random.shuffle(current.unassignedProposals)
           result <- LightningTalkDraw.drawForNextNight(current,
                                                        _ => shuffled,
                                                        today,
@@ -181,7 +180,7 @@ case class LightningTalkService(
     for
       id <- UserOps.generateId
       speakerUser <- userRepo.findByUsername(speaker.unwrap)
-      createdAtEpochMs = java.lang.System.currentTimeMillis()
+      createdAtEpochMs <- UserOps.nowMillis
     yield LightningTalkProposal(
       id = LightningTalkId(id),
       speaker = speaker,
@@ -234,7 +233,7 @@ object LightningTalkService:
           Some(None)
         case Some(nightRaw) =>
           val parsedNight =
-            LightningTalkNight.values.find(_.toString == nightRaw)
+            scala.util.Try(LightningTalkNight.valueOf(nightRaw)).toOption
           val parsedSlot = row.assignmentSlot.flatMap(
             LightningTalkSlot.make(_).toOption,
           )

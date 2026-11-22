@@ -748,7 +748,7 @@ case class SessionService(
         ZIO.logError(s"Error checking location expiration: ${error.getMessage}")
       }
 
-    (checkLoop *> checkLoop.schedule(Schedule.fixed(interval)).unit).fork
+    checkLoop.repeat(Schedule.fixed(interval)).unit.fork
 
   private def isTicketedActionAuthorized(
     channel: OpenSpacesServerChannel,
@@ -826,7 +826,7 @@ case class SessionService(
         ZIO.logError(s"Error fetching Slack reply counts: ${error.getMessage}")
       }
 
-    (refreshLoop *> refreshLoop.schedule(Schedule.fixed(interval)).unit).fork
+    refreshLoop.repeat(Schedule.fixed(interval)).unit.fork
 
   /** Start a lightweight websocket heartbeat so Heroku does not close idle sockets. */
   def startWebSocketKeepAlive(interval: Duration = 25.seconds): Task[Fiber.Runtime[Throwable, Unit]] =

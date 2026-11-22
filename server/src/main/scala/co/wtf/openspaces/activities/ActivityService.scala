@@ -192,9 +192,10 @@ case class ActivityService(
         case activities =>
           if roll < 40 then makeRandomCreateAction(person)
           else if roll < 75 then
-            val activity = activities(scala.util.Random.nextInt(activities.size))
-            val interested = !activity.hasMember(person)
-            ZIO.succeed(ActivityAction.SetInterest(activity.id, person, interested))
+            zio.Random.nextIntBounded(activities.size).map { i =>
+              val activity = activities(i)
+              ActivityAction.SetInterest(activity.id, person, interested = !activity.hasMember(person))
+            }
           else if roll < 90 then
             current.ownedBy(person).headOption match
               case Some(owned) =>
@@ -257,7 +258,7 @@ case class ActivityService(
     for
       id <- UserOps.generateId
       creatorUser <- userRepo.findByUsername(creator.unwrap)
-      createdAtEpochMs = java.lang.System.currentTimeMillis()
+      createdAtEpochMs <- UserOps.nowMillis
     yield Activity(
       id = ActivityId(id),
       description = description,

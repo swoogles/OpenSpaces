@@ -190,7 +190,7 @@ case class HackathonProjectService(
     for
       id <- UserOps.generateId
       creatorUser <- userRepo.findByUsername(creator.unwrap)
-      createdAtEpochMs = java.lang.System.currentTimeMillis()
+      createdAtEpochMs <- UserOps.nowMillis
     yield HackathonProject.create(
       id = HackathonProjectId(id),
       title = title,

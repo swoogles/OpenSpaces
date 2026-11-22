@@ -19,3 +19,7 @@ object UserOps:
   /** Generate a random positive Long ID. */
   def generateId: UIO[Long] =
     zio.Random.nextLong.map(n => if n == Long.MinValue then 0L else math.abs(n))
+
+  /** Current time in epoch millis, via ZIO Clock so tests can control it. */
+  val nowMillis: UIO[Long] =
+    Clock.currentTime(java.util.concurrent.TimeUnit.MILLISECONDS)
