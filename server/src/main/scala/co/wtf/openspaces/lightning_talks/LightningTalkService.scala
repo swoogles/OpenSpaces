@@ -15,17 +15,19 @@ case class LightningTalkService(
   state: Ref[LightningTalkState],
   lightningTalkRepo: LightningTalkRepository,
   userRepo: UserRepository,
-  gitHubProfileService: GitHubProfileService):
+  gitHubProfileService: GitHubProfileService,
+  lock: Semaphore):
   def snapshot: UIO[LightningTalkState] = state.get
 
   def reloadFromDatabase: Task[LightningTalkState] =
-    for
-      reloaded <- LightningTalkService.loadInitialState(
-        lightningTalkRepo,
-        gitHubProfileService,
-      )
-      _ <- state.set(reloaded)
-    yield reloaded
+    lock.withPermit:
+      for
+        reloaded <- LightningTalkService.loadInitialState(
+          lightningTalkRepo,
+          gitHubProfileService,
+        )
+        _ <- state.set(reloaded)
+      yield reloaded
 
   def applyConfirmed(
     action: LightningTalkActionConfirmed,
@@ -38,7 +40,13 @@ case class LightningTalkService(
       ),
     )
 
+  /** Actions are applied one at a time, so validation always sees the latest state. */
   def applyAction(
+    action: LightningTalkAction,
+  ): Task[LightningTalkActionConfirmed] =
+    lock.withPermit(applyActionLocked(action))
+
+  private def applyActionLocked(
     action: LightningTalkAction,
   ): Task[LightningTalkActionConfirmed] =
     action match
@@ -270,9 +278,11 @@ object LightningTalkService:
                                          gitHubProfileService,
         )
         stateRef <- Ref.make(initialState)
+        lock <- Semaphore.make(1)
       yield LightningTalkService(
         stateRef,
         lightningTalkRepo,
         userRepo,
         gitHubProfileService,
+        lock,
       )

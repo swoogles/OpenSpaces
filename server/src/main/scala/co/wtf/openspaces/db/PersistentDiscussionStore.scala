@@ -25,7 +25,8 @@ class PersistentDiscussionStore(
   gitHubProfileService: GitHubProfileService,
   glyphiconService: GlyphiconService,
   state: Ref[DiscussionState],
-  slotLookupRef: Ref[PersistentDiscussionStore.SlotLookup]
+  slotLookupRef: Ref[PersistentDiscussionStore.SlotLookup],
+  lock: Semaphore,
 ) extends DiscussionStore:
 
   import PersistentDiscussionStore.MaxTopicCount
@@ -33,26 +34,28 @@ class PersistentDiscussionStore(
   def snapshot: UIO[DiscussionState] = state.get
 
   def reloadFromDatabase: Task[DiscussionState] =
-    for
-      loaded <- PersistentDiscussionStore.loadInitialState(
-        discussionRepo,
-        topicVoteRepo,
-        roomRepo,
-        timeSlotRepo,
-        gitHubProfileService,
-      )
-      (reloadedState, slotLookup) = loaded
-      _ <- state.set(reloadedState)
-      _ <- slotLookupRef.set(slotLookup)
-    yield reloadedState
+    lock.withPermit:
+      for
+        loaded <- PersistentDiscussionStore.loadInitialState(
+          discussionRepo,
+          topicVoteRepo,
+          roomRepo,
+          timeSlotRepo,
+          gitHubProfileService,
+        )
+        (reloadedState, slotLookup) = loaded
+        _ <- state.set(reloadedState)
+        _ <- slotLookupRef.set(slotLookup)
+      yield reloadedState
 
   /** Apply a confirmed action to the in-memory state (e.g., SlackThreadLinked) */
   def applyConfirmed(action: DiscussionActionConfirmed): UIO[Unit] =
     state.update(_.apply(action))
 
   /** Process an action: persist event, update materialized view, return confirmed action */
+  /** Actions are applied one at a time, so validation always sees the latest state. */
   def applyAction(action: DiscussionAction): Task[DiscussionActionConfirmed] =
-    applyActionWithActor(action, action.actor.unwrap)
+    lock.withPermit(applyActionWithActor(action, action.actor.unwrap))
 
   /** Look up the time_slot_id for a given RoomSlot */
   private def findTimeSlotId(roomSlot: RoomSlot, lookup: PersistentDiscussionStore.SlotLookup): Option[Int] =
@@ -526,6 +529,7 @@ object PersistentDiscussionStore:
         loaded <- loadInitialState(discussionRepo, topicVoteRepo, roomRepo, timeSlotRepo, gitHubProfileService)
         (initialState, slotLookup) = loaded
         stateRef <- Ref.make(initialState)
+        lock <- Semaphore.make(1)
         slotLookupRef <- Ref.make(slotLookup)
         
         _ <- ZIO.logInfo(s"Loaded ${initialState.data.size} discussions and ${initialState.slots.flatMap(_.slots).size} time slots from database")
@@ -539,5 +543,6 @@ object PersistentDiscussionStore:
         gitHubProfileService,
         glyphiconSvc,
         stateRef,
-        slotLookupRef
+        slotLookupRef,
+        lock,
       )

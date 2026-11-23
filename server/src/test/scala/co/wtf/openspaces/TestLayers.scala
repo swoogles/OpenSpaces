@@ -32,11 +32,13 @@ object TestLayers:
     ZLayer.fromZIO:
       for
         stateRef <- Ref.make(LightningTalkState(Map.empty))
+        lock     <- Semaphore.make(1)
       yield LightningTalkService(
         stateRef,
         NoOpLightningTalkRepository,
         NoOpUserRepository,
         NoOpGitHubProfileService,
+        lock,
       )
 
   /** In-memory HackathonProjectService for tests */
@@ -44,12 +46,14 @@ object TestLayers:
     ZLayer.fromZIO:
       for
         stateRef <- Ref.make(HackathonProjectState(Map.empty))
+        lock     <- Semaphore.make(1)
       yield HackathonProjectService(
         stateRef,
         NoOpHackathonProjectRepository,
         NoOpHackathonProjectMemberRepository,
         NoOpUserRepository,
         NoOpGitHubProfileService,
+        lock,
       )
 
   /** In-memory ActivityService for tests */
@@ -57,6 +61,7 @@ object TestLayers:
     ZLayer.fromZIO:
       for
         stateRef <- Ref.make(ActivityState(Map.empty))
+        lock     <- Semaphore.make(1)
       yield ActivityService(
         stateRef,
         NoOpActivityRepository,
@@ -65,6 +70,7 @@ object TestLayers:
         NoOpTimeSlotRepository,
         NoOpUserRepository,
         NoOpGitHubProfileService,
+        lock,
       )
 
   /** In-memory LocationService for tests */

@@ -19,20 +19,22 @@ case class HackathonProjectService(
   memberRepo: HackathonProjectMemberRepository,
   userRepo: UserRepository,
   gitHubProfileService: GitHubProfileService,
+  lock: Semaphore,
 ):
 
   def snapshot: UIO[HackathonProjectState] =
     state.get
 
   def reloadFromDatabase: Task[HackathonProjectState] =
-    for
-      reloaded <- HackathonProjectService.loadInitialState(
-        projectRepo,
-        memberRepo,
-        gitHubProfileService,
-      )
-      _ <- state.set(reloaded)
-    yield reloaded
+    lock.withPermit:
+      for
+        reloaded <- HackathonProjectService.loadInitialState(
+          projectRepo,
+          memberRepo,
+          gitHubProfileService,
+        )
+        _ <- state.set(reloaded)
+      yield reloaded
 
   def applyConfirmed(action: HackathonProjectActionConfirmed): UIO[Unit] =
     state.update(_(action))
@@ -40,7 +42,13 @@ case class HackathonProjectService(
   def listProjects: UIO[List[HackathonProject]] =
     snapshot.map(_.projectsSortedBySize)
 
+  /** Actions are applied one at a time, so validation always sees the latest state. */
   def applyAction(
+    action: HackathonProjectAction,
+  ): Task[List[HackathonProjectActionConfirmed]] =
+    lock.withPermit(applyActionLocked(action))
+
+  private def applyActionLocked(
     action: HackathonProjectAction,
   ): Task[List[HackathonProjectActionConfirmed]] =
     action match
@@ -75,24 +83,12 @@ case class HackathonProjectService(
               ZIO.succeed(List(HackathonProjectActionConfirmed.Rejected(join)))
             // Need to leave current project first
             case (Some(target), Some(curr)) =>
-              // Re-verify target still exists right before committing
-              // This prevents race condition where target is deleted between check and join
-              state.get.flatMap { freshState =>
-                if !freshState.projects.contains(target.id) then
-                  ZIO.succeed(List(HackathonProjectActionConfirmed.Rejected(join)))
-                else
-                  for
-                    leaveResults <- handleLeave(curr, person)
-                    // Re-check once more after leave committed
-                    postLeaveState <- state.get
-                    joinResult <- if postLeaveState.projects.contains(target.id) then
-                      handleJoin(target, person)
-                    else
-                      // Target was deleted while we were leaving - rejoin original if possible
-                      // For now, just reject (user is orphaned but at least we don't crash)
-                      ZIO.succeed(HackathonProjectActionConfirmed.Rejected(join))
-                  yield leaveResults :+ joinResult
-              }
+              // Switching projects: leave the current one, then join the target.
+              // applyAction holds the service lock, so the target can't be deleted in between.
+              for
+                leaveResults <- handleLeave(curr, person)
+                joinResult   <- handleJoin(target, person)
+              yield leaveResults :+ joinResult
             // No current project, just join
             case (Some(target), None) =>
               handleJoin(target, person).map(List(_))
@@ -278,10 +274,12 @@ object HackathonProjectService:
         gitHubProfileService <- ZIO.service[GitHubProfileService]
         initialState <- loadInitialState(projectRepo, memberRepo, gitHubProfileService)
         stateRef <- Ref.make(initialState)
+        lock <- Semaphore.make(1)
       yield HackathonProjectService(
         stateRef,
         projectRepo,
         memberRepo,
         userRepo,
         gitHubProfileService,
+        lock,
       )

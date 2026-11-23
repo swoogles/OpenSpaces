@@ -75,6 +75,19 @@ object PersistentDiscussionStoreSpec extends ZIOSpecDefault:
           state.data == before.data,
         )
       },
+      test("concurrent bookings of the same slot: exactly one wins") {
+        val attempts = (1 to 20).toList.map(i =>
+          DiscussionAction.AddWithRoomSlot(Topic.unsafeMake(s"Concurrent topic $i"), Person(s"user$i"), sampleRoomSlot),
+        )
+        for {
+          dataStore <- makeDataStore(DiscussionState(slots, Map.empty))
+          results   <- ZIO.foreachPar(attempts)(dataStore.applyAction)
+          state     <- dataStore.snapshot
+        } yield assertTrue(
+          results.count(_.isInstanceOf[DiscussionActionConfirmed.AddResult]) == 1,
+          state.data.values.count(_.roomSlot.contains(sampleRoomSlot)) == 1,
+        )
+      } @@ TestAspect.withLiveRandom,
       test("Rename by the facilitator is applied") {
         val existing =
           Discussion(Topic.unsafeMake("Original title"), Person("Owner"), TopicId(7), GlyphiconUtils.names(0), roomSlot = None)

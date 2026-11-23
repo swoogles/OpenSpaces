@@ -22,6 +22,7 @@ case class ActivityService(
   timeSlotRepo: TimeSlotRepository,
   userRepo: UserRepository,
   gitHubProfileService: GitHubProfileService,
+  lock: Semaphore,
 ):
   private val AllowedDayBuffer = 3L
 
@@ -29,15 +30,20 @@ case class ActivityService(
     state.get
 
   def reloadFromDatabase: Task[ActivityState] =
-    for
-      reloaded <- ActivityService.loadInitialState(activityRepo, activityInterestRepo, activityDismissalRepo, gitHubProfileService)
-      _ <- state.set(reloaded)
-    yield reloaded
+    lock.withPermit:
+      for
+        reloaded <- ActivityService.loadInitialState(activityRepo, activityInterestRepo, activityDismissalRepo, gitHubProfileService)
+        _ <- state.set(reloaded)
+      yield reloaded
 
   def applyConfirmed(action: ActivityActionConfirmed): UIO[Unit] =
     state.update(_(action))
 
+  /** Actions are applied one at a time, so validation always sees the latest state. */
   def applyAction(action: ActivityAction): Task[ActivityActionConfirmed] =
+    lock.withPermit(applyActionLocked(action))
+
+  private def applyActionLocked(action: ActivityAction): Task[ActivityActionConfirmed] =
     action match
       case create @ ActivityAction.Create(description, eventTime, creator) =>
         for
@@ -294,6 +300,7 @@ object ActivityService:
         gitHubProfileService <- ZIO.service[GitHubProfileService]
         initialState <- loadInitialState(activityRepo, activityInterestRepo, activityDismissalRepo, gitHubProfileService)
         stateRef <- Ref.make(initialState)
+        lock <- Semaphore.make(1)
       yield ActivityService(
         stateRef,
         activityRepo,
@@ -302,4 +309,5 @@ object ActivityService:
         timeSlotRepo,
         userRepo,
         gitHubProfileService,
+        lock,
       )
