@@ -1,7 +1,7 @@
 package co.wtf.openspaces
 
 import co.wtf.openspaces.auth.{AdminConfig, AuthenticatedTicketService}
-import co.wtf.openspaces.discussions.{Discussion, DiscussionAction, DiscussionActionConfirmed, DiscussionDataStore, DiscussionState, DiscussionStore, SchedulingService}
+import co.wtf.openspaces.discussions.{Discussion, DiscussionAction, DiscussionActionConfirmed, DiscussionState, DiscussionStore, SchedulingService}
 import co.wtf.openspaces.github.{GitHubProfileService, GitHubTokenResolver}
 import co.wtf.openspaces.hackathon.*
 import co.wtf.openspaces.lightning_talks.LightningTalkService
@@ -424,10 +424,7 @@ object WebSocketIntegrationSpec extends ZIOSpecDefault:
       AuthenticatedTicketService.layer,
       ZLayer.succeed(AdminConfig(Set.empty, "test-channel")),
       // Data stores (in-memory for tests)
-      ZLayer.make[DiscussionStore](
-        DiscussionDataStore.layer(useSampleData = false),
-        GlyphiconService.layer,
-      ),
+      InMemoryDiscussionDb.storeLayer(DiscussionState.example),
       // Supporting services (no-op/minimal for tests)
       TestLayers.lightningTalkServiceLayer,
       TestLayers.hackathonProjectServiceLayer,

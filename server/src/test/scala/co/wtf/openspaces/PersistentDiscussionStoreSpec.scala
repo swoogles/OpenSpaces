@@ -1,11 +1,11 @@
 package co.wtf.openspaces
 
-import co.wtf.openspaces.discussions.{Discussion, DiscussionAction, DiscussionActionConfirmed, DiscussionDataStore, DiscussionState}
+import co.wtf.openspaces.discussions.{Discussion, DiscussionAction, DiscussionActionConfirmed, DiscussionState, DiscussionStore}
 import zio.*
 import zio.test.*
-import zio.test.TestRandom
 
-object DiscussionDataStoreSpec extends ZIOSpecDefault:
+/** Exercises the production discussion store against an in-memory database. */
+object PersistentDiscussionStoreSpec extends ZIOSpecDefault:
 
   // Use the example state which has test slots
   private val slots = DiscussionState.example.slots
@@ -16,14 +16,11 @@ object DiscussionDataStoreSpec extends ZIOSpecDefault:
 
   private def makeDataStore(
     state: DiscussionState,
-  ): UIO[DiscussionDataStore] =
-    for {
-      ref          <- Ref.make(state)
-      glyphService <- GlyphiconService.make
-    } yield DiscussionDataStore(ref, glyphService)
+  ): UIO[DiscussionStore] =
+    ZIO.scoped(InMemoryDiscussionDb.storeLayer(state).build.map(_.get[DiscussionStore]))
 
   override def spec =
-    suite("DiscussionDataStoreSpec")(
+    suite("PersistentDiscussionStoreSpec")(
       test("AddWithRoomSlot stores discussion when slot free") {
         val topic        = Topic.unsafeMake("Topic scheduled at creation")
         val facilitator  = Person("Facilitator")
@@ -34,8 +31,6 @@ object DiscussionDataStoreSpec extends ZIOSpecDefault:
                                                       sampleRoomSlot)
         for {
           dataStore <- makeDataStore(discussionState)
-          _         <- TestRandom.feedInts(0)
-          _         <- TestRandom.feedLongs(1L)
           confirmed <- dataStore.applyAction(action)
           state     <- dataStore.snapshot
           discussion = confirmed match
@@ -72,11 +67,38 @@ object DiscussionDataStoreSpec extends ZIOSpecDefault:
         )
         for {
           dataStore <- makeDataStore(discussionState)
+          before    <- dataStore.snapshot
           confirmed <- dataStore.applyAction(action)
           state     <- dataStore.snapshot
         } yield assertTrue(
           confirmed == DiscussionActionConfirmed.Rejected(action),
-          state.data == discussionState.data,
+          state.data == before.data,
+        )
+      },
+      test("Rename by the facilitator is applied") {
+        val existing =
+          Discussion(Topic.unsafeMake("Original title"), Person("Owner"), TopicId(7), GlyphiconUtils.names(0), roomSlot = None)
+        val action = DiscussionAction.Rename(existing.id, Topic.unsafeMake("Better title"), Person("Owner"))
+        for {
+          dataStore <- makeDataStore(DiscussionState(slots, Map(existing.id -> existing)))
+          confirmed <- dataStore.applyAction(action)
+          state     <- dataStore.snapshot
+        } yield assertTrue(
+          confirmed == DiscussionActionConfirmed.Rename(existing.id, Topic.unsafeMake("Better title")),
+          state.data(existing.id).topic == Topic.unsafeMake("Better title"),
+        )
+      },
+      test("Rename by anyone other than the facilitator is Unauthorized") {
+        val existing =
+          Discussion(Topic.unsafeMake("Original title"), Person("Owner"), TopicId(8), GlyphiconUtils.names(0), roomSlot = None)
+        val action = DiscussionAction.Rename(existing.id, Topic.unsafeMake("Hijacked title"), Person("Intruder"))
+        for {
+          dataStore <- makeDataStore(DiscussionState(slots, Map(existing.id -> existing)))
+          confirmed <- dataStore.applyAction(action)
+          state     <- dataStore.snapshot
+        } yield assertTrue(
+          confirmed == DiscussionActionConfirmed.Unauthorized(action),
+          state.data(existing.id).topic == Topic.unsafeMake("Original title"),
         )
       },
       test("SetLockedTimeslot updates topic when scheduled and version matches") {

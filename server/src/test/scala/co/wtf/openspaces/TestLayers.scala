@@ -1,7 +1,7 @@
 package co.wtf.openspaces
 
 import co.wtf.openspaces.auth.{AdminConfig, AuthenticatedTicketService}
-import co.wtf.openspaces.discussions.{Discussion, DiscussionAction, DiscussionActionConfirmed, DiscussionDataStore, DiscussionState, DiscussionStore, SchedulingService}
+import co.wtf.openspaces.discussions.{Discussion, DiscussionAction, DiscussionActionConfirmed, DiscussionState, DiscussionStore, SchedulingService}
 import co.wtf.openspaces.github.GitHubProfileService
 import co.wtf.openspaces.hackathon.*
 import co.wtf.openspaces.lightning_talks.LightningTalkService
@@ -86,6 +86,9 @@ object TestLayers:
   /** No-op UserRepository for tests */
   val userRepositoryLayer: ULayer[co.wtf.openspaces.db.UserRepository] =
     ZLayer.succeed(NoOpUserRepository)
+
+  val gitHubProfileServiceLayer: ULayer[GitHubProfileService] =
+    ZLayer.succeed(NoOpGitHubProfileService)
 
   // No-op repository implementations
 

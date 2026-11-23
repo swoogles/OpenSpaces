@@ -6,7 +6,7 @@ import zio.test.Assertion.*
 import zio.http.*
 import com.microsoft.playwright.{Playwright, Browser, BrowserType, Page, BrowserContext}
 import co.wtf.openspaces.auth.{AdminConfig, AuthenticatedTicketService}
-import co.wtf.openspaces.discussions.{DiscussionDataStore, DiscussionStore}
+import co.wtf.openspaces.discussions.{DiscussionState, DiscussionStore}
 
 /** E2E tests using Playwright Java SDK with embedded server.
   *
@@ -470,10 +470,7 @@ object PlaywrightE2ESpec extends ZIOSpecDefault:
     AuthenticatedTicketService.layer,
     ZLayer.succeed(AdminConfig(Set.empty, "test-channel")),
     // Discussion store (in-memory with sample data for E2E verification)
-    ZLayer.make[DiscussionStore](
-      DiscussionDataStore.layer(useSampleData = true),
-      GlyphiconService.layer,
-    ),
+    InMemoryDiscussionDb.storeLayer(DiscussionState.exampleWithDiscussions),
     // Test layers (in-memory/no-op implementations)
     TestLayers.lightningTalkServiceLayer,
     TestLayers.hackathonProjectServiceLayer,
