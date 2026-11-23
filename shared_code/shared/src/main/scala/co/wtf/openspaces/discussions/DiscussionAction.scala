@@ -106,6 +106,10 @@ enum DiscussionActionConfirmed extends HasActor derives JsonCodec:
     case FacilitatorChanged(_, newFacilitator, _) => Some(newFacilitator)
     case _ => None
 
+  def isStateChange: Boolean = this match
+    case _: Rejected | _: Unauthorized | _: StateReplace => false
+    case _                                             => true
+
 object DiscussionActionConfirmed:
   def fromDiscussionAction(
     discussionAction: DiscussionAction,

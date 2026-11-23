@@ -406,34 +406,25 @@ case class SessionService(
             )
             .run
 
-  /** Persist action to confirmed_actions log, skipping Rejected/Unauthorized/StateReplace. */
+  /** Persist state-changing actions to the confirmed_actions log. */
   private def persistIfLoggable(message: WebSocketMessageFromServer): Task[Unit] =
     import neotype.unwrap
 
-    def isLoggable(actionName: String): Boolean =
-      !actionName.contains("Rejected") &&
-      !actionName.contains("Unauthorized") &&
-      !actionName.contains("StateReplace")
-
-    def persistAction[A <: HasActor: zio.json.JsonEncoder](
+    def persistAction[A <: HasActor & Product: zio.json.JsonEncoder](
       entityType: String,
       action: A,
     ): Task[Unit] =
-      val actionType = action.getClass.getSimpleName.stripSuffix("$")
-      if isLoggable(actionType) then
-        confirmedActionRepository
-          .append(entityType, actionType, action.toJson, action.actor.map(_.unwrap))
-          .unit
-      else
-        ZIO.unit
+      ZIO.when(action.isStateChange)(
+        confirmedActionRepository.append(entityType, action.productPrefix, action.toJson, action.actor.map(_.unwrap)),
+      ).unit
 
     message match
-      case DiscussionActionConfirmedMessage(action) => persistAction("Discussion", action)
-      case LightningTalkActionConfirmedMessage(action) => persistAction("LightningTalk", action)
+      case DiscussionActionConfirmedMessage(action)       => persistAction("Discussion", action)
+      case LightningTalkActionConfirmedMessage(action)    => persistAction("LightningTalk", action)
       case HackathonProjectActionConfirmedMessage(action) => persistAction("HackathonProject", action)
-      case ActivityActionConfirmedMessage(action) => persistAction("Activity", action)
-      case LocationActionConfirmedMessage(action) => persistAction("Location", action)
-      case _ => ZIO.unit
+      case ActivityActionConfirmedMessage(action)         => persistAction("Activity", action)
+      case LocationActionConfirmedMessage(action)         => persistAction("Location", action)
+      case _                                              => ZIO.unit
 
   /** Broadcast authorization granted to all connected clients */
   def broadcastAuthorizationGranted(username: String): Task[Unit] =

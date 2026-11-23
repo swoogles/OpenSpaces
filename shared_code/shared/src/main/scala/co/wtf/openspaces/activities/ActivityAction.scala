@@ -60,3 +60,7 @@ enum ActivityActionConfirmed extends HasActor derives JsonCodec:
     case Created(activity) => Some(activity.creator)
     case InterestSet(_, person, _, _, _) => Some(person)
     case _ => None
+
+  def isStateChange: Boolean = this match
+    case _: Rejected | _: Unauthorized | _: StateReplace => false
+    case _                                             => true

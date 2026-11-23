@@ -53,3 +53,7 @@ enum LightningTalkActionConfirmed extends HasActor derives JsonCodec:
   def actor: Option[Person] = this match
     case AddResult(proposal) => Some(proposal.speaker)
     case _ => None
+
+  def isStateChange: Boolean = this match
+    case _: Rejected | _: Unauthorized | _: StateReplace => false
+    case _                                             => true

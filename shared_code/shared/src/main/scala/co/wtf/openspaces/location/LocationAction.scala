@@ -55,3 +55,7 @@ enum LocationActionConfirmed extends HasActor derives JsonCodec:
     case LocationUpdated(location) => Some(location.person)
     case SharingStopped(person, _) => Some(person)
     case StateReplace(_) => None
+
+  def isStateChange: Boolean = this match
+    case _: StateReplace => false
+    case _               => true

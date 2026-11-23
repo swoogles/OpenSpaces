@@ -73,3 +73,7 @@ enum HackathonProjectActionConfirmed extends HasActor derives JsonCodec:
     case Left(_, person, _) => Some(person)
     case OwnershipTransferred(_, newOwner) => Some(newOwner)
     case _ => None
+
+  def isStateChange: Boolean = this match
+    case _: Rejected | _: Unauthorized | _: StateReplace => false
+    case _                                             => true
