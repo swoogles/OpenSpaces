@@ -272,25 +272,28 @@ object PlaywrightE2ESpec extends ZIOSpecDefault:
             page.waitForSelector(".BottomNav",
               new com.microsoft.playwright.Page.WaitForSelectorOptions().setTimeout(10000))
 
-            // Try to fetch /ticket from within the browser using JavaScript
+            // Fetch /ticket from the browser the way the client does: with the user's own access token.
+            // A made-up token must not get a ticket, since tickets are bound to the token's owner.
             val jsResult = page.evaluate("""
               (async () => {
-                try {
-                  const response = await fetch('/ticket', {
-                    method: 'GET',
-                    headers: { 'Authorization': 'Bearer test_token' }
-                  });
-                  const text = await response.text();
-                  return { ok: response.ok, status: response.status, body: text };
-                } catch (e) {
-                  return { error: e.toString(), message: e.message };
-                }
+                const cookie = name =>
+                  document.cookie.split('; ').find(c => c.startsWith(name + '='))?.split('=')[1] ?? '';
+                const ticketWith = async token => {
+                  const response = await fetch('/ticket', { headers: { 'Authorization': token } });
+                  return { ok: response.ok, body: await response.text() };
+                };
+                const own = await ticketWith(cookie('access_token'));
+                const bogus = await ticketWith('Bearer not-a-real-token');
+                return { ownOk: own.ok, ownHasUuid: own.body.includes('uuid'), bogusOk: bogus.ok };
               })()
-            """)
-            // Verify we got a valid ticket UUID back
-            jsResult.toString.contains("uuid")
+            """).asInstanceOf[java.util.Map[String, Any]]
+            (
+              jsResult.get("ownOk") == true && jsResult.get("ownHasUuid") == true,
+              jsResult.get("bogusOk") == false,
+            )
           }
-        yield assertTrue(result)
+          (ownTokenGetsTicket, bogusTokenRefused) = result
+        yield assertTrue(ownTokenGetsTicket, bogusTokenRefused)
       }
     },
 
