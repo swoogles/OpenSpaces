@@ -52,81 +52,143 @@ case class SessionService(
     channel: OpenSpacesServerChannel,
   ): ZIO[Any, Throwable, Unit] =
     message match
-      // TODO Decide what should happen when *Confirmed messages come through here. Just no op? Error?
       case TicketMessage(ticket) =>
         handleTicket(ticket, channel)
-      case DiscussionActionMessage(discussionAction) =>
-        defer:
-          if (channelRegistry.get.run.connected.contains(channel)) {
-            handleTicketedAction(channel, discussionAction).run
-          }
-          else {
-            handleUnticketedAction(channel, discussionAction).run
-          }
-      case LightningTalkActionMessage(lightningAction) =>
-        defer:
-          if (channelRegistry.get.run.connected.contains(channel)) {
-            handleTicketedLightningAction(channel, lightningAction).run
-          }
-          else {
-            handleUnticketedLightningAction(channel, lightningAction).run
-          }
-      case HackathonProjectActionMessage(hackathonAction) =>
-        defer:
-          if (channelRegistry.get.run.connected.contains(channel)) {
-            handleTicketedHackathonAction(channel, hackathonAction).run
-          }
-          else {
-            handleUnticketedHackathonAction(channel, hackathonAction).run
-          }
-      case ActivityActionMessage(activityAction) =>
-        defer:
-          if (channelRegistry.get.run.connected.contains(channel)) {
-            handleTicketedActivityAction(channel, activityAction).run
-          }
-          else {
-            handleUnticketedActivityAction(channel, activityAction).run
-          }
+      case DiscussionActionMessage(action)       => handleEntityAction(discussions, channel, action)
+      case LightningTalkActionMessage(action)    => handleEntityAction(lightningTalks, channel, action)
+      case HackathonProjectActionMessage(action) => handleEntityAction(hackathonProjects, channel, action)
+      case ActivityActionMessage(action)         => handleEntityAction(activities, channel, action)
       case LocationActionMessage(locationAction) =>
-        defer:
-          // Only the connection's own user may share their location; ignore anything else.
-          if (channelRegistry.get.run.connected.get(channel).contains(locationAction.actor)) {
-            handleLocationAction(channel, locationAction).run
-          }
+        // Only the connection's own user may share their location; ignore anything else.
+        channelRegistry.get.flatMap { reg =>
+          ZIO.when(reg.connected.get(channel).contains(locationAction.actor))(
+            handleLocationAction(channel, locationAction),
+          ).unit
+        }
+      case AuthorizationActionMessage(_) =>
+        // Authorization changes go through the HTTP admin API, not the socket.
+        ZIO.unit
+
+  /** How SessionService routes one entity type's actions: authorize, apply, then
+    * send rejections to the requester only and broadcast everything else (plus Slack).
+    */
+  private final case class EntityChannel[A <: ActorAction, C](
+    wrap: C => WebSocketMessageFromServer,
+    unauthorized: A => C,
+    /** Rejected/Unauthorized results go only to the requesting channel. */
+    isPrivate: C => Boolean,
+    applyAction: A => Task[List[C]],
+    notifySlack: (C, C => Task[Unit]) => Task[Unit],
+    slackLabel: String,
+  )
+
+  private val discussions = EntityChannel[DiscussionAction, DiscussionActionConfirmed](
+    wrap = DiscussionActionConfirmedMessage(_),
+    unauthorized = DiscussionActionConfirmed.Unauthorized(_),
+    isPrivate = {
+      case _: DiscussionActionConfirmed.Rejected | _: DiscussionActionConfirmed.Unauthorized => true
+      case _                                                                               => false
+    },
+    applyAction = discussionStore.applyAction(_).map(List(_)),
+    notifySlack = slackNotifier.notifyDiscussion,
+    slackLabel = "discussion",
+  )
+
+  private val lightningTalks = EntityChannel[LightningTalkAction, LightningTalkActionConfirmed](
+    wrap = LightningTalkActionConfirmedMessage(_),
+    unauthorized = LightningTalkActionConfirmed.Unauthorized(_),
+    isPrivate = {
+      case _: LightningTalkActionConfirmed.Rejected | _: LightningTalkActionConfirmed.Unauthorized => true
+      case _                                                                                     => false
+    },
+    applyAction = lightningTalkService.applyAction(_).map(List(_)),
+    notifySlack = slackNotifier.notifyLightning,
+    slackLabel = "lightning",
+  )
+
+  private val hackathonProjects = EntityChannel[HackathonProjectAction, HackathonProjectActionConfirmed](
+    wrap = HackathonProjectActionConfirmedMessage(_),
+    unauthorized = HackathonProjectActionConfirmed.Unauthorized(_),
+    isPrivate = {
+      case _: HackathonProjectActionConfirmed.Rejected | _: HackathonProjectActionConfirmed.Unauthorized => true
+      case _                                                                                           => false
+    },
+    applyAction = hackathonProjectService.applyAction,
+    notifySlack = slackNotifier.notifyHackathonProject,
+    slackLabel = "hackathon",
+  )
+
+  private val activities = EntityChannel[ActivityAction, ActivityActionConfirmed](
+    wrap = ActivityActionConfirmedMessage(_),
+    unauthorized = ActivityActionConfirmed.Unauthorized(_),
+    isPrivate = {
+      case _: ActivityActionConfirmed.Rejected | _: ActivityActionConfirmed.Unauthorized => true
+      case _                                                                           => false
+    },
+    applyAction = activityService.applyAction(_).map(List(_)),
+    notifySlack = slackNotifier.notifyActivity,
+    slackLabel = "activity",
+  )
+
+  private def handleEntityAction[A <: ActorAction, C](
+    entity: EntityChannel[A, C],
+    channel: OpenSpacesServerChannel,
+    action: A,
+  ): Task[Unit] =
+    isTicketedActionAuthorized(channel, action).flatMap { authorized =>
+      if authorized then
+        entity.applyAction(action).flatMap(ZIO.foreachDiscard(_)(publish(entity, _, Some(channel))))
+      else
+        channel.send(entity.wrap(entity.unauthorized(action))).ignore
+    }
+
+  /** Deliver a result: privately to the source channel, or to everyone plus Slack. */
+  private def publish[A <: ActorAction, C](
+    entity: EntityChannel[A, C],
+    result: C,
+    sourceChannel: Option[OpenSpacesServerChannel],
+  ): Task[Unit] =
+    if entity.isPrivate(result) then
+      ZIO.foreachDiscard(sourceChannel)(_.send(entity.wrap(result)).ignore)
+    else
+      broadcastToAll(entity.wrap(result)) *>
+        entity
+          .notifySlack(result, followUp => broadcastToAll(entity.wrap(followUp)))
+          .catchAll(err => ZIO.logError(s"Slack ${entity.slackLabel} notification failed (non-fatal): $err"))
 
   /** Generate a random action and broadcast to all connected clients */
   def randomDiscussionAction: Task[DiscussionActionConfirmed] =
     for
       action <- discussionStore.randomDiscussionAction
-      _ <- handleActionResult(action, None)
+      _ <- publish(discussions, action, None)
     yield action
 
   /** Generate a random lightning participation action and broadcast. */
   def randomLightningAction: Task[LightningTalkActionConfirmed] =
     for
       action <- lightningTalkService.randomLightningAction
-      _ <- handleLightningActionResult(action, None)
+      _ <- publish(lightningTalks, action, None)
     yield action
 
   /** Generate random hackathon project actions and broadcast. */
   def randomHackathonAction: Task[List[HackathonProjectActionConfirmed]] =
     for
       actions <- hackathonProjectService.randomHackathonAction
-      _ <- ZIO.foreachDiscard(actions)(action => handleHackathonActionResult(action, None))
+      _ <- ZIO.foreachDiscard(actions)(publish(hackathonProjects, _, None))
     yield actions
 
   /** Generate random activity actions and broadcast. */
   def randomActivityAction: Task[ActivityActionConfirmed] =
     for
       action <- activityService.randomActivityAction
-      _ <- handleActivityActionResult(action, None)
+      _ <- publish(activities, action, None)
     yield action
 
   /** Generate a random schedule-only action (move/swap/unschedule) and broadcast */
   def randomScheduleAction: Task[DiscussionActionConfirmed] =
     for
       action <- discussionStore.randomScheduleAction
-      _ <- handleActionResult(action, None)
+      _ <- publish(discussions, action, None)
     yield action
 
   /** Delete all topics using the standard delete logic (broadcasts to all clients).
@@ -482,242 +544,8 @@ case class SessionService(
   def applyAndBroadcast(action: DiscussionAction): Task[DiscussionActionConfirmed] =
     for
       result <- discussionStore.applyAction(action)
-      _ <- handleActionResult(result, None)
+      _ <- publish(discussions, result, None)
     yield result
-
-  private def handleTicketedAction(
-    channel: OpenSpacesServerChannel,
-    discussionAction: DiscussionAction,
-  ): ZIO[Any, Throwable, Unit] =
-    defer:
-      val authorized = isTicketedActionAuthorized(channel, discussionAction).run
-      if !authorized then
-        channel
-          .send(
-            DiscussionActionConfirmedMessage(
-              DiscussionActionConfirmed.Unauthorized(discussionAction),
-            ),
-          )
-          .ignore
-          .run
-      else
-        val actionResult = discussionStore
-          .applyAction(discussionAction)
-          .run
-        handleActionResult(actionResult, Some(channel)).run
-
-  private def handleActionResult(
-    actionResult: DiscussionActionConfirmed,
-    sourceChannel: Option[OpenSpacesServerChannel],
-  ): Task[Unit] =
-    actionResult match
-      case rejected @ DiscussionActionConfirmed.Rejected(_) =>
-        sourceChannel match
-          case Some(channel) => channel.send(DiscussionActionConfirmedMessage(rejected)).ignore
-          case None => ZIO.unit
-      case unauthorized @ DiscussionActionConfirmed.Unauthorized(_) =>
-        sourceChannel match
-          case Some(channel) => channel.send(DiscussionActionConfirmedMessage(unauthorized)).ignore
-          case None => ZIO.unit
-      case other =>
-        broadcastToAll(DiscussionActionConfirmedMessage(other)) *>
-          slackNotifier
-            .notifyDiscussion(
-              other,
-              msg => broadcastToAll(DiscussionActionConfirmedMessage(msg)),
-            )
-            .catchAll(err => ZIO.logError(s"Slack discussion notification failed (non-fatal): $err"))
-            .ignore
-
-  private def handleLightningActionResult(
-    actionResult: LightningTalkActionConfirmed,
-    sourceChannel: Option[OpenSpacesServerChannel],
-  ): Task[Unit] =
-    actionResult match
-      case rejected @ LightningTalkActionConfirmed.Rejected(_) =>
-        sourceChannel match
-          case Some(channel) => channel.send(LightningTalkActionConfirmedMessage(rejected)).ignore
-          case None => ZIO.unit
-      case unauthorized @ LightningTalkActionConfirmed.Unauthorized(_) =>
-        sourceChannel match
-          case Some(channel) => channel.send(LightningTalkActionConfirmedMessage(unauthorized)).ignore
-          case None => ZIO.unit
-      case other =>
-        broadcastToAll(LightningTalkActionConfirmedMessage(other)) *>
-          slackNotifier
-            .notifyLightning(
-              other,
-              msg => broadcastToAll(LightningTalkActionConfirmedMessage(msg)),
-            )
-            .catchAll(err => ZIO.logError(s"Slack lightning notification failed (non-fatal): $err"))
-            .ignore
-
-  private def handleUnticketedAction(
-    channel: OpenSpacesServerChannel,
-    discussionAction: DiscussionAction,
-  ): UIO[Unit] =
-    channel
-      .send(
-        DiscussionActionConfirmedMessage(
-          DiscussionActionConfirmed.Unauthorized(
-            discussionAction,
-          ),
-        ),
-      )
-      .ignore
-
-  private def handleTicketedLightningAction(
-    channel: OpenSpacesServerChannel,
-    lightningAction: LightningTalkAction,
-  ): ZIO[Any, Throwable, Unit] =
-    defer:
-      val authorized = isTicketedActionAuthorized(channel, lightningAction).run
-      if !authorized then
-        channel
-          .send(
-            LightningTalkActionConfirmedMessage(
-              LightningTalkActionConfirmed.Unauthorized(lightningAction),
-            ),
-          )
-          .ignore
-          .run
-      else
-        val actionResult = lightningTalkService
-          .applyAction(lightningAction)
-          .run
-        handleLightningActionResult(actionResult, Some(channel)).run
-
-  private def handleUnticketedLightningAction(
-    channel: OpenSpacesServerChannel,
-    lightningAction: LightningTalkAction,
-  ): UIO[Unit] =
-    channel
-      .send(
-        LightningTalkActionConfirmedMessage(
-          LightningTalkActionConfirmed.Unauthorized(
-            lightningAction,
-          ),
-        ),
-      )
-      .ignore
-
-  private def handleTicketedHackathonAction(
-    channel: OpenSpacesServerChannel,
-    hackathonAction: HackathonProjectAction,
-  ): ZIO[Any, Throwable, Unit] =
-    defer:
-      val authorized = isTicketedActionAuthorized(channel, hackathonAction).run
-      if !authorized then
-        channel
-          .send(
-            HackathonProjectActionConfirmedMessage(
-              HackathonProjectActionConfirmed.Unauthorized(hackathonAction),
-            ),
-          )
-          .ignore
-          .run
-      else
-        val actionResults = hackathonProjectService
-          .applyAction(hackathonAction)
-          .run
-        ZIO.foreachDiscard(actionResults)(result =>
-          handleHackathonActionResult(result, Some(channel))
-        ).run
-
-  private def handleHackathonActionResult(
-    actionResult: HackathonProjectActionConfirmed,
-    sourceChannel: Option[OpenSpacesServerChannel],
-  ): Task[Unit] =
-    actionResult match
-      case rejected @ HackathonProjectActionConfirmed.Rejected(_) =>
-        sourceChannel match
-          case Some(channel) => channel.send(HackathonProjectActionConfirmedMessage(rejected)).ignore
-          case None => ZIO.unit
-      case unauthorized @ HackathonProjectActionConfirmed.Unauthorized(_) =>
-        sourceChannel match
-          case Some(channel) => channel.send(HackathonProjectActionConfirmedMessage(unauthorized)).ignore
-          case None => ZIO.unit
-      case other =>
-        broadcastToAll(HackathonProjectActionConfirmedMessage(other)) *>
-          slackNotifier
-            .notifyHackathonProject(
-              other,
-              msg => broadcastToAll(HackathonProjectActionConfirmedMessage(msg)),
-            )
-            .catchAll(err => ZIO.logError(s"Slack hackathon notification failed (non-fatal): $err"))
-            .ignore
-
-  private def handleUnticketedHackathonAction(
-    channel: OpenSpacesServerChannel,
-    hackathonAction: HackathonProjectAction,
-  ): UIO[Unit] =
-    channel
-      .send(
-        HackathonProjectActionConfirmedMessage(
-          HackathonProjectActionConfirmed.Unauthorized(
-            hackathonAction,
-          ),
-        ),
-      )
-      .ignore
-
-  private def handleTicketedActivityAction(
-    channel: OpenSpacesServerChannel,
-    activityAction: ActivityAction,
-  ): ZIO[Any, Throwable, Unit] =
-    defer:
-      val authorized = isTicketedActionAuthorized(channel, activityAction).run
-      if !authorized then
-        channel
-          .send(
-            ActivityActionConfirmedMessage(
-              ActivityActionConfirmed.Unauthorized(activityAction),
-            ),
-          )
-          .ignore
-          .run
-      else
-        val actionResult = activityService
-          .applyAction(activityAction)
-          .run
-        handleActivityActionResult(actionResult, Some(channel)).run
-
-  private def handleActivityActionResult(
-    actionResult: ActivityActionConfirmed,
-    sourceChannel: Option[OpenSpacesServerChannel],
-  ): Task[Unit] =
-    actionResult match
-      case rejected @ ActivityActionConfirmed.Rejected(_) =>
-        sourceChannel match
-          case Some(channel) => channel.send(ActivityActionConfirmedMessage(rejected)).ignore
-          case None => ZIO.unit
-      case unauthorized @ ActivityActionConfirmed.Unauthorized(_) =>
-        sourceChannel match
-          case Some(channel) => channel.send(ActivityActionConfirmedMessage(unauthorized)).ignore
-          case None => ZIO.unit
-      case other =>
-        broadcastToAll(ActivityActionConfirmedMessage(other)) *>
-          slackNotifier
-            .notifyActivity(
-              other,
-              msg => broadcastToAll(ActivityActionConfirmedMessage(msg)),
-            )
-            .catchAll(err => ZIO.logError(s"Slack activity notification failed (non-fatal): $err"))
-            .ignore
-
-  private def handleUnticketedActivityAction(
-    channel: OpenSpacesServerChannel,
-    activityAction: ActivityAction,
-  ): UIO[Unit] =
-    channel
-      .send(
-        ActivityActionConfirmedMessage(
-          ActivityActionConfirmed.Unauthorized(
-            activityAction,
-          ),
-        ),
-      )
-      .ignore
 
   private def handleLocationAction(
     channel: OpenSpacesServerChannel,
