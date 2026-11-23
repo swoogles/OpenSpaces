@@ -9,6 +9,7 @@ import co.wtf.openspaces.lighting_talks.*
 import co.wtf.openspaces.activities.*
 import co.wtf.openspaces.location.*
 import co.wtf.openspaces.slack.SlackNotifier
+import co.wtf.openspaces.chaos.{ActivityChaos, DiscussionChaos, HackathonProjectChaos, LightningTalkChaos}
 import zio.*
 import zio.direct.*
 import zio.json.*
@@ -156,40 +157,36 @@ case class SessionService(
           .notifySlack(result, followUp => broadcastToAll(entity.wrap(followUp)))
           .catchAll(err => ZIO.logError(s"Slack ${entity.slackLabel} notification failed (non-fatal): $err"))
 
-  /** Generate a random action and broadcast to all connected clients */
-  def randomDiscussionAction: Task[DiscussionActionConfirmed] =
-    for
-      action <- discussionStore.randomDiscussionAction
-      _ <- publish(discussions, action, None)
-    yield action
+  // Chaos mode: generate a random action from current state, then run it through
+  // the same apply/publish path as a client action (but without authorization).
 
-  /** Generate a random lightning participation action and broadcast. */
-  def randomLightningAction: Task[LightningTalkActionConfirmed] =
-    for
-      action <- lightningTalkService.randomLightningAction
-      _ <- publish(lightningTalks, action, None)
-    yield action
+  private def runChaos[A <: ActorAction, C](entity: EntityChannel[A, C], action: A): Task[List[C]] =
+    entity.applyAction(action).tap(ZIO.foreachDiscard(_)(publish(entity, _, None)))
 
-  /** Generate random hackathon project actions and broadcast. */
+  def randomDiscussionAction: Task[List[DiscussionActionConfirmed]] =
+    discussionStore.snapshot.flatMap(DiscussionChaos.randomAction).flatMap(runChaos(discussions, _))
+
+  def randomLightningAction: Task[List[LightningTalkActionConfirmed]] =
+    lightningTalkService.snapshot.flatMap(LightningTalkChaos.randomAction).flatMap(runChaos(lightningTalks, _))
+
   def randomHackathonAction: Task[List[HackathonProjectActionConfirmed]] =
-    for
-      actions <- hackathonProjectService.randomHackathonAction
-      _ <- ZIO.foreachDiscard(actions)(publish(hackathonProjects, _, None))
-    yield actions
+    hackathonProjectService.snapshot
+      .flatMap(HackathonProjectChaos.randomAction)
+      .flatMap(ZIO.foreach(_)(runChaos(hackathonProjects, _)).map(_.toList.flatten))
 
-  /** Generate random activity actions and broadcast. */
-  def randomActivityAction: Task[ActivityActionConfirmed] =
+  def randomActivityAction: Task[List[ActivityActionConfirmed]] =
     for
-      action <- activityService.randomActivityAction
-      _ <- publish(activities, action, None)
-    yield action
+      current <- activityService.snapshot
+      window  <- activityService.allowedEventWindow
+      action  <- ActivityChaos.randomAction(current, window)
+      results <- runChaos(activities, action)
+    yield results
 
-  /** Generate a random schedule-only action (move/swap/unschedule) and broadcast */
-  def randomScheduleAction: Task[DiscussionActionConfirmed] =
-    for
-      action <- discussionStore.randomScheduleAction
-      _ <- publish(discussions, action, None)
-    yield action
+  /** Random schedule-only action (move/swap/unschedule). */
+  def randomScheduleAction: Task[List[DiscussionActionConfirmed]] =
+    discussionStore.snapshot
+      .flatMap(DiscussionChaos.randomScheduleAction)
+      .flatMap(ZIO.foreach(_)(runChaos(discussions, _)).map(_.toList.flatten))
 
   /** Delete all topics using the standard delete logic (broadcasts to all clients).
     * Also truncates the confirmed_actions log.

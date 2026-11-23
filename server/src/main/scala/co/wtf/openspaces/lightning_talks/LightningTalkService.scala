@@ -1,6 +1,6 @@
 package co.wtf.openspaces.lightning_talks
 
-import co.wtf.openspaces.{Person, RandomUsers, UserOps}
+import co.wtf.openspaces.{Person, UserOps}
 import co.wtf.openspaces.github.GitHubProfileService
 import co.wtf.openspaces.db.{
   LightningTalkRepository,
@@ -156,24 +156,6 @@ case class LightningTalkService(
                 _ <- state.update(_(confirmed))
               yield confirmed
         yield result
-
-  def randomLightningAction: Task[LightningTalkActionConfirmed] =
-    for
-      person  <- randomPerson
-      current <- state.get
-      action = current.proposalForSpeaker(person) match
-        case Some(_) =>
-          LightningTalkAction.SetParticipation(person,
-                                               participating = false,
-          )
-        case None =>
-          LightningTalkAction.SetParticipation(person,
-                                               participating = true,
-          )
-      result <- applyAction(action)
-    yield result
-
-  private def randomPerson: UIO[Person] = RandomUsers.randomPerson
 
   private def createProposal(
     speaker: Person,

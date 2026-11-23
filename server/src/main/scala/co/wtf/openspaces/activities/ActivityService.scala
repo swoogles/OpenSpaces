@@ -1,6 +1,6 @@
 package co.wtf.openspaces.activities
 
-import co.wtf.openspaces.{Person, RandomUsers, UserOps}
+import co.wtf.openspaces.{Person, UserOps}
 import co.wtf.openspaces.db.{
   ActivityDismissalRepository,
   ActivityInterestRepository,
@@ -181,74 +181,16 @@ case class ActivityService(
               yield confirmed
         yield result
 
-  def randomActivityAction: Task[ActivityActionConfirmed] =
-    for
-      person <- RandomUsers.randomPerson
-      current <- state.get
-      roll <- zio.Random.nextIntBounded(100)
-      action <- current.activities.values.toList match
-        case Nil =>
-          makeRandomCreateAction(person)
-        case activities =>
-          if roll < 40 then makeRandomCreateAction(person)
-          else if roll < 75 then
-            zio.Random.nextIntBounded(activities.size).map { i =>
-              val activity = activities(i)
-              ActivityAction.SetInterest(activity.id, person, interested = !activity.hasMember(person))
-            }
-          else if roll < 90 then
-            current.ownedBy(person).headOption match
-              case Some(owned) =>
-                for
-                  desc <- randomDescription
-                  eventTime <- randomEventTimeInWindow
-                yield ActivityAction.Update(owned.id, desc, eventTime, person)
-              case None =>
-                makeRandomCreateAction(person)
-          else
-            current.ownedBy(person).headOption match
-              case Some(owned) => ZIO.succeed(ActivityAction.Delete(owned.id, person))
-              case None => makeRandomCreateAction(person)
-      result <- applyAction(action)
-    yield result
-
-  private def randomDescription: UIO[ActivityDescription] =
-    val titles = List(
-      "Pair on a side project",
-      "Coffee walk and architecture chat",
-      "Open source bug smash",
-      "Mentoring hour",
-      "Product teardown session",
-      "Design critique huddle",
-    )
-    zio.Random.nextIntBounded(titles.size).map(i => ActivityDescription.unsafeMake(titles(i)))
-
-  private def makeRandomCreateAction(person: Person): Task[ActivityAction.Create] =
-    for
-      desc <- randomDescription
-      eventTime <- randomEventTimeInWindow
-    yield ActivityAction.Create(desc, eventTime, person)
-
-  private def randomEventTimeInWindow: Task[LocalDateTime] =
-    timeSlotRepo.findStartBounds.flatMap {
-      case Some((minStart, maxStart)) =>
-        val start = minStart.minusDays(AllowedDayBuffer)
-        val end = maxStart.plusDays(AllowedDayBuffer)
-        val secondsRange = java.time.Duration.between(start, end).getSeconds.max(0L)
-        zio.Random.nextLongBetween(0L, secondsRange + 1L).map(offset => start.plusSeconds(offset))
-      case None =>
-        ZIO.succeed(LocalDateTime.now(ZoneOffset.UTC))
-    }
+  /** Event times must fall within the conference time slots, padded by a few days. */
+  def allowedEventWindow: Task[Option[(LocalDateTime, LocalDateTime)]] =
+    timeSlotRepo.findStartBounds.map(_.map { case (minStart, maxStart) =>
+      (minStart.minusDays(AllowedDayBuffer), maxStart.plusDays(AllowedDayBuffer))
+    })
 
   private def isEventTimeInAllowedWindow(eventTime: LocalDateTime): Task[Boolean] =
-    timeSlotRepo.findStartBounds.map {
-      case Some((minStart, maxStart)) =>
-        val allowedStart = minStart.minusDays(AllowedDayBuffer)
-        val allowedEnd = maxStart.plusDays(AllowedDayBuffer)
-        !eventTime.isBefore(allowedStart) && !eventTime.isAfter(allowedEnd)
-      case None =>
-        false
-    }
+    allowedEventWindow.map(_.exists { case (allowedStart, allowedEnd) =>
+      !eventTime.isBefore(allowedStart) && !eventTime.isAfter(allowedEnd)
+    })
 
   private def createActivity(
     description: ActivityDescription,
