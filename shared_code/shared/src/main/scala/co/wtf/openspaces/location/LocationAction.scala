@@ -1,11 +1,11 @@
 package co.wtf.openspaces.location
 
-import co.wtf.openspaces.{HasActor, Person}
+import co.wtf.openspaces.{ActorAction, HasActor, Person}
 import neotype.interop.ziojson.given
 import zio.json.*
 
 /** Actions sent from client to server */
-enum LocationAction derives JsonCodec:
+enum LocationAction extends ActorAction derives JsonCodec:
   /** Start sharing location (first update) */
   case StartSharing(
     person: Person,
@@ -24,6 +24,11 @@ enum LocationAction derives JsonCodec:
   
   /** Stop sharing location */
   case StopSharing(person: Person)
+
+  def actor: Person = this match
+    case StartSharing(person, _, _, _)   => person
+    case UpdateLocation(person, _, _, _) => person
+    case StopSharing(person)             => person
 
 /** Why location sharing stopped */
 enum StopReason derives JsonCodec:

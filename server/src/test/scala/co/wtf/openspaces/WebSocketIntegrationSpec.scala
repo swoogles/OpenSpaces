@@ -2,7 +2,7 @@ package co.wtf.openspaces
 
 import co.wtf.openspaces.auth.{AdminConfig, AuthenticatedTicketService}
 import co.wtf.openspaces.discussions.{Discussion, DiscussionAction, DiscussionActionConfirmed, DiscussionDataStore, DiscussionState, DiscussionStore, SchedulingService}
-import co.wtf.openspaces.github.GitHubProfileService
+import co.wtf.openspaces.github.{GitHubProfileService, GitHubTokenResolver}
 import co.wtf.openspaces.hackathon.*
 import co.wtf.openspaces.lightning_talks.LightningTalkService
 import co.wtf.openspaces.lighting_talks.*
@@ -70,14 +70,14 @@ object WebSocketIntegrationSpec extends ZIOSpecDefault:
   private def waitForDelivery: UIO[Unit] =
     ZIO.withClock(Clock.ClockLive)(ZIO.sleep(300.millis))
 
-  // Helper: obtain a valid ticket
-  private def getTicket: ZIO[Client & Scope, Throwable, Ticket] =
+  // Helper: obtain a ticket bound to `username` (see GitHubTokenResolver.testLayer)
+  private def getTicket(username: String): ZIO[Client & Scope, Throwable, Ticket] =
     for
       client <- ZIO.service[Client]
       response <- client(
         Request
           .get(URL.root / "ticket")
-          .addHeader(Header.Authorization.Bearer("test-token")),
+          .addHeader(Header.Authorization.Bearer(s"test_token_$username")),
       )
       ticket <- response.body.to[Ticket]
     yield ticket
@@ -88,7 +88,7 @@ object WebSocketIntegrationSpec extends ZIOSpecDefault:
         defer:
           setupTestEnvironment.run
           val client = ZIO.service[Client].run
-          val ticket = getTicket.run
+          val ticket = getTicket("TestUser").run
 
           val receivedMessages = Ref.make(Vector.empty[WebSocketMessageFromServer]).run
 
@@ -173,7 +173,7 @@ object WebSocketIntegrationSpec extends ZIOSpecDefault:
         defer:
           setupTestEnvironment.run
           val client = ZIO.service[Client].run
-          val ticket = getTicket.run
+          val ticket = getTicket("pending-user").run
 
           val receivedMessages = Ref.make(Vector.empty[WebSocketMessageFromServer]).run
 
@@ -213,7 +213,7 @@ object WebSocketIntegrationSpec extends ZIOSpecDefault:
         defer:
           setupTestEnvironment.run
           val client = ZIO.service[Client].run
-          val ticket = getTicket.run
+          val ticket = getTicket("TestFacilitator").run
 
           val receivedMessages = Ref.make(Vector.empty[WebSocketMessageFromServer]).run
           val handshakeComplete = Promise.make[Nothing, Unit].run
@@ -257,6 +257,79 @@ object WebSocketIntegrationSpec extends ZIOSpecDefault:
             addResult.get.facilitator.unwrap == "TestFacilitator",
           )
       },
+      test("actions on behalf of another user are Unauthorized") {
+        defer:
+          setupTestEnvironment.run
+          val client = ZIO.service[Client].run
+          val ticket = getTicket("Mallory").run
+
+          val receivedMessages = Ref.make(Vector.empty[WebSocketMessageFromServer]).run
+
+          val clientApp = makeCollectingClient(
+            receivedMessages,
+            onHandshake = channel =>
+              for
+                _ <- channel.send(WebSocketMessageFromClient.TicketMessage(ticket))
+                _ <- ZIO.withClock(Clock.ClockLive)(ZIO.sleep(100.millis))
+                _ <- channel.send(
+                  DiscussionActionMessage(
+                    DiscussionAction.Add(
+                      Topic.unsafeMake("Impersonated topic"),
+                      Person("SomeoneElse"),
+                    ),
+                  ),
+                )
+              yield (),
+          )
+
+          client.socket(clientApp).run
+          waitForDelivery.run
+
+          val messages = receivedMessages.get.run
+          val hasUnauthorized = messages.exists {
+            case DiscussionActionConfirmedMessage(DiscussionActionConfirmed.Unauthorized(_)) => true
+            case _ => false
+          }
+          val hasAddResult = messages.exists {
+            case DiscussionActionConfirmedMessage(DiscussionActionConfirmed.AddResult(_)) => true
+            case _ => false
+          }
+
+          assertTrue(hasUnauthorized, !hasAddResult)
+      },
+      test("admin-only actions from non-admins are Unauthorized") {
+        defer:
+          setupTestEnvironment.run
+          val client = ZIO.service[Client].run
+          val ticket = getTicket("RegularUser").run
+
+          val receivedMessages = Ref.make(Vector.empty[WebSocketMessageFromServer]).run
+
+          val clientApp = makeCollectingClient(
+            receivedMessages,
+            onHandshake = channel =>
+              for
+                _ <- channel.send(WebSocketMessageFromClient.TicketMessage(ticket))
+                _ <- ZIO.withClock(Clock.ClockLive)(ZIO.sleep(100.millis))
+                _ <- channel.send(
+                  LightningTalkActionMessage(
+                    LightningTalkAction.DrawForNextNight(Person("RegularUser")),
+                  ),
+                )
+              yield (),
+          )
+
+          client.socket(clientApp).run
+          waitForDelivery.run
+
+          val messages = receivedMessages.get.run
+          assertTrue(
+            messages.exists {
+              case LightningTalkActionConfirmedMessage(LightningTalkActionConfirmed.Unauthorized(_)) => true
+              case _ => false
+            },
+          )
+      },
       test("multiple clients see consistent state after action") {
         def extractAddResults(
           msgs: Vector[WebSocketMessageFromServer],
@@ -273,8 +346,8 @@ object WebSocketIntegrationSpec extends ZIOSpecDefault:
           val client = ZIO.service[Client].run
 
           // Get tickets for both clients
-          val ticket1 = getTicket.run
-          val ticket2 = getTicket.run
+          val ticket1 = getTicket("Client1User").run
+          val ticket2 = getTicket("Client2User").run
 
           val client1Messages = Ref.make(Vector.empty[WebSocketMessageFromServer]).run
           val client2Messages = Ref.make(Vector.empty[WebSocketMessageFromServer]).run
@@ -345,6 +418,7 @@ object WebSocketIntegrationSpec extends ZIOSpecDefault:
       // WebSocket app and routes
       BackendSocketApp.layer,
       TicketRoutesApp.layer,
+      GitHubTokenResolver.testLayer,
       // Session management
       SessionService.layer,
       AuthenticatedTicketService.layer,

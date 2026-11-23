@@ -1,6 +1,6 @@
 package co.wtf.openspaces.hackathon
 
-import co.wtf.openspaces.{HasActor, Person}
+import co.wtf.openspaces.{ActorAction, HasActor, Person}
 import neotype.*
 import neotype.given
 import neotype.interop.zioschema.given
@@ -12,7 +12,7 @@ import java.util.UUID
 
 // Hackathon Projects (Wednesday hackday)
 
-enum HackathonProjectAction derives JsonCodec:
+enum HackathonProjectAction extends ActorAction derives JsonCodec:
   case Create(
     title: ProjectTitle,
     creator: Person)
@@ -24,10 +24,18 @@ enum HackathonProjectAction derives JsonCodec:
     person: Person)
   case Rename(
     projectId: HackathonProjectId,
-    newTitle: ProjectTitle)
+    newTitle: ProjectTitle,
+    requester: Person)
   case Delete(
     projectId: HackathonProjectId,
     requester: Person)
+
+  def actor: Person = this match
+    case Create(_, creator)       => creator
+    case Join(_, person)          => person
+    case Leave(_, person)         => person
+    case Rename(_, _, requester)  => requester
+    case Delete(_, requester)     => requester
     
     
 enum HackathonProjectActionConfirmed extends HasActor derives JsonCodec:

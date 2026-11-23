@@ -111,12 +111,14 @@ case class HackathonProjectService(
               handleLeave(project, person)
         yield result
 
-      case rename @ HackathonProjectAction.Rename(projectId, newTitle) =>
+      case rename @ HackathonProjectAction.Rename(projectId, newTitle, requester) =>
         for
           current <- state.get
           result <- current.projects.get(projectId) match
             case None =>
               ZIO.succeed(List(HackathonProjectActionConfirmed.Rejected(rename)))
+            case Some(project) if !project.isOwner(requester) =>
+              ZIO.succeed(List(HackathonProjectActionConfirmed.Unauthorized(rename)))
             case Some(project) =>
               for
                 _ <- projectRepo.update(toRow(project).copy(title = newTitle.unwrap))

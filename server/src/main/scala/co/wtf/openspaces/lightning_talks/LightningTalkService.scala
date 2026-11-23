@@ -87,6 +87,7 @@ case class LightningTalkService(
             proposalId,
             expectedCurrentAssignment,
             newAssignment,
+            _,
           ) =>
         for
           current <- state.get
@@ -122,7 +123,7 @@ case class LightningTalkService(
                 yield confirmed
         yield result
 
-      case draw @ LightningTalkAction.DrawForNextNight =>
+      case draw @ LightningTalkAction.DrawForNextNight(_) =>
         for
           today <- Clock.instant.map(_.atZone(java.time.ZoneId.of("America/Denver")).toLocalDate)
           current <- state.get

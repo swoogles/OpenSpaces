@@ -1,6 +1,6 @@
 package co.wtf.openspaces.discussions
 
-import co.wtf.openspaces.{Person, Room, RoomSlot, SessionService, TimeSlot, TopicId}
+import co.wtf.openspaces.{Person, Room, RoomSlot, SessionService, TimeSlot, TopicId, UserOps}
 import zio.*
 import java.time.{Duration as JavaDuration, Instant, LocalDateTime, ZoneId, ZoneOffset, ZonedDateTime}
 import neotype.unwrap
@@ -30,7 +30,7 @@ case class SchedulingService(
       
       // Generate unschedule actions for all scheduled topics
       actions = scheduled.map { d =>
-        DiscussionAction.SetRoomSlot(d.id, d.roomSlot, None)
+        DiscussionAction.SetRoomSlot(d.id, d.roomSlot, None, UserOps.systemPerson)
       }
       
       // Apply all unschedule actions
@@ -74,15 +74,15 @@ case class SchedulingService(
       
       summary = SchedulingSummary(
         scheduled = actions.count {
-          case DiscussionAction.SetRoomSlot(_, None, Some(_)) => true
+          case DiscussionAction.SetRoomSlot(_, None, Some(_), _) => true
           case _ => false
         },
         moved = actions.count {
-          case DiscussionAction.SetRoomSlot(_, Some(_), Some(_)) => true
+          case DiscussionAction.SetRoomSlot(_, Some(_), Some(_), _) => true
           case _ => false
         },
         unscheduled = actions.count {
-          case DiscussionAction.SetRoomSlot(_, Some(_), None) => true
+          case DiscussionAction.SetRoomSlot(_, Some(_), None, _) => true
           case _ => false
         },
         lockedExcluded = lockedExcluded,
@@ -277,15 +277,15 @@ case class SchedulingService(
       (currentSlot, targetSlot) match
         case (None, Some(slot)) =>
           // Was unscheduled, now scheduled
-          actions += DiscussionAction.SetRoomSlot(d.id, None, Some(slot))
+          actions += DiscussionAction.SetRoomSlot(d.id, None, Some(slot), UserOps.systemPerson)
         
         case (Some(old), Some(newSlot)) if old != newSlot =>
           // Moved to different slot
-          actions += DiscussionAction.SetRoomSlot(d.id, Some(old), Some(newSlot))
+          actions += DiscussionAction.SetRoomSlot(d.id, Some(old), Some(newSlot), UserOps.systemPerson)
         
         case (Some(_), None) =>
           // Was scheduled, now unscheduled (bumped by higher-voted topics)
-          actions += DiscussionAction.SetRoomSlot(d.id, currentSlot, None)
+          actions += DiscussionAction.SetRoomSlot(d.id, currentSlot, None, UserOps.systemPerson)
         
         case _ =>
           // No change needed

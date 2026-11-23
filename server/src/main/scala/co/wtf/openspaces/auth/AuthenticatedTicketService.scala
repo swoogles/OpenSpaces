@@ -1,43 +1,24 @@
 package co.wtf.openspaces.auth
 
-import co.wtf.openspaces.Ticket
-import java.util.UUID
+import co.wtf.openspaces.{Person, Ticket}
 import zio.*
-import zio.direct.*
-import zio.json.JsonCodec
 
+/** Issues single-use WebSocket tickets, each bound to the user it was issued for. */
 case class AuthenticatedTicketService(
-  tickets: Ref[List[Ticket]]):
-  val create: ZIO[Any, Nothing, Ticket] =
-    defer:
-      val newTicket: Ticket =
-        Ticket(Random.nextUUID.run)
-      tickets.update(_ :+ newTicket).run
-      newTicket
+  tickets: Ref[Map[Ticket, Person]]):
 
-  def use(
-    ticket: Ticket,
-  ): ZIO[Any, String, Unit] =
-    defer:
-      val validTicket = tickets
-        .getAndUpdate { existingTickets =>
-          if (existingTickets.contains(ticket)) {
-            existingTickets.filterNot(_ == ticket)
-          }
-          else {
-            existingTickets
-          }
-        }
-        .map(_.contains(ticket))
-        .run
-      if (validTicket)
-        ZIO.unit.run
-      else
-        ZIO.fail("Ticket is not valid or has already been used.").run
+  def create(owner: Person): UIO[Ticket] =
+    for
+      ticket <- Random.nextUUID.map(Ticket(_))
+      _      <- tickets.update(_ + (ticket -> owner))
+    yield ticket
+
+  /** Consume a ticket, returning the user it was issued for. */
+  def use(ticket: Ticket): IO[String, Person] =
+    tickets
+      .modify(existing => (existing.get(ticket), existing - ticket))
+      .someOrFail("Ticket is not valid or has already been used.")
 
 object AuthenticatedTicketService:
-  val layer =
-    ZLayer.fromZIO:
-      defer:
-        val ticketsRef = Ref.make[List[Ticket]](List.empty).run
-        AuthenticatedTicketService(ticketsRef)
+  val layer: ULayer[AuthenticatedTicketService] =
+    ZLayer.fromZIO(Ref.make(Map.empty[Ticket, Person]).map(AuthenticatedTicketService(_)))

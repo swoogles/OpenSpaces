@@ -2,7 +2,7 @@ package co.wtf.openspaces.components
 
 import com.raquo.laminar.api.L.{*, given}
 import neotype.*
-import co.wtf.openspaces.{Person, RoomSlot, Topic, GitHubAvatar, GlyphiconUtils, SvgIcon}
+import co.wtf.openspaces.{AppState, Person, RoomSlot, Topic, GitHubAvatar, GlyphiconUtils, SvgIcon}
 import co.wtf.openspaces.discussions.Discussion
 import co.wtf.openspaces.discussions.DiscussionAction
 import co.wtf.openspaces.util.MenuPositioning
@@ -99,6 +99,7 @@ object Menu:
                       slot1,
                       targetDiscussion.id,
                       slot2,
+                      AppState.name.now(),
                     ),
                   )
                   dismissMenu.onNext(())
@@ -170,6 +171,7 @@ object UnscheduledDiscussionsMenu:
                             discussion.id,
                             discussion.roomSlot,
                             Some(targetRoomSlot),
+                            AppState.name.now(),
                           ),
                         )
                         dismissMenu.onNext(()),
@@ -211,6 +213,7 @@ object UnscheduledDiscussionsMenu:
                         discussion.id,
                         discussion.roomSlot,
                         Some(targetRoomSlot),
+                        AppState.name.now(),
                       ),
                     )
                     setActiveDiscussion.onNext(
@@ -288,6 +291,7 @@ object ActiveDiscussionActionMenu:
                   discussion.id,
                   discussion.roomSlot,
                   None,
+                  AppState.name.now(),
                 ),
               )
               dismissMenu.onNext(()),

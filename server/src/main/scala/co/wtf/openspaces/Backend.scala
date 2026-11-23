@@ -124,6 +124,7 @@ object Backend extends ZIOAppDefault {
       RoomRepository.layer,
       TimeSlotRepository.layer,
       GitHubProfileService.layer,
+      co.wtf.openspaces.github.GitHubTokenResolver.layer,
       EventRepository.layer,
       DiscussionRepository.layer,
       TopicVoteRepository.layer,

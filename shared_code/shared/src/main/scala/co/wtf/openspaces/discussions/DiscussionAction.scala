@@ -1,6 +1,6 @@
 package co.wtf.openspaces.discussions
 
-import co.wtf.openspaces.{HasActor, Person, Topic, TopicId, RoomSlot}
+import co.wtf.openspaces.{ActorAction, HasActor, Person, Topic, TopicId, RoomSlot}
 import neotype.*
 import neotype.given
 import neotype.interop.zioschema.given
@@ -10,7 +10,7 @@ import zio.json.*
 import java.time.{LocalDate, LocalDateTime}
 import java.util.UUID
 
-enum DiscussionAction derives JsonCodec:
+enum DiscussionAction extends ActorAction derives JsonCodec:
   case Add(
     topic: Topic,
     facilitator: Person)
@@ -19,7 +19,8 @@ enum DiscussionAction derives JsonCodec:
     facilitator: Person,
     roomSlot: RoomSlot)
   case Delete(
-    topic: TopicId)
+    topic: TopicId,
+    requester: Person)
   case Vote(
     topic: TopicId,
     feedback: Feedback)
@@ -27,21 +28,36 @@ enum DiscussionAction derives JsonCodec:
     person: Person)
   case Rename(
     topicId: TopicId,
-    newTopic: Topic) // Any reason to pass original, now that I'm updating based on id?
+    newTopic: Topic,
+    requester: Person)
   case SetRoomSlot(
     topicId: TopicId,
     expectedCurrentRoomSlot: Option[RoomSlot],
-    newRoomSlot: Option[RoomSlot])
+    newRoomSlot: Option[RoomSlot],
+    requester: Person)
   case SetLockedTimeslot(
     topicId: TopicId,
     expectedCurrentLockedTimeslot: Boolean,
-    newLockedTimeslot: Boolean)
+    newLockedTimeslot: Boolean,
+    requester: Person)
   case SwapTopics(
     topic1: TopicId,
     expectedRoomSlot1: RoomSlot,
     topic2: TopicId,
-    expectedRoomSlot2: RoomSlot)
-    
+    expectedRoomSlot2: RoomSlot,
+    requester: Person)
+
+  def actor: Person = this match
+    case Add(_, facilitator)                => facilitator
+    case AddWithRoomSlot(_, facilitator, _) => facilitator
+    case Delete(_, requester)               => requester
+    case Vote(_, feedback)                  => feedback.voter
+    case ResetUser(person)                  => person
+    case Rename(_, _, requester)            => requester
+    case SetRoomSlot(_, _, _, requester)    => requester
+    case SetLockedTimeslot(_, _, _, requester) => requester
+    case SwapTopics(_, _, _, _, requester)  => requester
+
 enum DiscussionActionConfirmed extends HasActor derives JsonCodec:
   case Delete(
     topic: TopicId)
@@ -103,7 +119,7 @@ object DiscussionActionConfirmed:
         throw new Exception(
           "This should not happen. You need to sort out your models.",
         )
-      case DiscussionAction.Delete(topic) =>
+      case DiscussionAction.Delete(topic, _) =>
         DiscussionActionConfirmed.Delete(topic)
       case DiscussionAction.Vote(topic, feedback) =>
         DiscussionActionConfirmed.Vote(topic, feedback)
@@ -111,22 +127,15 @@ object DiscussionActionConfirmed:
         throw new Exception(
           "ResetUser requires server-side processing to determine affected topics.",
         )
-      case DiscussionAction.Rename(topicId, newTopic) =>
+      case DiscussionAction.Rename(topicId, newTopic, _) =>
         DiscussionActionConfirmed.Rename(topicId, newTopic)
-      case DiscussionAction.SetRoomSlot(topicId, _, newRoomSlot) =>
+      case DiscussionAction.SetRoomSlot(topicId, _, newRoomSlot, _) =>
         DiscussionActionConfirmed.SetRoomSlot(topicId, newRoomSlot)
-      case DiscussionAction.SetLockedTimeslot(topicId,
-                                              _,
-                                              newLockedTimeslot,
-          ) =>
+      case DiscussionAction.SetLockedTimeslot(topicId, _, newLockedTimeslot, _) =>
         DiscussionActionConfirmed.SetLockedTimeslot(topicId,
                                                     newLockedTimeslot,
         )
-      case DiscussionAction.SwapTopics(topic1,
-                                        expected1,
-                                        topic2,
-                                        expected2,
-          ) =>
+      case DiscussionAction.SwapTopics(topic1, expected1, topic2, expected2, _) =>
         // Note: The confirmed action contains the NEW room slots (swapped)
         DiscussionActionConfirmed.SwapTopics(topic1,
                                               expected2,

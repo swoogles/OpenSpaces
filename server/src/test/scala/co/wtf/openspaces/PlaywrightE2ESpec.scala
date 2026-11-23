@@ -465,6 +465,7 @@ object PlaywrightE2ESpec extends ZIOSpecDefault:
     browserLayer,
     BackendSocketApp.layer,
     TicketRoutesApp.layer,
+    co.wtf.openspaces.github.GitHubTokenResolver.testLayer,
     SessionService.layer,
     AuthenticatedTicketService.layer,
     ZLayer.succeed(AdminConfig(Set.empty, "test-channel")),

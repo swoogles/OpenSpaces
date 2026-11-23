@@ -147,7 +147,7 @@ object TopicCard:
                   if connectionStatus.checkReady() then
                     Topic.make(newTitle) match
                       case Right(validTopic) =>
-                        topicUpdates(DiscussionAction.Rename(topic.id, validTopic))
+                        topicUpdates(DiscussionAction.Rename(topic.id, validTopic, name.now()))
                       case Left(_) => () // Invalid topic name, ignore
                   else
                     connectionStatus.reportError("Syncing latest topics. Please wait a moment.")
@@ -198,6 +198,7 @@ object TopicCard:
                         topic.id,
                         topic.lockedTimeslot,
                         !topic.lockedTimeslot,
+                        name.now(),
                       ),
                     )
                   else

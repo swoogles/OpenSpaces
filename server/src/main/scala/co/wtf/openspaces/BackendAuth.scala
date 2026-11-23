@@ -2,6 +2,7 @@ package co.wtf.openspaces
 
 import co.wtf.openspaces.auth.{AdminConfig, AuthenticatedTicketService}
 import co.wtf.openspaces.db.UserRepository
+import co.wtf.openspaces.github.GitHubTokenResolver
 import co.wtf.openspaces.slack.SlackNotifier
 import zio.*
 import zio.direct.*
@@ -115,11 +116,17 @@ case class GitHubUser(
     derives JsonCodec
 
 case class TicketRoutesApp(
-  ticketService: AuthenticatedTicketService):
+  ticketService: AuthenticatedTicketService,
+  tokenResolver: GitHubTokenResolver):
   val routes =
     Routes(
-      RandomActionApi.ticketGet.implement { _ =>
-        ticketService.create
+      RandomActionApi.ticketGet.implement { authorization =>
+        tokenResolver
+          .loginFor(GitHubTokenResolver.normalizeToken(authorization))
+          .flatMap(login => ticketService.create(Person(login)))
+          .tapError(err => ZIO.logWarning(s"Refusing ticket: ${err.getMessage}"))
+          // The endpoint declares no error type, so an invalid token surfaces as a 500.
+          .orDie
       },
     )
 

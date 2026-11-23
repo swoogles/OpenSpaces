@@ -5,6 +5,9 @@ import co.wtf.openspaces.github.GitHubProfileService
 import zio.*
 
 object UserOps:
+  /** Actor for server-initiated actions (scheduler, admin tooling). */
+  val systemPerson: Person = Person("system")
+
   /** Ensure a user exists in the database, fetching GitHub profile if needed. */
   def ensureUserExists(
     username: String,

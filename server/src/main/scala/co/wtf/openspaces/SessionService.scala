@@ -15,8 +15,9 @@ import zio.json.*
 import WebSocketMessageFromClient.*
 import WebSocketMessageFromServer.*
 
+/** connected: authenticated channels, mapped to the user their ticket was issued for. */
 private case class ChannelRegistry(
-  connected: Set[OpenSpacesServerChannel],
+  connected: Map[OpenSpacesServerChannel, Person],
   pending: Map[OpenSpacesServerChannel, Vector[WebSocketMessageFromServer]],
 )
 
@@ -88,11 +89,9 @@ case class SessionService(
           }
       case LocationActionMessage(locationAction) =>
         defer:
-          if (channelRegistry.get.run.connected.contains(channel)) {
+          // Only the connection's own user may share their location; ignore anything else.
+          if (channelRegistry.get.run.connected.get(channel).contains(locationAction.actor)) {
             handleLocationAction(channel, locationAction).run
-          }
-          else {
-            ZIO.unit.run // Ignore location actions from unauthenticated channels
           }
 
   /** Generate a random action and broadcast to all connected clients */
@@ -139,7 +138,7 @@ case class SessionService(
       topicIds = state.data.keys.toList
       _ <- ZIO.foreachDiscard(topicIds) { topicId =>
         for
-          result <- discussionStore.applyAction(DiscussionAction.Delete(topicId))
+          result <- discussionStore.applyAction(DiscussionAction.Delete(topicId, UserOps.systemPerson))
           _ <- broadcastToAll(DiscussionActionConfirmedMessage(result))
         yield ()
       }
@@ -285,7 +284,7 @@ case class SessionService(
     channel: OpenSpacesServerChannel,
   ): ZIO[Any, Throwable, Unit] =
     defer:
-      authenticatedTicketService
+      val person = authenticatedTicketService
         .use(ticket)
         .mapError(new Exception(_))
         .run
@@ -338,7 +337,7 @@ case class SessionService(
             // cannot override the fresh state on newly authenticated clients.
             queued ++ initialMessages,
             reg.copy(
-              connected = reg.connected + channel,
+              connected = reg.connected + (channel -> person),
               pending = reg.pending - channel,
             ),
           )
@@ -394,7 +393,7 @@ case class SessionService(
           val updatedPending =
             reg.pending.view.mapValues(buffer => buffer :+ message).toMap
           (
-            reg.connected,
+            reg.connected.keySet,
             reg.copy(pending = updatedPending),
           )
         )
@@ -491,7 +490,7 @@ case class SessionService(
     discussionAction: DiscussionAction,
   ): ZIO[Any, Throwable, Unit] =
     defer:
-      val authorized = isTicketedActionAuthorized(channel, extractDiscussionActorFromAction(discussionAction)).run
+      val authorized = isTicketedActionAuthorized(channel, discussionAction).run
       if !authorized then
         channel
           .send(
@@ -572,7 +571,7 @@ case class SessionService(
     lightningAction: LightningTalkAction,
   ): ZIO[Any, Throwable, Unit] =
     defer:
-      val authorized = isTicketedActionAuthorized(channel, extractLightningActorFromAction(lightningAction)).run
+      val authorized = isTicketedActionAuthorized(channel, lightningAction).run
       if !authorized then
         channel
           .send(
@@ -607,7 +606,7 @@ case class SessionService(
     hackathonAction: HackathonProjectAction,
   ): ZIO[Any, Throwable, Unit] =
     defer:
-      val authorized = isTicketedActionAuthorized(channel, extractHackathonActorFromAction(hackathonAction)).run
+      val authorized = isTicketedActionAuthorized(channel, hackathonAction).run
       if !authorized then
         channel
           .send(
@@ -667,7 +666,7 @@ case class SessionService(
     activityAction: ActivityAction,
   ): ZIO[Any, Throwable, Unit] =
     defer:
-      val authorized = isTicketedActionAuthorized(channel, extractActivityActorFromAction(activityAction)).run
+      val authorized = isTicketedActionAuthorized(channel, activityAction).run
       if !authorized then
         channel
           .send(
@@ -750,50 +749,37 @@ case class SessionService(
 
     checkLoop.repeat(Schedule.fixed(interval)).unit.fork
 
+  /** An action is authorized when:
+    * - the channel authenticated with a ticket,
+    * - the action's actor is the user that ticket was issued for (no acting on behalf of others),
+    * - that user is approved (or an admin), and
+    * - admin-only actions come from an admin.
+    *
+    * Ownership rules (e.g. only a facilitator may rename their topic) live in the
+    * entity services, which know the current owners.
+    */
   private def isTicketedActionAuthorized(
     channel: OpenSpacesServerChannel,
-    actionActor: Option[Person],
+    action: ActorAction,
   ): Task[Boolean] =
-    defer:
-      val isConnected = channelRegistry.get.run.connected.contains(channel)
-      if !isConnected then false
-      else
-        actionActor match
-          case Some(actor) =>
-            import neotype.unwrap
-            val username = actor.unwrap
-            if adminConfig.isAdmin(username) then true
-            else userRepository.isApproved(username).run
-          case None =>
-            true
+    import neotype.unwrap
+    channelRegistry.get.map(_.connected.get(channel)).flatMap {
+      case Some(user) if user == action.actor =>
+        val username = user.unwrap
+        if adminConfig.isAdmin(username) then ZIO.succeed(true)
+        else if requiresAdmin(action) then ZIO.succeed(false)
+        else userRepository.isApproved(username)
+      case _ =>
+        ZIO.succeed(false)
+    }
 
-  private def extractDiscussionActorFromAction(action: DiscussionAction): Option[Person] =
+  private def requiresAdmin(action: ActorAction): Boolean =
     action match
-      case DiscussionAction.Add(_, facilitator) => Some(facilitator)
-      case DiscussionAction.AddWithRoomSlot(_, facilitator, _) => Some(facilitator)
-      case DiscussionAction.Vote(_, feedback) => Some(feedback.voter)
-      case DiscussionAction.ResetUser(person) => Some(person)
-      case _ => None
-
-  private def extractLightningActorFromAction(action: LightningTalkAction): Option[Person] =
-    action match
-      case LightningTalkAction.SetParticipation(speaker, _) => Some(speaker)
-      case _ => None
-
-  private def extractHackathonActorFromAction(action: HackathonProjectAction): Option[Person] =
-    action match
-      case HackathonProjectAction.Create(_, creator) => Some(creator)
-      case HackathonProjectAction.Join(_, person) => Some(person)
-      case HackathonProjectAction.Leave(_, person) => Some(person)
-      case HackathonProjectAction.Delete(_, requester) => Some(requester)
-      case _ => None
-
-  private def extractActivityActorFromAction(action: ActivityAction): Option[Person] =
-    action match
-      case ActivityAction.Create(_, _, creator) => Some(creator)
-      case ActivityAction.SetInterest(_, person, _) => Some(person)
-      case ActivityAction.Update(_, _, _, editor) => Some(editor)
-      case ActivityAction.Delete(_, requester) => Some(requester)
+      case _: DiscussionAction.Delete            => true
+      case _: DiscussionAction.SetLockedTimeslot => true
+      case _: LightningTalkAction.SetAssignment  => true
+      case _: LightningTalkAction.DrawForNextNight => true
+      case _                                     => false
 
   /** Start the background Slack reply count refresh.
     * Periodically fetches reply counts for all threads and broadcasts to clients.
@@ -832,7 +818,7 @@ case class SessionService(
   def startWebSocketKeepAlive(interval: Duration = 25.seconds): Task[Fiber.Runtime[Throwable, Unit]] =
     (ZIO.sleep(interval) *>
       channelRegistry.get.flatMap(reg =>
-        ZIO.foreachParDiscard(reg.connected)(channel =>
+        ZIO.foreachParDiscard(reg.connected.keys)(channel =>
           channel.send(KeepAliveMessage).ignore,
         ),
       )).forever
@@ -845,7 +831,7 @@ object SessionService:
         SessionService(
           Ref.make(
             ChannelRegistry(
-              connected = Set.empty,
+              connected = Map.empty,
               pending = Map.empty,
             ),
           ).run,

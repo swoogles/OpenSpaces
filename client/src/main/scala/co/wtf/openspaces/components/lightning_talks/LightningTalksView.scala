@@ -67,7 +67,7 @@ object LightningTalksView:
               cls := "AdminControls-button AdminControls-button--primary",
               "Draw For Next Night",
               onClick --> Observer { _ =>
-                sendLightningAction(LightningTalkAction.DrawForNextNight)
+                sendLightningAction(LightningTalkAction.DrawForNextNight(AppState.name.now()))
               },
             ),
           ),

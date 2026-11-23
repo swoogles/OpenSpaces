@@ -246,6 +246,7 @@ object FrontEnd extends ZIOAppDefault{
           discussion.id,
           expectedCurrentRoomSlot,
           discussion.roomSlot,
+          name.now(),
         ),
       )
 
@@ -480,7 +481,7 @@ object FrontEnd extends ZIOAppDefault{
                         "Lightning talk participation update failed.",
                       )
                     case LightningTalkActionConfirmed.Rejected(
-                          LightningTalkAction.DrawForNextNight,
+                          _: LightningTalkAction.DrawForNextNight,
                         ) =>
                       connectionStatus.reportError(
                         "Draw not applied. Nights may already be full.",

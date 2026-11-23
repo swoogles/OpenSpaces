@@ -4,3 +4,9 @@ package co.wtf.openspaces
 trait HasActor:
   /** The person who performed this action, if applicable. */
   def actor: Option[Person]
+
+/** A client-to-server action. The actor is always known, so the server can
+  * check it against the user the WebSocket connection authenticated as.
+  */
+trait ActorAction:
+  def actor: Person

@@ -1,6 +1,6 @@
 package co.wtf.openspaces.lighting_talks
 
-import co.wtf.openspaces.{HasActor, Person}
+import co.wtf.openspaces.{ActorAction, HasActor, Person}
 import neotype.*
 import neotype.given
 import neotype.interop.zioschema.given
@@ -10,15 +10,22 @@ import zio.json.*
 import java.time.{LocalDate, LocalDateTime}
 import java.util.UUID
 
-enum LightningTalkAction derives JsonCodec:
+enum LightningTalkAction extends ActorAction derives JsonCodec:
   case SetParticipation(
     speaker: Person,
     participating: Boolean)
   case SetAssignment(
     proposalId: LightningTalkId,
     expectedCurrentAssignment: Option[LightningAssignment],
-    newAssignment: Option[LightningAssignment])
-  case DrawForNextNight
+    newAssignment: Option[LightningAssignment],
+    requester: Person)
+  case DrawForNextNight(
+    requester: Person)
+
+  def actor: Person = this match
+    case SetParticipation(speaker, _)  => speaker
+    case SetAssignment(_, _, _, requester) => requester
+    case DrawForNextNight(requester)   => requester
 
 enum LightningTalkActionConfirmed extends HasActor derives JsonCodec:
   case AddResult(

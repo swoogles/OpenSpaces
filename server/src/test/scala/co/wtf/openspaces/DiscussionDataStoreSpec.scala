@@ -99,6 +99,7 @@ object DiscussionDataStoreSpec extends ZIOSpecDefault:
           existingDiscussion.id,
           expectedCurrentLockedTimeslot = false,
           newLockedTimeslot = true,
+          requester = Person("admin"),
         )
 
         for {
@@ -133,6 +134,7 @@ object DiscussionDataStoreSpec extends ZIOSpecDefault:
           existingDiscussion.id,
           expectedCurrentLockedTimeslot = false,
           newLockedTimeslot = true,
+          requester = Person("admin"),
         )
 
         for {
