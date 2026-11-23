@@ -354,6 +354,16 @@ case class SessionService(
       persistIfLoggable(message).ignore.run
 
       // Update server's in-memory state for outbound confirmed actions.
+      //
+      // TODO(double-apply): Every entity service already updates its own Ref inside
+      // applyAction, so for normal actions this applies the same event a second time.
+      // It is harmless today only because every state transition happens to be
+      // idempotent (map upserts, set adds, filterNot). Pick a single writer:
+      //   a) services own their state: only apply here for events that bypass the
+      //      services (SlackThreadLinked follow-ups, admin StateReplace), or
+      //   b) broadcast owns state: services stop calling state.update and this is
+      //      the only place events are applied.
+      // A non-idempotent transition (e.g. a counter) would silently double-count.
       message match
         case DiscussionActionConfirmedMessage(discussionConfirmed) =>
           discussionStore.applyConfirmed(discussionConfirmed).run
