@@ -3,10 +3,16 @@ ThisBuild / version          := "0.1.0-SNAPSHOT"
 ThisBuild / organization     := "com.billding"
 ThisBuild / organizationName := "billding"
 ThisBuild / testFrameworks += new TestFramework("zio.test.sbt.ZTestFramework")
-ThisBuild / libraryDependencies ++=Seq(
-  "dev.zio" %%% "zio-test" % "2.1.23" % Test,
-  "dev.zio" %%% "zio-test-sbt" % "2.1.23" % Test,
-  "dev.zio" %%% "zio-json" % "0.7.38",
+
+// Declared per project (not at ThisBuild): %%% only resolves Scala.js artifacts
+// inside a project that has the Scala.js plugin enabled. At ThisBuild level it
+// picks the JVM jars, which broke the shared module's JS tests.
+lazy val commonSettings = Seq(
+  libraryDependencies ++= Seq(
+    "dev.zio" %%% "zio-test" % "2.1.23" % Test,
+    "dev.zio" %%% "zio-test-sbt" % "2.1.23" % Test,
+    "dev.zio" %%% "zio-json" % "0.7.38",
+  ),
 )
 
 enablePlugins(DockerPlugin)
@@ -18,6 +24,7 @@ import org.scalajs.linker.interface.ModuleSplitStyle
 
 lazy val sharedCode =
   crossProject(JSPlatform, JVMPlatform).in(file("shared_code"))
+    .settings(commonSettings)
     .settings(
       name := "shared",
       libraryDependencies ++= Seq(
@@ -40,6 +47,7 @@ lazy val sharedCode =
 lazy val client = (project in file("client"))
   .enablePlugins(ScalaJSPlugin)
   .dependsOn(sharedCode.js)
+  .settings(commonSettings)
   .settings(
     name := "client",
     Compile / fastOptJS / artifactPath := baseDirectory.value.getParentFile / "server" / "src" / "main" / "resources" / "public" / "client-fastopt.js",
@@ -76,6 +84,7 @@ lazy val serviceworker = (project in file("serviceworker"))
 lazy val server = (project in file("server"))
   .enablePlugins(JavaAppPackaging, AshScriptPlugin)
   .dependsOn(sharedCode.jvm)
+  .settings(commonSettings)
   .settings(
     name := "server",
     dockerExposedPorts ++= Seq(8080, 9000, 9001),
