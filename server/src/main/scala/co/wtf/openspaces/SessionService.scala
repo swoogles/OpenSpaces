@@ -2,7 +2,7 @@ package co.wtf.openspaces
 
 import co.wtf.openspaces.auth.{AdminConfig, AuthenticatedTicketService}
 import co.wtf.openspaces.db.{ConfirmedActionRepository, DiscussionRepository, UserRepository}
-import co.wtf.openspaces.discussions.{DiscussionAction, DiscussionActionConfirmed, DiscussionStore}
+import co.wtf.openspaces.discussions.{DiscussionAction, DiscussionActionConfirmed, DiscussionState, DiscussionStore}
 import co.wtf.openspaces.hackathon.*
 import co.wtf.openspaces.lightning_talks.LightningTalkService
 import co.wtf.openspaces.lighting_talks.*
@@ -235,14 +235,7 @@ case class SessionService(
     for
       _ <- discussionRepository.softDelete(topicId.unwrap)
       reloadedDiscussionState <- discussionStore.reloadFromDatabase
-      _ <- broadcastToAll(
-        DiscussionActionConfirmedMessage(
-          DiscussionActionConfirmed.StateReplace(
-            reloadedDiscussionState.data.values.toList,
-            reloadedDiscussionState.slots,
-          ),
-        ),
-      )
+      _ <- broadcastToAll(SessionService.discussionStateReplace(reloadedDiscussionState))
       _ <- slackNotifier
         .notifyDiscussion(
           DiscussionActionConfirmed.Delete(topicId),
@@ -265,30 +258,7 @@ case class SessionService(
     for
       deletedConfirmedActions <- confirmedActionRepository.deleteByActors(usernames)
       deletedUsers <- userRepository.deleteByUsernames(usernames)
-      reloadedDiscussionState <- discussionStore.reloadFromDatabase
-      reloadedLightningState <- lightningTalkService.reloadFromDatabase
-      reloadedHackathonState <- hackathonProjectService.reloadFromDatabase
-      reloadedActivityState <- activityService.reloadFromDatabase
-      _ <- broadcastToAll(
-        DiscussionActionConfirmedMessage(
-          DiscussionActionConfirmed.StateReplace(reloadedDiscussionState.data.values.toList, reloadedDiscussionState.slots),
-        ),
-      )
-      _ <- broadcastToAll(
-        LightningTalkActionConfirmedMessage(
-          LightningTalkActionConfirmed.StateReplace(reloadedLightningState.proposals.values.toList),
-        ),
-      )
-      _ <- broadcastToAll(
-        HackathonProjectActionConfirmedMessage(
-          HackathonProjectActionConfirmed.StateReplace(reloadedHackathonState.projects.values.toList),
-        ),
-      )
-      _ <- broadcastToAll(
-        ActivityActionConfirmedMessage(
-          ActivityActionConfirmed.StateReplace(reloadedActivityState.activities.values.toList),
-        ),
-      )
+      _ <- reloadAllStateFromDatabase
     yield DeleteRandomUsersResult(
       deletedUsers = deletedUsers,
       deletedConfirmedActions = deletedConfirmedActions,
@@ -305,35 +275,14 @@ case class SessionService(
       reloadedLightningState <- lightningTalkService.reloadFromDatabase
       reloadedHackathonState <- hackathonProjectService.reloadFromDatabase
       reloadedActivityState <- activityService.reloadFromDatabase
-      _ <- broadcastToAll(
-        DiscussionActionConfirmedMessage(
-          DiscussionActionConfirmed.StateReplace(
-            reloadedDiscussionState.data.values.toList,
-            reloadedDiscussionState.slots,
-          ),
+      _ <- ZIO.foreachDiscard(
+        SessionService.entityStateReplaces(
+          reloadedDiscussionState,
+          reloadedLightningState,
+          reloadedHackathonState,
+          reloadedActivityState,
         ),
-      )
-      _ <- broadcastToAll(
-        LightningTalkActionConfirmedMessage(
-          LightningTalkActionConfirmed.StateReplace(
-            reloadedLightningState.proposals.values.toList,
-          ),
-        ),
-      )
-      _ <- broadcastToAll(
-        HackathonProjectActionConfirmedMessage(
-          HackathonProjectActionConfirmed.StateReplace(
-            reloadedHackathonState.projects.values.toList,
-          ),
-        ),
-      )
-      _ <- broadcastToAll(
-        ActivityActionConfirmedMessage(
-          ActivityActionConfirmed.StateReplace(
-            reloadedActivityState.activities.values.toList,
-          ),
-        ),
-      )
+      )(broadcastToAll)
     yield ReloadStateResult(
       discussions = reloadedDiscussionState.data.size,
       lightningTalks = reloadedLightningState.proposals.size,
@@ -355,41 +304,19 @@ case class SessionService(
           reg.copy(pending = reg.pending.updated(channel, Vector.empty)),
         )
         .run
-      val state = discussionStore.snapshot.run
-      val lightningState = lightningTalkService.snapshot.run
-      val hackathonState = hackathonProjectService.snapshot.run
-      val activityState = activityService.snapshot.run
       val locationState = locationService.snapshot.run
-      val latestSlackReplyCounts = slackReplyCounts.get.run
-      val initialMessages = Vector[WebSocketMessageFromServer](
-        DiscussionActionConfirmedMessage(
-          DiscussionActionConfirmed.StateReplace(
-            state.data.values.toList,
-            state.slots,
+      val initialMessages =
+        SessionService.entityStateReplaces(
+          discussionStore.snapshot.run,
+          lightningTalkService.snapshot.run,
+          hackathonProjectService.snapshot.run,
+          activityService.snapshot.run,
+        ) ++ Vector(
+          LocationActionConfirmedMessage(
+            LocationActionConfirmed.StateReplace(locationState.locations.values.toList),
           ),
-        ),
-        LightningTalkActionConfirmedMessage(
-          LightningTalkActionConfirmed.StateReplace(
-            lightningState.proposals.values.toList,
-          ),
-        ),
-        HackathonProjectActionConfirmedMessage(
-          HackathonProjectActionConfirmed.StateReplace(
-            hackathonState.projects.values.toList,
-          ),
-        ),
-        ActivityActionConfirmedMessage(
-          ActivityActionConfirmed.StateReplace(
-            activityState.activities.values.toList,
-          ),
-        ),
-        LocationActionConfirmedMessage(
-          LocationActionConfirmed.StateReplace(
-            locationState.locations.values.toList,
-          ),
-        ),
-        SlackReplyCountsMessage(latestSlackReplyCounts),
-      )
+          SlackReplyCountsMessage(slackReplyCounts.get.run),
+        )
       val messagesToSend = channelRegistry
         .modify(reg =>
           val queued = reg.pending.getOrElse(channel, Vector.empty)
@@ -653,6 +580,31 @@ case class SessionService(
       .fork
 
 object SessionService:
+  def discussionStateReplace(state: DiscussionState): WebSocketMessageFromServer =
+    DiscussionActionConfirmedMessage(
+      DiscussionActionConfirmed.StateReplace(state.data.values.toList, state.slots),
+    )
+
+  /** Full-state replacements for every persisted entity type. */
+  def entityStateReplaces(
+    discussions: DiscussionState,
+    lightningTalks: LightningTalkState,
+    hackathonProjects: HackathonProjectState,
+    activities: ActivityState,
+  ): Vector[WebSocketMessageFromServer] =
+    Vector(
+      discussionStateReplace(discussions),
+      LightningTalkActionConfirmedMessage(
+        LightningTalkActionConfirmed.StateReplace(lightningTalks.proposals.values.toList),
+      ),
+      HackathonProjectActionConfirmedMessage(
+        HackathonProjectActionConfirmed.StateReplace(hackathonProjects.projects.values.toList),
+      ),
+      ActivityActionConfirmedMessage(
+        ActivityActionConfirmed.StateReplace(activities.activities.values.toList),
+      ),
+    )
+
   val layer =
     ZLayer.fromZIO:
       defer:
