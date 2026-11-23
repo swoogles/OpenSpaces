@@ -1,6 +1,6 @@
 package co.wtf.openspaces.hackathon
 
-import co.wtf.openspaces.{Person, UserOps}
+import co.wtf.openspaces.{Member, Person, UserOps}
 import co.wtf.openspaces.github.GitHubProfileService
 import co.wtf.openspaces.db.{
   HackathonProjectRepository,
@@ -230,7 +230,7 @@ object HackathonProjectService:
     displayNames: Map[String, Option[String]],
   ): HackathonProject =
     val members = memberRows.map { row =>
-      ProjectMember(
+      Member(
         person = Person(row.githubUsername),
         joinedAtEpochMs = row.joinedAt.toInstant.toEpochMilli,
       )

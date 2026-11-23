@@ -1,6 +1,6 @@
 package co.wtf.openspaces.activities
 
-import co.wtf.openspaces.Person
+import co.wtf.openspaces.{Member, Membership, Person}
 import neotype.*
 import neotype.unwrap
 import neotype.interop.ziojson.given
@@ -18,31 +18,20 @@ object ActivityDescription extends Newtype[String]:
     else if trimmed.length > 120 then "Activity description must be 120 characters or less"
     else true
 
-case class ActivityMember(
-  person: Person,
-  joinedAtEpochMs: Long,
-) derives JsonCodec
-
-object ActivityMember:
-  given Ordering[ActivityMember] = Ordering.by(_.joinedAtEpochMs)
-
 case class Activity(
   id: ActivityId,
   description: ActivityDescription,
   creator: Person,
   creatorDisplayName: Option[String],
   eventTime: LocalDateTime,
-  members: List[ActivityMember],
+  members: List[Member],
   createdAtEpochMs: Long,
   slackThreadUrl: Option[String] = None,
   dismissedBy: Set[Person] = Set.empty,
-) derives JsonCodec:
+) extends Membership[Activity] derives JsonCodec:
   val descriptionText: String = description.unwrap
   val creatorName: String = creatorDisplayName.getOrElse(creator.unwrap)
-  val interestCount: Int = members.size
-
-  def hasMember(person: Person): Boolean =
-    members.exists(_.person == person)
+  def interestCount: Int = memberCount
 
   def hasDismissed(person: Person): Boolean =
     dismissedBy.contains(person)
@@ -51,28 +40,16 @@ case class Activity(
   def hasVoted(person: Person): Boolean =
     hasMember(person) || hasDismissed(person)
 
-  def isOwner(person: Person): Boolean =
-    creator == person
+  /** The creator owns the activity. */
+  def owner: Person = creator
 
-  def nextOwner: Option[Person] =
-    members
-      .filterNot(_.person == creator)
-      .sorted
-      .headOption
-      .map(_.person)
+  protected def withMembers(members: List[Member]): Activity =
+    copy(members = members)
 
-  def wouldBeDeletedIfLeaves(person: Person): Boolean =
-    isOwner(person) && nextOwner.isEmpty
-
-  def withMember(person: Person, joinedAtEpochMs: Long): Activity =
+  /** Becoming interested also clears any earlier dismissal. */
+  override def withMember(person: Person, joinedAtEpochMs: Long): Activity =
     if hasMember(person) then this
-    else copy(
-      members = members :+ ActivityMember(person, joinedAtEpochMs),
-      dismissedBy = dismissedBy - person, // Remove from dismissed if they become interested
-    )
-
-  def withoutMember(person: Person): Activity =
-    copy(members = members.filterNot(_.person == person))
+    else super.withMember(person, joinedAtEpochMs).copy(dismissedBy = dismissedBy - person)
 
   def withDismissal(person: Person): Activity =
     if hasDismissed(person) then this

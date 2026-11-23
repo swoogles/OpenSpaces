@@ -1,6 +1,6 @@
 package co.wtf.openspaces.activities
 
-import co.wtf.openspaces.{Person, UserOps}
+import co.wtf.openspaces.{Member, Person, UserOps}
 import co.wtf.openspaces.db.{
   ActivityDismissalRepository,
   ActivityInterestRepository,
@@ -207,7 +207,7 @@ case class ActivityService(
       creator = creator,
       creatorDisplayName = creatorUser.flatMap(_.displayName),
       eventTime = eventTime,
-      members = List(ActivityMember(creator, createdAtEpochMs)),
+      members = List(Member(creator, createdAtEpochMs)),
       createdAtEpochMs = createdAtEpochMs,
     )
 
@@ -233,7 +233,7 @@ object ActivityService:
   private def fromRow(
     row: ActivityRow,
     displayName: Option[String],
-    members: List[ActivityMember],
+    members: List[Member],
     dismissedBy: Set[Person],
   ): Activity =
     Activity(
@@ -263,7 +263,7 @@ object ActivityService:
           dismissals <- activityDismissalRepo.findByActivity(row.id)
           members = interests
             .map(i =>
-              ActivityMember(
+              Member(
                 person = Person(i.githubUsername),
                 joinedAtEpochMs = i.interestedAt.toInstant.toEpochMilli,
               ),
@@ -274,7 +274,7 @@ object ActivityService:
           creatorPerson = Person(row.creator)
           normalizedMembers =
             if members.exists(_.person == creatorPerson) then members
-            else ActivityMember(creatorPerson, row.createdAt.toInstant.toEpochMilli) :: members
+            else Member(creatorPerson, row.createdAt.toInstant.toEpochMilli) :: members
         yield fromRow(row, creator.flatMap(_.displayName), normalizedMembers, dismissedBy)
       }
     yield ActivityState(activities.map(a => a.id -> a).toMap)
