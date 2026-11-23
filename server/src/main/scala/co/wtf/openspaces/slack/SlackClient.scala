@@ -3,6 +3,7 @@ package co.wtf.openspaces.slack
 import zio.*
 import zio.http.*
 import zio.json.*
+import zio.json.ast.Json
 
 case class SlackMessageRef(channel: String, ts: String)
 
@@ -14,8 +15,8 @@ enum ReplyCountResult:
   case Error(msg: String)
 
 trait SlackClient:
-  def postMessage(channel: String, blocks: String): Task[SlackMessageRef]
-  def updateMessage(channel: String, ts: String, blocks: String): Task[Unit]
+  def postMessage(channel: String, blocks: Json): Task[SlackMessageRef]
+  def updateMessage(channel: String, ts: String, blocks: Json): Task[Unit]
   def deleteMessage(channel: String, ts: String): Task[Unit]
   def postReply(channel: String, threadTs: String, text: String): Task[Unit]
   /** Post a reply and return the message timestamp (for future updates) */
@@ -46,64 +47,35 @@ class SlackClientLive(client: Client, config: SlackConfig) extends SlackClient:
       _ <- ZIO.when(!ok)(ZIO.fail(new Exception(s"Slack API error: $body")))
     yield json
 
-  def postMessage(channel: String, blocks: String): Task[SlackMessageRef] =
+  /** POST a JSON payload to a Slack Web API method and return the parsed, `ok`-checked response. */
+  private def post(method: String, fields: (String, Json)*): Task[Json] =
     ZIO.scoped:
       for
-        payload <- ZIO.succeed(s"""{"channel":"$channel","blocks":$blocks}""")
-        res     <- slackRequest.post("/chat.postMessage")(Body.fromString(payload))
-        body    <- res.body.asString
-        json    <- parseSlackResponse(body)
-        ref     <- extractMessageRef(json)
-      yield ref
+        res  <- slackRequest.post(method)(Body.fromString(Json.Obj(fields*).toJson))
+        body <- res.body.asString
+        json <- parseSlackResponse(body)
+      yield json
 
-  def updateMessage(channel: String, ts: String, blocks: String): Task[Unit] =
-    ZIO.scoped:
-      for
-        payload <- ZIO.succeed(s"""{"channel":"$channel","ts":"$ts","blocks":$blocks}""")
-        res     <- slackRequest.post("/chat.update")(Body.fromString(payload))
-        body    <- res.body.asString
-        _       <- parseSlackResponse(body)
-      yield ()
+  def postMessage(channel: String, blocks: Json): Task[SlackMessageRef] =
+    post("/chat.postMessage", "channel" -> Json.Str(channel), "blocks" -> blocks)
+      .flatMap(extractMessageRef)
+
+  def updateMessage(channel: String, ts: String, blocks: Json): Task[Unit] =
+    post("/chat.update", "channel" -> Json.Str(channel), "ts" -> Json.Str(ts), "blocks" -> blocks).unit
 
   def deleteMessage(channel: String, ts: String): Task[Unit] =
-    ZIO.scoped:
-      for
-        payload <- ZIO.succeed(s"""{"channel":"$channel","ts":"$ts"}""")
-        res     <- slackRequest.post("/chat.delete")(Body.fromString(payload))
-        body    <- res.body.asString
-        _       <- parseSlackResponse(body)
-      yield ()
+    post("/chat.delete", "channel" -> Json.Str(channel), "ts" -> Json.Str(ts)).unit
 
   def postReply(channel: String, threadTs: String, text: String): Task[Unit] =
-    ZIO.scoped:
-      for
-        escapedText <- ZIO.succeed(text.replace("\"", "\\\""))
-        payload     <- ZIO.succeed(s"""{"channel":"$channel","thread_ts":"$threadTs","text":"$escapedText"}""")
-        res         <- slackRequest.post("/chat.postMessage")(Body.fromString(payload))
-        body        <- res.body.asString
-        _           <- parseSlackResponse(body)
-      yield ()
+    postReplyWithTs(channel, threadTs, text).unit
 
   def postReplyWithTs(channel: String, threadTs: String, text: String): Task[String] =
-    ZIO.scoped:
-      for
-        escapedText <- ZIO.succeed(text.replace("\"", "\\\""))
-        payload     <- ZIO.succeed(s"""{"channel":"$channel","thread_ts":"$threadTs","text":"$escapedText"}""")
-        res         <- slackRequest.post("/chat.postMessage")(Body.fromString(payload))
-        body        <- res.body.asString
-        json        <- parseSlackResponse(body)
-        ref         <- extractMessageRef(json)
-      yield ref.ts
+    post("/chat.postMessage", "channel" -> Json.Str(channel), "thread_ts" -> Json.Str(threadTs), "text" -> Json.Str(text))
+      .flatMap(extractMessageRef)
+      .map(_.ts)
 
   def updateReply(channel: String, ts: String, text: String): Task[Unit] =
-    ZIO.scoped:
-      for
-        escapedText <- ZIO.succeed(text.replace("\"", "\\\""))
-        payload     <- ZIO.succeed(s"""{"channel":"$channel","ts":"$ts","text":"$escapedText"}""")
-        res         <- slackRequest.post("/chat.update")(Body.fromString(payload))
-        body        <- res.body.asString
-        _           <- parseSlackResponse(body)
-      yield ()
+    post("/chat.update", "channel" -> Json.Str(channel), "ts" -> Json.Str(ts), "text" -> Json.Str(text)).unit
 
   def getPermalink(channel: String, messageTs: String): Task[String] =
     ZIO.scoped:
@@ -150,14 +122,7 @@ class SlackClientLive(client: Client, config: SlackConfig) extends SlackClient:
       yield channelId
 
   def createChannel(name: String): Task[String] =
-    ZIO.scoped:
-      for
-        payload <- ZIO.succeed(s"""{"name":"$name"}""")
-        res     <- slackRequest.post("/conversations.create")(Body.fromString(payload))
-        body    <- res.body.asString
-        json    <- parseSlackResponse(body)
-        channelId <- extractCreatedChannelId(json)
-      yield channelId
+    post("/conversations.create", "name" -> Json.Str(name)).flatMap(extractCreatedChannelId)
 
   private def extractChannelIdByName(json: zio.json.ast.Json, targetName: String): Option[String] =
     json match
